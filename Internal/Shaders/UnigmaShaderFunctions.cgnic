@@ -1,0 +1,28 @@
+
+#define UnigmaShaderFunctions
+
+float4 ToFloat4(float3 v)
+{
+    return float4(v, 1);
+}
+
+//Iquilezles, raises value slightly, m = threshold (anything above m stays unchanged).
+// n = value when 0
+// x = value input.
+float almostIdentity(float x, float m, float n) {
+	if (x > m) return x;
+	const float a = 2.0 * n - m;
+	const float b = 2.0 * m - 3.0 * n;
+	const float t = x / m;
+	return (a * t + b) * t * t + n;
+}
+
+float3 CreateBinormal(float3 normal, float3 tangent, float binormalSign) {
+	return cross(normal, tangent.xyz) * (binormalSign * unity_WorldTransformParams.w);
+}
+
+
+float3 WorldNormalVector(Interpolators data, float3 normal)
+{
+    return 0; //fixed3(dot(data.TtoW0, normal), dot(data.TtoW1, normal), dot(data.TtoW2, normal));
+}

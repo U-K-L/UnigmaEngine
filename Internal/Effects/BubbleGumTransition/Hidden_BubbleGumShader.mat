@@ -39,7 +39,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _Intensity: 2
-    - _Transition: 1.0165339
+    - _Transition: 1
     m_Colors:
     - _RefracStr: {r: 12, g: 2, b: 0.004, a: 0.5}
     - _SurfaceNoiseScroll: {r: 0.03, g: 0.03, b: 0, a: 1.53}

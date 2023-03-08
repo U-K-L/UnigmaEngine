@@ -12,6 +12,7 @@ public class SpiralingBlocks : MonoBehaviour
     void Start()
     {
         _blocks = new GameObject[numBlocks];
+        
         //for loop and instantiate blocks
         for (int i = 0; i < numBlocks; i++)
         {

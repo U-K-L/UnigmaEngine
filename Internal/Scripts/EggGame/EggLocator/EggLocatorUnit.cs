@@ -46,12 +46,19 @@ public class EggLocatorUnit : MonoBehaviour
     public bool isRecovering = false;
     void Start()
     {
-        eggGameManager = GameObject.FindGameObjectWithTag("GameManager").GetComponent<EggGameManager>();
+        GameObject notNull = GameObject.FindGameObjectWithTag("GameManager");
+        if (notNull)
+        {
+            eggGameManager = notNull.GetComponent<EggGameManager>();
+            _blockGraph = GameObject.FindGameObjectWithTag("GameManager").GetComponent<BlockGraph>();
+        }
+
         GameObject jump = Resources.Load<GameObject>("Sounds/Jump/Jump");
         jump = Instantiate(jump, transform);
         _audioJump = jump.GetComponent<AudioSource>();
         _agent = GetComponent<AgentPhysics>();
-        _blockGraph = GameObject.FindGameObjectWithTag("GameManager").GetComponent<BlockGraph>();
+        
+        
         _agent.OnLanding += OnLanding;
         _agent.OnColliding += OnColliding;
         _agent.OnTriggered += OnTriggered;
@@ -149,7 +156,8 @@ public class EggLocatorUnit : MonoBehaviour
 
         Debug.Log(gameObject.name + " landed on " + collision.gameObject.name);
         AdjustToBlock();
-        eggGameManager.Unlock();
+        if(eggGameManager)
+            eggGameManager.Unlock();
     }
 
     public void OnTriggered(object[] arguments)

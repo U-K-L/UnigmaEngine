@@ -31,7 +31,11 @@ public class BlockEntity : MonoBehaviour
     public void Start()
     {
         _currentDurability = _maxDurability;
-        eggGameManager = GameObject.FindGameObjectWithTag("GameManager").GetComponent<EggGameManager>();
+        GameObject notNull = GameObject.FindGameObjectWithTag("GameManager");
+        if (notNull)
+        {
+            eggGameManager = notNull.GetComponent<EggGameManager>();
+        }
         connectedBlocks = new Dictionary<string, BlockEntity>();
         Rigidbody body = GetComponent<Rigidbody>();
         if (body == null)

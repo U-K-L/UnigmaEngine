@@ -24,6 +24,7 @@
 		_SpriteTexOn("IsASprite", Range(0, 1)) = 0
 
 		_SetFramesGPU("Set frames true false", Range(0,1)) = 1
+		_Flip("Flips The Sprite", Range(0,1)) = 0
 
 		//Remove a background of a single color.
 		_BackGroundRemovalColor("Background Removal", Color) = (0,0,0,0)
@@ -85,7 +86,7 @@
 				float4 _RimOutlineColor;
 				float _OutlineAmount;
 				float _RimAmount;
-				float _RimThreshold, _SetFramesGPU;
+				float _RimThreshold, _SetFramesGPU, _Flip;
 				
 
 				fixed4 _PrevPosition;
@@ -188,7 +189,8 @@
 
 					float rim = rimIntensity * _RimLightColor;
 					fixed4 text = tex2D(_MainTex, i.uv);
-					float4 spriteTex = tex2D( _SpriteTex, i.uv);
+					float UVX = step(0.1, _Flip)*(_Flip - i.uv.x)  + step(_Flip, 0.1) * (i.uv.x);
+					float4 spriteTex = tex2D(_SpriteTex, float2(UVX, i.uv.y));
 					fixed4 result = text * _Color* (light + _AmbientColor + specular + rim + rimBloom + BlackOutLine + OutLine);
 					result.a = 1;
 					//Removes Background.

@@ -26,7 +26,7 @@ public class SpiralingBlocks : MonoBehaviour
     {
         for (int i = 0; i < numBlocks; i++)
         {
-            _blocks[i].transform.position = Spiral(_blocks[i].transform.position, 0.5f);
+            _blocks[i].transform.localPosition = Spiral(_blocks[i].transform.localPosition, 0.15f);
         }
     }
 
@@ -40,8 +40,8 @@ public class SpiralingBlocks : MonoBehaviour
         Vector3 vectorValueFunction = new Vector3(3f*Mathf.Sin(Time.time*speed),1*speed, 3f*Mathf.Cos(Time.time*speed));
         newPos += vectorValueFunction * Time.deltaTime;
         */
-
-        newPos.y += Mathf.Sin(Mathf.PI * (Time.time * speed + p.x));
+        
+        newPos.y = 4f*Mathf.Sin( Mathf.PI * ( ((p.x/ (numBlocks/2))-numBlocks/2) + Time.time * speed));
 
         return newPos;
     }

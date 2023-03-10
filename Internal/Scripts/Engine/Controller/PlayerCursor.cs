@@ -30,7 +30,7 @@ public class PlayerCursor : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
         UpdateCursorPosition();
         DefineCursorSettings();
@@ -114,6 +114,7 @@ public class PlayerCursor : MonoBehaviour
     //Also obtains the game object cursor points to.
     Vector3 getCursorPosition(Vector2 screenPoint)
     {
+        cursorPointTo = null;
         Ray ray = _cam.ScreenPointToRay(screenPoint);
         int layerMask = 0;
         layerMask = 1 << 19;

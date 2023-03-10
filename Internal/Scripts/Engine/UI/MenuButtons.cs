@@ -58,11 +58,17 @@ public class MenuButtons : ImmediateModeShapeDrawer
     public Vector2 collisionMax = new Vector2(4.5f, 1);
 
     public bool active = false;
+
+    private PlayerCursor cursor;
     // Start is called before the first frame update
     void Start()
     {
+        cursor = GameObject.Find("Cursor").GetComponent<PlayerCursor>();
         collisionMin = new Vector2(-0.45f, -0.3f);
         collisionMax = new Vector2(4.5f, 1);
+        BoxCollider box = gameObject.AddComponent<BoxCollider>();
+        box.size = new Vector3(4.68f, 0.9f, 0.34f);
+        box.center = new Vector3(1.99f, 0.12f, 0.88f);
     }
 
     // Update is called once per frame
@@ -214,21 +220,7 @@ public class MenuButtons : ImmediateModeShapeDrawer
 
     void CheckCollision(Camera cam)
     {
-        Vector3 UIpos = _UIPosition;
-        //UIpos = cam.WorldToScreenPoint(_UIPosition);
-        Vector2 boxMin =  new Vector2(UIpos.x, UIpos.y) + collisionMin;
-        Vector2 boxMax = boxMin + collisionMax;
-
-        Debug.Log(this.name + "  " + type + " UI Pos " + UIpos);
-        //boxMax = Camera.main.ScreenToWorldPoint(boxMax);
-        //boxMin = Camera.main.ScreenToWorldPoint(boxMin);
-
-        //Debug.Log("Mouse position is: " + _mousePos);
-        //Debug.Log("Box min is: " + boxMin.ToString("F7"));
-        //Debug.Log("Box max is: " + boxMax.ToString("F7"));
-        
-
-        if (_mousePos.x > boxMin.x && _mousePos.x < boxMax.x && _mousePos.y > boxMin.y && _mousePos.y < boxMax.y)
+        if (cursor.GetCursorPointsToObject() == this.gameObject)
         {
             Active();
         }

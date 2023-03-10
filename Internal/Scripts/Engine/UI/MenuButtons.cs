@@ -190,6 +190,7 @@ public class MenuButtons : ImmediateModeShapeDrawer
             Draw.ResetAllDrawStates();
             Draw.ZTest = CompareFunction.Always;
             Draw.Matrix = gameObject.transform.localToWorldMatrix;//Draw.Matrix = cam.main.transform.localToWorldMatrix;
+            
             //Vector2 posScreen = cam.WorldToScreenPoint(Draw.Position2D);
             //Vector2 worldScreen = new Vector2(posScreen.x * 0f, posScreen.y);
             //Draw.Position = cam.ScreenToWorldPoint(worldScreen);

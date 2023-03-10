@@ -12,12 +12,15 @@ public class TitleScreenUI : MonoBehaviour
     void Start()
     {
         CreateButtons();
+        this.transform.localPosition = new Vector3(13.835f, 2.439f, -2.44f);
+        this.transform.localRotation = new Quaternion(-0.18834f, 0.44261f, -0.09565f, -0.87148f);
+        Debug.Log(this.transform.localRotation);
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        Debug.Log(this.transform.localRotation);
     }
 
     void CreateButtons()

@@ -87,16 +87,16 @@ public class MenuButtons : ImmediateModeShapeDrawer
             Draw.ResetAllDrawStates();
             Draw.BlendMode = ShapesBlendMode.Opaque;
             Draw.ZTest = CompareFunction.Always;
-            Draw.Matrix = cam.transform.localToWorldMatrix;
-            Draw.Position += this.transform.position;
+            Draw.Matrix = gameObject.transform.localToWorldMatrix;//cam.transform.localToWorldMatrix;
+            //Draw.Position += this.transform.position;
             Draw.LocalScale = this.transform.localScale;
 
             
             Vector2 posScreen = cam.WorldToScreenPoint(Draw.Position2D);
             
-            Vector2 worldScreen = new Vector2(posScreen.x * 0f, posScreen.y);
-            Draw.Position = cam.ScreenToWorldPoint(worldScreen);
-            Draw.Position += new Vector3(0.45f + this.transform.position.x, 0, 0);
+            //Vector2 worldScreen = new Vector2(posScreen.x * 0f, posScreen.y);
+            //Draw.Position = cam.ScreenToWorldPoint(worldScreen);
+            //Draw.Position += new Vector3(0.45f + this.transform.position.x, 0, 0);
             //Draw Shadow
             Draw.UseDashes = false;
             Draw.UseGradientFill = true;
@@ -189,12 +189,11 @@ public class MenuButtons : ImmediateModeShapeDrawer
         {
             Draw.ResetAllDrawStates();
             Draw.ZTest = CompareFunction.Always;
-            Draw.Matrix = Camera.main.transform.localToWorldMatrix;
-            Draw.Position += this.transform.position;
-            Vector2 posScreen = cam.WorldToScreenPoint(Draw.Position2D);
-            Vector2 worldScreen = new Vector2(posScreen.x * 0f, posScreen.y);
-            Draw.Position = cam.ScreenToWorldPoint(worldScreen);
-            Draw.Position += new Vector3(0.45f + this.transform.position.x, 0, 0);
+            Draw.Matrix = gameObject.transform.localToWorldMatrix;//Draw.Matrix = cam.main.transform.localToWorldMatrix;
+            //Vector2 posScreen = cam.WorldToScreenPoint(Draw.Position2D);
+            //Vector2 worldScreen = new Vector2(posScreen.x * 0f, posScreen.y);
+            //Draw.Position = cam.ScreenToWorldPoint(worldScreen);
+            //Draw.Position += new Vector3(0.45f + this.transform.position.x, 0, 0);
             Draw.LocalScale = this.transform.localScale;
             Draw.FontSize = fontSize;
             if (active)

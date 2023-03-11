@@ -27,15 +27,19 @@ public class AgentAI : MonoBehaviour
     private Transform _targetedGoal;
     //type, data
     public ConcurrentQueue<(string,string)> tasks = new ConcurrentQueue<(string, string)>();
+
+    private LanguageGeneration _languageGeneration;
     void Start()
     {
         Debug.Log("AgentAI Start");
+        dialogueBox = GetComponentInChildren<DialogueBox>();
         visionField = GetComponent<ConeDetection>();
         visionFieldThreaded = GetComponent<ConeDetectionMultithreaded>();
         agentSummoning = GetComponent<AgentSummoning>();
         AgentAIThoughtsThreaded thought = new AgentAIThoughtsThreaded();
         AgentAIManager.CreateAIThread(thought, this, transform.parent.name);
         Aname = transform.name;
+        _languageGeneration = GetComponent<LanguageGeneration>();
 
         _mInterpreter = new MagikaPP_Interpreter();
         _agentReady = true;
@@ -117,6 +121,12 @@ public class AgentAI : MonoBehaviour
         if (task.Item1 == "Halt")
         {
             
+        }
+
+        if (task.Item1 == "GenerativeThought")
+        {
+            Halt();
+            _languageGeneration.GenerateDialogue(task.Item2);
         }
     }
 

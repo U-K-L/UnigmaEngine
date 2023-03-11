@@ -79,10 +79,10 @@ public class AgentAIThoughtsThreaded
             agent.tasks.Enqueue(task);
         }
 
-        if (Iobj.type == "ChatGPT")
+        if (Iobj.type == "CPU")
         {
             agent.thinkingState = AgentAI.ThinkingStateMachine.thinking;
-            (string, string) task = ("Thought", "Chat GPT, I found chat GPT!!!");
+            (string, string) task = ("GenerativeThought", Iobj.Iname + ", HP is " + Iobj.HP.ToString());
             agent.tasks.Enqueue(task);
         }
     }

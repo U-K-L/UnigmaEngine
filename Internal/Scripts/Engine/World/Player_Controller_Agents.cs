@@ -67,6 +67,7 @@ public class Player_Controller_Agents : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        /*
         if (usingOrthoCam)
         {
             if (perpCam.isOrtho)
@@ -80,7 +81,9 @@ public class Player_Controller_Agents : MonoBehaviour
             updateInputs();
             updatePaths();
         }
-
+        */
+        updateInputs();
+        updatePaths();
 
         //If it is executing path
         followAgents();
@@ -141,19 +144,25 @@ public class Player_Controller_Agents : MonoBehaviour
     void updateInputs()
     {
         Cursor.visible = false;
-        
+
         if (camCon.rotatingState == false)
         {
             update2DCursor();
             cursor.transform.position = Vector3.Lerp(cursor.transform.position, cursorPosition, Time.deltaTime * 20f);
         }
-            
+
+        if (camCon._camState == CameraController.CameraState.Controlled)
+            camCon.SetPivot(cursor.transform.position);
+
+
 
         updateDrawingPathInputs();
         updateSelectingUnitsInputs();
         updateMenuInputs();
 
-        
+
+        //if (camCon._camState == CameraController.CameraState.Controlled)
+
     }
 
     void updateDrawingPathInputs()
@@ -188,7 +197,7 @@ public class Player_Controller_Agents : MonoBehaviour
             timeButtonHeld = Time.time;
             if (cursorPointTo.tag == "Pedestrian")
             {
-                if(_ped != null)
+                if (_ped != null)
                     _ped.currentlyFollowed = false;
                 _ped = cursorPointTo.GetComponent<AgentPhysics>();
                 _ped.currentlyFollowed = true;

@@ -29,6 +29,7 @@ public class AgentAI : MonoBehaviour
     public ConcurrentQueue<(string,string)> tasks = new ConcurrentQueue<(string, string)>();
     void Start()
     {
+        Debug.Log("AgentAI Start");
         visionField = GetComponent<ConeDetection>();
         visionFieldThreaded = GetComponent<ConeDetectionMultithreaded>();
         agentSummoning = GetComponent<AgentSummoning>();
@@ -61,6 +62,14 @@ public class AgentAI : MonoBehaviour
         agentSummoning.SetActionArguments(new object[] { Vector3.Normalize(agentSummoning.getDestination() - transform.position), agentSummoning.getSpeed() });
     }
 
+    void Halt()
+    {
+        Debug.Log("halting");
+        agentSummoning.setStateIdle();
+        agentSummoning.SetActionArguments(new object[] { null} );
+        movementState = MovementStateMachine.idle;
+    }
+    
     void Fleeing()
     {
         if (Vector3.Distance(_currentTargetedGoal, transform.position) > _avoidRadius)
@@ -91,6 +100,7 @@ public class AgentAI : MonoBehaviour
     {
         if (task.Item1 == "Thought")
         {
+            Halt();
             dialogueBox.AddText(task.Item2);
         }
 
@@ -102,6 +112,11 @@ public class AgentAI : MonoBehaviour
             _currentTargetedGoal.y = float.Parse(values[1]);
             _currentTargetedGoal.z = float.Parse(values[2]);
             movementState = MovementStateMachine.fleeing;
+        }
+
+        if (task.Item1 == "Halt")
+        {
+            
         }
     }
 

@@ -32,6 +32,7 @@ public class AgentAIThoughtsThreaded
 
     public void Update()
     {
+        Debug.Log("Agent is searching thoughts");
         SearchThoughts();
     }
 
@@ -62,7 +63,7 @@ public class AgentAIThoughtsThreaded
 
     void DetermineResponse(IntelligentObject Iobj, AgentAI agent)
     {
-        Debug.Log(Iobj.type);
+        Debug.Log(Iobj.type + " Agent is determining thoughts." );
         if (Iobj.type == "Summoner_Intelligent")
         {
             agent.thinkingState = AgentAI.ThinkingStateMachine.thinking;
@@ -75,6 +76,13 @@ public class AgentAIThoughtsThreaded
             
             agent.thinkingState = AgentAI.ThinkingStateMachine.thinking;
             (string, string) task = ("Flee", Iobj.position.x.ToString() + "," + Iobj.position.y.ToString() + "," + Iobj.position.z.ToString());
+            agent.tasks.Enqueue(task);
+        }
+
+        if (Iobj.type == "ChatGPT")
+        {
+            agent.thinkingState = AgentAI.ThinkingStateMachine.thinking;
+            (string, string) task = ("Thought", "Chat GPT, I found chat GPT!!!");
             agent.tasks.Enqueue(task);
         }
     }

@@ -1,14 +1,16 @@
+using Shapes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
-public class PlayerCursor : MonoBehaviour
+public class PlayerCursor : ImmediateModeShapeDrawer
 {
     // Start is called before the first frame update
     Vector3 _position;
     [Tooltip("If cursor is empty, just use mouse.")]
-    public GameObject cursor;
+    public Vector3 displacement;
     private Dictionary<string, AgentPhysics> selectedObjects; //All selected objects.
     private Camera _cam;
     private enum DrawingState { Idle, Drawing, Selecting, Menu, Following }
@@ -22,11 +24,22 @@ public class PlayerCursor : MonoBehaviour
     Ray fullRay;
     //The object cursor points to.
     GameObject cursorPointTo;
+    public Texture cursorIcon;
+
+    Vector3 _mousePos;
     void Start()
     {
         selectedObjects = new Dictionary<string, AgentPhysics>();
         drawingState = DrawingState.Idle;
         _cam = Camera.main;
+    }
+
+    void Update()
+    {
+        _mousePos = Input.mousePosition;
+        _mousePos.z = Camera.main.nearClipPlane + displacement.z;
+        _mousePos = Camera.main.ScreenToWorldPoint(_mousePos);
+        gameObject.transform.rotation = Camera.main.transform.rotation;
     }
 
     // Update is called once per frame
@@ -41,16 +54,6 @@ public class PlayerCursor : MonoBehaviour
         Vector3 mousePos = Input.mousePosition;
         mousePos.z += _cam.nearClipPlane;
         rayCastPoint = getCursorPosition(mousePos);
-        mousePos = _cam.ScreenToWorldPoint(mousePos);
-
-        //If cursor is empty, just use mouse, and make mouse visible.
-        if (cursor != null)
-        {
-            cursor.transform.position = mousePos;
-            Cursor.visible = false;
-        }else
-            Cursor.visible = true;
-
     }
 
     private void DefineCursorSettings()
@@ -137,6 +140,25 @@ public class PlayerCursor : MonoBehaviour
         }
         fullRay = ray;
         return Vector3.negativeInfinity;
+    }
+
+    public override void DrawShapes(Camera cam)
+    {
+        DrawCursor(cam);
+    }
+    
+    public void DrawCursor(Camera cam)
+    {
+        using (Draw.Command(cam))
+        {
+            Draw.ResetAllDrawStates();
+            Vector3 camPos = cam.transform.position;
+            Draw.Matrix = gameObject.transform.localToWorldMatrix;
+            Draw.Position += displacement;
+            Draw.Position += new Vector3(_mousePos.x, _mousePos.y, _mousePos.z - displacement.z);
+            Draw.ZTest = CompareFunction.Always;
+            Draw.Texture(cursorIcon, new Rect(new Vector2(-0.08f, -0.22f), new Vector2(0.2f, 0.2f)));
+        }
     }
 
     public Dictionary<String, AgentPhysics> getSelectedObjects()

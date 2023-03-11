@@ -210,6 +210,7 @@
 			ENDCG
 		}
 
+		/*
 		//Shadowe casting pass.
 		Pass
         {
@@ -350,6 +351,6 @@
 			
             ENDCG
         }
-
+		*/
 	}
 }

@@ -28,6 +28,10 @@ public class MagikaPP_Node
     {
         if (ID_Children.Count > 0)
         {
+            if (ID_Children[0] <= -1)
+            {
+                return;
+            }
             MagikaPP_Node targetNode = nodes[ID_Children[0]];
             children.Add("next", targetNode);
         }

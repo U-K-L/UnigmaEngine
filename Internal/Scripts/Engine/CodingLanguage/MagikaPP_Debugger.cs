@@ -14,7 +14,7 @@ public class MagikaPP_Debugger : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        DebugParser();
+        //DebugParser();
     }
 
     void DebugParser()

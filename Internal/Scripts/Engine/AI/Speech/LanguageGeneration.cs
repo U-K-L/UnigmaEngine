@@ -4,6 +4,8 @@ using OpenAI.Models;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Newtonsoft.Json;
+using System;
 
 public class LanguageGeneration : MonoBehaviour
 {
@@ -12,7 +14,9 @@ public class LanguageGeneration : MonoBehaviour
 
     private string previousMessage;
 
+    //Remove this and add it to a new script, try to ensure no dependencies on this script.
     private Dictionary<string, List<ChatPrompt>> _conversations = new Dictionary<string, List<ChatPrompt>>();
+
     private string currentConversation = "default";
 
     // Start is called before the first frame update
@@ -98,5 +102,9 @@ public class LanguageGeneration : MonoBehaviour
                 Debug.Log(prompt.Content);
             }
         }
+
+        string convos = JsonConvert.SerializeObject(_conversations);
+
+        System.IO.File.WriteAllText(Application.persistentDataPath + "conversations.json", convos);
     }
 }

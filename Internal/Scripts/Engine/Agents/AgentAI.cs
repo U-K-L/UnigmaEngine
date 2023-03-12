@@ -126,7 +126,8 @@ public class AgentAI : MonoBehaviour
         if (task.Item1 == "GenerativeThought")
         {
             Halt();
-            _languageGeneration.GenerateDialogue(task.Item2);
+            string[] tokens = task.Item2.Split(',');
+            _languageGeneration.GenerateDialogue(tokens[0], task.Item2);
         }
     }
 

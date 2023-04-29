@@ -65,7 +65,7 @@ public class EggGameManager : MonoBehaviour
     {
         if (matchStart)
         {
-            if (MapLoaded && !AgentsCreated && startingBlock != null)
+            if (MapLoaded && !AgentsCreated && startingBlock != null && EggGameMaster.Instance != null)
             {
                 CreateStage();
             }
@@ -80,7 +80,7 @@ public class EggGameManager : MonoBehaviour
     {
         if (EggGameMaster.Instance.gameMode == EggGameMaster.GameMode.Singleplayer)
         {
-            SingleplayerCreateAgents();
+            //SingleplayerCreateAgents();
         }
         else if (EggGameMaster.Instance.gameMode == EggGameMaster.GameMode.Multiplayer)
         {

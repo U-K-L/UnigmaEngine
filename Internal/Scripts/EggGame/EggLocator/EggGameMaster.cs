@@ -10,6 +10,7 @@ public class EggGameMaster : MonoBehaviour
 
     bool startLoadingStage = false;
     TitleScreenUI titleUI;
+    SelectionScreenUI selectionScreenUI;
     GameObject titleOBJ;
 
     public static EggGameMaster Instance;
@@ -57,6 +58,8 @@ public class EggGameMaster : MonoBehaviour
         Debug.Log("Singleplayer");
         gameMode = GameMode.Singleplayer;
         titleOBJ.gameObject.SetActive(false);
+        //Set State to Stage Selection.
+        SelectionScreen();
         BeginLoadLevel(titleUI.GetCurrentLevel());
     }
 
@@ -74,6 +77,15 @@ public class EggGameMaster : MonoBehaviour
         gameMode = GameMode.TitleScreen;
         titleOBJ.gameObject.SetActive(true);
         BeginLoadLevel("TitleEgg");
+    }
+    
+    public void SelectionScreen()
+    {
+        GameObject menuButtonPrefab = Resources.Load<GameObject>("UI/MenuButton");
+        GameObject obj = new GameObject("SelectionScreen");
+        obj.transform.parent = transform;
+        obj.transform.position = Vector3.zero;
+        selectionScreenUI = obj.AddComponent<SelectionScreenUI>();
     }
 
     public void BeginLoadLevel(string levelName)

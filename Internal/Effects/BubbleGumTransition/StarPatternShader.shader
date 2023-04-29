@@ -1,8 +1,8 @@
-﻿Shader "Hidden/BubbleGumShader"
+﻿Shader "Hidden/StarPatternShader"
 {
     Properties
     {
-		_Color ("Color", Color) = (1,1,1,1)
+        _Color("Color", Color) = (1, 1, 1, 1)
         _MainTex ("Texture", 2D) = "white" {}
         _TransitionTexture("Transition Texture", 2D) = "white" {}
         _BackgroundTexture("Background Texture", 2D) = "white" {}
@@ -71,40 +71,25 @@
                     dot2(p - 0.5 * max(p.x + p.y, 0.0)))) * sign(p.x - p.y);
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            float4 vec4(float3 vec)
             {
-
-                float3 flowDirection = _SurfaceNoiseScroll.xyz * _SurfaceNoiseScroll.w;
-                float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
-
-
-
-                float2 textureCoordinate = i.screenPosition.xy / i.screenPosition.w;
-
-                float XUV = textureCoordinate.x * _RefracStr.x + _Time.y * _RefracStr.y;
-                float YUV = textureCoordinate.y * _RefracStr.x + _Time.y * _RefracStr.y;
-                float2 screenPosUV = textureCoordinate;
-                screenPosUV.y += cos(XUV + YUV) * _RefracStr.z * cos(YUV);
-                screenPosUV.x += sin(XUV - YUV) * _RefracStr.z * sin(YUV);
-
-                //Create paintery effect for that under the water.
-                float2 uv = i.screenPosition.xy / i.screenPosition.w;
-                float3 diplacementNormals = UnpackNormal(tex2D(_DisplacementTex, screenPosUV));
-                float2 distortion = uv + ((_Intensity * 0.01) * diplacementNormals.rg);
-
-                float2 backgroundUVs = (screenPosUV + noiseUV)*0.75;
-
-                float2 posUV = textureCoordinate;
-                float cutoff = tex2D(_TransitionTexture, ((screenPosUV - 0.5) * (_Transition*50) +0.5)).r;//sdHeart(posUV, _Transition);
-
-                fixed4 col = tex2D(_MainTex, i.uv);
-                fixed4 tex = tex2D(_BackgroundTexture, backgroundUVs);
-                tex.b *= 1.5;
-
-                col = lerp(_Color, tex, step(cutoff, 0 ));
-                col = lerp(tex, col, step(_Transition, 0.999));
-                return col;
+				return float4(vec.x, vec.y, vec.z, 1);
             }
+            
+
+            float4 vec4(float vec)
+            {
+                return float4(vec, vec, vec, 1);
+            }
+            
+            fixed4 frag(v2f i) : SV_Target{
+
+                //Get a circle given the current coordinates of the uv.
+				float circle = sdCircle(i.uv, 0.5);
+                
+                return vec4(circle);
+            }
+                
             ENDCG
         }
     }

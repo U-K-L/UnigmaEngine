@@ -7,21 +7,21 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Hidden_BubbleGumShader
-  m_Shader: {fileID: 4800000, guid: 6d50d63b4bf28d048a4ec0165cdf77ad, type: 3}
+  m_Name: Hidden_StarPatternShader
+  m_Shader: {fileID: 4800000, guid: c73011738463ca7428d439325e5a4f93, type: 3}
   m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 5000
+  m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
     - _BackgroundTexture:
-        m_Texture: {fileID: 2800000, guid: 1b79944911b03c447b6a4106f3dab734, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DisplacementTex:
@@ -33,15 +33,15 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TransitionTexture:
-        m_Texture: {fileID: 2800000, guid: e035cb6ef15e776439f2b4f5ea06afdd, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Intensity: 2
-    - _Transition: 1
+    - _Intensity: 1
+    - _Transition: 0
     m_Colors:
-    - _Color: {r: 1, g: 0, b: 0, a: 0}
-    - _RefracStr: {r: 12, g: 2, b: 0.004, a: 0.5}
-    - _SurfaceNoiseScroll: {r: 0.03, g: 0.03, b: 0, a: 1.53}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _RefracStr: {r: 12, g: 2, b: 0.002, a: 1}
+    - _SurfaceNoiseScroll: {r: 0.03, g: 0.03, b: 0, a: 0}
   m_BuildTextureStacks: []

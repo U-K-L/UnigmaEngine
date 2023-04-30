@@ -61,9 +61,34 @@
             float _Radius;
             const int _Count;
 
+            float sdStar5(float2 p, float r, float rf)
+            {
+                const float2 k1 = float2(0.809016994375, -0.587785252292);
+                const float2 k2 = float2(-k1.x, k1.y);
+                p.x = abs(p.x);
+                p -= 2.0 * max(dot(k1, p), 0.0) * k1;
+                p -= 2.0 * max(dot(k2, p), 0.0) * k2;
+                p.x = abs(p.x);
+                p.y -= r;
+                float2 ba = rf * float2(-k1.y, k1.x) - float2(0, 1);
+                float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r);
+                return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
+            }
+            
             float sdCircle(float2 p, float r)
             {
                 return length(p) - r;
+            }
+            
+            float sdMoon(float2 p, float d, float ra, float rb)
+            {
+                p.y = abs(p.y);
+                float a = (ra * ra - rb * rb + d * d) / (2.0 * d);
+                float b = sqrt(max(ra * ra - a * a, 0.0));
+                if (d * (p.x * b - p.y * a) > d * d * max(b - p.y, 0.0))
+                    return length(p - float2(a, b));
+                return max((length(p) - ra),
+                    -(length(p - float2(d, 0)) - rb));
             }
             float2 dot2(float2 p)
             {
@@ -176,15 +201,23 @@
                 float dist = distance(i.uv, ClosetLineCell( i.uv ));
 
                 float x = dist;// the input value
-                float result = sin(2.5 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 0.01555 * (cos(760.0 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 1.0);
+                float result = sin(2.5 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 0.01555 
+                    * (cos(760.0 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 1.0);
                 
                 float circleDistort = 40*smoothstep(0, 1, distance(i.uv, float2(0.5, 0.5)));
-                float radiusIntensity = 5.0 * result / circleDistort;
+                float radiusIntensity = 5.0 * result * circleDistort;
                 
 				float circleResult = sdCircle(circlePos, _Radius* radiusIntensity);
 				float circleGrid = smoothstep(0, 0.0025, circleResult);
-                
-                return vec4(circleGrid);
+
+                //Use different SDFs.
+                float di = 1.2 * cos(_Time.y + 3.9);
+                float sdfResult = sdStar5(circlePos, _Radius * radiusIntensity, 2.0);//sdHeart(circlePos, _Radius * radiusIntensity);
+                float sdfGrid = smoothstep(0, 0.0025, sdfResult);
+
+                float finalMask = lerp(sdfGrid, circleGrid, 0.00000001255*radiusIntensity);
+				finalMask = step(1, 1-finalMask);
+                return vec4(finalMask);
             }
                 
             ENDCG

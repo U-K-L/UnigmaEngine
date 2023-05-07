@@ -18,6 +18,7 @@ public class EggGameManager : MonoBehaviour
     public EggGameCommandManager _commandManager;
 
     public bool MapLoaded = false;
+    public bool MatchReady = false;
     public bool AgentsCreated = false;
 
     private BlockEntity startingBlock = null;
@@ -63,7 +64,8 @@ public class EggGameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (matchStart)
+        MatchReady = EggGameMaster.Instance.MatchReady();
+        if (matchStart && MatchReady)
         {
             if (MapLoaded && !AgentsCreated && startingBlock != null && EggGameMaster.Instance != null)
             {
@@ -78,9 +80,10 @@ public class EggGameManager : MonoBehaviour
 
     void CreateStage()
     {
+        _cam.GetComponentInChildren<BubbleGumTransition>().OpenAnimationPlay();
         if (EggGameMaster.Instance.gameMode == EggGameMaster.GameMode.Singleplayer)
         {
-            //SingleplayerCreateAgents();
+            SingleplayerCreateAgents();
         }
         else if (EggGameMaster.Instance.gameMode == EggGameMaster.GameMode.Multiplayer)
         {

@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Hidden_StarPatternShader
-  m_Shader: {fileID: 4800000, guid: c73011738463ca7428d439325e5a4f93, type: 3}
+  m_Name: Hidden_BlobsReachingPattern
+  m_Shader: {fileID: 4800000, guid: 9f82251bc28c22d4bb26e3a3fac61434, type: 3}
   m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
@@ -40,14 +40,16 @@ Material:
     m_Floats:
     - _Count: 20
     - _Intensity: 1
-    - _Radius: 0.0075
+    - _Radius: 0.00035
     - _Sides: 3
     - _Size: 0.1
     - _Smoothness: 0.5
     - _Spacing: 0
+    - _Speed: 0.07
     - _Transition: 1
     m_Colors:
     - _Color: {r: 0.8160377, g: 0.98272496, b: 1, a: 0.40392157}
+    - _MaskColor: {r: 1, g: 1, b: 1, a: 1}
     - _RefracStr: {r: 12, g: 2, b: 0.002, a: 1.31}
     - _SurfaceNoiseScroll: {r: 0.03, g: 0.03, b: 0, a: 2.44}
   m_BuildTextureStacks: []

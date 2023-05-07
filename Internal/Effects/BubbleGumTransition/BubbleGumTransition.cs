@@ -44,10 +44,10 @@ public class BubbleGumTransition : ImmediateModeShapeDrawer
         StartCoroutine(OpenAnimation());
     }
 
-    //private void OnRenderImage(RenderTexture source, RenderTexture destination)
-    //{
-        //Graphics.Blit(source, destination, material);
-   // }
+    private void OnRenderImage(RenderTexture source, RenderTexture destination)
+    {
+        Graphics.Blit(source, destination, material);
+    }
 
     IEnumerator CloseAnimation()
     {

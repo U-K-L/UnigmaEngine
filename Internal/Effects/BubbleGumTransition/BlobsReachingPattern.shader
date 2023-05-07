@@ -1,8 +1,9 @@
-﻿Shader "Hidden/StarPatternShader"
+﻿Shader "Hidden/BlobsReachingPattern"
 {
     Properties
     {
         _Color("Color", Color) = (1, 1, 1, 1)
+        _MaskColor("Color", Color) = (1, 1, 1, 1)
         _MainTex ("Texture", 2D) = "white" {}
         _TransitionTexture("Transition Texture", 2D) = "white" {}
         _BackgroundTexture("Background Texture", 2D) = "white" {}
@@ -15,6 +16,7 @@
 		_Count("Count", Range(0, 100)) = 1
 		_Spacing("Spacing", Range(0, 1)) = 0.5
         _Radius("Radius", Range(0,1)) = 1
+		_Speed("Speed", Range(0,10)) = 0.5
     }
     SubShader
     {
@@ -54,9 +56,9 @@
             }
 
             sampler2D _MainTex, _TransitionTexture, _DisplacementTex, _BackgroundTexture;
-            float _Transition, _Intensity, _Spacing;
+            float _Transition, _Intensity, _Spacing, _Speed;
             float4 _SurfaceNoiseScroll, _RefracStr, _Color;
-            float4 _MainTex_TexelSize;
+            float4 _MainTex_TexelSize, _MaskColor;
             
             float _Radius;
             const int _Count;
@@ -192,35 +194,37 @@
                 //The grid has been set. If this point is part of the grid create a circle, else destroy it.
                 //animated UVs
                 float2 uv = i.uv;//i.screenPosition.xy / i.screenPosition.w;
-				uv += float2(0.1*_Time.y, 0.1 * _Time.y);
+				uv += float2(_Speed *_Time.y, _Speed * _Time.y);
                 uv = fmod(uv, 0.1);//float2((uv.x % 1.001), (uv.y % 1.001));
                 
                 float2 positionalPoint = ClosetCell(uv);
                 float2 circlePos = uv - positionalPoint;
                 
-                float dist = distance(i.uv, ClosetLineCell( i.uv ));
+                float dist = distance(i.uv, 0.1*float2(cos(0.5*_Time.y),sin(0.5*_Time.y)) + float2(0.5, 0.5));
 
                 float x = dist;// the input value
-                float result = sin(2.5 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 0.01555 
-                    * (cos(760.0 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 1.0);
+                float result = sin(2.5 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 3 
+                    / (cos(10*sin(0.5*_Time.y) + 260.0 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 1.0))))) + 1.0);
                 
-                float circleDistort = 40*smoothstep(0, 1, distance(i.uv, float2(0.5, 0.5)));
-                float radiusIntensity = 5.0 * result * circleDistort;
+                float circleDistort = 4*smoothstep(0, 1, distance(i.uv, ClosetLineCell(i.uv) ));
+                float radiusIntensity = 25.0 * result * circleDistort;
                 
 				float circleResult = sdCircle(circlePos, _Radius* radiusIntensity);
 				float circleGrid = smoothstep(0, 0.0025, circleResult);
+
 
                 //Use different SDFs.
                 float di = 1.2 * cos(_Time.y + 3.9);
                 float sdfResult = sdStar5(circlePos, _Radius * radiusIntensity, 2.0);//sdHeart(circlePos, _Radius * radiusIntensity);
                 float sdfGrid = smoothstep(0, 0.0025, sdfResult);
 
-                float finalMask = lerp(sdfGrid, circleGrid, 0.00000001255*radiusIntensity);
-				finalMask = max(step(1, 1-finalMask), 0);
-
+                float finalMask = lerp(sdfGrid, circleGrid, 0.0000000045 * radiusIntensity);
+                finalMask = max(step(1, 1 - finalMask), 0);
+                
                 //Get animated UVs again.
                 float3 flowDirection = _SurfaceNoiseScroll.xyz * _SurfaceNoiseScroll.w;
-                float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
+                float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y 
+                    * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
 
 
 
@@ -243,9 +247,11 @@
                 fixed4 tex = tex2D(_BackgroundTexture, backgroundUVs);
                 tex.b *= 1.5;
                 float4 ColorMask = vec4(finalMask);
-                ColorMask *= float4(0.5, 0.7, 1, 1);
+                ColorMask *= _MaskColor;//1.75*_MaskColor * float4(i.uv, i.uv.x, 1);
                 
-                float4 finalCol = lerp(tex, tex + 0.85 * ColorMask, ColorMask.b);
+                float4 finalCol = lerp(tex, ColorMask, max(ColorMask.r, max(ColorMask.b, ColorMask.g) ) );
+                finalCol.rgb *= 0.97;
+                
 
                 float4 col = 0;
                 float2 posUV = textureCoordinate;

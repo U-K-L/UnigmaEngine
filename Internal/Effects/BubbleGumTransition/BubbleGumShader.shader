@@ -16,8 +16,6 @@
     {
         // No culling or depth
 		Cull Off ZWrite On ZTest LEqual
-        //Add transparency
-		Blend SrcAlpha OneMinusSrcAlpha
 
         Pass
         {
@@ -101,7 +99,7 @@
                 fixed4 tex = tex2D(_BackgroundTexture, backgroundUVs);
                 tex.b *= 1.5;
 
-                col = lerp(_Color, tex, step(cutoff, 0 ));
+                col = lerp(col, tex, step(cutoff, 0 ));
                 col = lerp(tex, col, step(_Transition, 0.999));
                 return col;
             }

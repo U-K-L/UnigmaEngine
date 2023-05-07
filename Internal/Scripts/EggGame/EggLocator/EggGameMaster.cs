@@ -24,6 +24,8 @@ public class EggGameMaster : MonoBehaviour
     }
 
     public GameMode gameMode;
+    private bool _matchReady = false;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -83,9 +85,16 @@ public class EggGameMaster : MonoBehaviour
     {
         GameObject menuButtonPrefab = Resources.Load<GameObject>("UI/MenuButton");
         GameObject obj = new GameObject("SelectionScreen");
+        obj.transform.position = new Vector3(10,68.5f, -2);
+        obj.transform.localScale = new Vector3(0.8f, 1.2f, 0.8f);
         obj.transform.parent = transform;
-        obj.transform.position = Vector3.zero;
         selectionScreenUI = obj.AddComponent<SelectionScreenUI>();
+    }
+
+    public void SetCurrentStage()
+    {
+        _matchReady = true;
+        
     }
 
     public void BeginLoadLevel(string levelName)
@@ -103,5 +112,10 @@ public class EggGameMaster : MonoBehaviour
             _loadProgress = progress.progress;
             yield return null;
         }
+    }
+
+    public bool MatchReady()
+    {
+        return _matchReady;
     }
 }

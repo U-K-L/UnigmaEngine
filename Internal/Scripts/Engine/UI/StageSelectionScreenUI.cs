@@ -19,6 +19,11 @@ public class StageSelectionScreenUI : ImmediateModeShapeDrawer
         DisplayStages();
     }
 
+    void Update()
+    {
+        UpdateInputs();
+    }
+
     void DisplayStages()
     {
         foreach (EggStages stage in ListOfStages)
@@ -37,14 +42,48 @@ public class StageSelectionScreenUI : ImmediateModeShapeDrawer
     {
         DrawBoarders(cam);
         UpdateStagePositions(cam);
+        
+    }
+
+    void UpdateInputs()
+    {
+        if (Input.GetButtonDown("R"))
+        {
+            MoveSelectionRight();
+        }
+        else if(Input.GetButtonDown("L"))
+        {
+            MoveSelectionLeft();
+        }
+    }
+
+    void MoveSelectionRight()
+    {
+        Debug.Log("Shift right");
+        SelectionNodes temp = stagesUI[0];
+        stagesUI.RemoveAt(0);
+        stagesUI.Add(temp);
+    }
+
+    void MoveSelectionLeft()
+    {
+        Debug.Log("Shift left");
+        SelectionNodes temp = stagesUI[stagesUI.Count - 1];
+        stagesUI.RemoveAt(stagesUI.Count - 1);
+        stagesUI.Insert(0, temp);
     }
 
     void UpdateStagePositions(Camera cam)
     {
+        float startingX = -64 + ((8.5f * Mathf.Floor(stagesUI.Count / 2f)));
         for (int i = 0; i < stagesUI.Count; i++)
         {
-            stagesUI[i].DrawStageSelectionNode(cam, new Vector3(-22, 1.185f,0) + new Vector3(i*8, 0,0));
+            stagesUI[i].DrawStageSelectionNode(cam, new Vector3(startingX, 1.185f,0) + new Vector3(i*8.5f, 0,0));
+            stagesUI[i].currentlySelected = false;
         }
+
+        int index = (int)Mathf.Floor(stagesUI.Count / 2);
+        stagesUI[index].currentlySelected = true;
     }
     void DrawBoarders(Camera cam)
     {

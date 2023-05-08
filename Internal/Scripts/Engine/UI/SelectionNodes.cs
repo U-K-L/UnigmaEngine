@@ -13,6 +13,8 @@ public class SelectionNodes : ImmediateModeShapeDrawer
 
     public float t = 0.0f;
 
+    public bool currentlySelected = false;
+
     SelectionScreenUI _ui;
 
     Camera _cam;
@@ -100,10 +102,13 @@ public class SelectionNodes : ImmediateModeShapeDrawer
     {
         //t = Mathf.Lerp(t, -(vvf.x), Time.deltaTime);
         VVF = Vector3.Lerp(VVF, vvf, Time.deltaTime * 2f);
-        transform.localPosition = Vector3.Lerp(transform.localPosition, vvf, Time.deltaTime * 35f);
+        transform.localPosition = Vector3.Lerp(transform.localPosition, vvf, Time.deltaTime * 3f);
         using (Draw.Command(cam))
         {
             float radius = 2;
+            
+            if(currentlySelected)
+                radius = 3f;
 
             Draw.ResetAllDrawStates();
             Draw.BlendMode = ShapesBlendMode.Transparent;

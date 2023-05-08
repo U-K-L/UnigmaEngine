@@ -19,6 +19,8 @@ public class SelectionNodes : ImmediateModeShapeDrawer
 
     Camera _cam;
 
+    public ScriptableObject SO = null;
+
     public Color boarderCol;
     public override void DrawShapes(Camera cam)
     {

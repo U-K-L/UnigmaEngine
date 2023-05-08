@@ -21,10 +21,9 @@ public class EggGameManager : MonoBehaviour
     public bool MatchReady = false;
     public bool AgentsCreated = false;
 
-    private BlockEntity startingBlock = null;
+    private List<BlockEntity> startingBlocks = null;
     public int startingBlockIndex = 0;
     
-    public EggStage Stage;
     private EggStage current_stage;
 
     public List<GoldenEgg> goldenEggList = new List<GoldenEgg>();
@@ -52,12 +51,6 @@ public class EggGameManager : MonoBehaviour
         _commandManager = GetComponent<EggGameCommandManager>();
         _cam = GameObject.FindGameObjectWithTag("CameraController").GetComponent<CameraController>();
         players = new GameObject[2];
-        current_stage = Stage;//Instantiate(Stage);
-        _blockGraph = GetComponent<BlockGraph>();
-        //Get camera controller from tag
-
-        _blockGraph.CreateGraph(current_stage.gameObject);
-
         matchStart = true;
     }
 
@@ -67,18 +60,59 @@ public class EggGameManager : MonoBehaviour
         MatchReady = EggGameMaster.Instance.MatchReady();
         if (matchStart && MatchReady)
         {
-            if (MapLoaded && !AgentsCreated && startingBlock != null && EggGameMaster.Instance != null)
+            if (MapLoaded && !AgentsCreated && EggGameMaster.Instance != null)
             {
-                CreateStage();
+                Debug.Log("creating stage");
+                EggStage stage = InstantiateStage();
+                //CreateStartingBlocks(stage);
+                CreateStage(stage);
+                
             }
-            startingBlock = _blockGraph.GetBlockFromIndex(startingBlockIndex);
-
+            
             if (Input.GetKey(KeyCode.R))
                 Reset();
         }
     }
 
-    void CreateStage()
+    EggStage InstantiateStage()
+    {
+        if (EggGameMaster.Instance.currentStage != null)
+        {
+            try
+            {
+                EggStage stagePrefab = Instantiate(EggGameMaster.Instance.currentStage.stage_prefab).GetComponent<EggStage>();
+                current_stage = stagePrefab;
+                _blockGraph = GetComponent<BlockGraph>();
+                _blockGraph.CreateGraph(current_stage.gameObject);
+                return stagePrefab;
+            }
+            catch (System.Exception e)
+            {
+                Debug.Log(e);
+            }
+            
+        }
+        else
+        {
+            Debug.Log("Seems the stage did not load properly");
+        }
+        return null;
+    }
+
+    void CreateStartingBlocks(EggStage stage)
+    {
+        startingBlocks = new List<BlockEntity>();
+
+        for (int i = 0; i < stage.startingBlocks.Length; i++)
+        {
+            BlockEntity block = stage.startingBlocks[i].GetComponent<BlockEntity>();
+            if(block)
+                startingBlocks.Add(block);
+        }
+
+    }
+
+    void CreateStage(EggStage stage)
     {
         _cam.GetComponentInChildren<BubbleGumTransition>().OpenAnimationPlay();
         if (EggGameMaster.Instance.gameMode == EggGameMaster.GameMode.Singleplayer)

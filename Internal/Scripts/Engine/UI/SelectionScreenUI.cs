@@ -96,7 +96,7 @@ public class SelectionScreenUI : ImmediateModeShapeDrawer
             gui_cam.transform.parent.gameObject.SetActive(false);
             gui_cam.enabled = false;
         }
-        EggGameMaster.Instance.SetCurrentStage();
+        //EggGameMaster.Instance.SetCurrentStage();
         this.gameObject.SetActive(false);
     }
 

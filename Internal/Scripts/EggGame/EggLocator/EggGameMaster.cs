@@ -16,6 +16,8 @@ public class EggGameMaster : MonoBehaviour
 
     public static EggGameMaster Instance;
 
+    public EggStages currentStage;
+
     public Material background;
     public enum GameMode
     {
@@ -103,10 +105,10 @@ public class EggGameMaster : MonoBehaviour
         stageSelectionScreenUI = obj.AddComponent<StageSelectionScreenUI>();
     }
 
-    public void SetCurrentStage()
+    public void SetCurrentStage(EggStages stage)
     {
         _matchReady = true;
-        
+        currentStage = stage;
     }
 
     public void BeginLoadLevel(string levelName)

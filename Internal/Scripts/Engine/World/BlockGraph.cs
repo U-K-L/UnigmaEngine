@@ -157,9 +157,9 @@ public class BlockGraph : MonoBehaviour
 
     void Update()
     {
-        SetSelectedBlock();
-        if (DebugOn)
-            DebugCall();
+        //SetSelectedBlock();
+        //if (DebugOn)
+            //DebugCall();
 
     }
 

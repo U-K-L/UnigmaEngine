@@ -8,7 +8,7 @@ public class TitleScreenUI : MonoBehaviour
     public GameObject buttonPrefab;
     public int buttons = 0;
 
-    private string currentLevel = "Stage_Training";
+    private string currentLevel = "Battle_Scene";
     void Start()
     {
         CreateButtons();

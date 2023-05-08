@@ -111,8 +111,6 @@ public class EggGameCommandManager : MonoBehaviour
 
             previousNode = currentNode;
         }
-        
-        
     }
 
     IEnumerator ExecuteCommandTree()

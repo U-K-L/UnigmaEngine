@@ -9,6 +9,8 @@ public class StageSelectionScreenUI : ImmediateModeShapeDrawer
     public Color borderColor = new Color(213f / 255f, 255f / 255f, 244f / 255f, 1f);
     List<SelectionNodes> stagesUI;
     List<EggStages> ListOfStages;
+    public Camera gui_cam;
+    private int currentStageIndex = 0;
 
     void Start()
     {
@@ -21,6 +23,12 @@ public class StageSelectionScreenUI : ImmediateModeShapeDrawer
 
     void Update()
     {
+        if (gui_cam == null)
+        {
+            GameObject obj = GameObject.Find("GUI_Camera");
+            if (obj)
+                gui_cam = obj.GetComponent<Camera>();
+        }
         UpdateInputs();
     }
 
@@ -34,6 +42,7 @@ public class StageSelectionScreenUI : ImmediateModeShapeDrawer
             obj.transform.localScale = Vector3.one;
             SelectionNodes node = obj.AddComponent<SelectionNodes>();
             node.image = stage.stageIcon;
+            node.SO = stage;
             stagesUI.Add(node);
         }
     }
@@ -51,10 +60,25 @@ public class StageSelectionScreenUI : ImmediateModeShapeDrawer
         {
             MoveSelectionRight();
         }
-        else if(Input.GetButtonDown("L"))
+        else if (Input.GetButtonDown("L"))
         {
             MoveSelectionLeft();
         }
+        else if (Input.GetButtonDown("Accept"))
+        {
+            PickCurrentStage((EggStages)stagesUI[currentStageIndex].SO);
+        }
+    }
+    
+    public void PickCurrentStage(EggStages stage)
+    {
+        if (gui_cam)
+        {
+            gui_cam.transform.parent.gameObject.SetActive(false);
+            gui_cam.enabled = false;
+        }
+        EggGameMaster.Instance.SetCurrentStage(stage);
+        this.gameObject.SetActive(false);
     }
 
     void MoveSelectionRight()
@@ -82,8 +106,8 @@ public class StageSelectionScreenUI : ImmediateModeShapeDrawer
             stagesUI[i].currentlySelected = false;
         }
 
-        int index = (int)Mathf.Floor(stagesUI.Count / 2);
-        stagesUI[index].currentlySelected = true;
+        currentStageIndex = (int)Mathf.Floor(stagesUI.Count / 2);
+        stagesUI[currentStageIndex].currentlySelected = true;
     }
     void DrawBoarders(Camera cam)
     {

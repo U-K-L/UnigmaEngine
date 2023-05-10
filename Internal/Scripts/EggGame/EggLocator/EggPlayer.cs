@@ -26,7 +26,7 @@ public class EggPlayer : NetworkBehaviour
 
     public bool isPlayer = true;
 
-    public enum StateMachine { controllable, locked };
+    public enum StateMachine { controllable, locked, selectingTile, selectingUnit };
     public StateMachine state;
 
     public bool playerBegin = false;
@@ -64,7 +64,7 @@ public class EggPlayer : NetworkBehaviour
         {
             if (!isAI && !isServer && isPlayer)
             {
-                if (state == StateMachine.controllable)
+                if (state == StateMachine.controllable || state == StateMachine.selectingTile)
                     UpdateMouseControls();
                 UpdateCameraControls();
 
@@ -102,6 +102,7 @@ public class EggPlayer : NetworkBehaviour
                 //If object is a block
                 Debug.Log("clicked and jumped!!?");
                 UnitJumpsToSelectedBlock();
+                SetControllableState();
                 //UnitJumpsToPosition();
 
             }
@@ -123,10 +124,12 @@ public class EggPlayer : NetworkBehaviour
             _playerCursor.addObjectToList(agent);
             unit.isSelected = true;
             SelectAllUnits(unit.name, ID);
+            SetSelectingTileState();
         }
         //Call onclick method for player.
         unit.OnClick();
         currentUnit = unit;
+        
     }
 
     [Command]
@@ -149,9 +152,12 @@ public class EggPlayer : NetworkBehaviour
             BlockEntity blockEntity = block.GetComponent<BlockEntity>();
             if (blockEntity != null)
             {
-                foreach (KeyValuePair<string, AgentPhysics> agentMap in _playerCursor.getSelectedObjects())
+                Dictionary<string, AgentPhysics> selectedObjects = _playerCursor.getSelectedObjects();
+                List<string> keys = new List<string>(selectedObjects.Keys);
+
+                for (int i = 0; i < keys.Count; i++)
                 {
-                    AgentPhysics agent = agentMap.Value;
+                    AgentPhysics agent = selectedObjects[keys[i]];
                     if (agent != null)
                     {
                         EggLocatorUnit unit = agent.GetComponent<EggLocatorUnit>();
@@ -172,6 +178,7 @@ public class EggPlayer : NetworkBehaviour
     }
 
 
+
     void UpdateCameraControls()
     {
 
@@ -180,9 +187,9 @@ public class EggPlayer : NetworkBehaviour
         if (currentUnit != null)
         {
             pivot = currentUnit.transform.position;
-            if (currentUnit._agent.getState() == AgentPhysics.StateMachine.crouching)
+            if (state == StateMachine.selectingTile)
             {
-                //pivot = _playerCursor.GetRayCastedHit();
+                pivot = _playerCursor.GetRayCastedHit();
             }
         }
         if (Input.GetButton("Drag_Desktop"))
@@ -255,6 +262,11 @@ public class EggPlayer : NetworkBehaviour
     public void SetLockedState()
     {
         state = StateMachine.locked;
+    }
+
+    public void SetSelectingTileState()
+    {
+        state = StateMachine.selectingTile;
     }
 
     public void SetControllableState()

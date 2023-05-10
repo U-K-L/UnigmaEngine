@@ -211,6 +211,11 @@ public class EggPlayer : NetworkBehaviour
 
     }
 
+    public void Reset()
+    {
+        units.Clear();
+    }
+
     public void AddUnitToParty(EggLocatorUnit unit)
     {
         units.Add(unit.name, unit);

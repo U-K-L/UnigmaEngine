@@ -27,7 +27,7 @@ public class EggGameMaster : MonoBehaviour
     }
 
     public GameMode gameMode;
-    private bool _matchReady = false;
+    public bool _matchReady = false;
 
     private void Awake()
     {
@@ -109,6 +109,13 @@ public class EggGameMaster : MonoBehaviour
     {
         _matchReady = true;
         currentStage = stage;
+    }
+
+    public void ReloadStage()
+    {
+        stageSelectionScreenUI.gameObject.SetActive(true);
+        stageSelectionScreenUI.enabled = true;
+        stageSelectionScreenUI.Reload();
     }
 
     public void BeginLoadLevel(string levelName)

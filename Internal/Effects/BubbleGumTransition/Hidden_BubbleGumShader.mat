@@ -39,7 +39,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _Intensity: 2
-    - _Transition: 1.0236945
+    - _Transition: 0
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _RefracStr: {r: 12, g: 2, b: 0.004, a: 0.5}

@@ -35,6 +35,8 @@ public class EggGameManager : MonoBehaviour
     public MatchNetworkEgg matchNetworkEgg;
     public Dictionary<string, EggLocatorUnit> GlobalUnits = new Dictionary<string, EggLocatorUnit>();
 
+    public EggStageManager stageManager;
+
     [HideInInspector]
     public CameraController _cam;
 
@@ -58,13 +60,12 @@ public class EggGameManager : MonoBehaviour
     void Update()
     {
         MatchReady = EggGameMaster.Instance.MatchReady();
-        if (matchStart && MatchReady)
+        if (MatchReady)
         {
-            if (MapLoaded && !AgentsCreated && EggGameMaster.Instance != null)
+            if (!AgentsCreated && EggGameMaster.Instance != null)
             {
                 Debug.Log("creating stage");
                 EggStage stage = InstantiateStage();
-                //CreateStartingBlocks(stage);
                 CreateStage(stage);
                 
             }
@@ -80,10 +81,13 @@ public class EggGameManager : MonoBehaviour
         {
             try
             {
-                EggStage stagePrefab = Instantiate(EggGameMaster.Instance.currentStage.stage_prefab).GetComponent<EggStage>();
+                EggStage stagePrefab = Instantiate(EggGameMaster.Instance.currentStage.stage_prefab, stageManager.transform).GetComponent<EggStage>();
                 current_stage = stagePrefab;
+                Debug.Log("current stage: " + current_stage.gameObject.name);
                 _blockGraph = GetComponent<BlockGraph>();
+                Debug.Log("current stage: " + _blockGraph.name);
                 _blockGraph.CreateGraph(current_stage.gameObject);
+                
                 return stagePrefab;
             }
             catch (System.Exception e)
@@ -136,6 +140,26 @@ public class EggGameManager : MonoBehaviour
         */
     }
 
+    void ClearStage()
+    {
+        foreach (Transform child in stageManager.transform)
+        {
+            GameObject.Destroy(child.gameObject);
+        }
+        MatchReady = false;
+        AgentsCreated = false;
+        matchStart = false;
+        foreach (GameObject player in players)
+        {
+            if (player != null)
+            {
+                player.GetComponent<EggPlayer>().Reset();
+            }
+        }
+        GlobalUnits.Clear();
+        EggGameMaster.Instance._matchReady = false;
+    }
+
     public void MultiplayerCreateAgents()
     {
         foreach (KeyValuePair<string, GameObject> pair in ManagerPlayers)
@@ -156,11 +180,15 @@ public class EggGameManager : MonoBehaviour
 
     void SingleplayerCreateAgents()
     {
-        players[0] = Instantiate(GetComponentInChildren<UnigmaNetworkManager>().playerPrefab);
-        players[0].GetComponent<EggPlayer>().CreateParty();
-        players[1] = Instantiate(GetComponentInChildren<UnigmaNetworkManager>().playerPrefab);
-        players[1].GetComponent<EggPlayer>().CreateParty();
-        players[1].GetComponent<EggPlayer>().isPlayer = false;
+        Debug.Log("creating singleplayer");
+        if (players[0] == null)
+        {
+            players[0] = Instantiate(GetComponentInChildren<UnigmaNetworkManager>().playerPrefab, this.transform);
+            players[0].GetComponent<EggPlayer>().CreateParty();
+            players[1] = Instantiate(GetComponentInChildren<UnigmaNetworkManager>().playerPrefab, this.transform);
+            players[1].GetComponent<EggPlayer>().CreateParty();
+            players[1].GetComponent<EggPlayer>().isPlayer = false;
+        }
         AgentsCreated = true;
         createAgents();
         GetComponent<TimerUI>().StartTimer();
@@ -325,9 +353,10 @@ public class EggGameManager : MonoBehaviour
     {
         //Create player controlled character.
         GameObject characterObj = EggGameData.LoadCharacterFromIndex(index);
-        characterObj = GameObject.Instantiate(characterObj);
+        characterObj = GameObject.Instantiate(characterObj, stageManager.transform);
         EggLocatorUnit Unit = characterObj.GetComponentInChildren<EggLocatorUnit>();
         //Temporary hack before making a proper character select screen.
+        Debug.Log("Player is: " + player + " " + current_stage.startingBlocks[player].name);
         Unit.SetCurrentBlock(current_stage.startingBlocks[player].GetComponent<BlockEntity>());
         Debug.Log("Created");
 
@@ -389,7 +418,23 @@ public class EggGameManager : MonoBehaviour
         current_stage = new_current_stage;
         */
         StopAllCoroutines();
-        StartCoroutine(TransitionScenes());
+        StartCoroutine(RestartMatch());
+    }
+
+    IEnumerator RestartMatch()
+    {
+        Camera cam = Camera.main;
+        BubbleGumTransition bubble = cam.GetComponent<BubbleGumTransition>();
+        bubble.CloseAnimationPlay();
+
+        while (bubble.slider < 0.98f)
+        {
+            yield return null;
+        }
+
+        ClearStage();
+        EggGameMaster.Instance.ReloadStage();
+        
     }
 
     IEnumerator TransitionScenes()

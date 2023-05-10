@@ -81,6 +81,11 @@ public class StageSelectionScreenUI : ImmediateModeShapeDrawer
         this.gameObject.SetActive(false);
     }
 
+    public void Reload()
+    {
+        gui_cam.transform.parent.gameObject.SetActive(true);
+        gui_cam.enabled = true;
+    }
     void MoveSelectionRight()
     {
         Debug.Log("Shift right");

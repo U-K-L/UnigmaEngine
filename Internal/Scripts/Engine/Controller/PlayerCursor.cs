@@ -144,7 +144,7 @@ public class PlayerCursor : ImmediateModeShapeDrawer
 
     public override void DrawShapes(Camera cam)
     {
-        DrawCursor(cam);
+        //DrawCursor(cam);
     }
     
     public void DrawCursor(Camera cam)

@@ -17,7 +17,8 @@ public class BubbleGumTransition : ImmediateModeShapeDrawer
     // Start is called before the first frame update
     void Start()
     {
-        material.SetFloat("_Transition", slider);
+        //1 is closed. 0 is open
+        material.SetFloat("_Transition", 1);
     }
 
     // Update is called once per frame

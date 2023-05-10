@@ -26,6 +26,7 @@ public class BlockGraph : MonoBehaviour
 
     public void CreateGraph(GameObject Stage_m = null)
     {
+        Debug.Log("Creating a graph");
         if (Stage_m != null)
             Stage = Stage_m;
         if (BlockMap == null)
@@ -35,9 +36,14 @@ public class BlockGraph : MonoBehaviour
         {
             BlockMap.Clear();
         }
+        
         if (BlockObjects == null)
         {
             BlockObjects = new List<GameObject>();
+        }
+        else
+        {
+            BlockObjects.Clear();
         }
 
         GameObject blocks = null;
@@ -63,6 +69,7 @@ public class BlockGraph : MonoBehaviour
         //The neighbors are stored within the BlockEntity as neighbors.
         foreach (GameObject obj in BlockObjects)
         {
+            Debug.Log("Adding block to graph " + obj.name);
 
             //We need to add the block component, as they are just game objects at this point.
             BlockEntity block = obj.GetComponent<BlockEntity>();

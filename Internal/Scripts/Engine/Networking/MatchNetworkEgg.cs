@@ -47,7 +47,7 @@ public class MatchNetworkEgg : NetworkBehaviour
         if (eggGameManager != null)
         {
             UnigmaNetworkManager.IsServerOn = true;
-            eggGameManager.MultiplayerCreateAgents();
+            //eggGameManager.MultiplayerCreateAgents();
         }
     }
 
@@ -60,7 +60,7 @@ public class MatchNetworkEgg : NetworkBehaviour
         if (eggGameManager != null)
         {
             UnigmaNetworkManager.IsServerOn = true;
-            eggGameManager.MultiplayerCreateAgents();
+            //eggGameManager.MultiplayerCreateAgents();
         }
     }
 

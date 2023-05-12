@@ -125,19 +125,8 @@ public class EggGameManager : MonoBehaviour
         }
         else if (EggGameMaster.Instance.gameMode == EggGameMaster.GameMode.Multiplayer)
         {
-            //MultiplayerCreateAgents();
-        }
-        /*
-        //Decide if the game is multiplayer or single player.
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            SingleplayerCreateAgents();
-        }
-        else if (Input.GetKeyDown(KeyCode.M))
-        {
             MultiplayerCreateAgents();
         }
-        */
     }
 
     void ClearStage()
@@ -162,6 +151,7 @@ public class EggGameManager : MonoBehaviour
 
     public void MultiplayerCreateAgents()
     {
+        Debug.Log("Amount of players: " + ManagerPlayers.Count);
         foreach (KeyValuePair<string, GameObject> pair in ManagerPlayers)
         {
             if (pair.Value == null)

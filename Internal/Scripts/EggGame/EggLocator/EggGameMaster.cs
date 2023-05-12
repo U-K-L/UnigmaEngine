@@ -74,6 +74,7 @@ public class EggGameMaster : MonoBehaviour
         Debug.Log("Multiplayer");
         gameMode = GameMode.Multiplayer;
         titleOBJ.gameObject.SetActive(false);
+        StageSelectionScreen();
         BeginLoadLevel(titleUI.GetCurrentLevel());
     }
 

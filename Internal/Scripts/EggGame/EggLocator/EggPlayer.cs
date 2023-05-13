@@ -31,6 +31,7 @@ public class EggPlayer : NetworkBehaviour
 
     public bool playerBegin = false;
 
+
     private void Awake()
     {
         DontDestroyOnLoad(gameObject);
@@ -54,7 +55,7 @@ public class EggPlayer : NetworkBehaviour
             _playerCursor = gameObject.AddComponent<PlayerCursor>();
             cameraController = GameObject.FindGameObjectWithTag("CameraController").GetComponent<CameraController>();
         }
-        playerBegin = true;
+        
     }
 
     // Update is called once per frame
@@ -62,7 +63,7 @@ public class EggPlayer : NetworkBehaviour
     {
         if (playerBegin)
         {
-            if (!isAI && !isServer && isPlayer)
+            if (!isAI && isClient && isPlayer)
             {
                 if (state == StateMachine.controllable || state == StateMachine.selectingTile)
                     UpdateMouseControls();
@@ -72,8 +73,48 @@ public class EggPlayer : NetworkBehaviour
             if (currentUnit == null && gameManager)
                 SetInitialCurrentUnit();
         }
+        else
+            CheckPlayerReadiness();
     }
 
+    void CheckPlayerReadiness()
+    {
+        if (playerBegin != EggGameMaster.Instance.MatchReady())
+        {
+            //playerBegin = EggGameMaster.Instance.MatchReady();
+            UpdateReadiness(gameManager.GetID());
+        }
+        
+    }
+
+    [Command]
+    public void UpdateReadiness(int _id)
+    {
+        Debug.Log("Updating readiness on the server");
+        foreach (KeyValuePair<string, GameObject> pair in UnigmaNetworkManager.Players)
+        {
+            EggPlayer player = pair.Value.GetComponent<EggPlayer>();
+            if (player.ID == _id)
+            {
+                player.playerBegin = true;
+            }
+        }
+        UpdateReadinessClients(_id);
+    }
+    
+    [ClientRpc]
+    public void UpdateReadinessClients(int _id)
+    {
+        Debug.Log("Updating readiness on this local client called from server: " + _id + " " + ID + " " + gameManager.ManagerPlayers.Count);
+        foreach (KeyValuePair<string, GameObject> pair in gameManager.ManagerPlayers)
+        {
+            EggPlayer player = pair.Value.GetComponent<EggPlayer>();
+            if (player.ID == _id)
+            {
+                player.playerBegin = true;
+            }
+        }
+    }
     void UpdateMouseControls()
     {
         if (Input.GetMouseButtonDown(0))
@@ -240,6 +281,11 @@ public class EggPlayer : NetworkBehaviour
                 currentUnit = unit;
             if (isServer || UnigmaNetworkManager.IsServerOn == false)
                 currentUnit = unit;
+
+            if (isClient && isServer && int.Parse(unit.owner) == 0)
+            {
+                currentUnit = unit;
+            }
         }
 
 

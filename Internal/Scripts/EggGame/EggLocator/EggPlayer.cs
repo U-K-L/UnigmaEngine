@@ -61,9 +61,9 @@ public class EggPlayer : NetworkBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (playerBegin)
+        if (playerBegin || !UnigmaNetworkManager.IsServerOn)
         {
-            if (!isAI && isClient && isPlayer)
+            if (!isAI && (isClient || !UnigmaNetworkManager.IsServerOn) && isPlayer)
             {
                 if (state == StateMachine.controllable || state == StateMachine.selectingTile)
                     UpdateMouseControls();
@@ -279,16 +279,9 @@ public class EggPlayer : NetworkBehaviour
             Debug.Log(unit.owner);
             if (gameManager.GetID() == int.Parse(unit.owner))
                 currentUnit = unit;
-            if (isServer || UnigmaNetworkManager.IsServerOn == false)
+            if (UnigmaNetworkManager.IsServerOn == false)
                 currentUnit = unit;
-
-            if (isClient && isServer && int.Parse(unit.owner) == 0)
-            {
-                currentUnit = unit;
-            }
         }
-
-
     }
 
     public bool IsUnitsDead()

@@ -5,26 +5,6 @@ using UnityEngine;
 public class EggGameCommandManager : MonoBehaviour
 {
     // Start is called before the first frame update
-
-    private class CommandNode
-    {
-        public string id; //character name.
-        public int priority;
-        public string command;
-        public List<CommandNode> children = new List<CommandNode>();
-        public CommandNode parent;
-        public Object[] objects;
-        public bool visited = false;
-
-        public CommandNode(string id, string command, int priority, Object[] objects)
-        {
-            this.id = id;
-            this.command = command;
-            this.priority = priority;
-            this.objects = objects;
-        }
-    }
-
     private CommandNode root;
     private List<CommandNode> _commandList = new List<CommandNode>();
     private Stack<CommandNode> _commandStack = new Stack<CommandNode>();
@@ -51,13 +31,17 @@ public class EggGameCommandManager : MonoBehaviour
         }
     }
 
-    public void AddCommand(string id, string command, int priority, Object[] objects)
+    public void AddCommand(EggLocatorUnit unit, string id, string command, int priority, Object[] objects)
     {
+        if (unit._agent.CommandQueue.Count > unit._agent.MaxCommands)
+        {
+            Debug.Log("Too many commands");
+            return;
+        }
         CommandNode node = new CommandNode(id, command, priority, objects);
-
-        _commandList.Add(node);
+        unit._agent.CommandQueue.Add(node);
     }
-
+    
     private void SortQueue()
     {
         //Perform buble sort on list
@@ -79,8 +63,22 @@ public class EggGameCommandManager : MonoBehaviour
         _commandQueue = new Queue<CommandNode>(_commandList);
     }
 
+    void CreateCommandList()
+    {
+        _commandList.Clear();
+        foreach (KeyValuePair<string, EggLocatorUnit> UnitPair in _gameManager.GlobalUnits)
+        {
+            EggLocatorUnit unit = UnitPair.Value;
+            foreach (CommandNode node in unit._agent.CommandQueue)
+            {
+                _commandList.Add(node);
+            }
+        }
+    }
+
     public void ExecuteCommands()
     {
+        CreateCommandList();
         SortQueue();
         CreateCommandTree();
 
@@ -187,6 +185,7 @@ public class EggGameCommandManager : MonoBehaviour
         _commandList.Clear();
         _commandQueue.Clear();
         _commandStack.Clear();
+        _gameManager.ClearAllCommands();
     }
 
     public static void Unlock()
@@ -216,6 +215,8 @@ public class EggGameCommandManager : MonoBehaviour
 
         Debug.Log(debug);
     }
+
+
 
     private string PrintNode(CommandNode node)
     {

@@ -199,6 +199,7 @@ public class EggGameManager : MonoBehaviour
             players[1] = Instantiate(GetComponentInChildren<UnigmaNetworkManager>().playerPrefab, this.transform);
             players[1].GetComponent<EggPlayer>().CreateParty();
             players[1].GetComponent<EggPlayer>().isPlayer = false;
+            players[1].GetComponent<EggPlayer>().isAI = true;
         }
         AgentsCreated = true;
         createAgents();
@@ -232,7 +233,7 @@ public class EggGameManager : MonoBehaviour
         Object[] objects = new Object[2];
         objects[0] = unit;
         objects[1] = block;
-        _commandManager.AddCommand(unit.name, "jump", unit.speed, objects);
+        _commandManager.AddCommand(unit, unit.name, "jump", unit.speed, objects);
     }
 
     public IEnumerator CommandJump(string id, Object[] objects)
@@ -273,6 +274,14 @@ public class EggGameManager : MonoBehaviour
         foreach (GameObject player in players)
         {
             player.GetComponent<EggPlayer>().SetControllableState();
+        }
+    }
+
+    public void ClearAllCommands()
+    {
+        foreach(KeyValuePair<string, EggLocatorUnit> unit in GlobalUnits)
+        {
+            unit.Value.ClearCommandQueue();
         }
     }
 

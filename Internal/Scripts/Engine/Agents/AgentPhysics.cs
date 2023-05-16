@@ -87,6 +87,9 @@ public class AgentPhysics : MonoBehaviour
     public EventHandler OnColliding; //Collision stay.
     public EventHandler OnTriggered;
 
+    //Handles commands sent to this agent, this command queue can be used by other managers.
+    public List<CommandNode> CommandQueue;
+    public int MaxCommands = 1;
 
     //These methods should be overwritten in the child class, but are kept for sake of protection.
     private void Start()
@@ -107,6 +110,7 @@ public class AgentPhysics : MonoBehaviour
 
     public virtual void BeginAgent()
     {
+        CommandQueue = new List<CommandNode>();
         SubStates = new Dictionary<string, AgentStateClasses>();
         SubStates.Add("idle", new AgentStateClassesIdle());
         SubStates.Add("moving", new AgentStateClassesMoving());

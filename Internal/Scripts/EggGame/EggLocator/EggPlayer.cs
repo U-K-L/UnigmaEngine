@@ -13,7 +13,7 @@ public class EggPlayer : NetworkBehaviour
 {
     // Start is called before the first frame update
     public int ID = 0; //Which player this is.
-    private bool isAI = false; //If the player is an AI.
+    public bool isAI = false; //If the player is an AI.
     private PlayerCursor _playerCursor;
     private CameraController cameraController;
 
@@ -31,7 +31,7 @@ public class EggPlayer : NetworkBehaviour
 
     public bool playerBegin = false;
 
-
+    private AIAgentController _aiAgentController;
     private void Awake()
     {
         DontDestroyOnLoad(gameObject);
@@ -42,6 +42,11 @@ public class EggPlayer : NetworkBehaviour
     }
     void Start()
     {
+        _aiAgentController = this.transform.gameObject.AddComponent<AIAgentController>();
+        if (isAI)
+            _aiAgentController.enabled = true;
+        else
+            _aiAgentController.enabled = false;
         StartPlayer();
     }
 
@@ -256,7 +261,6 @@ public class EggPlayer : NetworkBehaviour
         {
             cameraController.SetPivot(pivot);
         }
-
     }
 
     public void Reset()
@@ -313,6 +317,16 @@ public class EggPlayer : NetworkBehaviour
         state = StateMachine.controllable;
     }
 
+    public EggLocatorUnit GetCurrentUnit()
+    {
+        return currentUnit;
+    }
+
+    public void SetCurrentUnit(EggLocatorUnit unit)
+    {
+        currentUnit = unit;
+    }
+
     [Command]
     public void DropBlock(string key)
     {
@@ -329,4 +343,6 @@ public class EggPlayer : NetworkBehaviour
         gameManager.matchNetworkEgg.UpdateUnitsJumpServer(unitKey, blockKey);
 
     }
+
+    
 }

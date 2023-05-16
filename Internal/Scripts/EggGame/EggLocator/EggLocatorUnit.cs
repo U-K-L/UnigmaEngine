@@ -14,7 +14,7 @@ using Collision = UnityEngine.Collision;
 public class EggLocatorUnit : MonoBehaviour
 {
     // Start is called before the first frame update
-    public int move = 3; //How far can move to adjacent blocks.
+    public int MoveRange = 3; //How far can move to adjacent blocks.
     private BlockEntity _currentBlock; //The current block this unit stands on.
     private Dictionary<string, GameObject> _blockMatrix;
     private EggLocatorGrid _grid;
@@ -32,8 +32,8 @@ public class EggLocatorUnit : MonoBehaviour
     public bool isSelected = false;
 
     private AudioSource _audioJump;
-
-    private BlockGraph _blockGraph;
+    
+    public BlockGraph BlockGraph;
 
     public float jumpRadius = 1f;
     public string owner = "";
@@ -44,13 +44,14 @@ public class EggLocatorUnit : MonoBehaviour
 
     //Remove this for a more formal recovering state within agent physics.
     public bool isRecovering = false;
+
     void Start()
     {
         GameObject notNull = GameObject.FindGameObjectWithTag("GameManager");
         if (notNull)
         {
             eggGameManager = notNull.GetComponent<EggGameManager>();
-            _blockGraph = GameObject.FindGameObjectWithTag("GameManager").GetComponent<BlockGraph>();
+            BlockGraph = GameObject.FindGameObjectWithTag("GameManager").GetComponent<BlockGraph>();
         }
 
         GameObject jump = Resources.Load<GameObject>("Sounds/Jump/Jump");
@@ -68,7 +69,7 @@ public class EggLocatorUnit : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        jumpRadius = move;
+        jumpRadius = MoveRange;
         //_agent.jumpRadius = jumpRadius;
         /*
         EnsureStageLoaded();
@@ -325,11 +326,11 @@ public class EggLocatorUnit : MonoBehaviour
             return null;
         if (_currentBlock == null)
             return null;
-        for (int i = 1; i <= move; i++)
+        for (int i = 1; i <= MoveRange; i++)
         {
-            for (int j = 0; j <= move; j++)
+            for (int j = 0; j <= MoveRange; j++)
             {
-                for (int k = 1; k <= move; k++)
+                for (int k = 1; k <= MoveRange; k++)
                 {
                     GetBlocks(i, j, k, blocks);
                 }
@@ -418,6 +419,12 @@ public class EggLocatorUnit : MonoBehaviour
 
     public void OnClick()
     {
+        ChooseBlock();
+    }
+
+
+    public void ChooseBlock()
+    {
         if (isSelected)
         {
             _agent.setStateCrouching();
@@ -426,7 +433,7 @@ public class EggLocatorUnit : MonoBehaviour
         else
         {
             _agent.setStateIdle();
-            _blockGraph.RemoveAllIndicators();
+            BlockGraph.RemoveAllIndicators();
         }
     }
 
@@ -447,8 +454,8 @@ public class EggLocatorUnit : MonoBehaviour
         BlockEntity block = _currentBlock;
         if (block != null)
         {
-            List<BlockEntity> blocks = _blockGraph.GetBlocksLevelSet(block, move);
-            _blockGraph.AddIndicators(blocks);
+            List<BlockEntity> blocks = BlockGraph.GetBlocksLevelSet(block, MoveRange);
+            BlockGraph.AddIndicators(blocks);
         }
     }
 
@@ -457,8 +464,8 @@ public class EggLocatorUnit : MonoBehaviour
         BlockEntity block = _currentBlock;
         if (block != null)
         {
-            List<BlockEntity> blocks = _blockGraph.GetBlocksLevelSetByDistance(block, move);
-            _blockGraph.AddIndicators(blocks);
+            List<BlockEntity> blocks = BlockGraph.GetBlocksLevelSetByDistance(block, MoveRange);
+            BlockGraph.AddIndicators(blocks);
         }
     }
 
@@ -494,7 +501,11 @@ public class EggLocatorUnit : MonoBehaviour
         return value;
     }
 
-
+    public void ClearCommandQueue()
+    {
+        _agent.CommandQueue.Clear();
+    }
+    
     public void GetBlocks(int i, int j, int k, List<BlockEntity> blocks)
     {
 

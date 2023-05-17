@@ -283,7 +283,7 @@ public class EggPlayer : NetworkBehaviour
             Debug.Log(unit.owner);
             if (gameManager.GetID() == int.Parse(unit.owner))
                 currentUnit = unit;
-            if (UnigmaNetworkManager.IsServerOn == false)
+            if (ID == int.Parse(unit.owner))
                 currentUnit = unit;
         }
     }

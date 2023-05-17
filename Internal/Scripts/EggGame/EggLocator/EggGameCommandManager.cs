@@ -19,14 +19,38 @@ public class EggGameCommandManager : MonoBehaviour
         root = new CommandNode("-1", "root", -1, null);
         root.visited = true;
         _gameManager = GetComponent<EggGameManager>();
+        
     }
 
     // Update is called once per frame
     void Update()
     {
+        //Rhythm based execution of commands.
+        /*
         if (Input.GetKeyDown(KeyCode.Space))
         {
             Debug.Log("Executing commands");
+            ExecuteCommands();
+        }
+        */
+    }
+
+    public void StartExecutingCommands()
+    {
+        StartCoroutine(StartExecutionOfCommands());
+    }
+
+    public void StopExecutingCommands()
+    {
+        StopCoroutine(StartExecutionOfCommands());
+    }
+
+    IEnumerator StartExecutionOfCommands()
+    {
+        while (true)
+        {
+            Debug.Log("Executing commands");
+            yield return new WaitForSeconds(8.0f);
             ExecuteCommands();
         }
     }
@@ -82,7 +106,7 @@ public class EggGameCommandManager : MonoBehaviour
         SortQueue();
         CreateCommandTree();
 
-        StopAllCoroutines();
+        StopCoroutine(ExecuteCommandTree());
         StartCoroutine(ExecuteCommandTree());
     }
 

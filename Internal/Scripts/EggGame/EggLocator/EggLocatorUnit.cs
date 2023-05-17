@@ -206,14 +206,19 @@ public class EggLocatorUnit : MonoBehaviour
         unit.isRecovering = true;
         Debug.Log("KNOCK EM OUT: " + unit.name);
         AgentPhysics agent = unit._agent;
+        Rigidbody opposingBody = this._agent._mbody;
         Rigidbody body = agent.GetComponent<Rigidbody>();
 
         //agent.EnableColliders(false);
         //Calculate the direction to knock the unit.
         Vector3 direction = Vector3.Normalize(unit._currentBlock.transform.position - previousBlockPosition);
 
+        Debug.Log("The velocity of the opponent: " + opposingBody.velocity);
+        if (Mathf.Abs(opposingBody.velocity.y) > 29f)
+            direction = new Vector3(opposingBody.velocity.y, opposingBody.velocity.y, opposingBody.velocity.y);
+
         //Get the target position.
-        Vector3 targetPosition = agent.transform.position + new Vector3(direction.x, 0, direction.z) * 2.0f;
+        Vector3 targetPosition = agent.transform.position + new Vector3(direction.x, 0, direction.z) * 2.0f; // * body.velocity.sqrMagnitude;
 
         StartCoroutine(KnockOffEffect());
         //Perform the jump
@@ -366,12 +371,18 @@ public class EggLocatorUnit : MonoBehaviour
 
     IEnumerator JumpTo(BlockEntity block)
     {
+
+        float forceMultiplyer = 1;
+        if(_currentBlock.hashKey == block.hashKey)
+        {
+            forceMultiplyer = 10.5f;
+        }
         _AIJUMPREADY = false;
         float pauseTime = 0.15f;
         _agent.jumpRadius = Vector3.Distance(transform.position, block.CenterOfBlock());
         yield return new WaitForSeconds(pauseTime);
         _audioJump.Play();
-        _agent.SetActionArguments(new object[] { block.CenterOfBlock(), 8f });
+        _agent.SetActionArguments(new object[] { block.CenterOfBlock(), 8f * forceMultiplyer });
         _agent.setStateJumping();
         yield return new WaitForSeconds(pauseTime);
         PerformMoveAbilityAI();

@@ -161,6 +161,7 @@ public class EggGameManager : MonoBehaviour
             }
         }
         GlobalUnits.Clear();
+        _commandManager.StopExecutingCommands();
         EggGameMaster.Instance._matchReady = false;
     }
 
@@ -356,6 +357,7 @@ public class EggGameManager : MonoBehaviour
             }
             Debug.Log("Attempt to get the player");
             EggPlayer player = players[i].GetComponent<EggPlayer>();
+            player.ID = i;
             if (player)
             {
                 for (int j = 0; j < player.party.Length; j++)
@@ -367,6 +369,8 @@ public class EggGameManager : MonoBehaviour
         }
         BubbleGumTransition bubble = _cam._cam.GetComponent<BubbleGumTransition>();
         bubble.OpenAnimationPlay();
+
+        _commandManager.StartExecutingCommands();
     }
 
     void createAgent(int player, int index)
@@ -389,6 +393,7 @@ public class EggGameManager : MonoBehaviour
         if (playerUnit)
         {
             Unit.name = Unit.name + "[" + player + "]";
+            Unit.speed += index;
             playerUnit.AddUnitToParty(Unit);
 
             if (matchNetworkEgg != null)

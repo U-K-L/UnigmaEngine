@@ -1,10 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 public class BasicNN : MonoBehaviour
 {
     [SerializeField] string[] files;
+
+    List<float> _PerformanceProfiling = new List<float>();
+    float _profilingTimeTaken = 0;
 
     //The compute shader script.
     [SerializeField] private ComputeShader basicNNCompute = default;
@@ -94,14 +98,14 @@ public class BasicNN : MonoBehaviour
 
     IEnumerator DispatchShader()
     {
+        _profilingTimeTaken = Time.time;
         int tx = Row;
         int ty = Col;
         int tz = 1;
         int index = 0;
         int batchSize = 2;
         int bufferSize = outputData.count;
-
-        int currentKernal = idBasicNNKernelDot;
+        basicNNCompute.Dispatch(idBasicNNKernelDot, ty, tx, tz);
         if (Col > 65535)
         {
             ty = Mathf.CeilToInt(Mathf.Sqrt(Row));
@@ -109,17 +113,14 @@ public class BasicNN : MonoBehaviour
         }
         while (true)
         {
-            
-            basicNNCompute.Dispatch(currentKernal, ty, tx, tz);
-            currentKernal = idBasicNNKernelSum;
             SumDotProduct(index, batchSize, bufferSize);
             float[] resultValues = new float[outputData.count];
             outputData.GetData(resultValues);
-            PrintMatrix(Row, Col);
-
             index++;
             bufferSize = Mathf.CeilToInt(bufferSize / batchSize);
 
+            _PerformanceProfiling.Add(Time.time - _profilingTimeTaken);
+            PrintMatrix(Row, Col);
             yield return new WaitForSeconds(0.0f);
         }
     }
@@ -150,15 +151,28 @@ public class BasicNN : MonoBehaviour
         SetBuffers(0);
     }
 
+    //Buffer size is the imaginary buffer remainding. For performance, the actual buffer length is never resized.
     void SumDotProduct(int Batch, int BatchSize, int BufferSize)
     {
+        if (BufferSize < 1)
+        {
+            return;
+        }
+
+
         float[] resultValues = new float[outputData.count];
         outputData.GetData(resultValues);
         _inputDataA.SetData(resultValues);
         basicNNCompute.SetInt("_BufferSize", BufferSize);
         basicNNCompute.SetInt("_BatchSize", BatchSize);
         basicNNCompute.SetInt("_Batch", Batch);
+
+        int tx = BatchSize;
+        int ty = 1;
+        int tz = 1;
         
+        basicNNCompute.Dispatch(idBasicNNKernelSum, tx, ty, tz);
+
     }
 
     void SetBuffers(int i)
@@ -223,5 +237,28 @@ public class BasicNN : MonoBehaviour
             outputData.Release();
         }
         initialized = false;
+    }
+
+    private void OnApplicationQuit()
+    {
+        Debug.Log("Application quitting");
+        WritePerformanceListToFile();
+    }
+
+    void WritePerformanceListToFile()
+    {
+        string path = Application.streamingAssetsPath + "/NeuralNetworks/Data/" + "PerformanceList.txt";
+        float avg = 0;
+        for (int i = 0; i < _PerformanceProfiling.Count; i++)
+        {
+            avg += _PerformanceProfiling[i];
+        }
+        avg /= _PerformanceProfiling.Count;
+        string someText = "Version.0.0.1: (DOT,SUM): " + avg;
+
+        using (StreamWriter sw = File.AppendText(path))
+        {
+            sw.WriteLine(someText + "\n");
+        }
     }
 }

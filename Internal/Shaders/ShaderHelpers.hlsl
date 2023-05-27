@@ -77,7 +77,7 @@ float3x3 AngleAxis3x3(float angle, float3 axis)
 
 
 
-void MatrixMultiply(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float> B, RWStructuredBuffer<float> result, int _Transpose)
+void MatrixMultiply(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float> B, RWStructuredBuffer<float> result, int _Transpose, int _Batch)
 {
     int x = id.x + (id.z * 65535);
     int y = id.y + (id.z * 65535);

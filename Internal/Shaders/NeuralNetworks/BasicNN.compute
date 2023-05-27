@@ -10,10 +10,11 @@ RWStructuredBuffer<float> _outputData;
 
 
 int _Cols;
+int _Batch;
 int _Transpose; //0 = none, 1 = A, 2 = B, 3 = both.
 
-[numthreads(8,8,8)]
+[numthreads(1,1,1)]
 void Main (uint3 id : SV_DispatchThreadID)
 {
-	MatrixMultiply(id, _Cols, _inputDataA, _inputDataB, _outputData, _Transpose);
+	MatrixMultiply(id, _Cols, _inputDataA, _inputDataB, _outputData, _Transpose, _Batch);
 }

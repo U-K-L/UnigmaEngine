@@ -4,10 +4,14 @@ using UnityEngine;
 
 public class BasicNN : MonoBehaviour
 {
+    [SerializeField] string[] files;
+
     //The compute shader script.
     [SerializeField] private ComputeShader basicNNCompute = default;
 
     //Make the buffer to send and recieve data.
+    private List<ComputeBuffer> _inputBufferArrayA = default;
+    private List<ComputeBuffer> _inputBufferArrayB = default;
     private ComputeBuffer _inputDataA;
     private ComputeBuffer _inputDataB;
     private ComputeBuffer outputData;
@@ -52,6 +56,7 @@ public class BasicNN : MonoBehaviour
             for (int j = 0; j < inputmatrix[0].Length; j++)
             {
                 matrixArray[j + i * 2] = inputmatrix[i][j];
+                Debug.Log(matrixArray[j + i * 2]);
             }
         }
     }
@@ -66,8 +71,8 @@ public class BasicNN : MonoBehaviour
         float[][] inputVectorsA = null;
         float[][] inputVectorsB = null;
 
-        LoadDataFromCSV("BasicNNA.csv", ref inputVectorsA);
-        LoadDataFromCSV("BasicNNB.csv", ref inputVectorsB);
+        LoadDataFromCSV(files[0], ref inputVectorsA);
+        LoadDataFromCSV(files[1], ref inputVectorsB);
         MatrixMul(inputVectorsA, inputVectorsB, ref outputMatrix);
         StartCoroutine(DispatchShader());
     }
@@ -100,8 +105,8 @@ public class BasicNN : MonoBehaviour
             basicNNCompute.Dispatch(idBasicNNKernel, tx, ty, tz);
             float[] resultValues = new float[outputData.count];
             outputData.GetData(resultValues);
-            Debug.Log(resultValues[0]);
-            yield return new WaitForSeconds(5);
+            PrintMatrix(Row, Col);
+            yield return new WaitForSeconds(0.5f);
         }
     }
     
@@ -115,6 +120,9 @@ public class BasicNN : MonoBehaviour
         LoadMatrixDataToArray(inputVectorsA, ref inputDataMatrixA);
         LoadMatrixDataToArray(inputVectorsB, ref inputDataMatrixB);
 
+        Row = inputVectorsA.Length;
+        Col = inputVectorsB[0].Length;
+
         outputMatrix = new float[inputVectorsA.Length * inputVectorsB[0].Length];
         //Initialize the buffers.
         _inputDataA = new ComputeBuffer(inputDataMatrixA.Length, DATA_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
@@ -125,6 +133,11 @@ public class BasicNN : MonoBehaviour
         _inputDataB.SetData(inputDataMatrixB);
         outputData.SetData(outputMatrix);
 
+        SetBuffers(0);
+    }
+
+    void SetBuffers(int i)
+    {
         //Get the function ID.
         idBasicNNKernel = basicNNCompute.FindKernel("Main");
 
@@ -132,11 +145,9 @@ public class BasicNN : MonoBehaviour
         basicNNCompute.SetBuffer(idBasicNNKernel, "_inputDataA", _inputDataA);
         basicNNCompute.SetBuffer(idBasicNNKernel, "_inputDataB", _inputDataB);
         basicNNCompute.SetBuffer(idBasicNNKernel, "_outputData", outputData);
-        basicNNCompute.SetInt("_Cols", inputVectorsA[0].Length);
+        basicNNCompute.SetInt("_Cols", Col);
         basicNNCompute.SetInt("_Transpose", (int)_transpose);
-
-        Row = inputVectorsA.Length;
-        Col = inputVectorsB[0].Length;
+        basicNNCompute.SetInt("_Batch", i);
     }
 
     void PrintMatrix(int row, int col)

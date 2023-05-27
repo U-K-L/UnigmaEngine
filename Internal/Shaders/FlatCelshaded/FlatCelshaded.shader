@@ -1,8 +1,4 @@
-#warning Upgrade NOTE: unity_Scale shader variable was removed; replaced 'unity_Scale.w' with '1.0'
-// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
-
-
-Shader "Unigma/UniversalShader"
+Shader "Unigma/FlatCelshaded"
 {
 	Properties
 	{
@@ -38,7 +34,7 @@ Shader "Unigma/UniversalShader"
 		_Noise("Noise", 2D) = "white" {}
 		_Spread("Spread of texture", Range(-2,5)) = 1.88
 		_EdgeWidth("EdgeWidth", Range(0,0.5)) = 1
-			
+
 		_UnityLightingContribution("Unity Reflection Contribution", Range(0,1)) = 1
 		[KeywordEnum(BlinnPhong,Phong,Beckmann,Gaussian,GGX,TrowbridgeReitz,TrowbridgeReitzAnisotropic, Ward)] _NormalDistModel("Normal Distribution Model;", Float) = 0
 		[KeywordEnum(AshikhminShirley,AshikhminPremoze,Duer,Neumann,Kelemen,ModifiedKelemen,Cook,Ward,Kurt)]_GeoShadowModel("Geometric Shadow Model;", Float) = 0
@@ -54,51 +50,49 @@ Shader "Unigma/UniversalShader"
 		_ShakingOn("Shaking On", Range(0,1)) = 0
 		_ShakingSpeed("Shaking Speed", Vector) = (2.26,2.38,4.11,0)
 		_ShakingAmount("Shaking Amount", Vector) = (0.43,0.18,0.68,0)
-		
+
 	}
 
-	SubShader
-	{
-		Pass
+		SubShader
 		{
-			Tags{
-				"LightMode" = "ForwardBase"
-			}
+			Pass
+			{
+				Tags{
+					"LightMode" = "ForwardBase"
+				}
 
-			//transparency
-			Blend SrcAlpha OneMinusSrcAlpha
-			Cull Off
-			CGPROGRAM
-			
-			#define FORWARD_BASE_PASS
-				#if !defined(UnigmaLightingFunction)
-					#define UnigmaLightingFunction
-					#include "../UniversalUnigmaLighting.cginc"
-				#endif
-				
-				//#pragma multi_compile _SHADOWS_SCREEN
-				#pragma multi_compile _VERTEXLIGHT_ON
-				#pragma multi_compile_fwdbase_fullshadows      
-				#pragma target 3.0
-				#pragma vertex VertexFunction
-				#pragma fragment UnigmaPBRTriplanar
-				#pragma multi_compile _NORMALDISTMODEL_BLINNPHONG _NORMALDISTMODEL_PHONG _NORMALDISTMODEL_BECKMANN _NORMALDISTMODEL_GAUSSIAN _NORMALDISTMODEL_GGX _NORMALDISTMODEL_TROWBRIDGEREITZ _NORMALDISTMODEL_TROWBRIDGEREITZANISOTROPIC _NORMALDISTMODEL_WARD
-				#pragma multi_compile _GEOSHADOWMODEL_ASHIKHMINSHIRLEY _GEOSHADOWMODEL_ASHIKHMINPREMOZE _GEOSHADOWMODEL_DUER_GEOSHADOWMODEL_NEUMANN _GEOSHADOWMODEL_KELEMAN _GEOSHADOWMODEL_MODIFIEDKELEMEN _GEOSHADOWMODEL_COOK _GEOSHADOWMODEL_WARD _GEOSHADOWMODEL_KURT 
-				#pragma multi_compile _SMITHGEOSHADOWMODEL_NONE _SMITHGEOSHADOWMODEL_WALTER _SMITHGEOSHADOWMODEL_BECKMAN _SMITHGEOSHADOWMODEL_GGX _SMITHGEOSHADOWMODEL_SCHLICK _SMITHGEOSHADOWMODEL_SCHLICKBECKMAN _SMITHGEOSHADOWMODEL_SCHLICKGGX _SMITHGEOSHADOWMODEL_IMPLICIT
-				#pragma multi_compile _FRESNELMODEL_SCHLICK _FRESNELMODEL_SCHLICKIOR _FRESNELMODEL_SPHERICALGAUSSIAN
-				#pragma multi_compile  _ENABLE_NDF_OFF _ENABLE_NDF_ON
-				#pragma multi_compile  _ENABLE_G_OFF _ENABLE_G_ON
-				#pragma multi_compile  _ENABLE_F_OFF _ENABLE_F_ON
-				#pragma multi_compile  _ENABLE_D_OFF _ENABLE_D_ON
-			ENDCG
-		}
+				Cull Off
+				CGPROGRAM
 
-		//Multiple lights.
-		Pass 
-		{
-			Tags {
-				"LightMode" = "ForwardAdd"
-			}
+				#define FORWARD_BASE_PASS
+					#if !defined(UnigmaLightingFunction)
+						#define UnigmaLightingFunction
+						#include "../UniversalUnigmaLighting.cginc"
+					#endif
+
+			//#pragma multi_compile _SHADOWS_SCREEN
+			#pragma multi_compile _VERTEXLIGHT_ON
+			#pragma multi_compile_fwdbase_fullshadows      
+			#pragma target 3.0
+			#pragma vertex VertexFunction
+			#pragma fragment UnigmaPBRCelShadedTriplanar
+			#pragma multi_compile _NORMALDISTMODEL_BLINNPHONG _NORMALDISTMODEL_PHONG _NORMALDISTMODEL_BECKMANN _NORMALDISTMODEL_GAUSSIAN _NORMALDISTMODEL_GGX _NORMALDISTMODEL_TROWBRIDGEREITZ _NORMALDISTMODEL_TROWBRIDGEREITZANISOTROPIC _NORMALDISTMODEL_WARD
+			#pragma multi_compile _GEOSHADOWMODEL_ASHIKHMINSHIRLEY _GEOSHADOWMODEL_ASHIKHMINPREMOZE _GEOSHADOWMODEL_DUER_GEOSHADOWMODEL_NEUMANN _GEOSHADOWMODEL_KELEMAN _GEOSHADOWMODEL_MODIFIEDKELEMEN _GEOSHADOWMODEL_COOK _GEOSHADOWMODEL_WARD _GEOSHADOWMODEL_KURT 
+			#pragma multi_compile _SMITHGEOSHADOWMODEL_NONE _SMITHGEOSHADOWMODEL_WALTER _SMITHGEOSHADOWMODEL_BECKMAN _SMITHGEOSHADOWMODEL_GGX _SMITHGEOSHADOWMODEL_SCHLICK _SMITHGEOSHADOWMODEL_SCHLICKBECKMAN _SMITHGEOSHADOWMODEL_SCHLICKGGX _SMITHGEOSHADOWMODEL_IMPLICIT
+			#pragma multi_compile _FRESNELMODEL_SCHLICK _FRESNELMODEL_SCHLICKIOR _FRESNELMODEL_SPHERICALGAUSSIAN
+			#pragma multi_compile  _ENABLE_NDF_OFF _ENABLE_NDF_ON
+			#pragma multi_compile  _ENABLE_G_OFF _ENABLE_G_ON
+			#pragma multi_compile  _ENABLE_F_OFF _ENABLE_F_ON
+			#pragma multi_compile  _ENABLE_D_OFF _ENABLE_D_ON
+		ENDCG
+	}
+
+			//Multiple lights.
+			Pass
+			{
+				Tags {
+					"LightMode" = "ForwardAdd"
+				}
 			//Blends this light with the previous one.
 			Blend One One
 			Zwrite Off
@@ -106,7 +100,7 @@ Shader "Unigma/UniversalShader"
 
 				#pragma target 3.0  
 				#pragma multi_compile_fwdadd_fullshadows
-				
+
 				#pragma vertex VertexFunction
 				#pragma fragment UnigmaPBRTriplanar
 
@@ -114,13 +108,13 @@ Shader "Unigma/UniversalShader"
 
 			ENDCG
 		}
-		
-		Pass 
+
+		Pass
 		{
 			Tags {
 				"LightMode" = "ShadowCaster"
 			}
-			
+
 			CGPROGRAM
 
 				#pragma target 3.0  
@@ -131,5 +125,5 @@ Shader "Unigma/UniversalShader"
 
 			ENDCG
 		}
-	}
+		}
 }

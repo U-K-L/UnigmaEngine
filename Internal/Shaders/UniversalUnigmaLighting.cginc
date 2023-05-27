@@ -267,9 +267,14 @@ float4 triPlanar(Interpolators i) {
 
 	// TriPlanar for XY, XZ, YZ
 	//Top
+	/*
     float4 xt = tex2D(_TopText, i.worldPos.zy * _Scale.x);
     float4 yt = tex2D(_TopText, i.worldPos.zx * _Scale.x);
     float4 zt = tex2D(_TopText, i.worldPos.xy * _Scale.x);
+	*/
+	float4 xt = tex2D(_TopText, i.uv * _Scale.x);
+	float4 yt = tex2D(_TopText, i.uv * _Scale.x);
+	float4 zt = tex2D(_TopText, i.uv * _Scale.x);
 	//Side
     float4 xs = tex2D(_MainTex, i.worldPos.zy * _Scale.y);
     float4 ys = tex2D(_MainTex, i.worldPos.zx * _Scale.y);
@@ -304,6 +309,52 @@ float4 triPlanar(Interpolators i) {
     float4 result = (topTextureResult * _Brightness) + sideTextureResult;
 	
     return result;
+}
+
+float4 triPlanarCelShaded(Interpolators i)
+{
+	float3 worldNormalVec = normalize(i.normal); //WorldNormalVector(i, float3(0, 1, 0));
+	float3 blendNormal = saturate(pow(worldNormalVec * _BlendSmooth, 4));
+
+	// TriPlanar for XY, XZ, YZ
+	//Top
+	float4 xt = tex2D(_TopText, i.worldPos.zy * _Scale.x);
+	float4 yt = tex2D(_TopText, i.worldPos.zx * _Scale.x);
+	float4 zt = tex2D(_TopText, i.worldPos.xy * _Scale.x);
+	//Side
+	float4 xs = tex2D(_MainTex, i.worldPos.zy * _Scale.y);
+	float4 ys = tex2D(_MainTex, i.worldPos.zx * _Scale.y);
+	float4 zs = tex2D(_MainTex, i.worldPos.xy * _Scale.y);
+	//Noise
+	float4 xn = tex2D(_Noise, i.worldPos.zy * _NoiseScale);
+	float4 yn = tex2D(_Noise, i.worldPos.zx * _NoiseScale);
+	float4 zn = tex2D(_Noise, i.worldPos.xy * _NoiseScale);
+
+	//Lerp the results of the world normals with the two textures.
+	//Top
+	float4 topTexture = zt;
+	topTexture = lerp(topTexture, xt, blendNormal.x);
+	topTexture = lerp(topTexture, yt, blendNormal.y);
+	//Side
+	float4 sideTexture = zs;
+	sideTexture = lerp(sideTexture, xs, blendNormal.x);
+	sideTexture = lerp(sideTexture, ys, blendNormal.y);
+	//Noise
+	float4 noisetexture = zn;
+	noisetexture = lerp(noisetexture, xn, blendNormal.x);
+	noisetexture = lerp(noisetexture, yn, blendNormal.y);
+
+
+	//Determine how if on side or on top.
+	float normDotNoise = dot(i.normal + (noisetexture.y + (noisetexture * 0.5)), worldNormalVec.y);
+	//Checks if higher then top.
+	float4 topTextureResult = step(_Spread + _EdgeWidth, normDotNoise) * topTexture;
+	//Side
+	float4 sideTextureResult = step(normDotNoise, _Spread) * sideTexture;
+
+	float4 result = (topTextureResult * _Brightness) + sideTextureResult;
+
+	return result;
 }
 
 float4 triPlanarSIDE(Interpolators i)
@@ -1067,6 +1118,14 @@ half4 ShadowUnigmaPBR(Interpolators i) : SV_TARGET
     return 0;
 }
 
+float Clamp0To1(float x)
+{
+	float _min = -1;
+	float _max = abs(1 - _min);
+
+	return 1 - ((x - _min) / _max);
+}
+
 
 float4 UnigmaPBR(Interpolators i) : SV_TARGET
 {
@@ -1266,6 +1325,88 @@ float4 UnigmaPBRTriplanar(Interpolators i) : SV_TARGET
 	
 	//create darker darks
     float lightThreshold1 = step(NdotL, _NdotLThreshold);
-	
-    return PBR + (SkyBoxEnvironment * 0.375 * (lightThreshold1));
+	float4 result = PBR + (SkyBoxEnvironment * 0.375 * (lightThreshold1));
+	result.a = triResult.a;
+    return result;
+}
+
+
+float4 UnigmaPBRCelShadedTriplanar(Interpolators i) : SV_TARGET
+{
+	float4 triResult = triPlanarCelShaded(i);
+
+	//Combine triplanar results with diffuse shading.
+
+	//Diffuse
+	float3 normals = normalize(i.normal);//GetNormalMap(i);
+	float3 localNormals = normalize(i.localNormal);
+	float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
+
+
+
+
+	float3 lightPos = _WorldSpaceLightPos0.xyz - i.worldPos;
+	float3 lightDirAbsolute = normalize(_WorldSpaceLightPos0.xyz);
+	float3 lightDir = normalize(lightPos);
+
+	float3 halfVector = normalize(lightDir + viewDir);
+	float reflectance = pow(DotClamped(halfVector, normals), _Smoothness * 10);
+
+
+
+	//Variable name, shadows, position.
+	UNITY_LIGHT_ATTENUATION(attenuation, i, i.worldPos);
+	float3 lightColor = _LightColor0.rgb * attenuation;
+
+
+
+	float NdotL = DotClamped(normals, lightDirAbsolute);
+
+
+	float3 albedo = _Tint.rgb * triResult;
+	float3 specularTint;
+	float oneMinusReflectivity;
+	albedo = DiffuseAndSpecularFromMetallic(
+					albedo, _Metallic, specularTint, oneMinusReflectivity
+				);
+
+	float3 specular = specularTint * lightColor * pow(DotClamped(halfVector, normals),
+	_Smoothness * 10);
+
+	float4 diffuse = float4(lightColor * (1 - NdotL) * albedo, 1);
+	float3 shColor = ShadeSH9(float4(i.normal, 1));
+	float4 SkyBoxEnvironment = ToFloat4(shColor);
+
+	float ndotl = dot(normals, lightDirAbsolute);
+
+	UnityLight light;
+
+	light.color = lightColor;
+#if defined(POINT) || defined(POINT_COOKIE) || defined(SPOT)
+		light.dir = normalize(_WorldSpaceLightPos0.xyz - i.worldPos);
+#else
+	light.dir = _WorldSpaceLightPos0.xyz;
+#endif
+	light.ndotl = NdotL;
+	UnityIndirect indirectLight;
+	indirectLight.diffuse = 0;
+	indirectLight.specular = 0;
+
+
+
+	float4 PBR = UNITY_BRDF_PBS(albedo, specularTint, oneMinusReflectivity, _Smoothness, normals, viewDir, light, CreateIndirectLight(i));
+
+	//create darker darks
+	float lightThreshold1 = step(_NdotLThreshold, NdotL);
+	float4 result = PBR + (SkyBoxEnvironment * 0.375 * (lightThreshold1));
+
+	float4 finalResult = lerp(result, diffuse, NdotL);
+	float r = random(localNormals).x;
+
+	float diffuseCutt = 1 - Clamp0To1(ndotl);
+	float4 diffuseTint = diffuseCutt > _ShadowStrength ? result : _AmbientColor;
+
+
+
+	return diffuseTint;//float4(localNormals, 1);
 }

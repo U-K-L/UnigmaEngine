@@ -1,0 +1,98 @@
+//This is an example of compute shaders and acts as an active reference.
+
+//A kernal is a function to be dispatched. This is the function that will run upon starting the compute shader.
+#pragma kernel Main
+
+//In here we can include hlsl
+//#include file.hlsl
+
+#include "../../ShaderHelpers.hlsl"
+
+//Let's define our vertexs. We will make this a struct.
+
+//The vertices of the source mesh given by C#.
+struct SourceVertex {
+	float3 position; //This is in object space.
+	float2 uv;
+};
+
+//output vertices to send back to C#.
+
+struct OutputVertex
+{
+	float3 position;
+	float2 uv;
+};
+
+//The triangles to output.
+
+struct OutputTriangle
+{
+	float3 normal; //This normal in world space.
+	OutputVertex vertices[3];
+};
+
+//Declare the variables needed. An array that is read only.
+StructuredBuffer <SourceVertex> _sourceVertices;
+StructuredBuffer <int> _sourceTriangles; //The indices of the vertexs to form a triangle.
+AppendStructuredBuffer <OutputTriangle> _outputTriangles; //This acts as a stack.
+
+//These are the variables that are set by C#.
+int _NumOfTriangles;
+float _Height;
+float4x4 _LocalToWorldMatrix;
+
+OutputVertex CreateVertex(SourceVertex v)
+{
+	OutputVertex vertex;
+	vertex.position = mul(_LocalToWorldMatrix, float4(v.position, 1.0f)).xyz;
+	vertex.uv = v.uv;
+	return vertex;
+}
+
+void AppendTriangleToBuffer(OutputVertex a, OutputVertex b, OutputVertex c)
+{
+	float3 normal = GetTriangleNormal(a.position, b.position, c.position); //normal needs to be recalculated.
+	OutputTriangle tri;
+	tri.normal = normal;
+	tri.vertices[0] = a;
+	tri.vertices[1] = b;
+	tri.vertices[2] = c;
+	
+	_outputTriangles.Append(tri);
+	
+}
+
+//Now write the main function. ID is the thread currently running.
+[numthreads(128,1,1)]
+void Main(uint3 id : SV_DispatchThreadID)
+{
+	//Ensure it isn't using more compute than triangles.
+	if ((int)id.x > _NumOfTriangles)
+		return;
+	
+	//Now take the triangle, add in a middle point, extrodue it by the height, and save it as a buffer.
+	
+	int indexOfTriangle = id.x * 3; //This tells us where we are on this thread to compute the triangle. This is like a pixel shader but manually...
+	
+	OutputTriangle outputTriangle; //Final output to append.
+	OutputVertex vertices[3];
+	vertices[0] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle]]);
+	vertices[1] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 1]]);
+	vertices[2] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 2]]);
+	
+	float3 triNormal = GetTriangleNormal(vertices[0].position, vertices[1].position, vertices[2].position);
+	float3 triCenter = GetTriangleCenter(vertices[0].position, vertices[1].position, vertices[2].position);
+
+	//Extrude the center vertex along the triangle normal direction.
+	float3 extrudedVertex = triCenter + (triNormal * _Height);
+
+	OutputVertex center;
+	center.position = extrudedVertex;
+	center.uv = GetTriangleCenter(vertices[0].uv, vertices[1].uv, vertices[2].uv);
+
+	AppendTriangleToBuffer(vertices[0], vertices[1], center);
+	AppendTriangleToBuffer(vertices[1], vertices[2], center);
+	AppendTriangleToBuffer(vertices[2], vertices[0], center);
+	
+}

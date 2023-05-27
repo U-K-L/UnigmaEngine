@@ -1,0 +1,150 @@
+//This is an example of compute shaders and acts as an active reference.
+
+//A kernal is a function to be dispatched. This is the function that will run upon starting the compute shader.
+#pragma kernel Main
+
+//In here we can include hlsl
+//#include file.hlsl
+
+#include "../ShaderHelpers.hlsl"
+
+//Let's define our vertexs. We will make this a struct.
+
+//The vertices of the source mesh given by C#.
+struct SourceVertex {
+	float3 position; //This is in object space.
+};
+
+//output vertices to send back to C#.
+
+struct OutputVertex
+{
+	float3 position;
+	float3 normal;
+	float2 uv;
+};
+
+//The triangles to output.
+
+struct OutputTriangle
+{
+	float3 normal; //This normal in world space.
+	OutputVertex vertices[3];
+};
+
+//Declare the variables needed. An array that is read only.
+StructuredBuffer <SourceVertex> _sourceVertices;
+StructuredBuffer <int> _sourceTriangles; //The indices of the vertexs to form a triangle.
+AppendStructuredBuffer <OutputTriangle> _outputTriangles; //This acts as a stack.
+
+RWStructuredBuffer<OutputVertex> _outputVertices;
+RWStructuredBuffer<int> _outputIndices;
+
+//These are the variables that are set by C#.
+int _NumOfTriangles;
+float _Width, _Height;
+float4x4 _LocalToWorldMatrix;
+
+OutputVertex CreateVertex(SourceVertex v)
+{
+	OutputVertex vertex;
+	vertex.position = mul(_LocalToWorldMatrix, float4(v.position, 1.0f)).xyz;
+	return vertex;
+}
+
+OutputVertex CreateVertex(OutputVertex v)
+{
+	OutputVertex vertex;
+	vertex.position = mul(_LocalToWorldMatrix, float4(v.position, 1.0f)).xyz;
+	return vertex;
+}
+
+void AppendTriangleToBuffer(OutputVertex a, OutputVertex b, OutputVertex c)
+{
+	float3 normal = GetTriangleNormal(a.position, b.position, c.position); //normal needs to be recalculated.
+	OutputTriangle tri;
+	tri.normal = normal;
+	tri.vertices[0] = a;
+	tri.vertices[1] = b;
+	tri.vertices[2] = c;
+
+	_outputTriangles.Append(tri);
+
+}
+
+void GetCenterAndBasis(OutputVertex a, OutputVertex b, OutputVertex c, out float3 position, out float3 normal, out float3x3 tangentSpace)
+{
+	//float3 posA = mul(_LocalToWorldMatrix, float4(a.position, 1.0f)).xyz;
+	//float3 posB = mul(_LocalToWorldMatrix, float4(b.position, 1.0f)).xyz;
+	//float3 posC = mul(_LocalToWorldMatrix, float4(c.position, 1.0f)).xyz;
+
+	//Center
+	position = GetTriangleCenter(a.position, b.position, c.position);
+
+	//To tangent space.
+	GetTriangleNormalAndTSMatrix(a.position, b.position, c.position, normal, tangentSpace);
+}
+
+OutputVertex GeneratePoint(float3 anchor, float3 normal, float2 dimensions, float3x3 tangentSpace, float2 uv)
+{
+	float3 offsetTS = float3((uv.x - 0.5f) * dimensions.x, 0, uv.y * dimensions.y);
+	
+	//convert to object space.
+	float3 offsetOS = mul(tangentSpace, offsetTS);
+	
+	OutputVertex output = (OutputVertex)0;
+	output.position = anchor + offsetOS;
+	output.normal = normal;
+	output.uv = uv;
+	return output;
+}
+//Now write the main function. ID is the thread currently running.
+[numthreads(128, 1, 1)]
+void Main(uint3 id : SV_DispatchThreadID)
+{
+	//Ensure it isn't using more compute than triangles.
+	if ((int)id.x > _NumOfTriangles)
+		return;
+
+	//Now take the triangle, add in a middle point, extrodue it by the height, and save it as a buffer.
+
+	int indexOfTriangle = id.x * 3; //This tells us where we are on this thread to compute the triangle. This is like a pixel shader but manually...
+	
+	OutputVertex vertices[3];
+	vertices[0] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle]]);
+	vertices[1] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 1]]);
+	vertices[2] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 2]]);
+	float3 position, normal;
+	float3x3 tangentSpace;
+	GetCenterAndBasis(
+		vertices[0],
+		vertices[1],
+		vertices[2],
+		position,
+		normal,
+		tangentSpace
+	);
+
+	float2 dimensions = float2(_Width, _Height);
+	
+	//creating shape in tangent space.
+	vertices[0] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0,0)); //left
+	vertices[1] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 0)); //right
+	vertices[2] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0.5, 1)); //top
+
+	int numGenVertices = 3;
+	int numGenTriangles = 1;
+	int numGenIndices = numGenTriangles * 3;
+	int genIndexStart = id.x * numGenIndices;
+	int genVertexStart = id.x * numGenVertices;
+
+	for (int i = 0; i < 3; i++)
+	{
+		_outputVertices[genVertexStart + i] = vertices[i];
+	}
+
+	for (int i = 0; i < 3; i++)
+	{
+		_outputIndices[genIndexStart + i] = genVertexStart + i;
+	}
+}

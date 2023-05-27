@@ -2,15 +2,19 @@
 %TAG !u! tag:unity3d.com,2011:
 --- !u!21 &2100000
 Material:
-  serializedVersion: 6
+  serializedVersion: 8
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Unigma_UniversalShader
-  m_Shader: {fileID: 4800000, guid: 1dfe3df9cd175c34d86660988af90a67, type: 3}
-  m_ShaderKeywords: _ENABLE_D_ON _ENABLE_F_ON _ENABLE_G_ON _FRESNELMODEL_SPHERICALGAUSSIAN
-    _GEOSHADOWMODEL_MODIFIEDKELEMEN _NORMALDISTMODEL_BLINNPHONG _SMITHGEOSHADOWMODEL_SCHLICKGGX
+  m_Name: Unigma_FlatCelshaded
+  m_Shader: {fileID: 4800000, guid: 67b1a3d8b13c8a346a6bf2ee108509e7, type: 3}
+  m_ValidKeywords:
+  - _FRESNELMODEL_SCHLICK
+  - _GEOSHADOWMODEL_ASHIKHMINSHIRLEY
+  - _NORMALDISTMODEL_BLINNPHONG
+  - _SMITHGEOSHADOWMODEL_NONE
+  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -29,7 +33,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 7e9a58848d9eb4a48b4f3fa6d2a3be80, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Noise:
@@ -45,40 +49,44 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TopText:
-        m_Texture: {fileID: 2800000, guid: d378ff11c42566d46b0b11cd91eca3a3, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    m_Ints: []
     m_Floats:
-    - _Anisotropic: -6.38
-    - _BlendSmooth: 0.84
-    - _Brightness: 2.3
+    - _Anisotropic: 0
+    - _BlendSmooth: 1.47
+    - _Brightness: 1
     - _BumpScale: 1
-    - _ENABLE_D: 1
-    - _ENABLE_F: 1
-    - _ENABLE_G: 1
+    - _ENABLE_D: 0
+    - _ENABLE_F: 0
+    - _ENABLE_G: 0
     - _ENABLE_NDF: 0
-    - _EdgeWidth: 0.5
-    - _FresnelModel: 2
-    - _GeoShadowModel: 5
-    - _Glossiness: -12
-    - _Ior: 2.38
-    - _LightSteps: 61
-    - _Metallic: 0.62
+    - _EdgeWidth: 0
+    - _FresnelModel: 0
+    - _GeoShadowModel: 0
+    - _Glossiness: 32
+    - _Ior: 1.5
+    - _LightSteps: 1
+    - _Metallic: 0
     - _NdotLThreshold: 1
     - _NoiseScale: -0.08
     - _NormalDistModel: 0
-    - _RimAmount: 0.653
-    - _RimThreshold: 0.76
-    - _ShadowStrength: 0.396
-    - _SmithGeoShadowModel: 6
-    - _Smoothness: 1
-    - _SpecularIntensity: 1.2
-    - _Spread: 0.94
-    - _UnityLightingContribution: 0.523
+    - _RimAmount: 0.716
+    - _RimThreshold: 0.1
+    - _ShadowStrength: 0
+    - _ShakingOn: 0
+    - _SmithGeoShadowModel: 0
+    - _Smoothness: 0.5
+    - _SpecularIntensity: 1
+    - _Spread: 1.88
+    - _UnityLightingContribution: 1
     m_Colors:
-    - _AmbientColor: {r: 0.5566038, g: 0.5566038, b: 0.5566038, a: 1}
+    - _AmbientColor: {r: 0.16037738, g: 0.16037738, b: 0.16037738, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _Scale: {r: 1, g: 1, b: 1, a: 1}
-    - _SpecularColor: {r: 0.9, g: 0.9, b: 0.9, a: 1}
-    - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
-    - _Tint: {r: 1, g: 1, b: 1, a: 1}
+    - _ShakingAmount: {r: 0.43, g: 0.18, b: 0.68, a: 0}
+    - _ShakingSpeed: {r: 2.26, g: 2.38, b: 4.11, a: 0}
+    - _SpecularTint: {r: 0, g: 0, b: 0, a: 1}
+    - _Tint: {r: 0.4339623, g: 0.42372733, b: 0.42372733, a: 1}
+  m_BuildTextureStacks: []

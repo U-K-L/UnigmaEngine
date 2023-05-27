@@ -102,4 +102,33 @@ void MatrixMultiply(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBu
     result[vectorIndex] = sum;
 }
 
+void FastDotProduct(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float> B, RWStructuredBuffer<float> result)
+{
+    int currentIndex = id.x + (id.y * _Cols) + (id.z * _Cols * _Cols);
+    
+	if (currentIndex > result.Length)
+		return;
+	result[currentIndex] = A[currentIndex] * B[currentIndex];
+}
+
+void SumProduct(uint3 id, StructuredBuffer<float> tmp, RWStructuredBuffer<float> result, int _Batch, int _BatchSize, int _BufferSize)
+{
+    //int currentIndex = id.x + ( (id.y * _BatchSize) + (id.z * _BatchSize * _BatchSize) ) + (_Batch * _BatchSize);
+
+	int startingIndex = id.x * _BatchSize;
+    int currentIndex = id.x;
+    
+    if (currentIndex > _BufferSize)
+        return;
+    
+    float sum = 0;
+    
+    for (int i = startingIndex; i < startingIndex + _BatchSize; i++)
+    {
+        sum += tmp[i];
+    }
+        
+    result[currentIndex] = sum;
+}
+
 #endif

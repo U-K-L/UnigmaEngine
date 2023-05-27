@@ -20,7 +20,9 @@ public class BasicNN : MonoBehaviour
     private const int DATA_STRIDE = sizeof(float);
    
     //Function ID from compute shader.
-    private int idBasicNNKernel;
+    private int idBasicNNKernelMul;
+    private int idBasicNNKernelSum;
+    private int idBasicNNKernelDot;
     private bool initialized = false;
 
     float[] outputMatrix;
@@ -95,6 +97,11 @@ public class BasicNN : MonoBehaviour
         int tx = Row;
         int ty = Col;
         int tz = 1;
+        int index = 0;
+        int batchSize = 2;
+        int bufferSize = outputData.count;
+
+        int currentKernal = idBasicNNKernelDot;
         if (Col > 65535)
         {
             ty = Mathf.CeilToInt(Mathf.Sqrt(Row));
@@ -102,11 +109,18 @@ public class BasicNN : MonoBehaviour
         }
         while (true)
         {
-            basicNNCompute.Dispatch(idBasicNNKernel, tx, ty, tz);
+            
+            basicNNCompute.Dispatch(currentKernal, ty, tx, tz);
+            currentKernal = idBasicNNKernelSum;
+            SumDotProduct(index, batchSize, bufferSize);
             float[] resultValues = new float[outputData.count];
             outputData.GetData(resultValues);
             PrintMatrix(Row, Col);
-            yield return new WaitForSeconds(0.5f);
+
+            index++;
+            bufferSize = Mathf.CeilToInt(bufferSize / batchSize);
+
+            yield return new WaitForSeconds(0.0f);
         }
     }
     
@@ -136,15 +150,37 @@ public class BasicNN : MonoBehaviour
         SetBuffers(0);
     }
 
+    void SumDotProduct(int Batch, int BatchSize, int BufferSize)
+    {
+        float[] resultValues = new float[outputData.count];
+        outputData.GetData(resultValues);
+        _inputDataA.SetData(resultValues);
+        basicNNCompute.SetInt("_BufferSize", BufferSize);
+        basicNNCompute.SetInt("_BatchSize", BatchSize);
+        basicNNCompute.SetInt("_Batch", Batch);
+        
+    }
+
     void SetBuffers(int i)
     {
         //Get the function ID.
-        idBasicNNKernel = basicNNCompute.FindKernel("Main");
+        idBasicNNKernelMul = basicNNCompute.FindKernel("Mul");
+        idBasicNNKernelSum = basicNNCompute.FindKernel("Sum");
+        idBasicNNKernelDot = basicNNCompute.FindKernel("Dot");
 
         //Now set the buffers to the buffers inside the compute shader
-        basicNNCompute.SetBuffer(idBasicNNKernel, "_inputDataA", _inputDataA);
-        basicNNCompute.SetBuffer(idBasicNNKernel, "_inputDataB", _inputDataB);
-        basicNNCompute.SetBuffer(idBasicNNKernel, "_outputData", outputData);
+        basicNNCompute.SetBuffer(idBasicNNKernelMul, "_inputDataA", _inputDataA);
+        basicNNCompute.SetBuffer(idBasicNNKernelMul, "_inputDataB", _inputDataB);
+        basicNNCompute.SetBuffer(idBasicNNKernelMul, "_outputData", outputData);
+
+        basicNNCompute.SetBuffer(idBasicNNKernelSum, "_inputDataA", _inputDataA);
+        basicNNCompute.SetBuffer(idBasicNNKernelSum, "_inputDataB", _inputDataB);
+        basicNNCompute.SetBuffer(idBasicNNKernelSum, "_outputData", outputData);
+
+        basicNNCompute.SetBuffer(idBasicNNKernelDot, "_inputDataA", _inputDataA);
+        basicNNCompute.SetBuffer(idBasicNNKernelDot, "_inputDataB", _inputDataB);
+        basicNNCompute.SetBuffer(idBasicNNKernelDot, "_outputData", outputData);
+
         basicNNCompute.SetInt("_Cols", Col);
         basicNNCompute.SetInt("_Transpose", (int)_transpose);
         basicNNCompute.SetInt("_Batch", i);

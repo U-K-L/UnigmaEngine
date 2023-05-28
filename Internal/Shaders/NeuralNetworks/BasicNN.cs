@@ -135,6 +135,7 @@ public class BasicNN : MonoBehaviour
         Col = inputVectorsB[0].Length;
 
         outputMatrix = new float[inputVectorsA.Length * inputVectorsB[0].Length];
+        
         //Initialize the buffers.
         _inputDataA = new ComputeBuffer(inputDataMatrixA.Length, DATA_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         _inputDataB = new ComputeBuffer(inputDataMatrixB.Length, DATA_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);

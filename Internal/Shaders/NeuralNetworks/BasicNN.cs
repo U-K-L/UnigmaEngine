@@ -7,8 +7,8 @@ public class BasicNN : MonoBehaviour
 {
     [SerializeField] string[] files;
 
-    List<float> _PerformanceProfiling = new List<float>();
-    float _profilingTimeTaken = 0;
+    List<double> _PerformanceProfiling = new List<double>();
+    double _profilingTimeTaken = 0;
 
     //The compute shader script.
     [SerializeField] private ComputeShader basicNNCompute = default;
@@ -34,6 +34,7 @@ public class BasicNN : MonoBehaviour
     int Row = 0;
     int Col = 0;
 
+    //Shader will pick which way to read the matrix as a fast way to compute the transpose.
     public enum Transpose
     {
         None, A, B, Both
@@ -62,7 +63,6 @@ public class BasicNN : MonoBehaviour
             for (int j = 0; j < inputmatrix[0].Length; j++)
             {
                 matrixArray[j + i * 2] = inputmatrix[i][j];
-                Debug.Log(matrixArray[j + i * 2]);
             }
         }
     }
@@ -79,7 +79,7 @@ public class BasicNN : MonoBehaviour
 
         LoadDataFromCSV(files[0], ref inputVectorsA);
         LoadDataFromCSV(files[1], ref inputVectorsB);
-        MatrixMul(inputVectorsA, inputVectorsB, ref outputMatrix);
+        SetupMatrix(inputVectorsA, inputVectorsB, ref outputMatrix);
         StartCoroutine(DispatchShader());
     }
 
@@ -90,42 +90,38 @@ public class BasicNN : MonoBehaviour
 
     private void LateUpdate()
     {
-        //float[] resultValues = new float[outputData.count];
-        //outputData.GetData(resultValues);
-        //Debug.Log(resultValues[0]);
-        //PrintMatrix(Row, Col);
     }
 
     IEnumerator DispatchShader()
     {
-        _profilingTimeTaken = Time.time;
-        int tx = Row;
-        int ty = Col;
+        
+        int tx = Col;
+        int ty = Row;
         int tz = 1;
-        int index = 0;
-        int batchSize = 2;
+        int steps = 0;
+        int batchSize = 1000;
         int bufferSize = outputData.count;
-        basicNNCompute.Dispatch(idBasicNNKernelDot, ty, tx, tz);
+        float[] resultValues = new float[outputData.count];
         if (Col > 65535)
         {
-            ty = Mathf.CeilToInt(Mathf.Sqrt(Row));
-            tz = ty;
+            tx = ty = tz = Mathf.CeilToInt(Mathf.Pow(Col, 1f/3f));
+            basicNNCompute.SetInt("_Cols", ty);
         }
-        while (true)
+        //For testing purposes only.
+        //_profilingTimeTaken = Time.realtimeSinceStartupAsDouble;
+        basicNNCompute.Dispatch(idBasicNNKernelDot, tx, ty, tz);
+        while (bufferSize >= 1)
         {
-            SumDotProduct(index, batchSize, bufferSize);
-            float[] resultValues = new float[outputData.count];
-            outputData.GetData(resultValues);
-            index++;
+            SumDotProduct(steps, batchSize, bufferSize, ref resultValues);
+            steps++;
             bufferSize = Mathf.CeilToInt(bufferSize / batchSize);
-
-            _PerformanceProfiling.Add(Time.time - _profilingTimeTaken);
-            PrintMatrix(Row, Col);
-            yield return new WaitForSeconds(0.0f);
+            yield return new WaitForSeconds(0.16f);
         }
+        //_PerformanceProfiling.Add(Time.realtimeSinceStartupAsDouble - _profilingTimeTaken);
+        outputData.GetData(resultValues);
     }
     
-    void MatrixMul(float[][] inputVectorsA, float[][] inputVectorsB, ref float[] outputMatrix)
+    void SetupMatrix(float[][] inputVectorsA, float[][] inputVectorsB, ref float[] outputMatrix)
     {
         //Get the data in the struct.
         float[] inputDataMatrixA = new float[inputVectorsA.Length * inputVectorsA[0].Length];
@@ -152,25 +148,24 @@ public class BasicNN : MonoBehaviour
     }
 
     //Buffer size is the imaginary buffer remainding. For performance, the actual buffer length is never resized.
-    void SumDotProduct(int Batch, int BatchSize, int BufferSize)
+    void SumDotProduct(int Batch, int BatchSize, int BufferSize, ref float[] resultValues)
     {
         if (BufferSize < 1)
         {
             return;
         }
-
-
-        float[] resultValues = new float[outputData.count];
+        
         outputData.GetData(resultValues);
         _inputDataA.SetData(resultValues);
+        
         basicNNCompute.SetInt("_BufferSize", BufferSize);
         basicNNCompute.SetInt("_BatchSize", BatchSize);
         basicNNCompute.SetInt("_Batch", Batch);
 
-        int tx = BatchSize;
-        int ty = 1;
-        int tz = 1;
-        
+        int tx = Mathf.CeilToInt(Mathf.Pow(BatchSize, 1f / 3f));
+        int ty = Mathf.CeilToInt(Mathf.Pow(BatchSize, 1f / 3f));
+        int tz = Mathf.CeilToInt(Mathf.Pow(BatchSize, 1f / 3f));
+
         basicNNCompute.Dispatch(idBasicNNKernelSum, tx, ty, tz);
 
     }
@@ -241,20 +236,20 @@ public class BasicNN : MonoBehaviour
 
     private void OnApplicationQuit()
     {
-        Debug.Log("Application quitting");
-        WritePerformanceListToFile();
+        //Debug.Log("Application quitting");
+        //WritePerformanceListToFile();
     }
 
     void WritePerformanceListToFile()
     {
         string path = Application.streamingAssetsPath + "/NeuralNetworks/Data/" + "PerformanceList.txt";
-        float avg = 0;
+        double avg = 0;
         for (int i = 0; i < _PerformanceProfiling.Count; i++)
         {
             avg += _PerformanceProfiling[i];
         }
         avg /= _PerformanceProfiling.Count;
-        string someText = "Version.0.0.1: (DOT,SUM): " + avg;
+        string someText = "Version.0.0.1: (DOT,SUM): PARAMETERS: " + outputData.count + " TIME: " + avg.ToString("F15");
 
         using (StreamWriter sw = File.AppendText(path))
         {

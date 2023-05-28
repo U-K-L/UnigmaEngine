@@ -111,19 +111,17 @@ void FastDotProduct(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBu
 	result[currentIndex] = A[currentIndex] * B[currentIndex];
 }
 
-void SumProduct(uint3 id, StructuredBuffer<float> tmp, RWStructuredBuffer<float> result, int _Batch, int _BatchSize, int _BufferSize)
+void SumProduct(uint3 id, int _Cols, StructuredBuffer<float> tmp, RWStructuredBuffer<float> result, int _Batch, int _BatchSize, int _BufferSize)
 {
-    //int currentIndex = id.x + ( (id.y * _BatchSize) + (id.z * _BatchSize * _BatchSize) ) + (_Batch * _BatchSize);
-
-	int startingIndex = id.x * _BatchSize;
-    int currentIndex = id.x;
+	int startingIndex = id.x * _BatchSize + (id.y * _BatchSize * _BatchSize) + (id.z * _BatchSize * _BatchSize * _BatchSize);
+    int currentIndex = id.x + id.y + id.z;
     
-    if (currentIndex > _BufferSize)
+    if (startingIndex > _BufferSize)
         return;
     
     float sum = 0;
     
-    for (int i = startingIndex; i < startingIndex + _BatchSize; i++)
+    for (int i = startingIndex; (i < startingIndex + _BatchSize) && (i < startingIndex + _Cols); i++)
     {
         sum += tmp[i];
     }

@@ -448,8 +448,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   files:
-  - VectorA.csv
-  - VectorB.csv
+  - VectorC.csv
+  - VectorC.csv
   basicNNCompute: {fileID: 7200000, guid: 1c1a8b17ea7506b4b8071b4ff8c37301, type: 3}
   _transpose: 0
 --- !u!4 &1212572533

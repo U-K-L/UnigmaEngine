@@ -32,13 +32,21 @@ struct OutputTriangle
 	OutputVertex vertices[3];
 };
 
+//This is the args buffer.
+struct IndirectArgs {
+	uint numVerticesPerInstance;
+	uint numInstances;
+	uint startVertexLocation;
+	uint startInstanceLocation;
+};
+
 //Declare the variables needed. An array that is read only.
 StructuredBuffer <SourceVertex> _sourceVertices;
-StructuredBuffer <int> _sourceTriangles; //The indices of the vertexs to form a triangle.
+StructuredBuffer <int> _sourceTriangles;
+RWStructuredBuffer<OutputVertex> _outputVertices;
 AppendStructuredBuffer <OutputTriangle> _outputTriangles; //This acts as a stack.
 
-RWStructuredBuffer<OutputVertex> _outputVertices;
-RWStructuredBuffer<int> _outputIndices;
+RWStructuredBuffer<IndirectArgs> _IndirectArgsBuffer;
 
 //These are the variables that are set by C#.
 int _NumOfTriangles;
@@ -103,7 +111,7 @@ OutputVertex GeneratePoint(float3 anchor, float3 normal, float2 dimensions, floa
 void Main(uint3 id : SV_DispatchThreadID)
 {
 	//Ensure it isn't using more compute than triangles.
-	if ((int)id.x > _NumOfTriangles)
+	if ((int)id.x >= _NumOfTriangles)
 		return;
 
 	//Now take the triangle, add in a middle point, extrodue it by the height, and save it as a buffer.
@@ -132,19 +140,14 @@ void Main(uint3 id : SV_DispatchThreadID)
 	vertices[1] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 0)); //right
 	vertices[2] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0.5, 1)); //top
 
-	int numGenVertices = 3;
-	int numGenTriangles = 1;
-	int numGenIndices = numGenTriangles * 3;
-	int genIndexStart = id.x * numGenIndices;
-	int genVertexStart = id.x * numGenVertices;
+	//Now we need to append the triangle to the buffer.
+	OutputTriangle Triangles = (OutputTriangle)0;
+	Triangles.vertices[0] = vertices[0];
+	Triangles.vertices[1] = vertices[1];
+	Triangles.vertices[2] = vertices[2];
+	Triangles.normal = normal;
+	_outputTriangles.Append(Triangles);
 
-	for (int i = 0; i < 3; i++)
-	{
-		_outputVertices[genVertexStart + i] = vertices[i];
-	}
-
-	for (int i = 0; i < 3; i++)
-	{
-		_outputIndices[genIndexStart + i] = genVertexStart + i;
-	}
+	//Now add to indirect args.
+	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, 3);
 }

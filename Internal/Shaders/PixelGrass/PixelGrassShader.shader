@@ -8,7 +8,7 @@ Shader "Unlit/PixelGrassShader"
     {
         Tags { "RenderType"="Opaque" }
         LOD 100
-
+        Cull Off
        Pass
         {
             CGPROGRAM
@@ -34,8 +34,10 @@ Shader "Unlit/PixelGrassShader"
                 float4 vertex : SV_POSITION;
             };
 
-            struct OutputVertex {
+            struct OutputVertex
+            {
                 float3 position;
+                float3 normal;
                 float2 uv;
             };
 
@@ -49,6 +51,7 @@ Shader "Unlit/PixelGrassShader"
                 float3 position : TEXCOORD0;
                 float3 normal : TEXCOORD1;
                 float2 uv : TEXCOORD2;
+				float4 positionCS : SV_POSITION;
             };
 
             StructuredBuffer <OutputTriangle> _outputTriangles;
@@ -82,9 +85,9 @@ Shader "Unlit/PixelGrassShader"
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
-            fixed4 frag(VertexOutput i) : SV_Target
+            fixed4 frag(v2f i) : SV_Target
             {
-                return 1;
+                return float4(0,1,0,1);
             }
             ENDCG
         }

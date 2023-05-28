@@ -238,7 +238,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!135 &232599522
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -383,7 +383,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &999211652
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -400,7 +400,6 @@ MonoBehaviour:
   material: {fileID: 2100000, guid: d23b0139695755441834684bdc89e61c, type: 2}
   pixelGrassComputeShader: {fileID: 7200000, guid: e889e5b17d783714fa3cf913717dea9c,
     type: 3}
-  triToVerts: {fileID: 7200000, guid: 0baa20c5197a96747993619253452ba6, type: 3}
   height: 1
   width: 1
 --- !u!4 &999211653
@@ -411,7 +410,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 999211651}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.9574056, y: 0.058957003, z: 2.9946775}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -434,7 +433,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1212572532
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -683,7 +682,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1967539108}
   m_LocalRotation: {x: 0.1311792, y: -0.8198093, z: 0.20793013, w: 0.5171748}
-  m_LocalPosition: {x: 1.552421, y: 0.9325502, z: 0.7407603}
+  m_LocalPosition: {x: 7.82, y: 5.2, z: 4.99}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

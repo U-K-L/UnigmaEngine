@@ -6,9 +6,11 @@ Shader "Unlit/PixelGrassShader"
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderType"="Transparent" }
         LOD 100
         Cull Off
+        //Add transparency
+		Blend SrcAlpha OneMinusSrcAlpha
        Pass
         {
             CGPROGRAM
@@ -44,7 +46,7 @@ Shader "Unlit/PixelGrassShader"
             struct OutputTriangle
             {
                 float3 normal; //This normal in world space.
-                OutputVertex vertices[4];
+                OutputVertex vertices[6];
             };
 
             struct VertexOutput {
@@ -76,18 +78,19 @@ Shader "Unlit/PixelGrassShader"
             v2f vert(uint vertexID: SV_VertexID, appdata v)
             {
                 v2f o;
-                OutputTriangle tri = _outputTriangles[vertexID / 4];
-                OutputVertex va = tri.vertices[vertexID % 4];
+                OutputTriangle tri = _outputTriangles[vertexID / 6];
+                OutputVertex va = tri.vertices[vertexID % 6];
 
 
                 o.vertex = UnityObjectToClipPos(float4(va.position, 1));
                 o.normal = tri.normal;
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.uv = TRANSFORM_TEX(va.uv, _MainTex);
                 return o;
             }
             fixed4 frag(v2f i) : SV_Target
             {
-                return float4(0,1,0,1);
+				fixed4 col = tex2D(_MainTex, i.uv);
+                return col;
             }
             ENDCG
         }

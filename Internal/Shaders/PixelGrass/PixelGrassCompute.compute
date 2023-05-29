@@ -29,7 +29,7 @@ struct OutputVertex
 struct OutputTriangle
 {
 	float3 normal; //This normal in world space.
-	OutputVertex vertices[4];
+	OutputVertex vertices[6];
 };
 
 //This is the args buffer.
@@ -118,7 +118,7 @@ void Main(uint3 id : SV_DispatchThreadID)
 
 	int indexOfTriangle = id.x * 3; //This tells us where we are on this thread to compute the triangle. This is like a pixel shader but manually...
 	
-	OutputVertex vertices[3];
+	OutputVertex vertices[6];
 	vertices[0] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle]]);
 	vertices[1] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 1]]);
 	vertices[2] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 2]]);
@@ -136,18 +136,27 @@ void Main(uint3 id : SV_DispatchThreadID)
 	float2 dimensions = float2(_Width, _Height);
 	
 	//creating shape in tangent space.
-	vertices[0] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0,0)); //left
-	vertices[1] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 0)); //right
-	vertices[2] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0.5, 1)); //top
+	vertices[0] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0,0)); 
+	vertices[1] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0, 1));
+	vertices[2] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 1));
+	
+	//Next triangle
+	vertices[3] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 1));
+	vertices[4] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 0));
+	vertices[5] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0, 0));
 
 	//Now we need to append the triangle to the buffer.
 	OutputTriangle Triangles = (OutputTriangle)0;
 	Triangles.vertices[0] = vertices[0];
 	Triangles.vertices[1] = vertices[1];
 	Triangles.vertices[2] = vertices[2];
+	
+	Triangles.vertices[3] = vertices[3];
+	Triangles.vertices[4] = vertices[4];
+	Triangles.vertices[5] = vertices[5];
 	Triangles.normal = normal;
 	_outputTriangles.Append(Triangles);
 
 	//Now add to indirect args.
-	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, 3);
+	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, 6);
 }

@@ -38,7 +38,7 @@ public class PixelGrass : MonoBehaviour
 
     private const int SOURCE_VERT_STRIDE = sizeof(float) * (3);
     private const int SOURCE_TRI_STRIDE = sizeof(int);
-    private const int OUTPUT_TRI_STRIDE = sizeof(float) * (3 + (3+3+2) * 4);
+    private const int OUTPUT_TRI_STRIDE = sizeof(float) * (3 + (3+3+2) * 6);
     private const int ARGS_STRIDE = sizeof(int) * 4;
 
     private int[] argsBufferInitialized = new int[] {0, 1, 0, 0 };

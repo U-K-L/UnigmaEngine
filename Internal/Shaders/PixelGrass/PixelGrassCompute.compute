@@ -7,6 +7,7 @@
 //#include file.hlsl
 
 #include "../ShaderHelpers.hlsl"
+#include "UnityCG.cginc"
 
 //Let's define our vertexs. We will make this a struct.
 
@@ -52,6 +53,7 @@ RWStructuredBuffer<IndirectArgs> _IndirectArgsBuffer;
 int _NumOfTriangles;
 float _Width, _Height;
 float4x4 _LocalToWorldMatrix;
+float3 _CameraPosition;
 
 OutputVertex CreateVertex(SourceVertex v)
 {
@@ -132,12 +134,24 @@ void Main(uint3 id : SV_DispatchThreadID)
 		normal,
 		tangentSpace
 	);
+	
 
 	float2 dimensions = float2(_Width, _Height);
 	
-	float3x3 twist = AngleAxis3x3(rand(position, 2) * UNITY_PI * 2, float3(0, 0, 1));
+	//float3x3 twist = AngleAxis3x3(rand(position, 2) * UNITY_PI * 2, float3(0, 0, 1));
+	//Rotate towards camera.
+	// First get the direction from current position towads the camera.
+	//float3x3 twist = AngleAxis3x3();
+	float3 forward = _CameraPosition;
+	float3 viewDir = forward; //Forward vector of unity camera.
+	//Get angle between viewDir and current position.
+	float theta = acos(dot(normal, viewDir));
+	float3 axis = normalize(cross(normal, viewDir));
+	float3x3 twist = AngleAxis3x3(theta, axis);
+	
 	
 	float3x3 twistSpace = mul(tangentSpace, twist);
+	
 	//creating shape in tangent space.
 	vertices[0] = GeneratePoint(position, normal, dimensions, twistSpace, float2(0,0));
 	vertices[1] = GeneratePoint(position, normal, dimensions, twistSpace, float2(0, 1));

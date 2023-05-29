@@ -131,6 +131,7 @@ public void OnEnable()
         pixelGrassComputeShader.SetMatrix("_LocalToWorldMatrix", transform.localToWorldMatrix);
         pixelGrassComputeShader.SetFloat("_Height", height);
         pixelGrassComputeShader.SetFloat("_Width", width);
+        pixelGrassComputeShader.SetVector("_CameraPosition", Camera.main.transform.up);
 
         //Finally, dispatch the shader.
         pixelGrassComputeShader.Dispatch(idPyramidKernel, dispatchSize, 1, 1);

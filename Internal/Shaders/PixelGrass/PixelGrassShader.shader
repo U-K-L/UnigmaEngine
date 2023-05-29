@@ -82,8 +82,6 @@ Shader "Unlit/PixelGrassShader"
                 v2f o;
                 OutputTriangle tri = _outputTriangles[vertexID / 6];
                 OutputVertex va = tri.vertices[vertexID % 6];
-
-
                 o.vertex = UnityObjectToClipPos(float4(va.position, 1));
                 o.normal = tri.normal;
                 o.uv = TRANSFORM_TEX(va.uv, _MainTex);

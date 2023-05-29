@@ -2,6 +2,7 @@ Shader "Unlit/PixelGrassShader"
 {
     Properties
     {
+		_Color("Color", Color) = (1,1,1,1)
         _MainTex ("Texture", 2D) = "white" {}
     }
     SubShader
@@ -60,6 +61,7 @@ Shader "Unlit/PixelGrassShader"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+			float4 _Color;
 
             /*
             VertexOutput vert (uint vertexID: SV_VertexID)
@@ -90,6 +92,10 @@ Shader "Unlit/PixelGrassShader"
             fixed4 frag(v2f i) : SV_Target
             {
 				fixed4 col = tex2D(_MainTex, i.uv);
+                clip(col.a - 0.5f);
+                
+                //Add color to col.
+                col *= _Color;
                 return col;
             }
             ENDCG

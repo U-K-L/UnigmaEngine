@@ -584,7 +584,7 @@ MonoBehaviour:
   pixelGrassComputeShader: {fileID: 7200000, guid: e889e5b17d783714fa3cf913717dea9c,
     type: 3}
   height: 0.025
-  width: 1
+  width: 0.025
 --- !u!4 &999211653
 Transform:
   m_ObjectHideFlags: 0

@@ -1,6 +1,8 @@
 #ifndef SHADER_HELPERS_INCLUDED
 #define SHADER_HELPERS_INCLUDED
 
+#define UNITY_PI 3.14159265359
+
 struct NVector
 {
     float nvector;

@@ -130,7 +130,7 @@ public void OnEnable()
         //update for this frame, position and height.
         pixelGrassComputeShader.SetMatrix("_LocalToWorldMatrix", transform.localToWorldMatrix);
         pixelGrassComputeShader.SetFloat("_Height", height);
-        pixelGrassComputeShader.SetFloat("_Width", height);
+        pixelGrassComputeShader.SetFloat("_Width", width);
 
         //Finally, dispatch the shader.
         pixelGrassComputeShader.Dispatch(idPyramidKernel, dispatchSize, 1, 1);

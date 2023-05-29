@@ -135,15 +135,18 @@ void Main(uint3 id : SV_DispatchThreadID)
 
 	float2 dimensions = float2(_Width, _Height);
 	
+	float3x3 twist = AngleAxis3x3(rand(position, 2) * UNITY_PI * 2, float3(0, 0, 1));
+	
+	float3x3 twistSpace = mul(tangentSpace, twist);
 	//creating shape in tangent space.
-	vertices[0] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0,0)); 
-	vertices[1] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0, 1));
-	vertices[2] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 1));
+	vertices[0] = GeneratePoint(position, normal, dimensions, twistSpace, float2(0,0));
+	vertices[1] = GeneratePoint(position, normal, dimensions, twistSpace, float2(0, 1));
+	vertices[2] = GeneratePoint(position, normal, dimensions, twistSpace, float2(1, 1));
 	
 	//Next triangle
-	vertices[3] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 1));
-	vertices[4] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(1, 0));
-	vertices[5] = GeneratePoint(position, normal, dimensions, tangentSpace, float2(0, 0));
+	vertices[3] = GeneratePoint(position, normal, dimensions, twistSpace, float2(1, 1));
+	vertices[4] = GeneratePoint(position, normal, dimensions, twistSpace, float2(1, 0));
+	vertices[5] = GeneratePoint(position, normal, dimensions, twistSpace, float2(0, 0));
 
 	//Now we need to append the triangle to the buffer.
 	OutputTriangle Triangles = (OutputTriangle)0;

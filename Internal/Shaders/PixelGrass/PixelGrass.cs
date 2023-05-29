@@ -38,7 +38,7 @@ public class PixelGrass : MonoBehaviour
 
     private const int SOURCE_VERT_STRIDE = sizeof(float) * (3);
     private const int SOURCE_TRI_STRIDE = sizeof(int);
-    private const int OUTPUT_TRI_STRIDE = sizeof(float) * (3 + (3+3+2) * 3);
+    private const int OUTPUT_TRI_STRIDE = sizeof(float) * (3 + (3+3+2) * 4);
     private const int ARGS_STRIDE = sizeof(int) * 4;
 
     private int[] argsBufferInitialized = new int[] {0, 1, 0, 0 };
@@ -76,6 +76,7 @@ public void OnEnable()
         //Create compute buffer.
         sourceVertexBuffer = new ComputeBuffer(sourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         sourceTriBuffer = new ComputeBuffer(tris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
+        
         outputTriangles = new ComputeBuffer(numTriangles, OUTPUT_TRI_STRIDE, ComputeBufferType.Append);
         argsBuffer = new ComputeBuffer(1, ARGS_STRIDE, ComputeBufferType.IndirectArguments);
 

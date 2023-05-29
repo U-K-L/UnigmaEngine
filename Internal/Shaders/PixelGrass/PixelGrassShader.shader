@@ -44,7 +44,7 @@ Shader "Unlit/PixelGrassShader"
             struct OutputTriangle
             {
                 float3 normal; //This normal in world space.
-                OutputVertex vertices[3];
+                OutputVertex vertices[4];
             };
 
             struct VertexOutput {
@@ -76,8 +76,8 @@ Shader "Unlit/PixelGrassShader"
             v2f vert(uint vertexID: SV_VertexID, appdata v)
             {
                 v2f o;
-                OutputTriangle tri = _outputTriangles[vertexID / 3];
-                OutputVertex va = tri.vertices[vertexID % 3];
+                OutputTriangle tri = _outputTriangles[vertexID / 4];
+                OutputVertex va = tri.vertices[vertexID % 4];
 
 
                 o.vertex = UnityObjectToClipPos(float4(va.position, 1));

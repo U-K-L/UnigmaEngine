@@ -29,7 +29,7 @@ struct OutputVertex
 struct OutputTriangle
 {
 	float3 normal; //This normal in world space.
-	OutputVertex vertices[3];
+	OutputVertex vertices[4];
 };
 
 //This is the args buffer.

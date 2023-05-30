@@ -21,7 +21,6 @@ struct SourceVertex {
 struct OutputVertex
 {
 	float3 position;
-	float3 normal;
 	float2 uv;
 };
 
@@ -29,8 +28,7 @@ struct OutputVertex
 
 struct OutputTriangle
 {
-	float3 normal; //This normal in world space.
-	OutputVertex vertices[6];
+	OutputVertex vertices[72]; //This must be a constant sadly.
 };
 
 //This is the args buffer.
@@ -79,7 +77,7 @@ void AppendTriangleToBuffer(OutputVertex a, OutputVertex b, OutputVertex c)
 {
 	float3 normal = GetTriangleNormal(a.position, b.position, c.position); //normal needs to be recalculated.
 	OutputTriangle tri;
-	tri.normal = normal;
+	//tri.normal = normal;
 	tri.vertices[0] = a;
 	tri.vertices[1] = b;
 	tri.vertices[2] = c;
@@ -110,7 +108,7 @@ OutputVertex GeneratePoint(float3 anchor, float3 normal, float2 dimensions, floa
 	
 	OutputVertex output = (OutputVertex)0;
 	output.position = anchor + offsetOS;
-	output.normal = normal;
+	//output.normal = normal;
 	output.uv = uv;
 	return output;
 }
@@ -140,16 +138,34 @@ void Main(uint3 id : SV_DispatchThreadID)
 		tangentSpace
 	);
 	
-	
-	for (int i = 0; i < _sourceInstantiateVertices.Length; i++)
+	OutputTriangle Triangles = (OutputTriangle)0;
+	for (int i = 0; i < _sourceInstantiateTriangles.Length; i++)
 	{
-		
-		OutputVertex vert = (OutputVertex)0;
-		vert = CreateVertex(_sourceInstantiateVertices[i]);//CreateVertex();
+		OutputVertex vert = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[i]]);
+		//change scale.
+		vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
 		vert.position += position;
-		_outputVertices.Append(vert);
+
+		Triangles.vertices[i] = vert;
 	}
-	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, _sourceInstantiateVertices.Length);
+	_outputTriangles.Append(Triangles);
+
+	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, _sourceInstantiateTriangles.Length);
+	/*
+	OutputTriangle Triangles = (OutputTriangle)0;
+	Triangles.vertices[0] = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[0]]);
+	Triangles.vertices[1] = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[1]]);
+	Triangles.vertices[2] = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[2]]);
+	
+	Triangles.vertices[3] = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[3]]);
+	Triangles.vertices[4] = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[4]]);
+	Triangles.vertices[5] = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[5]]);
+	
+	Triangles.normal = normal;
+	_outputTriangles.Append(Triangles);
+
+	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, 6);
+	*/
 	//Now create the mesh to place in the center of the triangle.
 	
 	/*

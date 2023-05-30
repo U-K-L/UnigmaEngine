@@ -36,6 +36,7 @@ struct OutputTriangle
 StructuredBuffer <SourceVertex> _sourceVertices;
 StructuredBuffer <int> _sourceTriangles; //The indices of the vertexs to form a triangle.
 AppendStructuredBuffer <OutputTriangle> _outputTriangles; //This acts as a stack.
+AppendStructuredBuffer <OutputVertex> _outputVertices; //This acts as a stack.
 
 //These are the variables that are set by C#.
 int _NumOfTriangles;
@@ -94,5 +95,17 @@ void Main(uint3 id : SV_DispatchThreadID)
 	AppendTriangleToBuffer(vertices[0], vertices[1], center);
 	AppendTriangleToBuffer(vertices[1], vertices[2], center);
 	AppendTriangleToBuffer(vertices[2], vertices[0], center);
+
+	_outputVertices.Append(vertices[0]);
+	_outputVertices.Append(vertices[1]);
+	_outputVertices.Append(center);
+
+	_outputVertices.Append(vertices[1]);
+	_outputVertices.Append(vertices[2]);
+	_outputVertices.Append(center);
+
+	_outputVertices.Append(vertices[2]);
+	_outputVertices.Append(vertices[0]);
+	_outputVertices.Append(center);
 	
 }

@@ -23,6 +23,7 @@ public class PyramidCompute : MonoBehaviour
     private ComputeBuffer sourceVertexBuffer;
     private ComputeBuffer sourceTriBuffer;
     private ComputeBuffer resultVertexBuffer;
+    private ComputeBuffer OutputVertices;
     private ComputeBuffer argsBuffer;
 
     private int idPyramidKernel;
@@ -87,10 +88,13 @@ public class PyramidCompute : MonoBehaviour
         argsBuffer = new ComputeBuffer(1, ARGS_STRIDE, ComputeBufferType.IndirectArguments);
         argsBuffer.SetData(new int[] { 0, 1, 0, 0 });
 
+        OutputVertices = new ComputeBuffer(tris.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Append);
+
         //Set data on the compute buffer
         sourceVertexBuffer.SetData(sourceVertices);
         sourceTriBuffer.SetData(tris);
         resultVertexBuffer.SetCounterValue(0);
+        OutputVertices.SetCounterValue(0);
 
         //Send buffers to shader.
         idPyramidKernel = computeShader.FindKernel("Main");
@@ -99,12 +103,14 @@ public class PyramidCompute : MonoBehaviour
         computeShader.SetBuffer(idPyramidKernel, "_sourceVertices", sourceVertexBuffer);
         computeShader.SetBuffer(idPyramidKernel, "_sourceTriangles", sourceTriBuffer);
         computeShader.SetBuffer(idPyramidKernel, "_outputTriangles", resultVertexBuffer);
+        computeShader.SetBuffer(idPyramidKernel, "_outputVertices", OutputVertices);
         computeShader.SetInt("_NumOfTriangles", numTriangles);
 
         triToVerts.SetBuffer(idTriToVertKernal, "_IndirectArgsBuffer", argsBuffer);
 
         //place on graphics shader.
         material.SetBuffer("_outputTriangles", resultVertexBuffer);
+        material.SetBuffer("_outputVertices", OutputVertices);
 
         //Calculate dipatch size.
         computeShader.GetKernelThreadGroupSizes(idPyramidKernel, out uint threadGroupSize, out _, out _);
@@ -131,6 +137,7 @@ public class PyramidCompute : MonoBehaviour
     {
         //Clear the draw buffer.
         resultVertexBuffer.SetCounterValue(0);
+        OutputVertices.SetCounterValue(0);
 
         Bounds bounds = TransformBounds(localBounds);
 

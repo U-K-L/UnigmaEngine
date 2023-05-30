@@ -22,7 +22,8 @@ Shader "Unlit/PixelGrassShader"
             #pragma target 5.0
 
             #include "UnityCG.cginc"
-
+        
+			int _NumVerts;
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -40,14 +41,12 @@ Shader "Unlit/PixelGrassShader"
             struct OutputVertex
             {
                 float3 position;
-                float3 normal;
                 float2 uv;
             };
 
             struct OutputTriangle
             {
-                float3 normal; //This normal in world space.
-                OutputVertex vertices[6];
+                OutputVertex vertices[72]; //This must be a constant sadly.
             };
 
             struct VertexOutput {
@@ -81,11 +80,11 @@ Shader "Unlit/PixelGrassShader"
             v2f vert(uint vertexID: SV_VertexID, appdata v)
             {
                 v2f o;
-                OutputTriangle tri = _outputTriangles[vertexID / 6];
-                //OutputVertex va = tri.vertices[vertexID % 6];
-                OutputVertex va = _outputVertices[vertexID];
+                OutputTriangle tri = _outputTriangles[vertexID / _NumVerts];
+                OutputVertex va = tri.vertices[vertexID % _NumVerts];
+                //OutputVertex va = _outputVertices[vertexID];
                 o.vertex = UnityObjectToClipPos(float4(va.position, 1));
-                o.normal = tri.normal;
+                //o.normal = tri.normal;
                 o.uv = TRANSFORM_TEX(va.uv, _MainTex);
                 return o;
             }

@@ -52,6 +52,7 @@ Shader "Unlit/PyramidCompute"
             };
 
             StructuredBuffer <OutputTriangle> _outputTriangles;
+			StructuredBuffer <OutputVertex> _outputVertices;
             
             sampler2D _MainTex;
             float4 _MainTex_ST;

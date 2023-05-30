@@ -45,7 +45,7 @@ public class PixelGrass : MonoBehaviour
     private const int SOURCE_VERT_STRIDE = sizeof(float) * (3);
     private const int OUTPUT_VERT_STRIDE = sizeof(float) * (3 + 3 + 2);
     private const int SOURCE_TRI_STRIDE = sizeof(int);
-    private const int OUTPUT_TRI_STRIDE = sizeof(float) * (3 + (3+3+2) * 6);
+    private const int OUTPUT_TRI_STRIDE = sizeof(float);
     private const int ARGS_STRIDE = sizeof(int) * 4;
 
     private int[] argsBufferInitialized = new int[] {0, 1, 0, 0 };
@@ -102,8 +102,8 @@ public void OnEnable()
         _sourceInstantiateVertices = new ComputeBuffer(IsourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         _sourceInstantiateTriangles = new ComputeBuffer(Itris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
 
-        outputVertices = new ComputeBuffer(IsourceVertices.Length * numTriangles, OUTPUT_VERT_STRIDE, ComputeBufferType.Append);
-        outputTriangles = new ComputeBuffer(numTriangles, OUTPUT_TRI_STRIDE, ComputeBufferType.Append);
+        outputVertices = new ComputeBuffer(Itris.Length * numTriangles, OUTPUT_VERT_STRIDE, ComputeBufferType.Append);
+        outputTriangles = new ComputeBuffer(numTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * Itris.Length), ComputeBufferType.Append);
         argsBuffer = new ComputeBuffer(1, ARGS_STRIDE, ComputeBufferType.IndirectArguments);
 
         //Set data on the compute buffer
@@ -132,6 +132,7 @@ public void OnEnable()
         //place on graphics shader.
         material.SetBuffer("_outputTriangles", outputTriangles);
         material.SetBuffer("_outputVertices", outputVertices);
+        material.SetInt("_NumVerts", _sourceInstantiateTriangles.count);
 
 
 
@@ -140,7 +141,7 @@ public void OnEnable()
 
         dispatchSize = Mathf.CeilToInt(numTriangles / (float)threadGroupSize);
 
-        Debug.Log("Size of the buffers " + _sourceInstantiateVertices.count + " " + _sourceInstantiateTriangles.count);
+        Debug.Log("Size of the buffers " + _sourceInstantiateVertices.count + " " + _sourceInstantiateTriangles.count + " " + Itris.Length);
     }
 
     private void OnDisable()

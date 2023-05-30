@@ -44,7 +44,13 @@ struct IndirectArgs {
 //Declare the variables needed. An array that is read only.
 StructuredBuffer <SourceVertex> _sourceVertices;
 StructuredBuffer <int> _sourceTriangles;
-RWStructuredBuffer<OutputVertex> _outputVertices;
+
+//The mesh to be instantiated each time.
+
+StructuredBuffer <int> _sourceInstantiateTriangles;
+StructuredBuffer <SourceVertex> _sourceInstantiateVertices;
+
+AppendStructuredBuffer<OutputVertex> _outputVertices;
 AppendStructuredBuffer <OutputTriangle> _outputTriangles; //This acts as a stack.
 
 RWStructuredBuffer<IndirectArgs> _IndirectArgsBuffer;
@@ -57,14 +63,14 @@ float3 _CameraPosition;
 
 OutputVertex CreateVertex(SourceVertex v)
 {
-	OutputVertex vertex;
+	OutputVertex vertex = (OutputVertex)0;
 	vertex.position = mul(_LocalToWorldMatrix, float4(v.position, 1.0f)).xyz;
 	return vertex;
 }
 
 OutputVertex CreateVertex(OutputVertex v)
 {
-	OutputVertex vertex;
+	OutputVertex vertex = (OutputVertex)0;
 	vertex.position = mul(_LocalToWorldMatrix, float4(v.position, 1.0f)).xyz;
 	return vertex;
 }
@@ -117,27 +123,36 @@ void Main(uint3 id : SV_DispatchThreadID)
 		return;
 
 	//Now take the triangle, add in a middle point, extrodue it by the height, and save it as a buffer.
-
 	int indexOfTriangle = id.x * 3; //This tells us where we are on this thread to compute the triangle. This is like a pixel shader but manually...
-	
-	OutputVertex vertices[6];
-	vertices[0] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle]]);
-	vertices[1] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 1]]);
-	vertices[2] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 2]]);
+	float2 dimensions = float2(_Width, _Height);
+	OutputVertex inputTriangleVert[3];
+	inputTriangleVert[0] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle]]);
+	inputTriangleVert[1] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 1]]);
+	inputTriangleVert[2] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 2]]);
 	float3 position, normal;
 	float3x3 tangentSpace;
 	GetCenterAndBasis(
-		vertices[0],
-		vertices[1],
-		vertices[2],
+		inputTriangleVert[0],
+		inputTriangleVert[1],
+		inputTriangleVert[2],
 		position,
 		normal,
 		tangentSpace
 	);
 	
-
-	float2 dimensions = float2(_Width, _Height);
 	
+	for (int i = 0; i < _sourceInstantiateVertices.Length; i++)
+	{
+		
+		OutputVertex vert = (OutputVertex)0;
+		vert = CreateVertex(_sourceInstantiateVertices[i]);//CreateVertex();
+		vert.position += position;
+		_outputVertices.Append(vert);
+	}
+	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, _sourceInstantiateVertices.Length);
+	//Now create the mesh to place in the center of the triangle.
+	
+	/*
 	//float3x3 twist = AngleAxis3x3(rand(position, 2) * UNITY_PI * 2, float3(0, 0, 1));
 	//Rotate towards camera.
 	// First get the direction from current position towads the camera.
@@ -152,6 +167,7 @@ void Main(uint3 id : SV_DispatchThreadID)
 	
 	float3x3 twistSpace = mul(tangentSpace, twist);
 	
+	OutputVertex vertices[6];
 	//creating shape in tangent space.
 	vertices[0] = GeneratePoint(position, normal, dimensions, twistSpace, float2(0,0));
 	vertices[1] = GeneratePoint(position, normal, dimensions, twistSpace, float2(0, 1));
@@ -176,4 +192,5 @@ void Main(uint3 id : SV_DispatchThreadID)
 
 	//Now add to indirect args.
 	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, 6);
+	*/
 }

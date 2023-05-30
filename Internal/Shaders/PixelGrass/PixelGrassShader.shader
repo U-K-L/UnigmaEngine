@@ -58,6 +58,7 @@ Shader "Unlit/PixelGrassShader"
             };
 
             StructuredBuffer <OutputTriangle> _outputTriangles;
+			StructuredBuffer <OutputVertex> _outputVertices;
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
@@ -81,7 +82,8 @@ Shader "Unlit/PixelGrassShader"
             {
                 v2f o;
                 OutputTriangle tri = _outputTriangles[vertexID / 6];
-                OutputVertex va = tri.vertices[vertexID % 6];
+                //OutputVertex va = tri.vertices[vertexID % 6];
+                OutputVertex va = _outputVertices[vertexID];
                 o.vertex = UnityObjectToClipPos(float4(va.position, 1));
                 o.normal = tri.normal;
                 o.uv = TRANSFORM_TEX(va.uv, _MainTex);
@@ -90,11 +92,11 @@ Shader "Unlit/PixelGrassShader"
             fixed4 frag(v2f i) : SV_Target
             {
 				fixed4 col = tex2D(_MainTex, i.uv);
-                clip(col.a - 0.5f);
+                //clip(col.a - 0.5f);
                 
                 //Add color to col.
                 col *= _Color;
-                return col;
+                return 1;
             }
             ENDCG
         }

@@ -6,6 +6,7 @@ public class PixelGrass : MonoBehaviour
 {
     
     [SerializeField] private Mesh sourceMesh = default;
+    [SerializeField] private Mesh sourceInstantiateMesh = default;
     [SerializeField] private Material material = default;
     [SerializeField] private ComputeShader pixelGrassComputeShader = default;
     [SerializeField] public float height = 1;
@@ -20,15 +21,20 @@ public class PixelGrass : MonoBehaviour
 
     private struct OutputVertex
     {
-        Vector3 position;
-        Vector3 normal;
-        Vector2 uv;
+        public Vector3 position;
+        public Vector3 normal;
+        public Vector2 uv;
     };
 
     private bool initialized;
     private ComputeBuffer sourceVertexBuffer;
+
+    private ComputeBuffer _sourceInstantiateVertices;
+    private ComputeBuffer _sourceInstantiateTriangles;
+
     private ComputeBuffer sourceTriBuffer;
     private ComputeBuffer outputTriangles;
+    private ComputeBuffer outputVertices;
     private ComputeBuffer argsBuffer;
 
     private int idPyramidKernel;
@@ -37,6 +43,7 @@ public class PixelGrass : MonoBehaviour
     private Bounds localBounds;
 
     private const int SOURCE_VERT_STRIDE = sizeof(float) * (3);
+    private const int OUTPUT_VERT_STRIDE = sizeof(float) * (3 + 3 + 2);
     private const int SOURCE_TRI_STRIDE = sizeof(int);
     private const int OUTPUT_TRI_STRIDE = sizeof(float) * (3 + (3+3+2) * 6);
     private const int ARGS_STRIDE = sizeof(int) * 4;
@@ -73,37 +80,67 @@ public void OnEnable()
         }
         int numTriangles = Mathf.CeilToInt(tris.Length / 3);
 
+        //Create the source vertex buffer
+        Vector3[] Ipositions = sourceInstantiateMesh.vertices;
+        Vector2[] Iuvs = sourceInstantiateMesh.uv;
+        int[] Itris = sourceInstantiateMesh.triangles;
+
+        //Adding all the vertices from the mesh to buffer
+        SourceVertex[] IsourceVertices = new SourceVertex[Ipositions.Length];
+        for (int i = 0; i < Ipositions.Length; i++)
+        {
+            IsourceVertices[i] = new SourceVertex()
+            {
+                position = Ipositions[i]
+            };
+        }
+
         //Create compute buffer.
         sourceVertexBuffer = new ComputeBuffer(sourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         sourceTriBuffer = new ComputeBuffer(tris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
-        
+
+        _sourceInstantiateVertices = new ComputeBuffer(IsourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
+        _sourceInstantiateTriangles = new ComputeBuffer(Itris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
+
+        outputVertices = new ComputeBuffer(IsourceVertices.Length * numTriangles, OUTPUT_VERT_STRIDE, ComputeBufferType.Append);
         outputTriangles = new ComputeBuffer(numTriangles, OUTPUT_TRI_STRIDE, ComputeBufferType.Append);
         argsBuffer = new ComputeBuffer(1, ARGS_STRIDE, ComputeBufferType.IndirectArguments);
 
         //Set data on the compute buffer
         sourceVertexBuffer.SetData(sourceVertices);
+        _sourceInstantiateVertices.SetData(IsourceVertices);
+        _sourceInstantiateTriangles.SetData(Itris);
         sourceTriBuffer.SetData(tris);
         argsBuffer.SetData(new int[] { 0, 1, 0, 0 });
         outputTriangles.SetCounterValue(0);
+        outputVertices.SetCounterValue(0);
+
 
         idPyramidKernel = pixelGrassComputeShader.FindKernel("Main");
 
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceVertices", sourceVertexBuffer);
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceTriangles", sourceTriBuffer);
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_outputTriangles", outputTriangles);
+        pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_outputVertices", outputVertices);
+        pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceInstantiateVertices", _sourceInstantiateVertices);
+        pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceInstantiateTriangles", _sourceInstantiateTriangles);
+        
         pixelGrassComputeShader.SetInt("_NumOfTriangles", numTriangles);
 
         pixelGrassComputeShader.SetBuffer(idTriToVertKernal, "_IndirectArgsBuffer", argsBuffer);
 
         //place on graphics shader.
         material.SetBuffer("_outputTriangles", outputTriangles);
-        
-        
+        material.SetBuffer("_outputVertices", outputVertices);
+
+
 
         //Calculate dipatch size.
         pixelGrassComputeShader.GetKernelThreadGroupSizes(idPyramidKernel, out uint threadGroupSize, out _, out _);
 
         dispatchSize = Mathf.CeilToInt(numTriangles / (float)threadGroupSize);
+
+        Debug.Log("Size of the buffers " + _sourceInstantiateVertices.count + " " + _sourceInstantiateTriangles.count);
     }
 
     private void OnDisable()
@@ -122,6 +159,7 @@ public void OnEnable()
     {
         //Clear the draw buffer.
         outputTriangles.SetCounterValue(0);
+        outputVertices.SetCounterValue(0);
         argsBuffer.SetData(argsBufferInitialized);
 
         Bounds bounds = TransformBounds(localBounds);
@@ -135,7 +173,20 @@ public void OnEnable()
 
         //Finally, dispatch the shader.
         pixelGrassComputeShader.Dispatch(idPyramidKernel, dispatchSize, 1, 1);
-        
+
+        //Print out vertices from output.
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            OutputVertex[] outputVerticesArray = new OutputVertex[outputVertices.count];
+            outputVertices.GetData(outputVerticesArray);
+            for (int i = 0; i < outputVerticesArray.Length; i++)
+            {
+                Debug.Log("Output vertices " + outputVerticesArray[i].position);
+            }
+        }
+
+
+
         //Render the generated mesh.
         Graphics.DrawProceduralIndirect(material, bounds, MeshTopology.Triangles, argsBuffer, 0, null, null, UnityEngine.Rendering.ShadowCastingMode.Off, true, gameObject.layer);
     }

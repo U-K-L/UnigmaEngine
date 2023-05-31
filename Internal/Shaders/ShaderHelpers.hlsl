@@ -81,13 +81,35 @@ float3x3 AngleAxis3x3(float angle, float3 axis)
         );
 }
 
-//Need the plane aka triangle as input.
-float3 PathAlongTangent(float3 a, float3 b, float3 c, float3 vertPos, float3 tripos, float3 target)
+float3 RandomPointInTriangle(float3 a, float3 b, float3 c, float2 r)
 {
-    //Will take the position and the new position and move the position to the new position within tangent space.
+    float3 p = (1 - sqrt(r.x)) * a + (sqrt(r.x) * (1 - r.y)) * b + (r.y * sqrt(r.x)) * c;
 
-    //Get the random movement.
-	float3 offsetTS = float3(sin(_Time.y), cos(_Time.x), sin(_Time.z))  + target;
+    return p;
+}
+
+//Convert to baycentric coordinates to stay within the triangle.
+float3 Barycentric(float3 a, float3 b, float3 c, float3 p)
+{
+	float3 v0 = b - a, v1 = c - a, v2 = p - a;
+	float d00 = dot(v0, v0);
+	float d01 = dot(v0, v1);
+	float d11 = dot(v1, v1);
+	float d20 = dot(v2, v0);
+	float d21 = dot(v2, v1);
+	float denom = d00 * d11 - d01 * d01;
+	float3 bary;
+	bary.y = (d11 * d20 - d01 * d21) / denom;
+	bary.z = (d00 * d21 - d01 * d20) / denom;
+	bary.x = 1.0 - bary.y - bary.z;
+	return bary;
+}
+
+//Need the plane aka triangle as input.
+float3 PathAlongTangent(float3 a, float3 b, float3 c,float3 target)
+{
+	float3 offsetTS = target;
+
     
     //Creating a tangent space matrix is easy. We create a change of basis such that the x axis and y axis exists on a 2D plane at the point.
     //Basically it's the plane of the triangle, lastly the Z axis will point out the triangle.
@@ -95,13 +117,10 @@ float3 PathAlongTangent(float3 a, float3 b, float3 c, float3 vertPos, float3 tri
     float3 tangent = normalize(b - a);
     float3 normal = normalize(cross(tangent, c - a));
     float3 bitangent = normalize(cross(tangent, normal));
+	float3x3 tangentSpace = transpose(float3x3(tangent, bitangent, normal));
+	float3 tangentSpaceTarget = mul(tangentSpace, offsetTS);
     
-    //We zero out the Z axis so that it doesn't leave the plane. Since we're adding in random values we need this.
-	float3x3 tangentSpace = transpose(float3x3(tangent, bitangent, float3(0,0,0)));
-	//float3 tangentSpacePos = mul(tangentSpace, vertPos);
-	float3 tagentSpaceTarget = mul(tangentSpace, offsetTS);
-    
-    return vertPos + tagentSpaceTarget;
+    return tangentSpaceTarget;
 }
 
 void MatrixMultiply(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float> B, RWStructuredBuffer<float> result, int _Transpose, int _Batch)

@@ -127,8 +127,8 @@ void AddTriangle(OutputVertex inputTriangleVert[3], uint3 id, float3 position, f
 		randVec = float3(rand(randVec), rand(randVec* randVec), rand(randVec* randVec* randVec));
 		
 		vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
-		vert.position += position;
-		vert.position = PathAlongTangent(inputTriangleVert[0].position, inputTriangleVert[1].position, inputTriangleVert[2].position, vert.position, position, randVec);
+		//vert.position += position;
+		vert.position += RandomPointInTriangle(inputTriangleVert[0].position, inputTriangleVert[1].position, inputTriangleVert[2].position, randVec.xy);
 
 		Triangles.vertices[i] = vert;
 	}
@@ -139,6 +139,7 @@ void AddTriangle(OutputVertex inputTriangleVert[3], uint3 id, float3 position, f
 
 
 //Now write the main function. ID is the thread currently running.
+//Try to do it in multiplies of 8 meshes.
 [numthreads(128, 8, 1)]
 void Main(uint3 id : SV_DispatchThreadID)
 {

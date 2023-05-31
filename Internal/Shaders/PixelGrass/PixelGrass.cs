@@ -11,7 +11,9 @@ public class PixelGrass : MonoBehaviour
     [SerializeField] private ComputeShader pixelGrassComputeShader = default;
     [SerializeField] public float height = 1;
     [SerializeField] public float width = 1;
-
+    [SerializeField] public int _NumOfMeshesPerTriangle = 1;
+    private int _previousNumOfMehsesPerTriangle = 1;
+    
     //Ensure the data is laid out sequentially
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     private struct SourceVertex
@@ -102,8 +104,10 @@ public void OnEnable()
         _sourceInstantiateVertices = new ComputeBuffer(IsourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         _sourceInstantiateTriangles = new ComputeBuffer(Itris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
 
-        outputVertices = new ComputeBuffer(Itris.Length * numTriangles, OUTPUT_VERT_STRIDE, ComputeBufferType.Append);
-        outputTriangles = new ComputeBuffer(numTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * Itris.Length), ComputeBufferType.Append);
+        int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle;
+
+        outputVertices = new ComputeBuffer(Itris.Length * numOfOutputTriangles, OUTPUT_VERT_STRIDE, ComputeBufferType.Append);
+        outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * Itris.Length), ComputeBufferType.Append);
         argsBuffer = new ComputeBuffer(1, ARGS_STRIDE, ComputeBufferType.IndirectArguments);
 
         //Set data on the compute buffer
@@ -126,13 +130,14 @@ public void OnEnable()
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceInstantiateTriangles", _sourceInstantiateTriangles);
         
         pixelGrassComputeShader.SetInt("_NumOfTriangles", numTriangles);
-
+        pixelGrassComputeShader.SetInt("_NumOfMeshesPerTriangle", _NumOfMeshesPerTriangle);
         pixelGrassComputeShader.SetBuffer(idTriToVertKernal, "_IndirectArgsBuffer", argsBuffer);
 
         //place on graphics shader.
         material.SetBuffer("_outputTriangles", outputTriangles);
         material.SetBuffer("_outputVertices", outputVertices);
         material.SetInt("_NumVerts", _sourceInstantiateTriangles.count);
+
 
 
 
@@ -175,23 +180,27 @@ public void OnEnable()
         //Finally, dispatch the shader.
         pixelGrassComputeShader.Dispatch(idPyramidKernel, dispatchSize, 1, 1);
 
-        //Print out vertices from output.
-        if (Input.GetKeyDown(KeyCode.P))
-        {
-            OutputVertex[] outputVerticesArray = new OutputVertex[outputVertices.count];
-            outputVertices.GetData(outputVerticesArray);
-            for (int i = 0; i < outputVerticesArray.Length; i++)
-            {
-                Debug.Log("Output vertices " + outputVerticesArray[i].position);
-            }
-        }
-
-
-
         //Render the generated mesh.
         Graphics.DrawProceduralIndirect(material, bounds, MeshTopology.Triangles, argsBuffer, 0, null, null, UnityEngine.Rendering.ShadowCastingMode.Off, true, gameObject.layer);
+
+
+        //Print out vertices from output.
+        if (_previousNumOfMehsesPerTriangle != _NumOfMeshesPerTriangle)
+        {
+            RefreshInstantiatedMeshes();
+            _previousNumOfMehsesPerTriangle = _NumOfMeshesPerTriangle;
+        }
     }
-    
+
+    void RefreshInstantiatedMeshes()
+    {
+        int numTriangles = Mathf.CeilToInt(sourceMesh.triangles.Length / 3);
+        int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle;
+        outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * sourceInstantiateMesh.triangles.Length), ComputeBufferType.Append);
+        pixelGrassComputeShader.SetInt("_NumOfMeshesPerTriangle", _NumOfMeshesPerTriangle);
+        pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_outputTriangles", outputTriangles);
+        material.SetBuffer("_outputTriangles", outputTriangles);
+    }
 
     public Bounds TransformBounds(Bounds _localBounds)
     {

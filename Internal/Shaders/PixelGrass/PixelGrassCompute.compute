@@ -55,6 +55,7 @@ RWStructuredBuffer<IndirectArgs> _IndirectArgsBuffer;
 
 //These are the variables that are set by C#.
 int _NumOfTriangles;
+int _NumOfMeshesPerTriangle;
 float _Width, _Height;
 float4x4 _LocalToWorldMatrix;
 float3 _CameraPosition;
@@ -112,6 +113,25 @@ OutputVertex GeneratePoint(float3 anchor, float3 normal, float2 dimensions, floa
 	output.uv = uv;
 	return output;
 }
+
+void AddTriangle(uint3 id, float3 position, float3 normal, float3x3 tangentSpace, int index)
+{
+	OutputTriangle Triangles = (OutputTriangle)0;
+
+	for (int i = 0; i < _sourceInstantiateTriangles.Length; i++)
+	{
+		OutputVertex vert = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[i]]);
+		//change scale.
+		float3 randVec = rand(float3(id.x + index, id.x + index, id.x + index) + position);
+		vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
+		vert.position += position + (randVec * 0.065);
+
+		Triangles.vertices[i] = vert;
+	}
+	_outputTriangles.Append(Triangles);
+
+	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, _sourceInstantiateTriangles.Length);
+}
 //Now write the main function. ID is the thread currently running.
 [numthreads(128, 1, 1)]
 void Main(uint3 id : SV_DispatchThreadID)
@@ -138,19 +158,13 @@ void Main(uint3 id : SV_DispatchThreadID)
 		tangentSpace
 	);
 	
-	OutputTriangle Triangles = (OutputTriangle)0;
-	for (int i = 0; i < _sourceInstantiateTriangles.Length; i++)
+	for (int i = 0; i < _NumOfMeshesPerTriangle; i++)
 	{
-		OutputVertex vert = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[i]]);
-		//change scale.
-		vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
-		vert.position += position;
-
-		Triangles.vertices[i] = vert;
+		AddTriangle(id, position, normal, tangentSpace, i);
 	}
-	_outputTriangles.Append(Triangles);
+	
 
-	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, _sourceInstantiateTriangles.Length);
+	
 	/*
 	OutputTriangle Triangles = (OutputTriangle)0;
 	Triangles.vertices[0] = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[0]]);

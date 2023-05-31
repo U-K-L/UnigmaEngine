@@ -178,7 +178,7 @@ public void OnEnable()
         pixelGrassComputeShader.SetVector("_CameraPosition", Camera.main.transform.up);
 
         //Finally, dispatch the shader.
-        pixelGrassComputeShader.Dispatch(idPyramidKernel, dispatchSize, 1, 1);
+        pixelGrassComputeShader.Dispatch(idPyramidKernel, dispatchSize, Mathf.CeilToInt(_NumOfMeshesPerTriangle / (float)8), 1);
 
         //Render the generated mesh.
         Graphics.DrawProceduralIndirect(material, bounds, MeshTopology.Triangles, argsBuffer, 0, null, null, UnityEngine.Rendering.ShadowCastingMode.Off, true, gameObject.layer);

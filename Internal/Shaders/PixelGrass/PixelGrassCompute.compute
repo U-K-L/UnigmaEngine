@@ -114,7 +114,7 @@ OutputVertex GeneratePoint(float3 anchor, float3 normal, float2 dimensions, floa
 	return output;
 }
 
-void AddTriangle(uint3 id, float3 position, float3 normal, float3x3 tangentSpace, int index)
+void AddTriangle(OutputVertex inputTriangleVert[3], uint3 id, float3 position, float3 normal)
 {
 	OutputTriangle Triangles = (OutputTriangle)0;
 
@@ -122,12 +122,13 @@ void AddTriangle(uint3 id, float3 position, float3 normal, float3x3 tangentSpace
 	{
 		OutputVertex vert = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[i]]);
 		//change scale.
-		float3 randVec = rand(float3(id.x + index /2, id.x + index/3, id.x + index/5) + position);
+		float3 randVec = rand(float3(id.x + id.y /2, id.x + id.y/3, id.x + id.y /5) + position);
 		
 		randVec = float3(rand(randVec), rand(randVec* randVec), rand(randVec* randVec* randVec));
 		
 		vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
-		vert.position += position + (randVec * 0.065);
+		vert.position += position;
+		vert.position = PathAlongTangent(inputTriangleVert[0].position, inputTriangleVert[1].position, inputTriangleVert[2].position, vert.position, position, randVec);
 
 		Triangles.vertices[i] = vert;
 	}
@@ -135,6 +136,7 @@ void AddTriangle(uint3 id, float3 position, float3 normal, float3x3 tangentSpace
 
 	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, _sourceInstantiateTriangles.Length);
 }
+
 
 //Now write the main function. ID is the thread currently running.
 [numthreads(128, 8, 1)]
@@ -162,7 +164,7 @@ void Main(uint3 id : SV_DispatchThreadID)
 		tangentSpace
 	);
 	
-	AddTriangle(id, position, normal, tangentSpace, (int)id.y);
+	AddTriangle(inputTriangleVert, id, position, normal);
 	
 	/*
 	OutputTriangle Triangles = (OutputTriangle)0;

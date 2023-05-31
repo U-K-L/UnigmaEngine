@@ -3,6 +3,8 @@
 
 #define UNITY_PI 3.14159265359
 
+#include "UnityCG.cginc"
+
 struct NVector
 {
     float nvector;
@@ -31,8 +33,10 @@ float3 GetTriangleNormal(float3 a, float3 b, float3 c)
 }
 
 void GetTriangleNormalAndTSMatrix(float3 a, float3 b, float3 c, out float3 normal, out float3x3 tangentTransform) {
+
     float3 tangent = normalize(b - a);
     normal = normalize(cross(tangent, c - a));
+    //normal = float3(0, 0, 1);
     float3 bitangent = normalize(cross(tangent, normal));
     tangentTransform = transpose(float3x3(tangent, bitangent, normal));
 }
@@ -77,7 +81,28 @@ float3x3 AngleAxis3x3(float angle, float3 axis)
         );
 }
 
+//Need the plane aka triangle as input.
+float3 PathAlongTangent(float3 a, float3 b, float3 c, float3 vertPos, float3 tripos, float3 target)
+{
+    //Will take the position and the new position and move the position to the new position within tangent space.
 
+    //Get the random movement.
+	float3 offsetTS = float3(sin(_Time.y), cos(_Time.x), sin(_Time.z))  + target;
+    
+    //Creating a tangent space matrix is easy. We create a change of basis such that the x axis and y axis exists on a 2D plane at the point.
+    //Basically it's the plane of the triangle, lastly the Z axis will point out the triangle.
+    //This is just the tangent, bitangent, and normal.
+    float3 tangent = normalize(b - a);
+    float3 normal = normalize(cross(tangent, c - a));
+    float3 bitangent = normalize(cross(tangent, normal));
+    
+    //We zero out the Z axis so that it doesn't leave the plane. Since we're adding in random values we need this.
+	float3x3 tangentSpace = transpose(float3x3(tangent, bitangent, float3(0,0,0)));
+	//float3 tangentSpacePos = mul(tangentSpace, vertPos);
+	float3 tagentSpaceTarget = mul(tangentSpace, offsetTS);
+    
+    return vertPos + tagentSpaceTarget;
+}
 
 void MatrixMultiply(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float> B, RWStructuredBuffer<float> result, int _Transpose, int _Batch)
 {

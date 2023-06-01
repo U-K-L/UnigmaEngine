@@ -41,6 +41,7 @@ Shader "Unlit/PixelGrassShader"
             struct OutputVertex
             {
                 float3 position;
+                float3 normal;
                 float2 uv;
             };
 
@@ -93,11 +94,11 @@ Shader "Unlit/PixelGrassShader"
             fixed4 frag(v2f i) : SV_Target
             {
 				fixed4 col = tex2D(_MainTex, i.uv);
-                //clip(col.a - 0.5f);
+                clip(col.a - 0.5f);
                 //Add color to col.
                 col *= _Color;
                 
-                return _Color;
+                return col;
             }
             ENDCG
         }

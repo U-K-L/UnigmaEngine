@@ -21,6 +21,7 @@ struct SourceVertex {
 struct OutputVertex
 {
 	float3 position;
+	float3 normal;
 	float2 uv;
 };
 
@@ -48,7 +49,7 @@ StructuredBuffer <int> _sourceTriangles;
 //The mesh to be instantiated each time.
 
 StructuredBuffer <int> _sourceInstantiateTriangles;
-StructuredBuffer <SourceVertex> _sourceInstantiateVertices;
+StructuredBuffer <OutputVertex> _sourceInstantiateVertices;
 
 RWStructuredBuffer <OutputTriangle> _outputTriangles; //This acts as a stack.
 
@@ -73,6 +74,7 @@ OutputVertex CreateVertex(OutputVertex v)
 {
 	OutputVertex vertex = (OutputVertex)0;
 	vertex.position = mul(_LocalToWorldMatrix, float4(v.position, 1.0f)).xyz;
+	vertex.uv = v.uv;
 	return vertex;
 }
 
@@ -92,8 +94,10 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 	float randomMeshOffset = id.x * 2 + id.y;
 		for (int i = 0; i < 3; i++)
 		{
+			
 			OutputVertex vert = (OutputVertex)0;
-			SourceVertex v = _sourceInstantiateVertices[_sourceInstantiateTriangles[i + id.z * 3]];
+			OutputVertex v = _sourceInstantiateVertices[_sourceInstantiateTriangles[i + id.z * 3]];
+			vert.uv = v.uv;
 
 			//Take position and add some random variance to its position such that it fills a triangle.
 			//Ensure it aligns to normal as well.

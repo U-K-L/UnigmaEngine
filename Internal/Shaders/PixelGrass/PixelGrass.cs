@@ -49,7 +49,7 @@ public class PixelGrass : MonoBehaviour
     private const int SOURCE_VERT_STRIDE = sizeof(float) * (3);
     private const int OUTPUT_VERT_STRIDE = sizeof(float) * (3 + 3 + 2);
     private const int SOURCE_TRI_STRIDE = sizeof(int);
-    private const int OUTPUT_TRI_STRIDE = (3*(3 + 2) * sizeof(float)) + (3 + 2) * sizeof(float);
+    private const int OUTPUT_TRI_STRIDE = (3*(3 + 2 + 3) * sizeof(float)) + (3 + 2) * sizeof(float);
     private const int ARGS_STRIDE = sizeof(int) * 4;
 
     private int[] argsBufferInitialized = new int[] {0, 1, 0, 0 };
@@ -90,12 +90,13 @@ public void OnEnable()
         int[] Itris = sourceInstantiateMesh.triangles;
 
         //Adding all the vertices from the mesh to buffer
-        SourceVertex[] IsourceVertices = new SourceVertex[Ipositions.Length];
+        OutputVertex[] IsourceVertices = new OutputVertex[Ipositions.Length];
         for (int i = 0; i < Ipositions.Length; i++)
         {
-            IsourceVertices[i] = new SourceVertex()
+            IsourceVertices[i] = new OutputVertex()
             {
-                position = Ipositions[i]
+                position = Ipositions[i],
+                uv = Iuvs[i]    
             };
         }
 
@@ -103,7 +104,7 @@ public void OnEnable()
         sourceVertexBuffer = new ComputeBuffer(sourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         sourceTriBuffer = new ComputeBuffer(tris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
 
-        _sourceInstantiateVertices = new ComputeBuffer(IsourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
+        _sourceInstantiateVertices = new ComputeBuffer(IsourceVertices.Length, OUTPUT_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         _sourceInstantiateTriangles = new ComputeBuffer(Itris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         argsBuffer = new ComputeBuffer(1, ARGS_STRIDE, ComputeBufferType.IndirectArguments);
 

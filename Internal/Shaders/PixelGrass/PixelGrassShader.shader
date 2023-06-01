@@ -94,10 +94,10 @@ Shader "Unlit/PixelGrassShader"
             {
 				fixed4 col = tex2D(_MainTex, i.uv);
                 //clip(col.a - 0.5f);
-                
                 //Add color to col.
                 col *= _Color;
-                return 1;
+                
+                return _Color;
             }
             ENDCG
         }

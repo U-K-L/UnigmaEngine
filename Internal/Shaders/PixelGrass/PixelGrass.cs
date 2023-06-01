@@ -9,9 +9,11 @@ public class PixelGrass : MonoBehaviour
     [SerializeField] private Mesh sourceInstantiateMesh = default;
     [SerializeField] private Material material = default;
     [SerializeField] private ComputeShader pixelGrassComputeShader = default;
-    [SerializeField] public float height = 1;
-    [SerializeField] public float width = 1;
-    [SerializeField] public int _NumOfMeshesPerTriangle = 1;
+    [SerializeField] public Vector3 _Dimensions = Vector3.one;
+
+    [Header("Number of meshes per triangle")]
+    [Tooltip("This is in multiplies of 2, 2*n")]
+    [Range(1, 500)] public int _NumOfMeshesPerTriangle = 2; //In multiples of 2
     private int _previousNumOfMehsesPerTriangle = 1;
     
     //Ensure the data is laid out sequentially
@@ -103,11 +105,6 @@ public void OnEnable()
 
         _sourceInstantiateVertices = new ComputeBuffer(IsourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         _sourceInstantiateTriangles = new ComputeBuffer(Itris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
-
-        int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle * _sourceInstantiateTriangles.count;
-
-        outputVertices = new ComputeBuffer(Itris.Length * numOfOutputTriangles, OUTPUT_VERT_STRIDE, ComputeBufferType.Append);
-        outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         argsBuffer = new ComputeBuffer(1, ARGS_STRIDE, ComputeBufferType.IndirectArguments);
 
         //Set data on the compute buffer
@@ -116,39 +113,22 @@ public void OnEnable()
         _sourceInstantiateTriangles.SetData(Itris);
         sourceTriBuffer.SetData(tris);
         argsBuffer.SetData(new int[] { 0, 1, 0, 0 });
-        outputTriangles.SetCounterValue(0);
-        outputVertices.SetCounterValue(0);
 
 
         idPyramidKernel = pixelGrassComputeShader.FindKernel("Main");
 
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceVertices", sourceVertexBuffer);
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceTriangles", sourceTriBuffer);
-        pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_outputTriangles", outputTriangles);
-        pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_outputVertices", outputVertices);
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceInstantiateVertices", _sourceInstantiateVertices);
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_sourceInstantiateTriangles", _sourceInstantiateTriangles);
         
         pixelGrassComputeShader.SetInt("_NumOfTriangles", numTriangles);
-        pixelGrassComputeShader.SetInt("_NumOfMeshesPerTriangle", _NumOfMeshesPerTriangle);
         pixelGrassComputeShader.SetBuffer(idTriToVertKernal, "_IndirectArgsBuffer", argsBuffer);
 
         //place on graphics shader.
-        material.SetBuffer("_outputTriangles", outputTriangles);
         material.SetBuffer("_outputVertices", outputVertices);
         material.SetInt("_NumVerts", _sourceInstantiateTriangles.count);
-
-
-
-        argsBufferInitialized[0] = _sourceInstantiateTriangles.count * numTriangles;
-        //Calculate dipatch size.
-        pixelGrassComputeShader.GetKernelThreadGroupSizes(idPyramidKernel, out uint threadGroupSizex, out uint threadGroupSizey, out uint threadGroupSizez);
-
-        dispatchSize.x = Mathf.CeilToInt(Mathf.CeilToInt(sourceMesh.triangles.Length / 3) / (float)threadGroupSizex);
-        dispatchSize.y = Mathf.CeilToInt(_NumOfMeshesPerTriangle / (float)threadGroupSizey);
-        dispatchSize.z = Mathf.CeilToInt((_sourceInstantiateTriangles.count / 3) / (float)threadGroupSizez);
-
-        Debug.Log("Size of the buffers " + _sourceInstantiateVertices.count + " " + _sourceInstantiateTriangles.count + " " + Itris.Length);
+        RefreshInstantiatedMeshes();
     }
 
     private void OnDisable()
@@ -167,7 +147,6 @@ public void OnEnable()
     {
         //Clear the draw buffer.
         outputTriangles.SetCounterValue(0);
-        outputVertices.SetCounterValue(0);
         argsBuffer.SetData(argsBufferInitialized);
 
         Bounds bounds = TransformBounds(localBounds);
@@ -180,8 +159,7 @@ public void OnEnable()
 
         Debug.Log(transform.up);
         Debug.Log(transform.localToWorldMatrix.m01 + " " + transform.localToWorldMatrix.m11 + " " + transform.localToWorldMatrix.m21);
-        pixelGrassComputeShader.SetFloat("_Height", height);
-        pixelGrassComputeShader.SetFloat("_Width", width);
+        pixelGrassComputeShader.SetVector("_Dimensions", _Dimensions);
         pixelGrassComputeShader.SetVector("_CameraPosition", Camera.main.transform.up);
 
         //Finally, dispatch the shader.
@@ -202,18 +180,18 @@ public void OnEnable()
 
     void RefreshInstantiatedMeshes()
     {
-        int numOfOutputTriangles = (sourceMesh.triangles.Length/3) * _NumOfMeshesPerTriangle * (_sourceInstantiateTriangles.count/3);
-        Debug.Log((sourceMesh.triangles.Length / 3) + " " + _NumOfMeshesPerTriangle + " " + _sourceInstantiateTriangles.count);
+        int numOfMeshes = 2 * _NumOfMeshesPerTriangle;
+        int numOfOutputTriangles = (sourceMesh.triangles.Length/3) * numOfMeshes * (_sourceInstantiateTriangles.count/3);
         //The number of vertices, which is X3.
         argsBufferInitialized[0] = numOfOutputTriangles*3;
         
         outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
-        pixelGrassComputeShader.SetInt("_NumOfMeshesPerTriangle", _NumOfMeshesPerTriangle);
+        pixelGrassComputeShader.SetInt("_NumOfMeshesPerTriangle", numOfMeshes);
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_outputTriangles", outputTriangles);
         
         pixelGrassComputeShader.GetKernelThreadGroupSizes(idPyramidKernel, out uint threadGroupSizex, out uint threadGroupSizey, out uint threadGroupSizez);
         dispatchSize.x = Mathf.CeilToInt(Mathf.CeilToInt(sourceMesh.triangles.Length / 3) / (float)threadGroupSizex);
-        dispatchSize.y = Mathf.CeilToInt(_NumOfMeshesPerTriangle / (float)threadGroupSizey);
+        dispatchSize.y = Mathf.CeilToInt(numOfMeshes / (float)threadGroupSizey);
         dispatchSize.z = Mathf.CeilToInt((_sourceInstantiateTriangles.count / 3) / (float)threadGroupSizez);
 
         material.SetBuffer("_outputTriangles", outputTriangles);
@@ -268,4 +246,5 @@ public void OnEnable()
         Debug.DrawLine(p4, p8, Color.cyan, delay);
     }
 
+    
 }

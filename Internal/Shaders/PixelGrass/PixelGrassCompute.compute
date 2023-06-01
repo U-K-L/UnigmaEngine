@@ -28,7 +28,7 @@ struct OutputVertex
 
 struct OutputTriangle
 {
-	OutputVertex vertices[72]; //This must be a constant sadly.
+	OutputVertex vertices[3]; //This must be a constant sadly.
 };
 
 //This is the args buffer.
@@ -87,34 +87,40 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 {
 	OutputTriangle Triangles = (OutputTriangle)0;
 
-	for (int i = 0; i < _sourceInstantiateTriangles.Length; i++)
+	for (int j = 0; j < 24; j ++)
 	{
-		OutputVertex vert = (OutputVertex)0;
-		SourceVertex v = _sourceInstantiateVertices[_sourceInstantiateTriangles[i]];
-		
-		//Take position and add some random variance to its position such that it fills a triangle.
-		//Ensure it aligns to normal as well.
-		float3x3 NormalUpMatrix = AlignToNormal(a, b, c);
-		
-		float3 randVec = rand(float3(id.x + id.y /2, id.x + id.y/3, id.x + id.y /5) + position);
-		randVec = float3(rand(randVec), rand(randVec* randVec), rand(randVec* randVec* randVec));
-		
-		//Now that we have the position finished, let's randomize the rotation a bit by adding some twist.
-		float theta = sin(_Time.y)*UNITY_PI*2;
-		//The axis is the up vector, which is cross(tangent, bitangent) which is our normal.
-		float3x3 twist = AngleAxis3x3(theta, normal);
-		
-		float3x3 TwistedNormal = mul(twist, NormalUpMatrix);
-		//Now we have the rotation matrix, let's rotate the position.
-		vert.position = mul(TwistedNormal, v.position);
-		
+		for (int i = 0; i < 3; i++)
+		{
+			OutputVertex vert = (OutputVertex)0;
+			SourceVertex v = _sourceInstantiateVertices[_sourceInstantiateTriangles[i + j * 3]];
 
-		vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
-		vert.position += RandomPointInTriangle(a, b, c, randVec.xy);
+			//Take position and add some random variance to its position such that it fills a triangle.
+			//Ensure it aligns to normal as well.
+			float3x3 NormalUpMatrix = AlignToNormal(a, b, c);
+
+			float3 randVec = rand(float3(id.x + id.y / 2, id.x + id.y / 3, id.x + id.y / 5) + position);
+			randVec = float3(rand(randVec), rand(randVec * randVec), rand(randVec * randVec * randVec));
+
+			//Now that we have the position finished, let's randomize the rotation a bit by adding some twist.
+			float theta = sin(_Time.y) * UNITY_PI * 2;
+			//The axis is the up vector, which is cross(tangent, bitangent) which is our normal.
+			float3x3 twist = AngleAxis3x3(theta, normal);
+
+			float3x3 TwistedNormal = mul(twist, NormalUpMatrix);
+			//Now we have the rotation matrix, let's rotate the position.
+			vert.position = mul(TwistedNormal, v.position);
+
+
+			vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
+			vert.position += RandomPointInTriangle(a, b, c, randVec.xy);
+
+			Triangles.vertices[i] = vert;
+		}
+		_outputTriangles[j + (int)id.x*24 + (int)id.y * _NumOfTriangles*24] = Triangles;
 		
-		Triangles.vertices[i] = vert;
+		
 	}
-	_outputTriangles[(int)id.x + (int)id.y* _NumOfTriangles] = Triangles;
+
 }
 
 

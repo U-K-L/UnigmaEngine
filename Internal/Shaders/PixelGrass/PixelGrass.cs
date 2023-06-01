@@ -104,7 +104,7 @@ public void OnEnable()
         _sourceInstantiateVertices = new ComputeBuffer(IsourceVertices.Length, SOURCE_VERT_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         _sourceInstantiateTriangles = new ComputeBuffer(Itris.Length, SOURCE_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
 
-        int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle;
+        int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle * _sourceInstantiateTriangles.count;
 
         outputVertices = new ComputeBuffer(Itris.Length * numOfOutputTriangles, OUTPUT_VERT_STRIDE, ComputeBufferType.Append);
         outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * Itris.Length), ComputeBufferType.Structured, ComputeBufferMode.Immutable);
@@ -200,7 +200,7 @@ public void OnEnable()
     void RefreshInstantiatedMeshes()
     {
         int numTriangles = Mathf.CeilToInt(sourceMesh.triangles.Length / 3);
-        int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle;
+        int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle*3;
         argsBufferInitialized[0] = _sourceInstantiateTriangles.count * numOfOutputTriangles;
         outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * sourceInstantiateMesh.triangles.Length), ComputeBufferType.Append);
         pixelGrassComputeShader.SetInt("_NumOfMeshesPerTriangle", _NumOfMeshesPerTriangle);

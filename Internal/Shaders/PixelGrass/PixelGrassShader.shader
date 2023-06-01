@@ -46,7 +46,7 @@ Shader "Unlit/PixelGrassShader"
 
             struct OutputTriangle
             {
-                OutputVertex vertices[72]; //This must be a constant sadly.
+                OutputVertex vertices[3]; //This must be a constant sadly.
             };
 
             struct VertexOutput {
@@ -80,8 +80,8 @@ Shader "Unlit/PixelGrassShader"
             v2f vert(uint vertexID: SV_VertexID, appdata v)
             {
                 v2f o;
-                OutputTriangle tri = _outputTriangles[vertexID / _NumVerts];
-                OutputVertex va = tri.vertices[vertexID % _NumVerts];
+                OutputTriangle tri = _outputTriangles[vertexID / 3];
+                OutputVertex va = tri.vertices[vertexID % 3];
                 //OutputVertex va = _outputVertices[vertexID];
                 o.vertex = UnityObjectToClipPos(float4(va.position, 1));
                 //o.normal = tri.normal;

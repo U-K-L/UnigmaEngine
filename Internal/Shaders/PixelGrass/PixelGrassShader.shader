@@ -46,7 +46,7 @@ Shader "Unlit/PixelGrassShader"
 
             struct OutputTriangle
             {
-                OutputVertex vertices[36]; //This must be a constant sadly.
+                OutputVertex vertices[72]; //This must be a constant sadly.
             };
 
             struct VertexOutput {

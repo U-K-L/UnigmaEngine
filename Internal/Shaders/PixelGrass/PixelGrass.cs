@@ -107,7 +107,7 @@ public void OnEnable()
         int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle;
 
         outputVertices = new ComputeBuffer(Itris.Length * numOfOutputTriangles, OUTPUT_VERT_STRIDE, ComputeBufferType.Append);
-        outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * Itris.Length), ComputeBufferType.Append);
+        outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * Itris.Length), ComputeBufferType.Structured, ComputeBufferMode.Immutable);
         argsBuffer = new ComputeBuffer(1, ARGS_STRIDE, ComputeBufferType.IndirectArguments);
 
         //Set data on the compute buffer
@@ -140,7 +140,7 @@ public void OnEnable()
 
 
 
-
+        argsBufferInitialized[0] = _sourceInstantiateTriangles.count * numTriangles;
         //Calculate dipatch size.
         pixelGrassComputeShader.GetKernelThreadGroupSizes(idPyramidKernel, out uint threadGroupSize, out _, out _);
 
@@ -201,6 +201,7 @@ public void OnEnable()
     {
         int numTriangles = Mathf.CeilToInt(sourceMesh.triangles.Length / 3);
         int numOfOutputTriangles = numTriangles * _NumOfMeshesPerTriangle;
+        argsBufferInitialized[0] = _sourceInstantiateTriangles.count * numOfOutputTriangles;
         outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE * ((3 + 2) * sourceInstantiateMesh.triangles.Length), ComputeBufferType.Append);
         pixelGrassComputeShader.SetInt("_NumOfMeshesPerTriangle", _NumOfMeshesPerTriangle);
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_outputTriangles", outputTriangles);

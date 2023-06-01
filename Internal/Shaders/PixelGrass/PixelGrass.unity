@@ -578,14 +578,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a71c891445cc5574bbb65fab5189e949, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sourceMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
-  sourceInstantiateMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  sourceMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+  sourceInstantiateMesh: {fileID: 4579454407841743219, guid: 118f7bb76f7cce2469683747236a275b,
+    type: 3}
   material: {fileID: 2100000, guid: d23b0139695755441834684bdc89e61c, type: 2}
   pixelGrassComputeShader: {fileID: 7200000, guid: e889e5b17d783714fa3cf913717dea9c,
     type: 3}
-  height: 0.02
-  width: 0.02
-  _NumOfMeshesPerTriangle: 800
+  height: 2
+  width: 2
+  _NumOfMeshesPerTriangle: 8
 --- !u!4 &999211653
 Transform:
   m_ObjectHideFlags: 0

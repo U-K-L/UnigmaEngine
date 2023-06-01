@@ -36,7 +36,6 @@ void GetTriangleNormalAndTSMatrix(float3 a, float3 b, float3 c, out float3 norma
 
     float3 tangent = normalize(b - a);
     normal = normalize(cross(tangent, c - a));
-    //normal = float3(0, 0, 1);
     float3 bitangent = normalize(cross(tangent, normal));
     tangentTransform = transpose(float3x3(tangent, bitangent, normal));
 }
@@ -121,6 +120,18 @@ float3 PathAlongTangent(float3 a, float3 b, float3 c,float3 target)
 	float3 tangentSpaceTarget = mul(tangentSpace, offsetTS);
     
     return tangentSpaceTarget;
+}
+
+float3x3 AlignToNormal(float3 a, float3 b, float3 c)
+{
+    float3 normal = GetTriangleNormal(a, b, c);
+    //Create tangent.
+    float3 tangent = normalize(c - a);
+    //Create bitangent.
+    float3 bitangent = normalize(cross(tangent, normal));
+    //Create new basis matrix. Transpose to match Unity column row order.
+    float3x3 LocalToWorldMatrixNormal = transpose(float3x3(bitangent, normal, tangent));
+    return LocalToWorldMatrixNormal;
 }
 
 void MatrixMultiply(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float> B, RWStructuredBuffer<float> result, int _Transpose, int _Batch)

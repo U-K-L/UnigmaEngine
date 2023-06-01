@@ -28,7 +28,7 @@ struct OutputVertex
 
 struct OutputTriangle
 {
-	OutputVertex vertices[72]; //This must be a constant sadly.
+	OutputVertex vertices[36]; //This must be a constant sadly.
 };
 
 //This is the args buffer.
@@ -74,25 +74,8 @@ OutputVertex CreateVertex(OutputVertex v)
 	return vertex;
 }
 
-void AppendTriangleToBuffer(OutputVertex a, OutputVertex b, OutputVertex c)
-{
-	float3 normal = GetTriangleNormal(a.position, b.position, c.position); //normal needs to be recalculated.
-	OutputTriangle tri;
-	//tri.normal = normal;
-	tri.vertices[0] = a;
-	tri.vertices[1] = b;
-	tri.vertices[2] = c;
-
-	_outputTriangles.Append(tri);
-
-}
-
 void GetCenterAndBasis(OutputVertex a, OutputVertex b, OutputVertex c, out float3 position, out float3 normal, out float3x3 tangentSpace)
 {
-	//float3 posA = mul(_LocalToWorldMatrix, float4(a.position, 1.0f)).xyz;
-	//float3 posB = mul(_LocalToWorldMatrix, float4(b.position, 1.0f)).xyz;
-	//float3 posC = mul(_LocalToWorldMatrix, float4(c.position, 1.0f)).xyz;
-
 	//Center
 	position = GetTriangleCenter(a.position, b.position, c.position);
 
@@ -100,40 +83,38 @@ void GetCenterAndBasis(OutputVertex a, OutputVertex b, OutputVertex c, out float
 	GetTriangleNormalAndTSMatrix(a.position, b.position, c.position, normal, tangentSpace);
 }
 
-OutputVertex GeneratePoint(float3 anchor, float3 normal, float2 dimensions, float3x3 tangentSpace, float2 uv)
-{
-	float3 offsetTS = float3((uv.x - 0.5f) * dimensions.x, 0, uv.y * dimensions.y);
-	
-	//convert to object space.
-	float3 offsetOS = mul(tangentSpace, offsetTS);
-	
-	OutputVertex output = (OutputVertex)0;
-	output.position = anchor + offsetOS;
-	//output.normal = normal;
-	output.uv = uv;
-	return output;
-}
-
-void AddTriangle(OutputVertex inputTriangleVert[3], uint3 id, float3 position, float3 normal)
+void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3 normal)
 {
 	OutputTriangle Triangles = (OutputTriangle)0;
 
 	for (int i = 0; i < _sourceInstantiateTriangles.Length; i++)
 	{
-		OutputVertex vert = CreateVertex(_sourceInstantiateVertices[_sourceInstantiateTriangles[i]]);
-		//change scale.
-		float3 randVec = rand(float3(id.x + id.y /2, id.x + id.y/3, id.x + id.y /5) + position);
+		OutputVertex vert = (OutputVertex)0;
+		SourceVertex v = _sourceInstantiateVertices[_sourceInstantiateTriangles[i]];
 		
+		//Take position and add some random variance to its position such that it fills a triangle.
+		//Ensure it aligns to normal as well.
+		float3x3 NormalUpMatrix = AlignToNormal(a, b, c);
+		
+		float3 randVec = rand(float3(id.x + id.y /2, id.x + id.y/3, id.x + id.y /5) + position);
 		randVec = float3(rand(randVec), rand(randVec* randVec), rand(randVec* randVec* randVec));
 		
-		vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
-		//vert.position += position;
-		vert.position += RandomPointInTriangle(inputTriangleVert[0].position, inputTriangleVert[1].position, inputTriangleVert[2].position, randVec.xy);
+		//Now that we have the position finished, let's randomize the rotation a bit by adding some twist.
+		float theta = sin(_Time.y)*UNITY_PI*2;
+		//The axis is the up vector, which is cross(tangent, bitangent) which is our normal.
+		float3x3 twist = AngleAxis3x3(theta, normal);
+		
+		float3x3 TwistedNormal = mul(twist, NormalUpMatrix);
+		//Now we have the rotation matrix, let's rotate the position.
+		vert.position = mul(TwistedNormal, v.position);
+		
 
+		vert.position = float3(vert.position.x * _Width, vert.position.y * _Height, vert.position.z * _Width);
+		vert.position += RandomPointInTriangle(a, b, c, randVec.xy);
+		
 		Triangles.vertices[i] = vert;
 	}
 	_outputTriangles.Append(Triangles);
-
 	InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, _sourceInstantiateTriangles.Length);
 }
 
@@ -165,7 +146,7 @@ void Main(uint3 id : SV_DispatchThreadID)
 		tangentSpace
 	);
 	
-	AddTriangle(inputTriangleVert, id, position, normal);
+	AddTriangle(inputTriangleVert[0].position, inputTriangleVert[1].position, inputTriangleVert[2].position, id, position, normal);
 	
 	/*
 	OutputTriangle Triangles = (OutputTriangle)0;

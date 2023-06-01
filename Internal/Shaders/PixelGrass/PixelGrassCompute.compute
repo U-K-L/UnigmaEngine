@@ -28,7 +28,9 @@ struct OutputVertex
 
 struct OutputTriangle
 {
-	OutputVertex vertices[3]; //This must be a constant sadly.
+	float3 normal;
+	float2 uv;
+	OutputVertex vertices[3];
 };
 
 //This is the args buffer.
@@ -86,8 +88,8 @@ void GetCenterAndBasis(OutputVertex a, OutputVertex b, OutputVertex c, out float
 void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3 normal)
 {
 	OutputTriangle Triangles = (OutputTriangle)0;
-
-	for (int j = 0; j < 24; j ++)
+	float randomMeshOffset = id.x * 2 + id.y;
+	for (int j = 0; j < _sourceInstantiateTriangles.Length / 3; j ++)
 	{
 		for (int i = 0; i < 3; i++)
 		{
@@ -98,7 +100,7 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 			//Ensure it aligns to normal as well.
 			float3x3 NormalUpMatrix = AlignToNormal(a, b, c);
 
-			float3 randVec = rand(float3(id.x + id.y / 2, id.x + id.y / 3, id.x + id.y / 5) + position);
+			float3 randVec = rand(float3(randomMeshOffset+id.x + id.y / 2, randomMeshOffset+id.x + id.y / 3, randomMeshOffset+id.x + id.y / 5) + position);
 			randVec = float3(rand(randVec), rand(randVec * randVec), rand(randVec * randVec * randVec));
 
 			//Now that we have the position finished, let's randomize the rotation a bit by adding some twist.
@@ -116,9 +118,9 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 
 			Triangles.vertices[i] = vert;
 		}
-		_outputTriangles[j + (int)id.x*24 + (int)id.y * _NumOfTriangles*24] = Triangles;
-		
-		
+		//id.x is the triangle, so there are n meshes per triangle.
+		//id.y is the number of triangles per mesh.
+		_outputTriangles[j + (int)id.x*24* _NumOfMeshesPerTriangle + (int)id.y * 24] = Triangles;
 	}
 
 }

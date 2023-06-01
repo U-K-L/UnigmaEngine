@@ -578,7 +578,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a71c891445cc5574bbb65fab5189e949, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sourceMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+  sourceMesh: {fileID: -462981019419857548, guid: 026176de687008447bc0c218a83d90ad,
+    type: 3}
   sourceInstantiateMesh: {fileID: 4579454407841743219, guid: 118f7bb76f7cce2469683747236a275b,
     type: 3}
   material: {fileID: 2100000, guid: d23b0139695755441834684bdc89e61c, type: 2}

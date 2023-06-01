@@ -144,9 +144,9 @@ public void OnEnable()
         //Calculate dipatch size.
         pixelGrassComputeShader.GetKernelThreadGroupSizes(idPyramidKernel, out uint threadGroupSizex, out uint threadGroupSizey, out uint threadGroupSizez);
 
-        dispatchSize.x = Mathf.CeilToInt(numTriangles / (float)threadGroupSizex);
+        dispatchSize.x = Mathf.CeilToInt(Mathf.CeilToInt(sourceMesh.triangles.Length / 3) / (float)threadGroupSizex);
         dispatchSize.y = Mathf.CeilToInt(_NumOfMeshesPerTriangle / (float)threadGroupSizey);
-        dispatchSize.z = Mathf.CeilToInt(1 / (float)threadGroupSizez);
+        dispatchSize.z = Mathf.CeilToInt((_sourceInstantiateTriangles.count / 3) / (float)threadGroupSizez);
 
         Debug.Log("Size of the buffers " + _sourceInstantiateVertices.count + " " + _sourceInstantiateTriangles.count + " " + Itris.Length);
     }
@@ -214,7 +214,7 @@ public void OnEnable()
         pixelGrassComputeShader.GetKernelThreadGroupSizes(idPyramidKernel, out uint threadGroupSizex, out uint threadGroupSizey, out uint threadGroupSizez);
         dispatchSize.x = Mathf.CeilToInt(Mathf.CeilToInt(sourceMesh.triangles.Length / 3) / (float)threadGroupSizex);
         dispatchSize.y = Mathf.CeilToInt(_NumOfMeshesPerTriangle / (float)threadGroupSizey);
-        dispatchSize.z = Mathf.CeilToInt(1 / (float)threadGroupSizez);
+        dispatchSize.z = Mathf.CeilToInt((_sourceInstantiateTriangles.count / 3) / (float)threadGroupSizez);
 
         material.SetBuffer("_outputTriangles", outputTriangles);
     }

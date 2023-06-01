@@ -89,12 +89,10 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 {
 	OutputTriangle Triangles = (OutputTriangle)0;
 	float randomMeshOffset = id.x * 2 + id.y;
-	for (int j = 0; j < _sourceInstantiateTriangles.Length / 3; j ++)
-	{
 		for (int i = 0; i < 3; i++)
 		{
 			OutputVertex vert = (OutputVertex)0;
-			SourceVertex v = _sourceInstantiateVertices[_sourceInstantiateTriangles[i + j * 3]];
+			SourceVertex v = _sourceInstantiateVertices[_sourceInstantiateTriangles[i + id.z * 3]];
 
 			//Take position and add some random variance to its position such that it fills a triangle.
 			//Ensure it aligns to normal as well.
@@ -120,19 +118,20 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 		}
 		//id.x is the triangle, so there are n meshes per triangle.
 		//id.y is the number of triangles per mesh.
-		_outputTriangles[j + (int)id.x*24* _NumOfMeshesPerTriangle + (int)id.y * 24] = Triangles;
-	}
+		_outputTriangles[id.z + (int)id.x*24* _NumOfMeshesPerTriangle + (int)id.y * 24] = Triangles;
 
 }
 
 
 //Now write the main function. ID is the thread currently running.
 //Try to do it in multiplies of 8 meshes.
-[numthreads(128, 8, 1)]
+[numthreads(64, 8, 2)]
 void Main(uint3 id : SV_DispatchThreadID)
 {
 	//Ensure it isn't using more compute than triangles.
 	if ((int)id.x >= _NumOfTriangles)
+		return;
+	if ((int)id.y >= _NumOfMeshesPerTriangle)
 		return;
 
 	//Now take the triangle, add in a middle point, extrodue it by the height, and save it as a buffer.

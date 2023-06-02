@@ -4,6 +4,10 @@ Shader "Unlit/PixelGrassShader"
     {
 		_Color("Color", Color) = (1,1,1,1)
         _MainTex ("Texture", 2D) = "white" {}
+	    _WorldTex("World Texture", 2D) = "white" {}
+		_Scale("Vector", Vector) = (1,1,1,1)
+        _Brightness("Brightness", Vector) = (1,1,1,1)
+        _LookUpTable("Look up", 2D) = "white" {}
     }
     SubShader
     {
@@ -34,8 +38,8 @@ Shader "Unlit/PixelGrassShader"
             {
                 float3 normal : TEXCOORD1;
                 float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
                 float4 vertex : SV_POSITION;
+                float3 worldPos : TEXCOORD2;
             };
 
             struct OutputVertex
@@ -62,9 +66,9 @@ Shader "Unlit/PixelGrassShader"
             StructuredBuffer <OutputTriangle> _outputTriangles;
 			StructuredBuffer <OutputVertex> _outputVertices;
 
-            sampler2D _MainTex;
+            sampler2D _MainTex, _WorldTex, _LookUpTable;
             float4 _MainTex_ST;
-			float4 _Color;
+			float4 _Color, _Scale, _Brightness;
 
             /*
             VertexOutput vert (uint vertexID: SV_VertexID)
@@ -80,6 +84,33 @@ Shader "Unlit/PixelGrassShader"
                 return o;
             }
             */
+
+            float3 LookUpColor(float3 color)
+            {
+                float2 s = float2(1.0 / 17.0, 1.0 / 17.0); //divided by texture size.
+                float3 lookUp = float3(1, 1, 1);
+                float3 finalColor = color;
+                float minDist = 1000000;
+
+                for (int i = 0; i < 17; i++)
+                    for (int j = 0; j < 17; j++)
+                    {
+                        float3 lookUp = tex2D(_LookUpTable, float2(s.x * i, s.y * j)).rgb;
+
+                        float dist = distance(lookUp, color);
+
+                        if (minDist > dist)
+                        {
+                            finalColor = lookUp;
+                            minDist = dist;
+                        }
+
+                    }
+
+
+                return finalColor;
+            }
+            
             v2f vert(uint vertexID: SV_VertexID, appdata v)
             {
                 v2f o;
@@ -87,18 +118,26 @@ Shader "Unlit/PixelGrassShader"
                 OutputVertex va = tri.vertices[vertexID % 3];
                 //OutputVertex va = _outputVertices[vertexID];
                 o.vertex = UnityObjectToClipPos(float4(va.position, 1));
+				o.worldPos = mul(unity_ObjectToWorld, float4(va.position, 1)).xyz;
                 //o.normal = tri.normal;
                 o.uv = TRANSFORM_TEX(va.uv, _MainTex);
                 return o;
             }
             fixed4 frag(v2f i) : SV_Target
             {
+                //Let's scroll through a texture the uses world space, a world space texture mapping.
+                float4 yt = tex2D(_WorldTex, i.worldPos.zx * _Scale.x);
 				fixed4 col = tex2D(_MainTex, i.uv);
+				fixed4 worldText = tex2D(_WorldTex, yt);
+                fixed4 brightenedWorldTex = worldText * (_Color + _Brightness);
+
+                //Clip out according to clip texture.
                 clip(col.a - 0.5f);
-                //Add color to col.
-                col *= _Color;
+
+                //Simplify color according to look up texture.
                 
-                return col;
+
+                return brightenedWorldTex;
             }
             ENDCG
         }

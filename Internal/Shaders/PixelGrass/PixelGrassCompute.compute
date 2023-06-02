@@ -107,7 +107,7 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 			randVec = float3(rand(randVec), rand(randVec * randVec), rand(randVec * randVec * randVec));
 
 			//Now that we have the position finished, let's randomize the rotation a bit by adding some twist.
-			float theta = sin(_Time.y) * UNITY_PI * 2;
+			float theta = 0;
 			//The axis is the up vector, which is cross(tangent, bitangent) which is our normal.
 			float3x3 twist = AngleAxis3x3(theta, normal);
 

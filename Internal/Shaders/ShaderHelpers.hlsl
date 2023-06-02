@@ -130,7 +130,7 @@ float3x3 AlignToNormal(float3 a, float3 b, float3 c)
     //Create bitangent.
     float3 bitangent = normalize(cross(tangent, normal));
     //Create new basis matrix. Transpose to match Unity column row order.
-    float3x3 LocalToWorldMatrixNormal = transpose(float3x3(bitangent, normal, tangent));
+    float3x3 LocalToWorldMatrixNormal = transpose(float3x3(tangent, normal, bitangent));
     return LocalToWorldMatrixNormal;
 }
 

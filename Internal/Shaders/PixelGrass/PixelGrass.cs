@@ -21,12 +21,14 @@ public class PixelGrass : MonoBehaviour
     private struct SourceVertex
     {
         public Vector3 position;
+        public Vector3 vertexColor;
     }
 
     private struct OutputVertex
     {
         public Vector3 position;
         public Vector3 normal;
+        public Vector3 vertexColor;
         public Vector2 uv;
     };
 
@@ -46,10 +48,10 @@ public class PixelGrass : MonoBehaviour
     private Vector3Int dispatchSize;
     private Bounds localBounds;
 
-    private const int SOURCE_VERT_STRIDE = sizeof(float) * (3);
-    private const int OUTPUT_VERT_STRIDE = sizeof(float) * (3 + 3 + 2);
+    private const int SOURCE_VERT_STRIDE = sizeof(float) * (3+3);
+    private const int OUTPUT_VERT_STRIDE = sizeof(float) * (3 + 3 + 2 +3);
     private const int SOURCE_TRI_STRIDE = sizeof(int);
-    private const int OUTPUT_TRI_STRIDE = (3*(3 + 2 + 3) * sizeof(float)) + (3 + 2) * sizeof(float);
+    private const int OUTPUT_TRI_STRIDE = (3*(3 + 2 + 3 + 3) * sizeof(float)) + (3 + 2) * sizeof(float);
     private const int ARGS_STRIDE = sizeof(int) * 4;
 
     private int[] argsBufferInitialized = new int[] {0, 1, 0, 0 };
@@ -88,6 +90,7 @@ public void OnEnable()
         Vector3[] Ipositions = sourceInstantiateMesh.vertices;
         Vector2[] Iuvs = sourceInstantiateMesh.uv;
         int[] Itris = sourceInstantiateMesh.triangles;
+        Vector3[] normals = sourceInstantiateMesh.normals;
 
         //Adding all the vertices from the mesh to buffer
         OutputVertex[] IsourceVertices = new OutputVertex[Ipositions.Length];
@@ -96,7 +99,8 @@ public void OnEnable()
             IsourceVertices[i] = new OutputVertex()
             {
                 position = Ipositions[i],
-                uv = Iuvs[i]    
+                uv = Iuvs[i],
+                normal = normals[i]
             };
         }
 

@@ -14,6 +14,7 @@
 //The vertices of the source mesh given by C#.
 struct SourceVertex {
 	float3 position; //This is in object space.
+	float3 vertexColor;
 };
 
 //output vertices to send back to C#.
@@ -22,6 +23,7 @@ struct OutputVertex
 {
 	float3 position;
 	float3 normal;
+	float3 vertexColor;
 	float2 uv;
 };
 
@@ -29,8 +31,8 @@ struct OutputVertex
 
 struct OutputTriangle
 {
-	float3 normal;
 	float2 uv;
+	float3 normal;
 	OutputVertex vertices[3];
 };
 
@@ -98,6 +100,7 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 			OutputVertex vert = (OutputVertex)0;
 			OutputVertex v = _sourceInstantiateVertices[_sourceInstantiateTriangles[i + id.z * 3]];
 			vert.uv = v.uv;
+			vert.normal = v.normal;
 
 			//Take position and add some random variance to its position such that it fills a triangle.
 			//Ensure it aligns to normal as well.
@@ -107,7 +110,7 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 			randVec = float3(rand(randVec), rand(randVec * randVec), rand(randVec * randVec * randVec));
 
 			//Now that we have the position finished, let's randomize the rotation a bit by adding some twist.
-			float theta = 0;
+			float theta = sin(_Time.y*0.5) * UNITY_PI * 2;
 			//The axis is the up vector, which is cross(tangent, bitangent) which is our normal.
 			float3x3 twist = AngleAxis3x3(theta, normal);
 
@@ -120,6 +123,7 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 			vert.position += RandomPointInTriangle(a, b, c, randVec.xy);
 
 			Triangles.vertices[i] = vert;
+			Triangles.normal = normal;
 		}
 		//id.x is the triangle, so there are n meshes per triangle.
 		//id.y is the number of triangles per mesh.

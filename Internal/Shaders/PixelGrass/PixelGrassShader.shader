@@ -3,6 +3,8 @@ Shader "Unlit/PixelGrassShader"
     Properties
     {
 		_Color("Color", Color) = (1,1,1,1)
+        _Highlight("Color", Color) = (1,1,1,1)
+        _Shadow("Color", Color) = (1,1,1,1)
         _MainTex ("Texture", 2D) = "white" {}
 	    _WorldTex("World Texture", 2D) = "white" {}
 		_Scale("Vector", Vector) = (1,1,1,1)
@@ -11,7 +13,8 @@ Shader "Unlit/PixelGrassShader"
     }
     SubShader
     {
-        Tags { "RenderType"="Transparent" }
+        Tags { "RenderType"="Transparent" 
+        "LightMode" = "ForwardBase" }
         LOD 100
         Cull Off
         //Add transparency
@@ -25,6 +28,9 @@ Shader "Unlit/PixelGrassShader"
             #pragma multi_compile_fog
             #pragma target 5.0
 
+            #include "UnityPBSLighting.cginc"
+            #include "AutoLight.cginc"
+            #include "Lighting.cginc"
             #include "UnityCG.cginc"
         
 			int _NumVerts;
@@ -40,21 +46,25 @@ Shader "Unlit/PixelGrassShader"
                 float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
                 float3 worldPos : TEXCOORD2;
+                float3 meshNormal : TEXCOORD3;
             };
 
             struct OutputVertex
             {
                 float3 position;
                 float3 normal;
+                float3 vertexColor;
                 float2 uv;
             };
 
+
             struct OutputTriangle
             {
-                float3 normal;
                 float2 uv;
+                float3 normal;
                 OutputVertex vertices[3];
             };
+
 
             struct VertexOutput {
                 float3 position : TEXCOORD0;
@@ -68,7 +78,7 @@ Shader "Unlit/PixelGrassShader"
 
             sampler2D _MainTex, _WorldTex, _LookUpTable;
             float4 _MainTex_ST;
-			float4 _Color, _Scale, _Brightness;
+			float4 _Color, _Scale, _Brightness, _Shadow, _Highlight;
 
             /*
             VertexOutput vert (uint vertexID: SV_VertexID)
@@ -119,7 +129,8 @@ Shader "Unlit/PixelGrassShader"
                 //OutputVertex va = _outputVertices[vertexID];
                 o.vertex = UnityObjectToClipPos(float4(va.position, 1));
 				o.worldPos = mul(unity_ObjectToWorld, float4(va.position, 1)).xyz;
-                //o.normal = tri.normal;
+                o.normal = tri.normal;
+				o.meshNormal = va.normal;
                 o.uv = TRANSFORM_TEX(va.uv, _MainTex);
                 return o;
             }
@@ -133,10 +144,15 @@ Shader "Unlit/PixelGrassShader"
 
                 //Clip out according to clip texture.
                 clip(col.a - 0.5f);
-
-                //Simplify color according to look up texture.
+                float3 lightPos = _WorldSpaceLightPos0.xyz - i.worldPos;
+                float3 lightDirAbsolute = normalize(_WorldSpaceLightPos0.xyz);
+                float3 lightDir = normalize(lightPos);
+				float3 normals = i.normal;
                 
-
+                float NdotL = DotClamped(normals, lightDir);
+                float hardCut = step(NdotL, 0.25);
+				float3 ShadowOrColor = lerp(_Shadow.rgb, _Color.rgb, hardCut);
+				brightenedWorldTex.xyz = lerp(ShadowOrColor, brightenedWorldTex.xyz, 0.55);
                 return brightenedWorldTex;
             }
             ENDCG

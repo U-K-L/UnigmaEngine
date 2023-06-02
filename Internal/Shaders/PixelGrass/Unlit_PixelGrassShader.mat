@@ -25,17 +25,19 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: c496b2fef98e9aa4f8151996272ab783, type: 3}
+        m_Texture: {fileID: 2800000, guid: ba156f016ce47384ab3590210207bc6d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _WorldTex:
-        m_Texture: {fileID: 2800000, guid: da5172aaf8ea22a40aa62530a68c640a, type: 3}
+        m_Texture: {fileID: 2800000, guid: d0a0db184522a0f4c97121e2fecdd8dd, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats: []
     m_Colors:
-    - _Brightness: {r: 0, g: 0, b: 0, a: 0}
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Brightness: {r: 0.8, g: 0.08, b: 0.5, a: 0}
+    - _Color: {r: 0.374466, g: 0.9339623, b: 0.4972823, a: 1}
+    - _Highlight: {r: 1, g: 1, b: 1, a: 1}
     - _Scale: {r: -0.65, g: 1, b: 1, a: 1}
+    - _Shadow: {r: 0, g: 0.6226415, b: 0.4601759, a: 1}
   m_BuildTextureStacks: []

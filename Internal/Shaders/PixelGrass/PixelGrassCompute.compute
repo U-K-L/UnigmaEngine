@@ -53,7 +53,7 @@ StructuredBuffer <int> _sourceTriangles;
 StructuredBuffer <int> _sourceInstantiateTriangles;
 StructuredBuffer <OutputVertex> _sourceInstantiateVertices;
 
-RWStructuredBuffer <OutputTriangle> _outputTriangles; //This acts as a stack.
+AppendStructuredBuffer <OutputTriangle> _outputTriangles; //This acts as a stack.
 
 RWStructuredBuffer<IndirectArgs> _IndirectArgsBuffer;
 
@@ -65,13 +65,16 @@ float4x4 _LocalToWorldMatrix;
 float3 _CameraPosition;
 float3 _Dimensions;
 
+//Used for the initial triangle.
 OutputVertex CreateVertex(SourceVertex v)
 {
 	OutputVertex vertex = (OutputVertex)0;
 	vertex.position = mul(_LocalToWorldMatrix, float4(v.position, 1.0f)).xyz;
+	vertex.vertexColor = v.vertexColor;
 	return vertex;
 }
 
+//Used for the meshes to instantiate.
 OutputVertex CreateVertex(OutputVertex v)
 {
 	OutputVertex vertex = (OutputVertex)0;
@@ -127,7 +130,7 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 		}
 		//id.x is the triangle, so there are n meshes per triangle.
 		//id.y is the number of triangles per mesh.
-		_outputTriangles[id.z + (int)id.x* numOfVertsPerMesh * _NumOfMeshesPerTriangle + (int)id.y * numOfVertsPerMesh] = Triangles;
+		_outputTriangles.Append(Triangles);//[id.z + (int)id.x* numOfVertsPerMesh * _NumOfMeshesPerTriangle + (int)id.y * numOfVertsPerMesh] = Triangles;
 
 }
 
@@ -149,6 +152,8 @@ void Main(uint3 id : SV_DispatchThreadID)
 	inputTriangleVert[0] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle]]);
 	inputTriangleVert[1] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 1]]);
 	inputTriangleVert[2] = CreateVertex(_sourceVertices[_sourceTriangles[indexOfTriangle + 2]]);
+
+
 	float3 position, normal;
 	float3x3 tangentSpace;
 	GetCenterAndBasis(
@@ -159,6 +164,21 @@ void Main(uint3 id : SV_DispatchThreadID)
 		normal,
 		tangentSpace
 	);
+	
+	
+
+	OutputTriangle Triangles = (OutputTriangle)0;
+	Triangles.vertices[0] = inputTriangleVert[0];
+	Triangles.vertices[1] = inputTriangleVert[1];
+	Triangles.vertices[2] = inputTriangleVert[2];
+	Triangles.normal = normal;
+
+	_outputTriangles.Append(Triangles);
+	float grassColor = inputTriangleVert[0].vertexColor.g + inputTriangleVert[1].vertexColor.g + inputTriangleVert[2].vertexColor.g;
+	if (grassColor/3 < 0.85f)
+	{
+		return;
+	}
 	
 	AddTriangle(inputTriangleVert[0].position, inputTriangleVert[1].position, inputTriangleVert[2].position, id, position, normal);
 	

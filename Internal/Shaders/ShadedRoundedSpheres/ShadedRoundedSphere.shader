@@ -80,6 +80,28 @@ Properties
 				#pragma multi_compile  _ENABLE_D_OFF _ENABLE_D_ON
 			ENDCG
 		}
+
+		// Add below the existing Pass.
+		Pass
+		{
+			Tags
+			{
+				"LightMode" = "ShadowCaster"
+			}
+
+			CGPROGRAM
+			#pragma vertex VertexFunction
+			#pragma fragment frag
+			#pragma target 4.6
+			#pragma multi_compile_shadowcaster
+
+			float4 frag(Interpolators i) : SV_Target
+			{
+				SHADOW_CASTER_FRAGMENT(i)
+			}
+
+			ENDCG
+		}
 		/*
 		//Multiple lights.
 		Pass 

@@ -81,7 +81,8 @@ public void OnEnable()
         {
             sourceVertices[i] = new SourceVertex()
             {
-                position = positions[i]
+                position = positions[i],
+                vertexColor = new Vector3(sourceMesh.colors[i].r, sourceMesh.colors[i].g, sourceMesh.colors[i].b)
             };
         }
         int numTriangles = Mathf.CeilToInt(tris.Length / 3);
@@ -91,7 +92,7 @@ public void OnEnable()
         Vector2[] Iuvs = sourceInstantiateMesh.uv;
         int[] Itris = sourceInstantiateMesh.triangles;
         Vector3[] normals = sourceInstantiateMesh.normals;
-
+        
         //Adding all the vertices from the mesh to buffer
         OutputVertex[] IsourceVertices = new OutputVertex[Ipositions.Length];
         for (int i = 0; i < Ipositions.Length; i++)
@@ -144,6 +145,9 @@ public void OnEnable()
             sourceTriBuffer.Release();
             outputTriangles.Release();
             argsBuffer.Release();
+            _sourceInstantiateVertices.Release();
+            _sourceInstantiateTriangles.Release();
+
         }
         initialized = false;
     }
@@ -190,7 +194,7 @@ public void OnEnable()
         //The number of vertices, which is X3.
         argsBufferInitialized[0] = numOfOutputTriangles*3;
         
-        outputTriangles = new ComputeBuffer(numOfOutputTriangles, OUTPUT_TRI_STRIDE, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
+        outputTriangles = new ComputeBuffer(numOfOutputTriangles + (sourceMesh.triangles.Length / 3), OUTPUT_TRI_STRIDE, ComputeBufferType.Append);
         pixelGrassComputeShader.SetInt("_NumOfMeshesPerTriangle", numOfMeshes);
         pixelGrassComputeShader.SetBuffer(idPyramidKernel, "_outputTriangles", outputTriangles);
         

@@ -20,11 +20,28 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _LookUpTable:
+        m_Texture: {fileID: 2800000, guid: 5c6acec1f16ea0e4ca1acc029d411837, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 5e1fc1c5174366d41a648256ff361bd7, type: 3}
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WorldTex:
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
-    m_Floats: []
-    m_Colors: []
+    m_Floats:
+    - _ShadowsCuttOff: 0.027
+    m_Colors:
+    - _Brightness: {r: 0.8, g: 0.08, b: 0.5, a: 0}
+    - _Color: {r: 0.374466, g: 0.9339623, b: 0.4972823, a: 1}
+    - _Highlight: {r: 0.75, g: 1, b: 0.7942755, a: 1}
+    - _MidShadowColor: {r: 0, g: 0.6037736, b: 0.1984977, a: 1}
+    - _RoadColor: {r: 0.8980392, g: 0.8156863, b: 0.5803922, a: 1}
+    - _RoadShadowColor: {r: 0.7830189, g: 0.7054557, b: 0.48384658, a: 1}
+    - _Scale: {r: -0.65, g: 1, b: 1, a: 1}
+    - _Shadow: {r: 0, g: 0.6226415, b: 0.4601759, a: 1}
   m_BuildTextureStacks: []

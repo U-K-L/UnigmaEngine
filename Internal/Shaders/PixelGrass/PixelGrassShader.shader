@@ -30,7 +30,7 @@ Shader "Unlit/PixelGrassShader"
             #pragma vertex vert
             #pragma fragment frag
             // make fog work
-            #pragma multi_compile_fog
+            #pragma multi_compile_fwdadd_fullshadows
             #pragma target 5.0
 
             #include "UnityPBSLighting.cginc"
@@ -49,11 +49,12 @@ Shader "Unlit/PixelGrassShader"
             {
                 float3 normal : TEXCOORD1;
                 float2 uv : TEXCOORD0;
-                float4 vertex : SV_POSITION;
+                float4 pos : SV_POSITION;
                 float3 worldPos : TEXCOORD2;
                 float3 meshNormal : TEXCOORD3;
                 float4 color : COLOR;
                 float3 viewDir : TEXCOORD4;
+                unityShadowCoord4 _ShadowCoord : TEXCOORD5;
             };
 
             struct OutputVertex
@@ -135,13 +136,14 @@ Shader "Unlit/PixelGrassShader"
                 OutputTriangle tri = _outputTriangles[vertexID / 3];
                 OutputVertex va = tri.vertices[vertexID % 3];
                 //OutputVertex va = _outputVertices[vertexID];
-                o.vertex = UnityObjectToClipPos(float4(va.position, 1));
+                o.pos = UnityObjectToClipPos(float4(va.position, 1));
 				o.worldPos = mul(unity_ObjectToWorld, float4(va.position, 1)).xyz;
                 o.normal = UnityObjectToWorldNormal(tri.normal);
 				o.meshNormal = va.normal;
                 o.color = float4(va.vertexColor, 1);
                 o.viewDir = WorldSpaceViewDir(v.vertex);
                 o.uv = TRANSFORM_TEX(va.uv, _MainTex);
+                o._ShadowCoord = ComputeScreenPos(o.pos);
                 return o;
             }
             
@@ -155,7 +157,7 @@ Shader "Unlit/PixelGrassShader"
 
                 float3 lightPos = _WorldSpaceLightPos0.xyz - i.worldPos;
                 float3 lightDirAbsolute = normalize(_WorldSpaceLightPos0.xyz);
-                float3 lightDir = normalize(lightPos);
+                float3 lightDir = normalize(lightDirAbsolute);
                 float3 viewDir = normalize(i.viewDir);
                 float3 normals = i.normal;
 
@@ -163,19 +165,20 @@ Shader "Unlit/PixelGrassShader"
                 float3 halfDir = normalize(lightDir + viewDir);
                 float NdotH = DotClamped(normals, halfDir);
 
-
+                float Shadow = SHADOW_ATTENUATION(i);
                 float specularHighlight = pow(NdotH, 1.2);
 
                 float specularCut = step(0.85, specularHighlight);
                 float hardCut = step(_ShadowsCuttOff, NdotL);
                 float MidCut = step(_ShadowsCuttOff + 0.09, NdotL);
+                float shadow = SHADOW_ATTENUATION(i);
 
-                float4 HighlightOrColor = lerp(_Highlight, _Color, 1 - specularCut);
-                float3 ShadowOrColor = lerp(_Shadow.rgb, _Color.rgb, hardCut);
-                float3 MidShadowsOrColor = lerp(_MidShadowColor.rgb, _Color.rgb, MidCut);
+                float4 HighlightOrColor = lerp(_Highlight, 0, 1 - specularCut);
+                float3 ShadowOrColor = lerp(_Shadow.rgb, _Color.rgb, hardCut * shadow);
+                float3 MidShadowsOrColor = lerp(_MidShadowColor.rgb, _Color.rgb, MidCut * shadow);
                 brightenedWorldTex.xyz = lerp(MidShadowsOrColor, brightenedWorldTex.xyz, 0.75);
                 brightenedWorldTex.xyz = lerp(ShadowOrColor, brightenedWorldTex.xyz, 0.55);
-                brightenedWorldTex.xyz = lerp(HighlightOrColor, brightenedWorldTex.xyz, 0.55);
+                brightenedWorldTex.xyz = lerp(brightenedWorldTex.xyz, HighlightOrColor, saturate(HighlightOrColor.r * 100 * Shadow * NdotL));
 
                 float3 roadColorShaded = lerp(_RoadShadowColor.rgb, _RoadColor.rgb, hardCut);
                 brightenedWorldTex.xyz = lerp(roadColorShaded, brightenedWorldTex.xyz, step(0.5, 1 - i.color.r));
@@ -184,11 +187,13 @@ Shader "Unlit/PixelGrassShader"
 				float4 ddxy = float4(abs(ddx(i.worldPos)) + abs(ddy(i.worldPos)), 1)*100;
 
                 float4 finalColorOutput = float4(brightenedWorldTex.xyz, 1);
-                if (col.a - 0.5f + i.color.r < 0)
-                    clip(length(i.color) - 1.1);
+                //if (col.a - 0.5f + i.color.r < 0)
+                    //clip(length(i.color) - 1.1);
+                clip(col.a - 0.5f);
                 return finalColorOutput;
             }
             ENDCG
         }
+        UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
     }
 }

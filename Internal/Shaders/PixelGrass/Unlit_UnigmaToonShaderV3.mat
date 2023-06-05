@@ -34,7 +34,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ShadowsCuttOff: 0.027
+    - _ShadowsCuttOff: 0.188
     m_Colors:
     - _Brightness: {r: 0.8, g: 0.08, b: 0.5, a: 0}
     - _Color: {r: 0.374466, g: 0.9339623, b: 0.4972823, a: 1}

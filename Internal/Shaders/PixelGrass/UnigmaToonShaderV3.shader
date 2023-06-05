@@ -53,7 +53,7 @@ Shader "Unlit/UnigmaToonShaderV3"
                 float3 worldPos : TEXCOORD2;
                 float3 normal : TEXCOORD3;
                 float3 viewDir : TEXCOORD4;
-                SHADOW_COORDS(5)
+                unityShadowCoord4 _ShadowCoord : TEXCOORD1;
             };
 
             sampler2D _MainTex, _WorldTex, _LookUpTable;
@@ -70,8 +70,7 @@ Shader "Unlit/UnigmaToonShaderV3"
 				o.normal = UnityObjectToWorldNormal(v.normal);
 				o.color = v.color;
 				o.viewDir = WorldSpaceViewDir(v.vertex);
-                TRANSFER_SHADOW(o);
-                UNITY_TRANSFER_FOG(o,o.vertex);
+                o._ShadowCoord = ComputeScreenPos(o.pos);
                 return o;
             }
 
@@ -86,7 +85,7 @@ Shader "Unlit/UnigmaToonShaderV3"
 
                 float3 lightPos = _WorldSpaceLightPos0.xyz - i.worldPos;
                 float3 lightDirAbsolute = normalize(_WorldSpaceLightPos0.xyz);
-                float3 lightDir = normalize(lightPos);
+                float3 lightDir = normalize(lightDirAbsolute);
 				float3 viewDir = normalize(i.viewDir);
                 float3 normals = i.normal;
 
@@ -100,17 +99,17 @@ Shader "Unlit/UnigmaToonShaderV3"
 				float specularCut = step(0.85, specularHighlight);
                 float hardCut = step(_ShadowsCuttOff, NdotL);
                 float MidCut = step(_ShadowsCuttOff+0.09, NdotL);
+                float shadow = SHADOW_ATTENUATION(i);
 
-				float4 HighlightOrColor = lerp(_Highlight, _Color, 1-specularCut);
-                float3 ShadowOrColor = lerp(_Shadow.rgb, _Color.rgb, hardCut);
-                float3 MidShadowsOrColor = lerp(_MidShadowColor.rgb, _Color.rgb, MidCut);
+				float4 HighlightOrColor = lerp(_Highlight, 0, 1-specularCut);
+                float3 ShadowOrColor = lerp(_Shadow.rgb, _Color.rgb, hardCut* shadow);
+                float3 MidShadowsOrColor = lerp(_MidShadowColor.rgb, _Color.rgb, MidCut* shadow);
                 brightenedWorldTex.xyz = lerp(MidShadowsOrColor, brightenedWorldTex.xyz, 0.75);
                 brightenedWorldTex.xyz = lerp(ShadowOrColor, brightenedWorldTex.xyz, 0.55);
-                //brightenedWorldTex.xyz = lerp(ShadowOrColor, brightenedWorldTex.xyz, Shadow);
-                brightenedWorldTex.xyz = lerp(HighlightOrColor, brightenedWorldTex.xyz, 0.55);
+                brightenedWorldTex.xyz = lerp(brightenedWorldTex.xyz, HighlightOrColor, saturate(HighlightOrColor.r*100* Shadow* NdotL));
                 
                 float3 roadColorShaded = lerp(_RoadShadowColor.rgb, _RoadColor.rgb, hardCut);
-                brightenedWorldTex.xyz = lerp(roadColorShaded, brightenedWorldTex.xyz, step(0.5, 1 - i.color.r));
+                brightenedWorldTex.xyz = lerp(roadColorShaded, brightenedWorldTex.xyz, step(0.5, (1 - i.color.r) + i.color.b));
 
 
                 //Partial derivative.
@@ -121,5 +120,6 @@ Shader "Unlit/UnigmaToonShaderV3"
             }
             ENDCG
         }
+            UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
     }
 }

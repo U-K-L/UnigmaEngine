@@ -113,7 +113,7 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 			randVec = float3(rand(randVec), rand(randVec * randVec), rand(randVec * randVec * randVec));
 
 			//Now that we have the position finished, let's randomize the rotation a bit by adding some twist.
-			float theta = sin(_Time.y*0.5) * UNITY_PI * 2;
+			float theta = 0;//sin(_Time.y*0.5) * UNITY_PI * 2;
 			//The axis is the up vector, which is cross(tangent, bitangent) which is our normal.
 			float3x3 twist = AngleAxis3x3(theta, normal);
 
@@ -137,14 +137,15 @@ void AddTriangle(float3 a, float3 b, float3 c, uint3 id, float3 position, float3
 
 //Now write the main function. ID is the thread currently running.
 //Try to do it in multiplies of 8 meshes.
-[numthreads(64, 8, 2)]
+[numthreads(32, 1, 32)]
 void Main(uint3 id : SV_DispatchThreadID)
 {
 	//Ensure it isn't using more compute than triangles.
 	if ((int)id.x >= _NumOfTriangles)
 		return;
-	if ((int)id.y >= _NumOfMeshesPerTriangle)
+	if ((int)id.z >= _sourceInstantiateTriangles.Length/3)
 		return;
+	
 
 	//Now take the triangle, add in a middle point, extrodue it by the height, and save it as a buffer.
 	int indexOfTriangle = id.x * 3; //This tells us where we are on this thread to compute the triangle. This is like a pixel shader but manually...

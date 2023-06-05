@@ -163,16 +163,10 @@ public void OnEnable()
         DrawBounds(bounds, 1);
         //update for this frame, position and height.
         pixelGrassComputeShader.SetMatrix("_LocalToWorldMatrix", transform.localToWorldMatrix);
-
-        Debug.Log(transform.localToWorldMatrix);
-
-        Debug.Log(transform.up);
-        Debug.Log(transform.localToWorldMatrix.m01 + " " + transform.localToWorldMatrix.m11 + " " + transform.localToWorldMatrix.m21);
         pixelGrassComputeShader.SetVector("_Dimensions", _Dimensions);
         pixelGrassComputeShader.SetVector("_CameraPosition", Camera.main.transform.up);
 
         //Finally, dispatch the shader.
-        Debug.Log(dispatchSize);
         pixelGrassComputeShader.Dispatch(idPyramidKernel, dispatchSize.x, dispatchSize.y, dispatchSize.z);
 
         //Render the generated mesh.

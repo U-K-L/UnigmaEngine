@@ -29,19 +29,19 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _WorldTex:
-        m_Texture: {fileID: 2800000, guid: da5172aaf8ea22a40aa62530a68c640a, type: 3}
+        m_Texture: {fileID: 2800000, guid: d0a0db184522a0f4c97121e2fecdd8dd, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ShadowsCuttOff: 0.027
+    - _ShadowsCuttOff: 0.188
     m_Colors:
-    - _Brightness: {r: 3.43, g: 0.08, b: 0.5, a: 0}
+    - _Brightness: {r: 0.8, g: 0.08, b: 0.5, a: 0}
     - _Color: {r: 0.374466, g: 0.9339623, b: 0.4972823, a: 1}
-    - _Highlight: {r: 0.7843138, g: 0.98823535, b: 0.7803922, a: 1}
+    - _Highlight: {r: 0.83006454, g: 1, b: 0.8254717, a: 1}
     - _MidShadowColor: {r: 1, g: 1, b: 1, a: 1}
     - _RoadColor: {r: 0.9811321, g: 0.8970853, b: 0.72659314, a: 1}
     - _RoadShadowColor: {r: 0.6981132, g: 0.6493599, b: 0.510413, a: 1}
-    - _Scale: {r: -0.65, g: 1, b: 1, a: 1}
+    - _Scale: {r: -0.7, g: 0.85, b: 0.48, a: 1}
     - _Shadow: {r: 0, g: 0.6226415, b: 0.4601759, a: 1}
   m_BuildTextureStacks: []

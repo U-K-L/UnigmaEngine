@@ -40,7 +40,7 @@ Shader "Hidden/IsometricDepthNormals"
                 return o;
             }
 
-            sampler2D _MainTex;
+            sampler2D _MainTex, _OutlineMap;
             float4 _MainTex_TexelSize;
             sampler2D _CameraDepthNormalsTexture;
             float _Scale, _DepthThreshold, _NormalThreshold;
@@ -48,7 +48,8 @@ Shader "Hidden/IsometricDepthNormals"
             fixed4 frag (v2f i) : SV_Target
             {
                 //read depthnormal
-                float4 depthnormal = tex2D(_CameraDepthNormalsTexture, i.uv);
+                float4 sampleTex = tex2D(_OutlineMap, i.uv);
+                float4 depthnormal = tex2D(_OutlineMap, i.uv);
                 
                 float3 normal;
                 float depth;
@@ -65,10 +66,10 @@ Shader "Hidden/IsometricDepthNormals"
                 float2 bottomRight = i.uv + float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
                 float2 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
-                float4 depthnormal0 = tex2D(_CameraDepthNormalsTexture, bottomLeft);
-                float4 depthnormal1 = tex2D(_CameraDepthNormalsTexture, topRight);
-                float4 depthnormal2 = tex2D(_CameraDepthNormalsTexture, bottomRight);
-                float4 depthnormal3 = tex2D(_CameraDepthNormalsTexture, topLeft);
+                float4 depthnormal0 = tex2D(_OutlineMap, bottomLeft);
+                float4 depthnormal1 = tex2D(_OutlineMap, topRight);
+                float4 depthnormal2 = tex2D(_OutlineMap, bottomRight);
+                float4 depthnormal3 = tex2D(_OutlineMap, topLeft);
 
                 float3 normal0, normal1, normal2, normal3;
                 float depth0, depth1, depth2, depth3;
@@ -101,6 +102,8 @@ Shader "Hidden/IsometricDepthNormals"
                 float4 coloredEdges = float4(edgeDepth2, 0, edgeNormal- edgeDepth2, 1);
                 float edge = max(edgeDepth2, edgeNormal);
                 edge = max(edgeDepth, edge);
+
+                
                 return coloredEdges;
             }
             ENDCG

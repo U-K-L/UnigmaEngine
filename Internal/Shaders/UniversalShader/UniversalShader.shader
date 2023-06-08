@@ -59,11 +59,13 @@ Shader "Unigma/UniversalShader"
 
 	SubShader
 	{
+		Tags{
+			"RenderType" = "Opaque" //Allows it to generate normal and depth.
+			"LightMode" = "ForwardBase"
+		}
+
 		Pass
 		{
-			Tags{
-				"LightMode" = "ForwardBase"
-			}
 
 			//transparency
 			Blend SrcAlpha OneMinusSrcAlpha
@@ -131,5 +133,7 @@ Shader "Unigma/UniversalShader"
 
 			ENDCG
 		}
+		
 	}
+		FallBack "Diffuse"
 }

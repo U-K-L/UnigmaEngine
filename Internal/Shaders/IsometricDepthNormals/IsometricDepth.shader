@@ -1,8 +1,9 @@
-Shader "Unlit/UnigmaPixelArtToonShader"
+Shader "Unlit/IsometricDepth"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+		_Fade("Fade camera", Range(0,1000)) = 1
     }
     SubShader
     {
@@ -30,24 +31,31 @@ Shader "Unlit/UnigmaPixelArtToonShader"
                 float2 uv : TEXCOORD0;
                 UNITY_FOG_COORDS(1)
                 float4 vertex : SV_POSITION;
+				float depthGen : TEXCOORD1;
             };
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float _Fade;
 
             v2f vert (appdata v)
             {
                 v2f o;
+                float4 vertexProgjPos = mul(UNITY_MATRIX_MV, v.vertex);
+                o.depthGen = saturate((-vertexProgjPos.z - _ProjectionParams.y) / (_Fade + 0.001));
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
 
-            fixed4 frag(v2f i) : SV_Target
+            fixed4 frag (v2f i) : SV_Target
             {
-                
-                return 1;
+                // sample the texture
+                fixed4 col = tex2D(_MainTex, i.uv);
+                // apply fog
+                UNITY_APPLY_FOG(i.fogCoord, col);
+                return i.depthGen;
             }
             ENDCG
         }

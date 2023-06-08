@@ -6,6 +6,9 @@ Shader "Hidden/IsometricDepthNormals"
         _Scale("Scale", Range(0,1)) = 1
         _DepthThreshold("Depth Threshold", Range(0,2)) = 1
         _NormalThreshold("Normal Threshold", Range(0,2)) = 1
+        
+		_InnerLines("Inner lines color", Color) = (0,0,0,1)
+		_OuterLines("Outer lines color", Color) = (0,0,0,1)
     }
     SubShader
     {
@@ -40,16 +43,18 @@ Shader "Hidden/IsometricDepthNormals"
                 return o;
             }
 
-            sampler2D _MainTex, _OutlineMap;
-            float4 _MainTex_TexelSize;
+            sampler2D _MainTex, _OutlineMap, _OutlineNormalMap;
+            float4 _MainTex_TexelSize, _OuterLines, _InnerLines;
             sampler2D _CameraDepthNormalsTexture;
             float _Scale, _DepthThreshold, _NormalThreshold;
 
             fixed4 frag (v2f i) : SV_Target
             {
                 //read depthnormal
+				float4 mainTex = tex2D(_MainTex, i.uv);
                 float4 sampleTex = tex2D(_OutlineMap, i.uv);
-                float4 depthnormal = tex2D(_OutlineMap, i.uv);
+				float4 normalTex = tex2D(_OutlineNormalMap, i.uv);
+                float4 depthnormal = tex2D(_CameraDepthNormalsTexture, i.uv);
                 
                 float3 normal;
                 float depth;
@@ -66,25 +71,27 @@ Shader "Hidden/IsometricDepthNormals"
                 float2 bottomRight = i.uv + float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
                 float2 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
+
                 float4 depthnormal0 = tex2D(_OutlineMap, bottomLeft);
                 float4 depthnormal1 = tex2D(_OutlineMap, topRight);
                 float4 depthnormal2 = tex2D(_OutlineMap, bottomRight);
                 float4 depthnormal3 = tex2D(_OutlineMap, topLeft);
 
-                float3 normal0, normal1, normal2, normal3;
-                float depth0, depth1, depth2, depth3;
+                //float3 normal0, normal1, normal2, normal3;
+                //float depth0, depth1, depth2, depth3;
 
-                DecodeDepthNormal(depthnormal0, depth0, normal0);
-                DecodeDepthNormal(depthnormal1, depth1, normal1);
-                DecodeDepthNormal(depthnormal2, depth2, normal2);
-                DecodeDepthNormal(depthnormal3, depth3, normal3);
+                //DecodeDepthNormal(depthnormal0, depth0, normal0);
+                //DecodeDepthNormal(depthnormal1, depth1, normal1);
+                //DecodeDepthNormal(depthnormal2, depth2, normal2);
+                //DecodeDepthNormal(depthnormal3, depth3, normal3);
                 
                 float depthFiniteDifference3 = depthnormal1.r - depthnormal0.r;
                 float depthFiniteDifference4 = depthnormal3.r - depthnormal2.r;
-
                 float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2)) * 100;
                 float depthThreshold = _DepthThreshold * depthnormal0;
                 edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
+                /*
+
 
                 float depthFiniteDifference0 = depth1 - depth0;
                 float depthFiniteDifference1 = depth3 - depth2;
@@ -103,8 +110,12 @@ Shader "Hidden/IsometricDepthNormals"
                 float edge = max(edgeDepth2, edgeNormal);
                 edge = max(edgeDepth, edge);
 
+                float4 finalCombinedClipped = step(0.1, length(sampleTex.xyz));
+
+                */
                 
-                return coloredEdges;
+				float4 FinalColor = lerp(mainTex, _OuterLines, edgeDepth);
+                return sampleTex;//lerp(mainTex, coloredEdges, edge);
             }
             ENDCG
         }

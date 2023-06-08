@@ -1,4 +1,4 @@
-Shader "Unlit/UnigmaPixelArtToonShader"
+Shader "Unlit/IsometricNull"
 {
     Properties
     {
@@ -46,8 +46,7 @@ Shader "Unlit/UnigmaPixelArtToonShader"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                
-                return 1;
+                return 0;
             }
             ENDCG
         }

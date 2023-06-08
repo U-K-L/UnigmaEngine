@@ -1,4 +1,4 @@
-Shader "Unlit/UnigmaPixelArtToonShader"
+Shader "Unlit/IsometricNormal"
 {
     Properties
     {
@@ -23,6 +23,7 @@ Shader "Unlit/UnigmaPixelArtToonShader"
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+				float3 normals : NORMAL;
             };
 
             struct v2f
@@ -30,6 +31,7 @@ Shader "Unlit/UnigmaPixelArtToonShader"
                 float2 uv : TEXCOORD0;
                 UNITY_FOG_COORDS(1)
                 float4 vertex : SV_POSITION;
+				float3 normal : TEXCOORD1;
             };
 
             sampler2D _MainTex;
@@ -40,14 +42,14 @@ Shader "Unlit/UnigmaPixelArtToonShader"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				o.normal = v.normals;
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
 
-            fixed4 frag(v2f i) : SV_Target
+            fixed4 frag (v2f i) : SV_Target
             {
-                
-                return 1;
+                return float4(i.normal,1);
             }
             ENDCG
         }

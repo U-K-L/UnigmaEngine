@@ -4,6 +4,8 @@ Shader "Unlit/IsometricDepth"
     {
         _MainTex ("Texture", 2D) = "white" {}
 		_Fade("Fade camera", Range(0,1000)) = 1
+		_NormalAmount("Normal amount", Range(0,50)) = 1
+		_DepthAmount("Depth amount", Range(0,50)) = 1
     }
     SubShader
     {
@@ -24,6 +26,7 @@ Shader "Unlit/IsometricDepth"
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+				float3 normal : NORMAL;
             };
 
             struct v2f
@@ -32,11 +35,12 @@ Shader "Unlit/IsometricDepth"
                 UNITY_FOG_COORDS(1)
                 float4 vertex : SV_POSITION;
 				float depthGen : TEXCOORD1;
+				float3 normal : TEXCOORD2;
             };
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
-            float _Fade;
+			float _Fade, _NormalAmount, _DepthAmount;
 
             v2f vert (appdata v)
             {
@@ -45,17 +49,14 @@ Shader "Unlit/IsometricDepth"
                 o.depthGen = saturate((-vertexProgjPos.z - _ProjectionParams.y) / (_Fade + 0.001));
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				o.normal = v.normal;
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                // sample the texture
-                fixed4 col = tex2D(_MainTex, i.uv);
-                // apply fog
-                UNITY_APPLY_FOG(i.fogCoord, col);
-                return i.depthGen;
+                return float4(pow(i.normal, _NormalAmount), pow(i.depthGen, _DepthAmount));
             }
             ENDCG
         }

@@ -26,6 +26,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Fade: 0
+    - _DepthAmount: 1
+    - _Fade: 768
+    - _NormalAmount: 1
     m_Colors: []
   m_BuildTextureStacks: []

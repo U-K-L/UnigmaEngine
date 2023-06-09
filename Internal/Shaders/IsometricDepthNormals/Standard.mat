@@ -8,13 +8,13 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Standard
-  m_Shader: {fileID: 4800000, guid: 1dfe3df9cd175c34d86660988af90a67, type: 3}
-  m_ValidKeywords:
+  m_Shader: {fileID: 4800000, guid: 32274463c0d8360448241631b57dddb3, type: 3}
+  m_ValidKeywords: []
+  m_InvalidKeywords:
   - _FRESNELMODEL_SCHLICK
   - _GEOSHADOWMODEL_ASHIKHMINSHIRLEY
   - _NORMALDISTMODEL_BLINNPHONG
   - _SMITHGEOSHADOWMODEL_NONE
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -88,6 +88,7 @@ Material:
     m_Floats:
     - _Anisotropic: 0
     - _BlendSmooth: 1.47
+    - _BloomBrightness: 1
     - _Brightness: 1
     - _BumpScale: 1
     - _Cutoff: 0.5
@@ -111,6 +112,7 @@ Material:
     - _NoiseScale: -0.08
     - _NormalDistModel: 0
     - _OcclusionStrength: 1
+    - _OutlineAmount: 0.05
     - _Parallax: 0.02
     - _RimAmount: 0.716
     - _RimThreshold: 0.1
@@ -123,17 +125,22 @@ Material:
     - _SpecularIntensity: 1
     - _Spread: 1.88
     - _SrcBlend: 1
+    - _TextureContainsTransparent: 1
     - _UVSec: 0
     - _UnityLightingContribution: 1
     - _ZWrite: 1
     m_Colors:
-    - _AmbientColor: {r: 0.4, g: 0.4, b: 0.4, a: 1}
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _AmbientColor: {r: 0.7830189, g: 0, b: 0, a: 1}
+    - _BloomColor: {r: 0.5, g: 0.65, b: 1, a: 1}
+    - _Color: {r: 0.9675835, g: 0.8021093, b: 0.9716981, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
+    - _RimLightColor: {r: 0, g: 0, b: 0, a: 1}
+    - _RimOutlineColor: {r: 0, g: 0, b: 0, a: 1}
     - _Scale: {r: 1, g: 1, b: 1, a: 1}
     - _ShakingAmount: {r: 0.43, g: 0.18, b: 0.68, a: 0}
     - _ShakingSpeed: {r: 2.26, g: 2.38, b: 4.11, a: 0}
+    - _SpecularColor: {r: 0.8018868, g: 0, b: 0, a: 1}
     - _SpecularTint: {r: 0, g: 0, b: 0, a: 1}
     - _Tint: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

@@ -27,7 +27,9 @@ Material:
     m_Ints: []
     m_Floats:
     - _DepthThreshold: 0.496
-    - _NormalThreshold: 0.505
+    - _NormalThreshold: 0.194
     - _Scale: 1
-    m_Colors: []
+    m_Colors:
+    - _InnerLines: {r: 0.21698111, g: 0.21698111, b: 0.21698111, a: 1}
+    - _OuterLines: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []

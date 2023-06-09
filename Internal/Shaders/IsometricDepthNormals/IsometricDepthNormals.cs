@@ -29,45 +29,70 @@ public class IsometricDepthNormals : MonoBehaviour
         
         if (bufferAdd < 1)
         {
-            Debug.Log(ObjectsWithOutlines.Count);
+            /*
+            outlineNormalBuffer = new CommandBuffer();
+            RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
+
+            outlineNormalBuffer.SetGlobalTexture("_OutlineNormalMap", rt);
+            outlineNormalBuffer.SetRenderTarget(rt);
+            outlineNormalBuffer.get
+            outlineNormalBuffer.ClearRenderTarget(true, true, Color.clear, 0);
+            //outlineNormalBuffer.CopyTexture(rt, renderTargetBuffer);
+
+
+
+            DrawAllNormalMeshes();
+            outlineNormalBuffer.Blit(rt, BuiltinRenderTextureType.CameraTarget);
+            GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineNormalBuffer);
+            */
             //Start a new command buffer.
             outlineNormalBuffer = new CommandBuffer();
             //Give that buffer a name.
             outlineNormalBuffer.name = "Outline Normal Buffer";
-            //ID to reference the buffer within the shader.
             int tempID = Shader.PropertyToID("_TempOutlineNormal");
+            Debug.Log(tempID);
             //Set the target properties.
             outlineNormalBuffer.GetTemporaryRT(tempID, -1, -1, 24, FilterMode.Bilinear);
-            outlineNormalBuffer.SetRenderTarget(tempID);
-            //outlineBuffer.CopyTexture(BuiltinRenderTextureType.Depth, tempID);
             outlineNormalBuffer.SetGlobalTexture("_OutlineNormalMap", tempID);
+            outlineNormalBuffer.SetRenderTarget(tempID);
+            
+
+            //ID to reference the buffer within the shader.
+
+            //outlineBuffer.CopyTexture(BuiltinRenderTextureType.Depth, tempID);
             outlineNormalBuffer.ClearRenderTarget(true, true, Color.black);
 
             DrawAllNormalMeshes();
+            //outlineNormalBuffer.Blit(tempID, Shader.PropertyToID("_OutlineNormalMap"));
+            outlineNormalBuffer.ReleaseTemporaryRT(tempID);
             GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineNormalBuffer);
             bufferAdd += 1;
         }
-
         if (bufferAdd < 2)
         {
 
             Debug.Log(ObjectsWithOutlines.Count);
-
-            //Start a new command buffer.
             outlineDepthBuffer = new CommandBuffer();
-            outlineDepthBuffer.ClearRenderTarget(true, true, Color.black);
+            int tempID2 = Shader.PropertyToID("_TempOutline");
+
+            Debug.Log(tempID2);
             //Give that buffer a name.
             outlineDepthBuffer.name = "Outline Depth Buffer";
             //ID to reference the buffer within the shader.
-            int tempID2 = Shader.PropertyToID("_TempOutline");
+
             //Set the target properties.
             outlineDepthBuffer.GetTemporaryRT(tempID2, -1, -1, 24, FilterMode.Bilinear);
-            outlineDepthBuffer.SetRenderTarget(tempID2);
+
             //outlineBuffer.CopyTexture(BuiltinRenderTextureType.Depth, tempID);
             outlineDepthBuffer.SetGlobalTexture("_OutlineMap", tempID2);
 
+            //outlineDepthBuffer.SetRenderTarget(tempID2);
+            //Start a new command buffer.
+
+            outlineDepthBuffer.ClearRenderTarget(true, true, Color.black);
             DrawAllDepthMeshes();
             GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
+            
             bufferAdd += 1;
         }
     }

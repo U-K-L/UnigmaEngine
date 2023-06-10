@@ -8,7 +8,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private CommandBuffer outlineDepthBuffer = default;
     private CommandBuffer outlineNormalBuffer = default;
     private int buffersAdded = 0;
-    private List<GameObject> RenderObjects; //Objects part of this render. 
+    private List<UnigmaPostProcessingObjects> RenderObjects; //Objects part of this render. 
     private List<Renderer> NullObjects = default; //Objects not part of this render.
     
     public Material _depthNormalsMaterial;
@@ -27,6 +27,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
         
         if (buffersAdded < 1)
         {
+            //Create isometric depth normals.
+            RenderObjects = new List<UnigmaPostProcessingObjects>();
+            NullObjects = new List<Renderer>();
+            FindObjects("IsometricDepthNormalObject");
             CreateDepthNormalBuffers();
         }
         buffersAdded += 1;
@@ -34,8 +38,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void CreateDepthNormalBuffers()
     {
-        RenderObjects = new List<GameObject>(GameObject.FindGameObjectsWithTag("NormalObjects"));
-        NullObjects = new List<Renderer>();
         outlineDepthBuffer = new CommandBuffer();
         RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         outlineDepthBuffer.SetGlobalTexture("_IsometricDepthNormal", rt);
@@ -43,23 +45,17 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.SetRenderTarget(rt);
 
         outlineDepthBuffer.ClearRenderTarget(true, true, Color.black);
-        DrawAllDepthMeshes();
+        DrawIsometricDepthNormals();
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
     }
 
-    void DrawAllDepthMeshes()
+    void DrawIsometricDepthNormals()
     {
-        FindObjects("NormalObjects");
-        foreach (GameObject obj in RenderObjects)
+        foreach (UnigmaPostProcessingObjects r in RenderObjects)
         {
-            if(!obj.activeSelf)
-            {
-                continue;
-            }
-            Renderer r = obj.GetComponent<Renderer>();
 
             if(r.enabled == true)
-                outlineDepthBuffer.DrawRenderer(r, _depthNormalsMaterial, 0, -1);
+                outlineDepthBuffer.DrawRenderer(r.renderer, r.material, 0, -1);
         }
 
         foreach (Renderer r in NullObjects)
@@ -70,15 +66,18 @@ public class UnigmaCommandBuffers : MonoBehaviour
     }
 
     // Find and store visible renderers to a list
-    void FindObjects(string tag)
+    void FindObjects(string component)
     {
         // Retrieve all renderers in scene
         Renderer[] sceneRenderers = FindObjectsOfType<Renderer>();
 
         // Store only visible renderers
+        RenderObjects.Clear();
         NullObjects.Clear();
         for (int i = 0; i < sceneRenderers.Length; i++)
-            if (sceneRenderers[i].gameObject.tag != tag)
+            if (sceneRenderers[i].GetComponent(component))
+                RenderObjects.Add(sceneRenderers[i].gameObject.GetComponent<UnigmaPostProcessingObjects>());
+            else
                 NullObjects.Add(sceneRenderers[i]);
     }
 }

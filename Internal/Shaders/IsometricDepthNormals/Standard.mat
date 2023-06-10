@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Standard
-  m_Shader: {fileID: 4800000, guid: 32274463c0d8360448241631b57dddb3, type: 3}
+  m_Shader: {fileID: 4800000, guid: 8b30ae995937cb643a700d7499a9ddcd, type: 3}
   m_ValidKeywords: []
   m_InvalidKeywords:
   - _FRESNELMODEL_SCHLICK
@@ -84,6 +84,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _WorldTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _Anisotropic: 0
@@ -117,6 +121,7 @@ Material:
     - _RimAmount: 0.716
     - _RimThreshold: 0.1
     - _ShadowStrength: 1
+    - _ShadowsCuttOff: 0.05
     - _ShakingOn: 0
     - _SmithGeoShadowModel: 0
     - _Smoothness: 0.5
@@ -132,12 +137,18 @@ Material:
     m_Colors:
     - _AmbientColor: {r: 0.7830189, g: 0, b: 0, a: 1}
     - _BloomColor: {r: 0.5, g: 0.65, b: 1, a: 1}
+    - _Brightness: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 0.9675835, g: 0.8021093, b: 0.9716981, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Highlight: {r: 1, g: 1, b: 1, a: 1}
+    - _MidShadowColor: {r: 1, g: 1, b: 1, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _RimLightColor: {r: 0, g: 0, b: 0, a: 1}
     - _RimOutlineColor: {r: 0, g: 0, b: 0, a: 1}
+    - _RoadColor: {r: 1, g: 1, b: 1, a: 1}
+    - _RoadShadowColor: {r: 1, g: 1, b: 1, a: 1}
     - _Scale: {r: 1, g: 1, b: 1, a: 1}
+    - _Shadow: {r: 1, g: 1, b: 1, a: 1}
     - _ShakingAmount: {r: 0.43, g: 0.18, b: 0.68, a: 0}
     - _ShakingSpeed: {r: 2.26, g: 2.38, b: 4.11, a: 0}
     - _SpecularColor: {r: 0.8018868, g: 0, b: 0, a: 1}

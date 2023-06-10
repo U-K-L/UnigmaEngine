@@ -3,7 +3,7 @@ Shader "Unlit/IsometricDepth"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-		_Fade("Fade camera", Range(0,1000)) = 1
+		_Fade("Fade camera", Range(0,100000)) = 1
 		_NormalAmount("Normal amount", Range(0,50)) = 1
 		_DepthAmount("Depth amount", Range(0,50)) = 1
     }
@@ -49,7 +49,7 @@ Shader "Unlit/IsometricDepth"
                 o.depthGen = saturate((-vertexProgjPos.z - _ProjectionParams.y) / (_Fade + 0.001));
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-				o.normal = v.normal;
+				o.normal = UnityObjectToWorldNormal(v.normal);
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }

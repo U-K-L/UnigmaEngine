@@ -3,12 +3,16 @@ Shader "Hidden/IsometricDepthNormals"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _Scale("Scale", Range(0,1)) = 1
+        _ScaleOuter("Scale Outer Lines", Range(0,100)) = 1
+		_ScaleInner("Scale Inner Lines", Range(0,100)) = 1
         _DepthThreshold("Depth Threshold", Range(0,2)) = 1
         _NormalThreshold("Normal Threshold", Range(0,2)) = 1
         
 		_InnerLines("Inner lines color", Color) = (0,0,0,1)
 		_OuterLines("Outer lines color", Color) = (0,0,0,1)
+		_LineBreak("Line break texture", 2D) = "white" {}
+		_LineBreakage("Scale of line breakage", Range(0,1)) = 0.15
+		_SurfaceNoiseScroll("Surface noise scroll", Vector) = (0,0,0,0)
     }
     SubShader
     {
@@ -43,14 +47,18 @@ Shader "Hidden/IsometricDepthNormals"
                 return o;
             }
 
-            sampler2D _MainTex, _OutlineMap;
+            sampler2D _MainTex, _OutlineMap, _LineBreak;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines;
             sampler2D _CameraDepthNormalsTexture;
-            float _Scale, _DepthThreshold, _NormalThreshold;
+            float _ScaleOuter, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage;
+			float4 _SurfaceNoiseScroll;
 
-            fixed4 frag (v2f i) : SV_Target
+            fixed4 frag(v2f i) : SV_Target
             {
+                float3 flowDirection = _SurfaceNoiseScroll.xyz * _SurfaceNoiseScroll.w;
+                float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
                 //read depthnormal
+				float4 lineBreak = tex2D(_LineBreak, noiseUV);
 				float4 mainTex = tex2D(_MainTex, i.uv);
                 float4 sampleTex = tex2D(_OutlineMap, i.uv);
                 float4 normalTex = float4(sampleTex.xyz, 1);
@@ -64,8 +72,8 @@ Shader "Hidden/IsometricDepthNormals"
                 depth = depth * _ProjectionParams.z;
                 depth *= 0.1;
 
-                float scaleFloor = floor(_Scale * 0.5);
-                float scaleCeil = ceil(_Scale * 0.5);
+                float scaleFloor = floor(_ScaleOuter * 0.5);
+                float scaleCeil = ceil(_ScaleOuter * 0.5);
 
                 float2 bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
                 float2 topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
@@ -86,9 +94,22 @@ Shader "Hidden/IsometricDepthNormals"
                 edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
                 //float edgeMask = length(depthnormal0 + depthnormal1 + depthnormal2 + depthnormal3) > 0.01 ? 1 : 0;
                 
+                scaleFloor = floor(_ScaleInner * 0.5);
+                scaleCeil = ceil(_ScaleInner * 0.5);
 
-                float3 normalFiniteDifference0 = depthnormal1.xyz - depthnormal0.xyz;
-                float3 normalFiniteDifference1 = depthnormal3.xyz - depthnormal2.xyz;
+                bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
+                topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
+                bottomRight = i.uv + float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
+                topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
+
+
+                float4 normal0 = tex2D(_OutlineMap, bottomLeft);
+                float4 normal1 = tex2D(_OutlineMap, topRight);
+                float4 normal2 = tex2D(_OutlineMap, bottomRight);
+                float4 normal3 = tex2D(_OutlineMap, topLeft);
+
+                float3 normalFiniteDifference0 = normal1.xyz - normal0.xyz;
+                float3 normalFiniteDifference1 = normal3.xyz - normal2.xyz;
                 
                 float edgeNormal = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
                 edgeNormal = edgeNormal > _NormalThreshold ? 1 : 0;
@@ -96,9 +117,11 @@ Shader "Hidden/IsometricDepthNormals"
                 
                 float edge = max(edgeDepth, edgeNormal);
                 
-                float4 FinalColor = lerp(0, _InnerLines + mainTex, edgeNormal);
+                float4 FinalColor = lerp(0, _InnerLines, edgeNormal);
+                FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
                 FinalColor = lerp(FinalColor, _OuterLines, edgeDepth);
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
+                //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
                 return FinalColor;
             }
             ENDCG

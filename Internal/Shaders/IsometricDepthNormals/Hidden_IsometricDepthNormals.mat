@@ -26,10 +26,12 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _DepthThreshold: 0.496
-    - _NormalThreshold: 0.194
-    - _Scale: 1
+    - _DepthThreshold: 0.443
+    - _NormalThreshold: 0.399
+    - _Scale: 2.4
+    - _ScaleInner: 2
+    - _ScaleOuter: 4
     m_Colors:
-    - _InnerLines: {r: 0.21698111, g: 0.21698111, b: 0.21698111, a: 1}
-    - _OuterLines: {r: 0, g: 0, b: 0, a: 1}
+    - _InnerLines: {r: 0.0047169924, g: 0.7190136, b: 1, a: 1}
+    - _OuterLines: {r: 0.25, g: 0.4642856, b: 1, a: 1}
   m_BuildTextureStacks: []

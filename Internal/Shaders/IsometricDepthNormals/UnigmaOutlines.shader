@@ -1,4 +1,4 @@
-Shader "Hidden/IsometricDepthNormals"
+Shader "Unigma/UnigmaOutlines"
 {
     Properties
     {
@@ -47,7 +47,7 @@ Shader "Hidden/IsometricDepthNormals"
                 return o;
             }
 
-            sampler2D _MainTex, _OutlineMap, _LineBreak;
+            sampler2D _MainTex, _IsometricDepthNormal, _LineBreak;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage;
@@ -57,21 +57,10 @@ Shader "Hidden/IsometricDepthNormals"
             {
                 float3 flowDirection = _SurfaceNoiseScroll.xyz * _SurfaceNoiseScroll.w;
                 float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
-                //read depthnormal
+
 				float4 lineBreak = tex2D(_LineBreak, noiseUV);
 				float4 mainTex = tex2D(_MainTex, i.uv);
-                float4 sampleTex = tex2D(_OutlineMap, i.uv);
-                float4 normalTex = float4(sampleTex.xyz, 1);
-                float4 depthTex = float4(sampleTex.w, sampleTex.w, sampleTex.w, 1);
-                float4 depthnormal = tex2D(_CameraDepthNormalsTexture, i.uv);
                 
-                float3 normal;
-                float depth;
-                DecodeDepthNormal(depthnormal, depth, normal);
-
-                depth = depth * _ProjectionParams.z;
-                depth *= 0.1;
-
                 float scaleFloor = floor(_ScaleOuter * 0.5);
                 float scaleCeil = ceil(_ScaleOuter * 0.5);
 
@@ -81,10 +70,10 @@ Shader "Hidden/IsometricDepthNormals"
                 float2 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
 
-                float4 depthnormal0 = tex2D(_OutlineMap, bottomLeft);
-                float4 depthnormal1 = tex2D(_OutlineMap, topRight);
-                float4 depthnormal2 = tex2D(_OutlineMap, bottomRight);
-                float4 depthnormal3 = tex2D(_OutlineMap, topLeft);
+                float4 depthnormal0 = tex2D(_IsometricDepthNormal, bottomLeft);
+                float4 depthnormal1 = tex2D(_IsometricDepthNormal, topRight);
+                float4 depthnormal2 = tex2D(_IsometricDepthNormal, bottomRight);
+                float4 depthnormal3 = tex2D(_IsometricDepthNormal, topLeft);
 
                 
                 float depthFiniteDifference3 = depthnormal1.a - depthnormal0.a;
@@ -103,10 +92,10 @@ Shader "Hidden/IsometricDepthNormals"
                 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
 
-                float4 normal0 = tex2D(_OutlineMap, bottomLeft);
-                float4 normal1 = tex2D(_OutlineMap, topRight);
-                float4 normal2 = tex2D(_OutlineMap, bottomRight);
-                float4 normal3 = tex2D(_OutlineMap, topLeft);
+                float4 normal0 = tex2D(_IsometricDepthNormal, bottomLeft);
+                float4 normal1 = tex2D(_IsometricDepthNormal, topRight);
+                float4 normal2 = tex2D(_IsometricDepthNormal, bottomRight);
+                float4 normal3 = tex2D(_IsometricDepthNormal, topLeft);
 
                 float3 normalFiniteDifference0 = normal1.xyz - normal0.xyz;
                 float3 normalFiniteDifference1 = normal3.xyz - normal2.xyz;

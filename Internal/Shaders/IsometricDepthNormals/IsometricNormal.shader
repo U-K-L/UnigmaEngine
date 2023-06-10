@@ -1,4 +1,4 @@
-Shader "Unlit/IsometricNormal"
+Shader "Unigma/IsometricNormal"
 {
     Properties
     {
@@ -49,7 +49,7 @@ Shader "Unlit/IsometricNormal"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                return float4(i.normal,1);
+                return 1;
             }
             ENDCG
         }

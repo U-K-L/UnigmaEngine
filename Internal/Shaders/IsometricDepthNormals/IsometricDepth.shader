@@ -1,4 +1,4 @@
-Shader "Unlit/IsometricDepth"
+Shader "Unlit/IsometricDepthNormals"
 {
     Properties
     {

@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Hidden_IsometricDepthNormals
-  m_Shader: {fileID: 4800000, guid: 93c19d9905771d446ba0f4664ec79a47, type: 3}
+  m_Name: Unigma_UnigmaToonStylized 5
+  m_Shader: {fileID: 4800000, guid: 8f966241294000c4582b58f254fc8c00, type: 3}
   m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
@@ -25,13 +25,10 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
-    m_Floats:
-    - _DepthThreshold: 0.443
-    - _NormalThreshold: 0.399
-    - _Scale: 2.4
-    - _ScaleInner: 2
-    - _ScaleOuter: 4
+    m_Floats: []
     m_Colors:
-    - _InnerLines: {r: 0.0047169924, g: 0.7190136, b: 1, a: 1}
-    - _OuterLines: {r: 0.25, g: 0.4642856, b: 1, a: 1}
+    - _Highlight: {r: 0.7019608, g: 0.9803922, b: 0.98823535, a: 1}
+    - _Midtone: {r: 0.6039216, g: 1, b: 0.9921569, a: 1}
+    - _Shadow: {r: 0.40000004, g: 0.8980393, b: 1, a: 1}
+    - _Thresholds: {r: 0.1, g: 0.1, b: 0.47, a: 0}
   m_BuildTextureStacks: []

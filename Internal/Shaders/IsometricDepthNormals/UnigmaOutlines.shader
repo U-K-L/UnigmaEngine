@@ -47,7 +47,7 @@ Shader "Unigma/UnigmaOutlines"
                 return o;
             }
 
-            sampler2D _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor;
+            sampler2D _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage;
@@ -55,7 +55,8 @@ Shader "Unigma/UnigmaOutlines"
 
             fixed4 frag(v2f i) : SV_Target
             {
-				float4 LineColors = tex2D(_IsometricOutlineColor, i.uv);
+				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
+				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
                 
                 float3 flowDirection = _SurfaceNoiseScroll.xyz * _SurfaceNoiseScroll.w;
                 float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
@@ -108,12 +109,12 @@ Shader "Unigma/UnigmaOutlines"
                 
                 float edge = max(edgeDepth, edgeNormal);
                 
-                float4 FinalColor = lerp(0, _InnerLines, edgeNormal);
+                float4 FinalColor = lerp(0, InnerLineColors, edgeNormal);
                 FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
-                FinalColor = lerp(FinalColor, _OuterLines, edgeDepth);
+                FinalColor = lerp(FinalColor, OutterLineColors, edgeDepth);
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
-                return tex2D(_IsometricDepthNormal, i.uv);
+                return FinalColor;
             }
             ENDCG
         }

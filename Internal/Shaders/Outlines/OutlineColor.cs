@@ -4,8 +4,10 @@ using UnityEngine;
 
 public class OutlineColor : UnigmaPostProcessingObjects
 {
-    [Header("Isometric Outline Colors")]
+    [Header("Isometric Outline Outter Colors")]
     public Color _outlineColor = Color.white;
+    [Header("Isometric Outline Inner Colors")]
+    public Color _outlineInnerColor = Color.white;
 
     [HideInInspector]
     public Material material = default;
@@ -26,11 +28,13 @@ public class OutlineColor : UnigmaPostProcessingObjects
             }
             OutlineColor ot = child.gameObject.AddComponent<OutlineColor>();
             ot._outlineColor = _outlineColor;
+            ot._outlineInnerColor = _outlineInnerColor;
         }
     }
 
     private void Update()
     {
         material.SetColor("_OutlineColor", _outlineColor);
+        material.SetColor("_OutlineInnerColor", _outlineInnerColor);
     }
 }

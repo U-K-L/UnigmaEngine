@@ -240,11 +240,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   renderer: {fileID: 0}
-  _fadeThreshold: 100000
+  _fadeThreshold: 10000
   _normalAmp: 1
   _depthAmp: 1
-  _outlineColor: {r: 1, g: 1, b: 1, a: 1}
   material: {fileID: 0}
+  ready: 0
 --- !u!114 &398241034
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -258,7 +258,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   renderer: {fileID: 0}
-  _outlineColor: {r: 1, g: 0, b: 0, a: 1}
+  _outlineColor: {r: 0.2509804, g: 0.4627451, b: 1, a: 1}
+  _outlineInnerColor: {r: 0.003921569, g: 0.7176471, b: 1, a: 1}
   material: {fileID: 0}
 --- !u!1 &662560391
 GameObject:
@@ -469,9 +470,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c1b7c4da535464439ad9dae0fcd243c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _depthNormalsMaterial: {fileID: 2100000, guid: 7e9ce1ce141f76a40812c3ead95d7137,
-    type: 2}
-  _nullMaterial: {fileID: 2100000, guid: 8435711f318323846bf4eaaa28402664, type: 2}
 --- !u!114 &726922649
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -947,11 +945,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   renderer: {fileID: 0}
-  _fadeThreshold: 100000
+  _fadeThreshold: 5000
   _normalAmp: 1
   _depthAmp: 1
-  _outlineColor: {r: 1, g: 1, b: 1, a: 1}
   material: {fileID: 0}
+  ready: 0
 --- !u!114 &1265629560
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -965,7 +963,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   renderer: {fileID: 0}
-  _outlineColor: {r: 0, g: 0.49909353, b: 1, a: 1}
+  _outlineColor: {r: 0.2509804, g: 0.4627451, b: 1, a: 1}
+  _outlineInnerColor: {r: 0.003921569, g: 0.7176471, b: 1, a: 1}
   material: {fileID: 0}
 --- !u!1001 &1373735103
 PrefabInstance:

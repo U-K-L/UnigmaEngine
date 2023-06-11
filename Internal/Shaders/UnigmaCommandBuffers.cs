@@ -67,22 +67,30 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
         CommandBuffer outlineColorBuffer = new CommandBuffer();
         RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
+        RenderTexture innerRT = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         RenderTexture tempRt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         rt.enableRandomWrite = true;
         tempRt.enableRandomWrite = true;
         outlineColorBuffer.SetGlobalTexture("_IsometricOutlineColor", rt);
-        
+        outlineColorBuffer.SetGlobalTexture("_IsometricInnerOutlineColor", innerRT);
+
         outlineColorBuffer.SetRenderTarget(rt);
 
         outlineColorBuffer.ClearRenderTarget(true, true, Color.black);
-        DrawIsometricOutlineColor(outlineColorBuffer);
+
+        //Set outter colors
+        DrawIsometricOutlineColor(outlineColorBuffer, 0);
 
         outlineColorBuffer.CopyTexture(rt, tempRt);
         computeOutlineColors.SetTexture(0, "_IsometricOutlineColor", rt);
         computeOutlineColors.SetTexture(0, "_TempTexture", tempRt);
-        outlineColorBuffer.DispatchCompute(computeOutlineColors, 0, Screen.width / 8, Screen.height / 8, 1);
+        outlineColorBuffer.DispatchCompute(computeOutlineColors, 0, Screen.width / 32, Screen.height / 32, 1);
         outlineColorBuffer.CopyTexture(tempRt, rt);
 
+        //Now set inner colors.
+        outlineColorBuffer.SetRenderTarget(innerRT);
+        outlineColorBuffer.ClearRenderTarget(true, true, Color.black);
+        DrawIsometricOutlineColor(outlineColorBuffer, 1);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineColorBuffer);
     }
 
@@ -90,7 +98,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
         foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
         {
-            IsometricDepthNormalObject iso = r as IsometricDepthNormalObject;
+            IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
             if (iso != null)
                 if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true)
                     outlineDepthBuffer.DrawRenderer(r.renderer, r.materials["IsometricDepthNormals"], 0, -1);
@@ -103,14 +111,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
         }
     }
 
-    void DrawIsometricOutlineColor(CommandBuffer outlineColor)
+    void DrawIsometricOutlineColor(CommandBuffer outlineColor, int pass)
     {
         foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
         {
-            OutlineColor cr = r as OutlineColor;
+            OutlineColor cr = r.gameObject.GetComponent<OutlineColor>();
             if (cr != null)
                 if (cr.materials.ContainsKey("OutlineColors") && cr.renderer.enabled == true)
-                    outlineColor.DrawRenderer(cr.renderer, cr.materials["OutlineColors"], 0, -1);
+                    outlineColor.DrawRenderer(cr.renderer, cr.materials["OutlineColors"], 0, pass);
         }
 
         foreach (Renderer r in _OutlineNullObjects)

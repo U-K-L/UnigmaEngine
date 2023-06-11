@@ -2,6 +2,7 @@ Shader "Unigma/OutlineColors"
 {
     Properties
     {
+		_ThicknessTexture("Outline Thickness texture", 2D) = "black" {}
 		_OutlineColor("Color", Color) = (1,1,1,1)
     }
     SubShader
@@ -32,19 +33,25 @@ Shader "Unigma/OutlineColors"
                 float4 vertex : SV_POSITION;
             };
 
-            float4 _OutlineColor;
+            float4 _OutlineColor, _ThicknessTexture_ST;
 
             v2f vert (appdata v)
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
+				o.uv = TRANSFORM_TEX(v.uv, _ThicknessTexture);
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            sampler2D _ThicknessTexture;
+
+            fixed4 frag(v2f i) : SV_Target
             {
-				return _OutlineColor;
+				float4 texcol = tex2D(_ThicknessTexture, i.uv);
+				float thickness = dot(texcol, texcol) / 3.0;
+                float4 finalOutput = float4(_OutlineColor.xyz, thickness);
+				return finalOutput;
             }
             ENDCG
         }

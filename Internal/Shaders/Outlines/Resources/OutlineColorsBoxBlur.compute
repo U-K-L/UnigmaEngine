@@ -6,9 +6,10 @@ RWTexture2D<float4> _TempTexture;
 int ScreenWidth;
 int ScreenHeight;
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void BoxBlur (uint3 id : SV_DispatchThreadID)
 {
+
 	float4 KernelSum = float4(0, 0, 0, 0);
 	//Sample the 3x3 block with current index being in the center.
 	for (int x = -4; x <= 4; x++)
@@ -19,6 +20,8 @@ void BoxBlur (uint3 id : SV_DispatchThreadID)
 			KernelSum = max(KernelSum, _IsometricOutlineColor[id.xy + int2(x, y)]);
 		}
 	}
-	_TempTexture[id.xy] = KernelSum;
+	//_TempTexture[id.xy] = KernelSum;
+	float alpha = max(0, KernelSum.w);
+	_TempTexture[id.xy] = float4(KernelSum.xyz, alpha);
 	
 }

@@ -84,7 +84,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         outlineColorBuffer.SetRenderTarget(rt);
 
-        outlineColorBuffer.ClearRenderTarget(true, true, Color.black);
+        outlineColorBuffer.ClearRenderTarget(true, true, Vector4.zero);
 
         //Set outter colors
         DrawIsometricOutlineColor(outlineColorBuffer, 0);
@@ -92,7 +92,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineColorBuffer.CopyTexture(rt, tempRt);
         computeOutlineColors.SetTexture(0, "_IsometricOutlineColor", rt);
         computeOutlineColors.SetTexture(0, "_TempTexture", tempRt);
-        outlineColorBuffer.DispatchCompute(computeOutlineColors, 0, Screen.width / 32, Screen.height / 32, 1);
+        outlineColorBuffer.DispatchCompute(computeOutlineColors, 0, Mathf.CeilToInt(Screen.width / 8), Mathf.CeilToInt(Screen.height / 8), 1);
         outlineColorBuffer.CopyTexture(tempRt, rt);
 
         //Now set inner colors.

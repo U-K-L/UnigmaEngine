@@ -56,7 +56,6 @@ Shader "Unigma/UnigmaOutlines"
 
             fixed4 frag(v2f i) : SV_Target
             {
-				//float4 objectPositions = tex2D(_IsometricPositions, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
 				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
                 
@@ -66,8 +65,9 @@ Shader "Unigma/UnigmaOutlines"
 				float4 lineBreak = tex2D(_LineBreak, noiseUV);
 				float4 mainTex = tex2D(_MainTex, i.uv);
                 
-                float scaleFloor = floor(_ScaleOuter * 0.5);
-                float scaleCeil = ceil(_ScaleOuter * 0.5);
+				float OuterScale = OutterLineColors.a * 5 + _ScaleOuter;
+                float scaleFloor = floor(OuterScale * 0.5);
+                float scaleCeil = ceil(OuterScale * 0.5);
 
                 float2 bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
                 float2 topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
@@ -125,7 +125,7 @@ Shader "Unigma/UnigmaOutlines"
                 
                 float4 FinalColor = lerp(0, InnerLineColors, edgeNormal);
                 FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
-                FinalColor = lerp(FinalColor, OutterLineColors, edge);
+                FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz,1), edge);
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
                 return FinalColor;

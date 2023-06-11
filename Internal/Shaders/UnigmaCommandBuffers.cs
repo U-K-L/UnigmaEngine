@@ -5,11 +5,9 @@ using UnityEngine.Rendering;
 
 public class UnigmaCommandBuffers : MonoBehaviour
 {
-    private CommandBuffer outlineDepthBuffer = default;
-    private CommandBuffer outlineNormalBuffer = default;
     private int buffersAdded = 0;
-    private List<UnigmaPostProcessingObjects> RenderObjects; //Objects part of this render. 
-    private List<Renderer> NullObjects = default; //Objects not part of this render.
+    private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render. 
+    private List<Renderer> _OutlineNullObjects = default; //Objects not part of this render.
     
     public Material _depthNormalsMaterial;
     public Material _nullMaterial;
@@ -28,37 +26,57 @@ public class UnigmaCommandBuffers : MonoBehaviour
         if (buffersAdded < 1)
         {
             //Create isometric depth normals.
-            RenderObjects = new List<UnigmaPostProcessingObjects>();
-            NullObjects = new List<Renderer>();
+            _OutlineRenderObjects = new List<UnigmaPostProcessingObjects>();
+            _OutlineNullObjects = new List<Renderer>();
             FindObjects("IsometricDepthNormalObject");
             CreateDepthNormalBuffers();
+            buffersAdded += 1;
         }
-        buffersAdded += 1;
+
+        if (buffersAdded < 2)
+        {
+            //CreateOutlineColorBuffers();
+            buffersAdded += 1;
+        }
+        
     }
 
     void CreateDepthNormalBuffers()
     {
-        outlineDepthBuffer = new CommandBuffer();
+        CommandBuffer outlineDepthBuffer = new CommandBuffer();
         RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         outlineDepthBuffer.SetGlobalTexture("_IsometricDepthNormal", rt);
 
         outlineDepthBuffer.SetRenderTarget(rt);
 
         outlineDepthBuffer.ClearRenderTarget(true, true, Color.black);
-        DrawIsometricDepthNormals();
+        DrawIsometricDepthNormals(outlineDepthBuffer);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
     }
 
-    void DrawIsometricDepthNormals()
+    void CreateOutlineColorBuffers()
     {
-        foreach (UnigmaPostProcessingObjects r in RenderObjects)
+        CommandBuffer outlineColorBuffer = new CommandBuffer();
+        RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
+        outlineColorBuffer.SetGlobalTexture("_IsometricDepthNormal", rt);
+
+        outlineColorBuffer.SetRenderTarget(rt);
+
+        outlineColorBuffer.ClearRenderTarget(true, true, Color.black);
+        //DrawIsometricDepthNormals();
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineColorBuffer);
+    }
+
+    void DrawIsometricDepthNormals(CommandBuffer outlineDepthBuffer)
+    {
+        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
         {
 
             if(r.enabled == true)
                 outlineDepthBuffer.DrawRenderer(r.renderer, r.material, 0, -1);
         }
 
-        foreach (Renderer r in NullObjects)
+        foreach (Renderer r in _OutlineNullObjects)
         {
             if (r.enabled == true)
                 outlineDepthBuffer.DrawRenderer(r, _nullMaterial, 0, -1);
@@ -72,12 +90,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
         Renderer[] sceneRenderers = FindObjectsOfType<Renderer>();
 
         // Store only visible renderers
-        RenderObjects.Clear();
-        NullObjects.Clear();
+        _OutlineRenderObjects.Clear();
+        _OutlineNullObjects.Clear();
         for (int i = 0; i < sceneRenderers.Length; i++)
             if (sceneRenderers[i].GetComponent(component))
-                RenderObjects.Add(sceneRenderers[i].gameObject.GetComponent<UnigmaPostProcessingObjects>());
+                _OutlineRenderObjects.Add(sceneRenderers[i].gameObject.GetComponent<UnigmaPostProcessingObjects>());
             else
-                NullObjects.Add(sceneRenderers[i]);
+                _OutlineNullObjects.Add(sceneRenderers[i]);
     }
 }

@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class UnigmaPostProcessingObjects : MonoBehaviour
 {
-    [HideInInspector]
     public Renderer renderer;
     public Material material;
 }

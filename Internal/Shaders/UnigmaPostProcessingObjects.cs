@@ -5,5 +5,5 @@ using UnityEngine;
 public class UnigmaPostProcessingObjects : MonoBehaviour
 {
     public Renderer renderer;
-    public Material material;
+    public Dictionary<string, Material> materials = new Dictionary<string, Material>();
 }

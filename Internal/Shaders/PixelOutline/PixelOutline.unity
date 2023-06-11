@@ -240,10 +240,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   renderer: {fileID: 0}
-  material: {fileID: 0}
   _fadeThreshold: 100000
   _normalAmp: 1
   _depthAmp: 1
+  _outlineColor: {r: 1, g: 1, b: 1, a: 1}
+  material: {fileID: 0}
+--- !u!114 &398241034
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 398241031}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 850386dcd3887574187496d8c83ae323, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  renderer: {fileID: 0}
+  _outlineColor: {r: 1, g: 0, b: 0, a: 1}
+  material: {fileID: 0}
 --- !u!1 &662560391
 GameObject:
   m_ObjectHideFlags: 0
@@ -931,10 +947,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   renderer: {fileID: 0}
-  material: {fileID: 0}
   _fadeThreshold: 100000
   _normalAmp: 1
   _depthAmp: 1
+  _outlineColor: {r: 1, g: 1, b: 1, a: 1}
+  material: {fileID: 0}
+--- !u!114 &1265629560
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1265629555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 850386dcd3887574187496d8c83ae323, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  renderer: {fileID: 0}
+  _outlineColor: {r: 0, g: 0.49909353, b: 1, a: 1}
+  material: {fileID: 0}
 --- !u!1001 &1373735103
 PrefabInstance:
   m_ObjectHideFlags: 0

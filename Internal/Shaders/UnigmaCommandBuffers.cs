@@ -54,13 +54,21 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
         CommandBuffer outlineDepthBuffer = new CommandBuffer();
         RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
+        RenderTexture posRT = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         outlineDepthBuffer.SetGlobalTexture("_IsometricDepthNormal", rt);
+        outlineDepthBuffer.SetGlobalTexture("_IsometricPositions", posRT);
 
         outlineDepthBuffer.SetRenderTarget(rt);
 
         outlineDepthBuffer.ClearRenderTarget(true, true, Color.black);
-        DrawIsometricDepthNormals(outlineDepthBuffer);
+        DrawIsometricDepthNormals(outlineDepthBuffer, 0);
+
+        //Second pass
+        outlineDepthBuffer.SetRenderTarget(posRT);
+        outlineDepthBuffer.ClearRenderTarget(true, true, Color.black);
+        DrawIsometricDepthNormals(outlineDepthBuffer, 1);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
+
     }
 
     void CreateOutlineColorBuffers()
@@ -94,14 +102,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineColorBuffer);
     }
 
-    void DrawIsometricDepthNormals(CommandBuffer outlineDepthBuffer)
+    void DrawIsometricDepthNormals(CommandBuffer outlineDepthBuffer, int pass)
     {
         foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
         {
             IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
             if (iso != null)
                 if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true)
-                    outlineDepthBuffer.DrawRenderer(r.renderer, r.materials["IsometricDepthNormals"], 0, -1);
+                    outlineDepthBuffer.DrawRenderer(r.renderer, r.materials["IsometricDepthNormals"], 0, pass);
         }
 
         foreach (Renderer r in _OutlineNullObjects)

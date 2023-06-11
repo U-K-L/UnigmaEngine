@@ -123,6 +123,46 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &33108962 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+    type: 3}
+  m_PrefabInstance: {fileID: 368955179}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &33108963
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 33108962}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 850386dcd3887574187496d8c83ae323, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  renderer: {fileID: 0}
+  _outlineColor: {r: 0.2509804, g: 0.4627451, b: 1, a: 1}
+  _outlineInnerColor: {r: 0.003921569, g: 0.7176471, b: 1, a: 1}
+  material: {fileID: 0}
+--- !u!114 &33108964
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 33108962}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f08d65a2fdfd61b479bba0de292a7550, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  renderer: {fileID: 0}
+  _fadeThreshold: 100000
+  _normalAmp: 1
+  _depthAmp: 1
+  material: {fileID: 0}
+  ready: 0
 --- !u!1 &149867418
 GameObject:
   m_ObjectHideFlags: 0
@@ -221,6 +261,111 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 11
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &368955179
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_RootOrder
+      value: 13
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 1.87
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 3.72
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 3.19
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.08715588
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.9961947
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 180
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 170
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 837a73ba2989f88499c4bae6d312315b, type: 2}
+    - target: {fileID: -5754084199372789682, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: -5495902117074765545, guid: b221b55abed4eb54c9609f11bda3d701,
+        type: 3}
+    - target: {fileID: 919132149155446097, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_Name
+      value: SoftCube (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 31f15e0ad0ec5254594ba8dd393f4ef6,
+        type: 3}
+      propertyPath: m_TagString
+      value: NormalObjects
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 31f15e0ad0ec5254594ba8dd393f4ef6, type: 3}
 --- !u!1 &398241031 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: a3fd8acc24b55a24b9891fa87a57377d,
@@ -240,7 +385,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   renderer: {fileID: 0}
-  _fadeThreshold: 10000
+  _fadeThreshold: 100000
   _normalAmp: 1
   _depthAmp: 1
   material: {fileID: 0}
@@ -945,7 +1090,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   renderer: {fileID: 0}
-  _fadeThreshold: 5000
+  _fadeThreshold: 100000
   _normalAmp: 1
   _depthAmp: 1
   material: {fileID: 0}

@@ -6,6 +6,7 @@ Shader "Unigma/UnigmaOutlines"
         _ScaleOuter("Scale Outer Lines", Range(0,100)) = 1
 		_ScaleInner("Scale Inner Lines", Range(0,100)) = 1
         _DepthThreshold("Depth Threshold", Range(0,2)) = 1
+		_PosThreshold("Position Threshold", Range(0,2)) = 1
         _NormalThreshold("Normal Threshold", Range(0,2)) = 1
         
 		_InnerLines("Inner lines color", Color) = (0,0,0,1)
@@ -47,14 +48,15 @@ Shader "Unigma/UnigmaOutlines"
                 return o;
             }
 
-            sampler2D _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor;
+            sampler2D _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines;
             sampler2D _CameraDepthNormalsTexture;
-            float _ScaleOuter, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage;
+            float _ScaleOuter, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
 			float4 _SurfaceNoiseScroll;
 
             fixed4 frag(v2f i) : SV_Target
             {
+				//float4 objectPositions = tex2D(_IsometricPositions, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
 				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
                 
@@ -84,6 +86,18 @@ Shader "Unigma/UnigmaOutlines"
                 float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2)) * 100;
                 float depthThreshold = _DepthThreshold * depthnormal0;
                 edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
+                
+                float4 pos0 = tex2D(_IsometricPositions, bottomLeft);
+                float4 pos1 = tex2D(_IsometricPositions, topRight);
+                float4 pos2 = tex2D(_IsometricPositions, bottomRight);
+                float4 pos3 = tex2D(_IsometricPositions, topLeft);
+
+
+                float posFiniteDifference3 = length(pos1 - pos0);
+                float posFiniteDifference4 = length(pos3 - pos2);
+                float edgePos = sqrt(pow(posFiniteDifference3, 2) + pow(posFiniteDifference4, 2)) * 100;
+                float posThreshold = _PosThreshold * pos0.a;
+                edgePos = edgePos > posThreshold ? 1 : 0;
                 //float edgeMask = length(depthnormal0 + depthnormal1 + depthnormal2 + depthnormal3) > 0.01 ? 1 : 0;
                 
                 scaleFloor = floor(_ScaleInner * 0.5);
@@ -107,11 +121,11 @@ Shader "Unigma/UnigmaOutlines"
                 edgeNormal = edgeNormal > _NormalThreshold ? 1 : 0;
 
                 
-                float edge = max(edgeDepth, edgeNormal);
+                float edge = max(edgeDepth, edgePos);
                 
                 float4 FinalColor = lerp(0, InnerLineColors, edgeNormal);
                 FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
-                FinalColor = lerp(FinalColor, OutterLineColors, edgeDepth);
+                FinalColor = lerp(FinalColor, OutterLineColors, edge);
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
                 return FinalColor;

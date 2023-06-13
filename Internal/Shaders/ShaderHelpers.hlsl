@@ -180,7 +180,7 @@ void SumProduct(uint3 id, int _Cols, StructuredBuffer<float> tmp, RWStructuredBu
     
     for (int i = startingIndex; (i < startingIndex + _BatchSize) && (i < startingIndex + _Cols); i++)
     {
-        sum += tmp[i];
+        sum += result[i];
     }
         
     result[currentIndex] = sum;

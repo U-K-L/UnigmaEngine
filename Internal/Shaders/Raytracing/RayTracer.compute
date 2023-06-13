@@ -1,0 +1,53 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel RayTrace
+#include "../ShaderHelpers.hlsl"
+
+RWTexture2D<float4> _RayTracer;
+float4x4 _CameraToWorld;
+float4x4 _CameraInverseProjection;
+
+struct Ray
+{
+	float3 origin;
+	float3 direction;
+};
+
+struct Hit
+{
+	float3 position;
+	float3 distance;
+	float3 normal;
+	float3 color;
+};
+
+Ray CreateRay(float3 og, float3 dir)
+{
+	Ray ray;
+	ray.origin = og;
+	ray.direction = dir;
+	return ray;
+}
+
+Ray CreateCameraRay(float2 uv)
+{
+	float3 og = mul(_CameraToWorld, float4(0, 0, 0, 1)).xyz;
+	float3 dir = mul(_CameraInverseProjection, float4(uv, 0, 1)).xyz;
+	dir = mul(_CameraToWorld, float4(dir, 0)).xyz;
+	dir = normalize(dir);
+	return CreateRay(og, dir);
+}
+
+[numthreads(32,32,1)]
+void RayTrace(uint3 id : SV_DispatchThreadID)
+{
+	uint width, height;
+	_RayTracer.GetDimensions(width, height);
+	
+	//Turn into -1 to 1 range for width and height
+	float2 uv = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2.0f - 1.0f);
+
+	Ray ray = CreateCameraRay(uv);
+	// Write some colors
+	_RayTracer[id.xy] = float4(ray.direction * 0.5f + 0.5f, 1.0f);
+}
+

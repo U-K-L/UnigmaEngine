@@ -37,7 +37,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
             _OutlineRenderObjects = new List<UnigmaPostProcessingObjects>();
             _OutlineNullObjects = new List<Renderer>();
             FindObjects("IsometricDepthNormalObject");
-            Debug.Log(_OutlineRenderObjects.Count);
             CreateDepthNormalBuffers();
             buffersAdded += 1;
         }

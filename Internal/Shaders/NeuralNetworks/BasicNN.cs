@@ -30,6 +30,9 @@ public class BasicNN : MonoBehaviour
     private bool initialized = false;
 
     float[] outputMatrix;
+    float[] _weights;
+    float[] _inputs;
+    
 
     int Row = 0;
     int Col = 0;
@@ -40,6 +43,55 @@ public class BasicNN : MonoBehaviour
         None, A, B, Both
     }
     [SerializeField] Transpose _transpose;
+
+    private void OnEnable()
+    {
+        /*
+        if (initialized)
+        {
+            OnDisable();
+        }
+        initialized = true;
+
+        float[][] inputVectorsA = null;
+        float[][] inputVectorsB = null;
+
+        LoadDataFromCSV(files[0], ref inputVectorsA);
+        LoadDataFromCSV(files[1], ref inputVectorsB);
+        SetupMatrix(inputVectorsA, inputVectorsB, ref outputMatrix);
+        StartCoroutine(DispatchShader());
+        */
+        InitWeights();
+    }
+
+    void InitWeights()
+    {
+        _weights = new float[_inputs.Length];
+        for (int i = 0; i < _weights.Length; i++)
+        {
+            _weights[i] = Random.Range(-1f, 1f);
+        }
+    }
+
+    float[] ForwardPropagation(float[] inputs)
+    {
+        return null;
+    }
+
+    void BackPropagation()
+    {
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+    }
+
+    private void LateUpdate()
+    {
+    }
+
     void LoadDataFromCSV(string file, ref float[][] inputVectors)
     {
         string path = Application.streamingAssetsPath + "/NeuralNetworks/Data/" + file; 
@@ -65,31 +117,6 @@ public class BasicNN : MonoBehaviour
                 matrixArray[j + i * 2] = inputmatrix[i][j];
             }
         }
-    }
-    private void OnEnable()
-    {
-        if (initialized)
-        {
-            OnDisable();
-        }
-        initialized = true;
-
-        float[][] inputVectorsA = null;
-        float[][] inputVectorsB = null;
-
-        LoadDataFromCSV(files[0], ref inputVectorsA);
-        LoadDataFromCSV(files[1], ref inputVectorsB);
-        SetupMatrix(inputVectorsA, inputVectorsB, ref outputMatrix);
-        StartCoroutine(DispatchShader());
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-    }
-
-    private void LateUpdate()
-    {
     }
 
     IEnumerator DispatchShader()

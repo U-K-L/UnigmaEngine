@@ -75,7 +75,7 @@ public class NativeTest : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        symbol = GetProcAddress(OpenLibrary("C:/ProjectsSpeed/Unigma/Omnicidals/UnigmaNativeDLLs/UnigmaNative/x64/Debug/UnigmaNative.dll"), "GetSquared");
+        symbol = GetProcAddress(OpenLibrary(Application.streamingAssetsPath + "/UnigmaDLLs/UnigmaNative.dll"), "GetSquared");
         GetSquared = Marshal.GetDelegateForFunctionPointer(symbol, typeof(GetSquaredFunction)) as GetSquaredFunction;
         Init = Marshal.GetDelegateForFunctionPointer(symbol, typeof(InitFunction)) as InitFunction;
         InitPlugin();

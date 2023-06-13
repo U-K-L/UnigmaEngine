@@ -47,6 +47,7 @@ public class UnigmaFastMath : MonoBehaviour
         float result = -1;
         int kernel = UnigmaCompute.FindKernel("Dot");
         SetBuffers(A, B, kernel);
+        SetBuffers(A, B, UnigmaCompute.FindKernel("Sum"));
         StartCoroutine(DispatchShader(A, B, kernel));
         return result;
     }

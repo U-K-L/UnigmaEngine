@@ -9,7 +9,10 @@ public class UnigmaFastMath : MonoBehaviour
 
     float _dotProductResult = -1.1234567f;
     ComputeBuffer ResultBuffer;
+    ComputeBuffer ABuffer;
+    ComputeBuffer BBuffer;
 
+    int MaxSize = 100;
     void Awake()
     {
         if (_instance == null)
@@ -24,17 +27,15 @@ public class UnigmaFastMath : MonoBehaviour
     public void InitializeCompute()
     {
         UnigmaCompute = Resources.Load<ComputeShader>("UnigmaMathCompute");
+        ABuffer = new ComputeBuffer(MaxSize, sizeof(float), ComputeBufferType.Structured);
+        BBuffer = new ComputeBuffer(MaxSize, sizeof(float), ComputeBufferType.Structured);
+        ResultBuffer = new ComputeBuffer(MaxSize, sizeof(float), ComputeBufferType.Structured, ComputeBufferMode.Immutable);
     }
 
     void SetBuffers(float[] A, float[] B, int kernel)
     {
-        ComputeBuffer ABuffer = new ComputeBuffer(A.Length, sizeof(float), ComputeBufferType.Structured);
-        ComputeBuffer BBuffer = new ComputeBuffer(B.Length, sizeof(float), ComputeBufferType.Structured);
-        ResultBuffer = new ComputeBuffer(A.Length + B.Length, sizeof(float), ComputeBufferType.Structured, ComputeBufferMode.Immutable);
-
         ABuffer.SetData(A);
         BBuffer.SetData(B);
-
         UnigmaCompute.SetBuffer(kernel, "_inputDataA", ABuffer);
         UnigmaCompute.SetBuffer(kernel, "_inputDataB", BBuffer);
         UnigmaCompute.SetBuffer(kernel, "_outputData", ResultBuffer);
@@ -71,10 +72,11 @@ public class UnigmaFastMath : MonoBehaviour
         }
         //For testing purposes only.
         UnigmaCompute.Dispatch(kernel, tx, ty, tz);
-        while (bufferSize >= 1)
+        while (bufferSize > 1)
         {
             SumDotProduct(steps, batchSize, bufferSize, ref resultValues, kernel);
             steps++;
+            Debug.Log(bufferSize);
             bufferSize = Mathf.CeilToInt(bufferSize / batchSize);
             yield return new WaitForSeconds(0.16f);
         }
@@ -90,9 +92,6 @@ public class UnigmaFastMath : MonoBehaviour
         {
             return;
         }
-
-        ResultBuffer.GetData(resultValues);
-
         UnigmaCompute.SetInt("_BufferSize", BufferSize);
         UnigmaCompute.SetInt("_BatchSize", BatchSize);
         UnigmaCompute.SetInt("_Batch", Batch);

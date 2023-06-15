@@ -175,15 +175,15 @@ void SumProduct(uint3 id, int _Cols, StructuredBuffer<float> tmp, RWStructuredBu
     
     if (startingIndex > _BufferSize)
         return;
-    
+
     float sum = 0;
     
-    for (int i = startingIndex; (i < startingIndex + _BatchSize) && (i < startingIndex + _Cols); i++)
+    for (int i = startingIndex; (i < startingIndex + _BatchSize) && (i < startingIndex + _BufferSize); i++)
     {
         sum += result[i];
     }
         
-    result[currentIndex] = sum;
+    result[startingIndex] = sum;
 }
 
 #endif

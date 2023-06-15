@@ -59,7 +59,7 @@ public class NativeTest : MonoBehaviour
         return 100;
     }
 
-    static int InitPlugin()
+    static int InitializeFunctionPointers()
     {
         // Make a delegate out of the C# function to expose
         Func<int, int, int> del = new Func<int, int, int>(CalledFromCSharp);
@@ -75,16 +75,23 @@ public class NativeTest : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        GetMemoryAddressOfFunctions();
+    }
+
+    void GetMemoryAddressOfFunctions()
+    {
         symbol = GetProcAddress(OpenLibrary(Application.streamingAssetsPath + "/UnigmaDLLs/UnigmaNative.dll"), "GetSquared");
         GetSquared = Marshal.GetDelegateForFunctionPointer(symbol, typeof(GetSquaredFunction)) as GetSquaredFunction;
         Init = Marshal.GetDelegateForFunctionPointer(symbol, typeof(InitFunction)) as InitFunction;
-        InitPlugin();
+
+        //Memory is set, now initialize.
+        InitializeFunctionPointers();
     }
 
     // Update is called once per frame
     void Update()
     {
-        Debug.Log("Coming from native devices: " + GetSquared(10));
+        Debug.Log("Coming from native devices: " + GetSquared(100));
     }
 
     void OnApplicationQuit()

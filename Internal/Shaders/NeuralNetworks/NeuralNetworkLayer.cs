@@ -34,21 +34,23 @@ public class NeuralNetworkLayer : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Debug.Log(UnigmaFastMath._instance.GetDotProductResult());
-        ForwardPropagation();
+        float[] Y = ForwardPropagation();
+        BackwardPropagation(Y);
     }
 
-    void ForwardPropagation()
+    float[] ForwardPropagation()
     {
         //Just calculate all the neurons against the weights using a dot product.
         //Then add the bias.
-        float[] Y = UnigmaFastMath._instance.Mul(_inputs, _weights, 0);
-        Y = UnigmaFastMath._instance.Add(Y,_bias);
-        UnigmaHelpers.PrintOutMatrix(Y, 3, 3);
+        //float[] Y = UnigmaFastMath._instance.Mul(_inputs, _weights, 0, _inputs.Length, 1);
+        //Y = UnigmaFastMath._instance.Add(Y,_bias);
+        //UnigmaHelpers.PrintOutMatrix(Y, 3, 3);
+        return null;
     }
 
-    void BackwardPropagation()
+    void BackwardPropagation(float[] weights)
     {
-
+        float[] weights_gradient = UnigmaFastMath._instance.Mul(new float[] { 1, 2, 3 }, new float[] { 1, 2, 3 }, 1, _inputs.Length, _inputs.Length);
+        UnigmaHelpers.PrintOutMatrix(weights_gradient, 3, 3);
     }
 }

@@ -58,20 +58,19 @@ public class UnigmaFastMath : MonoBehaviour
         return resultValues;
     }
 
-    public float[] Mul(float[] A, float[] B, int transpose)
+    public float[] Mul(float[] A, float[] B, int transpose, int col, int row)
     {
         if (UnigmaCompute == null)
             InitializeCompute();
         int kernel = UnigmaCompute.FindKernel("Mul");
         SetBuffers(A, B, kernel);
-        int tx = A.Length;
-        int ty = B.Length;
+        int tx = col;
+        int ty = row;
         int tz = 1;
-        int Col = A.Length;
-        UnigmaCompute.SetInt("_Cols", Col);
+        UnigmaCompute.SetInt("_Cols", col);
         UnigmaCompute.SetInt("_Transpose", transpose);
         UnigmaCompute.Dispatch(kernel, tx, ty, tz);
-        float[] resultValues = new float[A.Length];
+        float[] resultValues = new float[col*row];
         ResultBuffer.GetData(resultValues);
         return resultValues;
     }

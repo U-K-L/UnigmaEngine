@@ -40,7 +40,42 @@ public class UnigmaFastMath : MonoBehaviour
         UnigmaCompute.SetBuffer(kernel, "_inputDataB", BBuffer);
         UnigmaCompute.SetBuffer(kernel, "_outputData", ResultBuffer);
     }
-    
+
+    public float[] Add(float[] A, float[] B)
+    {
+        if (UnigmaCompute == null)
+            InitializeCompute();
+        int kernel = UnigmaCompute.FindKernel("Add");
+        SetBuffers(A, B, kernel);
+        int tx = A.Length;
+        int ty = B.Length;
+        int tz = 1;
+        int Col = A.Length;
+        UnigmaCompute.SetInt("_Cols", Col);
+        UnigmaCompute.Dispatch(kernel, tx, ty, tz);
+        float[] resultValues = new float[A.Length];
+        ResultBuffer.GetData(resultValues);
+        return resultValues;
+    }
+
+    public float[] Mul(float[] A, float[] B, int transpose)
+    {
+        if (UnigmaCompute == null)
+            InitializeCompute();
+        int kernel = UnigmaCompute.FindKernel("Mul");
+        SetBuffers(A, B, kernel);
+        int tx = A.Length;
+        int ty = B.Length;
+        int tz = 1;
+        int Col = A.Length;
+        UnigmaCompute.SetInt("_Cols", Col);
+        UnigmaCompute.SetInt("_Transpose", transpose);
+        UnigmaCompute.Dispatch(kernel, tx, ty, tz);
+        float[] resultValues = new float[A.Length];
+        ResultBuffer.GetData(resultValues);
+        return resultValues;
+    }
+
     public float Dot(float[] A, float[] B)
     {
         if (UnigmaCompute == null)

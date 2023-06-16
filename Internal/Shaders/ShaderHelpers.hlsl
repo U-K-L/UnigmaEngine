@@ -186,4 +186,13 @@ void SumProduct(uint3 id, int _Cols, StructuredBuffer<float> tmp, RWStructuredBu
     result[startingIndex] = sum;
 }
 
+void Add(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float> B, RWStructuredBuffer<float> result)
+{
+	int currentIndex = id.x + (id.y * _Cols) + (id.z * _Cols * _Cols);
+
+	if (currentIndex > result.Length)
+		return;
+	result[currentIndex] = A[currentIndex] + B[currentIndex];
+}
+
 #endif

@@ -5,37 +5,104 @@
 RWTexture2D<float4> _RayTracer;
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
-
+float epsilon = 0.001;
 struct Ray
 {
-	float3 origin;
-	float3 direction;
+	float3 o;
+	float3 d;
+	float2 os; //pixel screen space.
 };
 
 struct Hit
 {
 	float3 position;
-	float3 distance;
+	float distance;
 	float3 normal;
 	float3 color;
 };
 
-Ray CreateRay(float3 og, float3 dir)
+Ray CreateRay(float3 og, float3 dir, float2 pixel)
 {
 	Ray ray;
-	ray.origin = og;
-	ray.direction = dir;
+	ray.o = og;
+	ray.d = dir;
+	ray.os = pixel;
 	return ray;
 }
 
 Ray CreateCameraRay(float2 uv)
 {
+	//Get the world position of the origin, which is basically just the camera.
+	// Last column contains position, take that.
 	float3 og = mul(_CameraToWorld, float4(0, 0, 0, 1)).xyz;
-	float3 dir = mul(_CameraInverseProjection, float4(uv, 0, 1)).xyz;
-	dir = mul(_CameraToWorld, float4(dir, 0)).xyz;
+
+	//The scene has a depth to it. The project matrix takes the depth and places it flat onto a 2D plane.
+	//The inverse projection does this process backwards. By multiplying it we go backwards.
+	float3 dir = mul(_CameraInverseProjection, float4(uv, -1, 1)).xyz;
+	dir = mul(_CameraToWorld, float4(dir, 0)).xyz; //Take this 3D pixel point and make it world position.
 	dir = normalize(dir);
-	return CreateRay(og, dir);
+	return CreateRay(og, dir, uv);
 }
+
+Hit Shade(inout Hit hit, Ray ray, float3 normal)
+{
+	float3 lightDir = normalize(_WorldSpaceLightPos0);
+	float NdotL = clamp(dot(normal, lightDir), 0.0125, 1.0);
+	hit.color = NdotL * _LightColor0.xyz;
+	return hit;
+}
+
+
+Hit IntersectPlane(inout Hit hit, Ray ray, float3 a, float3 b, float3 c)
+{
+
+	float3 n = -GetTriangleNormal(a, b, c);
+
+	float t = dot(a - ray.o, n) / dot(ray.d, n);
+	if (t > epsilon && t < hit.distance)
+	{
+		hit.normal = n;
+		hit.distance = t;
+		hit.position = ray.o + t * ray.d;
+		Shade(hit, ray, n);
+	}
+	return hit;
+}
+
+
+
+Hit IntersectSphere(inout Hit hit, Ray ray, float radius, float3 center)
+{
+	//Quadratic formula.
+	float a = dot(ray.d, ray.d);
+	float b = 2 * dot((ray.o - center), ray.d);
+	float c = dot(ray.o - center, ray.o - center) - radius * radius;
+
+	float t1 = (-b + sqrt(b * b - 4 * a * c) / 2 * a);
+	float t2 = (-b - sqrt(b * b - 4 * a * c) / 2 * a);
+
+	if (t1 > epsilon && t1 < hit.distance)
+	{
+		hit.position = ray.o + t1 * ray.d;
+
+		float3 n = GetSphereNormal(hit.position, radius);
+		hit.normal = n;
+		hit.distance = t1;
+		Shade(hit, ray, n);
+		return hit;
+	}
+	if (t2 > epsilon && t2 < hit.distance && t2 < t1)
+	{
+		hit.position = ray.o + t2 * ray.d;
+		float3 n = GetSphereNormal(hit.position, radius);
+		hit.normal = n;
+		hit.distance = t2;
+		Shade(hit, ray, n);
+	}
+
+	return hit;
+}
+
 
 [numthreads(32,32,1)]
 void RayTrace(uint3 id : SV_DispatchThreadID)
@@ -43,11 +110,30 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	uint width, height;
 	_RayTracer.GetDimensions(width, height);
 	
-	//Turn into -1 to 1 range for width and height
-	float2 uv = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2.0f - 1.0f);
+	//This is a ray for each pixel and in the pixel's center.
+	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
+	//Then range is shifted via 2 - 1.
+	float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
 
-	Ray ray = CreateCameraRay(uv);
+	Ray ray = CreateCameraRay(pixel);
 	// Write some colors
-	_RayTracer[id.xy] = float4(ray.direction * 0.5f + 0.5f, 1.0f);
+	//_RayTracer[id.xy] = float4(ray.direction * 0.5f + 0.5f, 1.0f);
+	//Create a plane.
+	float3 a = float3(0.5, 0, 0);
+	float3 b = float3(0, 0, 1);
+	float3 c = float3(1, 0, 0);
+
+	Hit hit;
+	hit.color = 0;
+	hit.normal = 0;
+	hit.position = 0;
+	hit.distance = 99999999;
+	IntersectSphere(hit, ray, 4, float3(0, 0, 0));
+	IntersectPlane(hit, ray, a, b, c);
+
+
+	_RayTracer[id.xy] = float4(hit.color, 1);
+
+
 }
 

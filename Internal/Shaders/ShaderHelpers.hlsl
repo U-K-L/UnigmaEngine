@@ -4,6 +4,7 @@
 #define UNITY_PI 3.14159265359
 
 #include "UnityCG.cginc"
+#include "UnityLightingCommon.cginc"
 
 struct NVector
 {
@@ -38,6 +39,24 @@ void GetTriangleNormalAndTSMatrix(float3 a, float3 b, float3 c, out float3 norma
     normal = normalize(cross(tangent, c - a));
     float3 bitangent = normalize(cross(tangent, normal));
     tangentTransform = transpose(float3x3(tangent, bitangent, normal));
+}
+
+float SphereSDF(float3 p, float r)
+{
+	float d = length(p) - r;
+    return d;
+}
+
+float3 GetSphereNormal(float3 p, float r)
+{
+	float3 eps = float3(0.0001, 0.0, 0.0);
+	//Sample the distance field at the point and at a small offset.
+	float3 n = float3(
+		SphereSDF(p + eps.xyy, r) - SphereSDF(p - eps.xyy, r),
+		SphereSDF(p + eps.yxy, r) - SphereSDF(p - eps.yxy, r),
+		SphereSDF(p + eps.yyx, r) - SphereSDF(p - eps.yyx, r));
+    
+	return normalize(n);
 }
 
 float rand(float3 co)

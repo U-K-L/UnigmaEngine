@@ -142,4 +142,26 @@ public class UnigmaFastMath : MonoBehaviour
     {
         return _dotProductResult;
     }
+
+    public void ReleaseBuffers()
+    {
+        ResultBuffer.Release();
+        ABuffer.Release();
+        BBuffer.Release();
+    }
+
+    public void OnDestroy()
+    {
+        ReleaseBuffers();
+    }
+
+    public void OnDisable()
+    {
+        ReleaseBuffers();
+    }
+
+    public void OnApplicationQuit()
+    {
+        ReleaseBuffers();
+    }
 }

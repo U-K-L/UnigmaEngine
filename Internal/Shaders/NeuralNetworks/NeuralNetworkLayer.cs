@@ -42,15 +42,15 @@ public class NeuralNetworkLayer : MonoBehaviour
     {
         //Just calculate all the neurons against the weights using a dot product.
         //Then add the bias.
-        //float[] Y = UnigmaFastMath._instance.Mul(_inputs, _weights, 0, _inputs.Length, 1);
-        //Y = UnigmaFastMath._instance.Add(Y,_bias);
-        //UnigmaHelpers.PrintOutMatrix(Y, 3, 3);
-        return null;
+        float[] Y = UnigmaFastMath._instance.Mul(_inputs, _weights, 0, _inputs.Length, 1);
+        Y = UnigmaFastMath._instance.Add(Y,_bias);
+        UnigmaHelpers.PrintOutMatrix(Y, 3, 3);
+        return Y;
     }
 
     void BackwardPropagation(float[] weights)
     {
-        float[] weights_gradient = UnigmaFastMath._instance.Mul(new float[] { 1, 2, 3 }, new float[] { 1, 2, 3 }, 1, _inputs.Length, _inputs.Length);
+        float[] weights_gradient = UnigmaFastMath._instance.Mul(weights, _inputs, 1, _inputs.Length, _inputs.Length);
         UnigmaHelpers.PrintOutMatrix(weights_gradient, 3, 3);
     }
 }

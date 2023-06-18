@@ -47,7 +47,7 @@ Ray CreateCameraRay(float2 uv)
 Hit Shade(inout Hit hit, Ray ray, float3 normal)
 {
 	float3 lightDir = normalize(_WorldSpaceLightPos0);
-	float NdotL = clamp(dot(normal, lightDir), 0.0125, 1.0);
+	float NdotL = clamp(dot(normal, lightDir), 0.0825, 1.0);
 	hit.color = NdotL * _LightColor0.xyz;
 	return hit;
 }
@@ -56,9 +56,10 @@ Hit Shade(inout Hit hit, Ray ray, float3 normal)
 Hit IntersectPlane(inout Hit hit, Ray ray, float3 a, float3 b, float3 c)
 {
 
-	float3 n = -GetTriangleNormal(a, b, c);
+	float3 n = GetTriangleNormal(a, b, c);
 
-	float t = dot(a - ray.o, n) / dot(ray.d, n);
+	float3 center = GetTriangleCenter(a, b, c);
+	float t = dot(center - ray.o, n) / dot(ray.d, n);
 	if (t > epsilon && t < hit.distance)
 	{
 		hit.normal = n;
@@ -77,11 +78,14 @@ Hit IntersectSphere(inout Hit hit, Ray ray, float radius, float3 center)
 	float a = dot(ray.d, ray.d);
 	float b = 2 * dot((ray.o - center), ray.d);
 	float c = dot(ray.o - center, ray.o - center) - radius * radius;
+	float d = b * b - 4 * a * c;
 
 	float t1 = (-b + sqrt(b * b - 4 * a * c) / 2 * a);
 	float t2 = (-b - sqrt(b * b - 4 * a * c) / 2 * a);
 
-	if (t1 > epsilon && t1 < hit.distance)
+	if(d < 0)
+		return hit;
+	if (t1 > epsilon && t1 < hit.distance && t1 < t2)
 	{
 		hit.position = ray.o + t1 * ray.d;
 
@@ -91,7 +95,7 @@ Hit IntersectSphere(inout Hit hit, Ray ray, float radius, float3 center)
 		Shade(hit, ray, n);
 		return hit;
 	}
-	if (t2 > epsilon && t2 < hit.distance && t2 < t1)
+	else if (t2 > epsilon && t2 < hit.distance && t2 < t1)
 	{
 		hit.position = ray.o + t2 * ray.d;
 		float3 n = GetSphereNormal(hit.position, radius);
@@ -99,7 +103,6 @@ Hit IntersectSphere(inout Hit hit, Ray ray, float radius, float3 center)
 		hit.distance = t2;
 		Shade(hit, ray, n);
 	}
-
 	return hit;
 }
 
@@ -119,16 +122,17 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	// Write some colors
 	//_RayTracer[id.xy] = float4(ray.direction * 0.5f + 0.5f, 1.0f);
 	//Create a plane.
-	float3 a = float3(0.5, 0, 0);
-	float3 b = float3(0, 0, 1);
-	float3 c = float3(1, 0, 0);
+	float3 a = float3(1, -10, 0);
+	float3 b = float3(-1, -10, 0);
+	float3 c = float3(0.5, -10, 0.5);
 
 	Hit hit;
 	hit.color = 0;
 	hit.normal = 0;
 	hit.position = 0;
 	hit.distance = 99999999;
-	IntersectSphere(hit, ray, 4, float3(0, 0, 0));
+	
+	IntersectSphere(hit, ray, 4, float3(0, 2, 0));
 	IntersectPlane(hit, ray, a, b, c);
 
 

@@ -7,6 +7,7 @@ public class RayTracer : MonoBehaviour
     public ComputeShader RayTracingShader;
     private RenderTexture _target;
     private Camera _cam;
+    public Texture skyBox;
     void Awake()
     {
         _cam = GetComponent<Camera>();
@@ -17,13 +18,14 @@ public class RayTracer : MonoBehaviour
     {
         
     }
-
+    
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         InitializeRenderTexture();
         RayTracingShader.SetTexture(0, "_RayTracer", _target);
         RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
+        RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
         int threadGroupsX = Mathf.CeilToInt(Screen.width / 32.0f);
         int threadGroupsY = Mathf.CeilToInt(Screen.height / 32.0f);
         RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);

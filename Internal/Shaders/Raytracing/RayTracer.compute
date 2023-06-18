@@ -5,12 +5,15 @@
 RWTexture2D<float4> _RayTracer;
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
+Texture2D<float4> _SkyBoxTexture;
+SamplerState sampler_SkyBoxTexture;
 float epsilon = 0.001;
 struct Ray
 {
 	float3 o;
 	float3 d;
 	float2 os; //pixel screen space.
+	float3 energy;
 };
 
 struct Hit
@@ -27,6 +30,7 @@ Ray CreateRay(float3 og, float3 dir, float2 pixel)
 	ray.o = og;
 	ray.d = dir;
 	ray.os = pixel;
+	ray.energy = float3(1, 1, 1);
 	return ray;
 }
 
@@ -42,6 +46,16 @@ Ray CreateCameraRay(float2 uv)
 	dir = mul(_CameraToWorld, float4(dir, 0)).xyz; //Take this 3D pixel point and make it world position.
 	dir = normalize(dir);
 	return CreateRay(og, dir, uv);
+}
+
+float4 SampleSkyBox(in Ray ray)
+{
+	float3 dir = normalize(ray.d);
+	float u = 0.5 + atan2(dir.z, dir.x) / (2 * UNITY_PI);
+	float v = 0.5 - asin(dir.y) / UNITY_PI;
+	return _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, float2(u, v), 0);
+	
+	
 }
 
 Hit Shade(inout Hit hit, Ray ray, float3 normal)
@@ -66,6 +80,7 @@ Hit IntersectPlane(inout Hit hit, Ray ray, float3 a, float3 b, float3 c)
 		hit.distance = t;
 		hit.position = ray.o + t * ray.d;
 		Shade(hit, ray, n);
+		hit.color *= 20/t;
 	}
 	return hit;
 }
@@ -132,11 +147,19 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	hit.position = 0;
 	hit.distance = 99999999;
 	
-	IntersectSphere(hit, ray, 4, float3(0, 2, 0));
+	for (int i = 0; i < 10; i++)
+	{
+		for (int j = 0; j < 10; j++)
+		{
+			float3 center = float3(i, 0, j);
+			IntersectSphere(hit, ray, 0.5, center);
+		}
+	}
+	//IntersectSphere(hit, ray, 4, float3(0, 2, 0));
 	IntersectPlane(hit, ray, a, b, c);
 
 
-	_RayTracer[id.xy] = float4(hit.color, 1);
+	_RayTracer[id.xy] = SampleSkyBox(ray);//float4(hit.color, 1);
 
 
 }

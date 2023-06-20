@@ -59,6 +59,12 @@ float3 GetSphereNormal(float3 p, float r)
 	return normalize(n);
 }
 
+float rand(float val)
+{
+	float3 co = float3(val, val, val);
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+}
+
 float rand(float3 co)
 {
     return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);

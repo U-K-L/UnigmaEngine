@@ -52,13 +52,11 @@ float4 SampleSkyBox(in Ray ray)
 {
 	float3 dir = normalize(ray.d);
 	float u = 0.5 + atan2(dir.z, dir.x) / (2 * UNITY_PI);
-	float v = 0.5 - asin(dir.y) / UNITY_PI;
+	float v = 0.5 - asin(-dir.y) / UNITY_PI;
 	return _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, float2(u, v), 0);
-	
-	
 }
 
-Hit Shade(inout Hit hit, Ray ray, float3 normal)
+Hit Shade(inout Hit hit, inout Ray ray, float3 normal)
 {
 	float3 lightDir = normalize(_WorldSpaceLightPos0);
 	float NdotL = clamp(dot(normal, lightDir), 0.0825, 1.0);
@@ -66,8 +64,30 @@ Hit Shade(inout Hit hit, Ray ray, float3 normal)
 	return hit;
 }
 
+float3 Reflection(inout Ray ray, inout Hit hit)
+{
+	if (hit.distance < 149)
+	{
+		float3 spec = float3(0.6, 0.6, 0.6);
+		ray.o = hit.position + hit.normal * 0.001;
+		
+		ray.d = reflect(ray.d, hit.normal);
+		ray.energy *= spec;
+		hit.distance = 9999999;
+		//hit.normal = 999999999;
+		hit.color *= ray.energy;
+		return 1;
+	}
+	else
+	{
+		hit.color = SampleSkyBox(ray).xyz*ray.energy;
+		ray.energy = 0;
+		return SampleSkyBox(ray).xyz;
+	}
+}
 
-Hit IntersectPlane(inout Hit hit, Ray ray, float3 a, float3 b, float3 c)
+
+void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)
 {
 
 	float3 n = GetTriangleNormal(a, b, c);
@@ -82,12 +102,11 @@ Hit IntersectPlane(inout Hit hit, Ray ray, float3 a, float3 b, float3 c)
 		Shade(hit, ray, n);
 		hit.color *= 20/t;
 	}
-	return hit;
 }
 
 
 
-Hit IntersectSphere(inout Hit hit, Ray ray, float radius, float3 center)
+Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
 {
 	//Quadratic formula.
 	float a = dot(ray.d, ray.d);
@@ -121,6 +140,26 @@ Hit IntersectSphere(inout Hit hit, Ray ray, float radius, float3 center)
 	return hit;
 }
 
+void Trace(inout Ray ray, inout Hit hit)
+{
+	float3 a = float3(1, -3, 0);
+	float3 b = float3(-1, -3, 0);
+	float3 c = float3(0,-3,0.5);
+	
+	float3 center = float3(0, 0, 0);
+	IntersectPlane(hit, ray, a, b, c);
+	IntersectSphere(hit, ray, 1, center);
+for (int i = -5; i < 5; i++)
+{
+	for (int j = -5; j < 5; j++)
+	{
+		float3 center = float3(i*2, 0, j*2);
+		IntersectPlane(hit, ray, a, b, c);
+		IntersectSphere(hit, ray, 1, center);
+	}
+}
+}
+
 
 [numthreads(32,32,1)]
 void RayTrace(uint3 id : SV_DispatchThreadID)
@@ -128,38 +167,30 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	uint width, height;
 	_RayTracer.GetDimensions(width, height);
 	
+	Hit hit;
+	hit.normal = 0;
+	hit.position = 0;
+	hit.distance = 150;
+	hit.color = 0;
 	//This is a ray for each pixel and in the pixel's center.
 	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
 	//Then range is shifted via 2 - 1.
 	float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
-
 	Ray ray = CreateCameraRay(pixel);
-	// Write some colors
-	//_RayTracer[id.xy] = float4(ray.direction * 0.5f + 0.5f, 1.0f);
-	//Create a plane.
-	float3 a = float3(1, -10, 0);
-	float3 b = float3(-1, -10, 0);
-	float3 c = float3(0.5, -10, 0.5);
-
-	Hit hit;
-	hit.color = 0;
-	hit.normal = 0;
-	hit.position = 0;
-	hit.distance = 99999999;
-	
-	for (int i = 0; i < 10; i++)
+	float4 result = 0;
+	for (int k = 0; k < 80; k++)
 	{
-		for (int j = 0; j < 10; j++)
-		{
-			float3 center = float3(i, 0, j);
-			IntersectSphere(hit, ray, 0.5, center);
-		}
+
+		Trace(ray, hit);
+		float3 r = Reflection(ray, hit);
+		result += float4(hit.color, 1);
+		if (!any(ray.energy))
+			break;
+
 	}
-	//IntersectSphere(hit, ray, 4, float3(0, 2, 0));
-	IntersectPlane(hit, ray, a, b, c);
 
 
-	_RayTracer[id.xy] = SampleSkyBox(ray);//float4(hit.color, 1);
+	_RayTracer[id.xy] = result;
 
 
 }

@@ -103,8 +103,40 @@ void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)
 		hit.color *= 20/t;
 	}
 }
+//Moller method.
+bool TriangleTrace(Ray ray, float3 a, float3 b, float3 c)
+{
+	float3 edge1 = b - a;
+	float3 edge2 = c - a;
+	
+	float3 pvec = cross(ray.d, edge2);
+	
+	float determinate = dot(edge1, pvec);
 
+	if (determinate < epsilon)
+		return false;
+	
+	float3 tvec = ray.o - a;
+	float inv_det = 1.0 / determinate;
+	
+	float u = dot(tvec, pvec) * inv_det;
+	if (u < 0.0 || u > determinate)
+	{
+		return false;
+	}
+	
+	float3 qvec = cross(tvec, edge1);
+	float v = dot(ray.d, qvec) * inv_det;
+	if (v < 0.0 || u + v > 1.0)
+	{
+		return false;
+	}
 
+	//Final calculate of T after crammer's rule.
+	float t = dot(edge2, qvec) * inv_det;
+	
+	return true;
+}
 
 Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
 {

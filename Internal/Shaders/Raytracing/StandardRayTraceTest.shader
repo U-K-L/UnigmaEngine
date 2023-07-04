@@ -77,6 +77,9 @@ Shader "Custom/StandardRayTraceTest"
                 float2 texcoord;
             };
 
+            Texture2D<float4> _MainTex;
+			SamplerState sampler_MainTex;
+
             [shader("closesthit")]
             void MyHitShader(inout Payload payload : SV_RayPayload,
                 AttributeData attributes : SV_IntersectionAttributes)
@@ -97,8 +100,12 @@ Shader "Custom/StandardRayTraceTest"
                 vInterpolated.texcoord = v0.texcoord * barycentrics.x + v1.texcoord * barycentrics.y + v2.texcoord * barycentrics.z;
                 
                 float2 texcoord = vInterpolated.texcoord;
+
+				float4 tex = _MainTex.SampleLevel(sampler_MainTex, texcoord, 0);
                 
-                payload.color = float4(texcoord, 1,1);
+                
+                payload.color = tex;
+                
             }
 
             ENDHLSL

@@ -7,7 +7,7 @@ float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
 Texture2D<float4> _SkyBoxTexture;
 SamplerState sampler_SkyBoxTexture;
-float epsilon = 0.001;
+float epsilon = 0.00001;
 struct Ray
 {
 	float3 o;
@@ -103,8 +103,9 @@ void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)
 		hit.color *= 20/t;
 	}
 }
+
 //Moller method.
-bool TriangleTrace(Ray ray, float3 a, float3 b, float3 c)
+bool TriangleTrace(Ray ray, float3 a, float3 b, float3 c, inout float t, inout float u, inout float v)
 {
 	float3 edge1 = b - a;
 	float3 edge2 = c - a;
@@ -119,21 +120,21 @@ bool TriangleTrace(Ray ray, float3 a, float3 b, float3 c)
 	float3 tvec = ray.o - a;
 	float inv_det = 1.0 / determinate;
 	
-	float u = dot(tvec, pvec) * inv_det;
-	if (u < 0.0 || u > determinate)
+	u = dot(tvec, pvec) * inv_det;
+	if (u < 0.0 || u > 1.0)
 	{
 		return false;
 	}
 	
 	float3 qvec = cross(tvec, edge1);
-	float v = dot(ray.d, qvec) * inv_det;
+	v = dot(ray.d, qvec) * inv_det;
 	if (v < 0.0 || u + v > 1.0)
 	{
 		return false;
 	}
 
 	//Final calculate of T after crammer's rule.
-	float t = dot(edge2, qvec) * inv_det;
+	t = dot(edge2, qvec) * inv_det;
 	
 	return true;
 }
@@ -181,15 +182,15 @@ void Trace(inout Ray ray, inout Hit hit)
 	float3 center = float3(0, 0, 0);
 	IntersectPlane(hit, ray, a, b, c);
 	IntersectSphere(hit, ray, 1, center);
-for (int i = -5; i < 5; i++)
-{
-	for (int j = -5; j < 5; j++)
+	for (int i = -5; i < 5; i++)
 	{
-		float3 center = float3(i*2, 0, j*2);
-		IntersectPlane(hit, ray, a, b, c);
-		IntersectSphere(hit, ray, 1, center);
+		for (int j = -5; j < 5; j++)
+		{
+			float3 center = float3(i*2, 0, j*2);
+			IntersectPlane(hit, ray, a, b, c);
+			IntersectSphere(hit, ray, 1, center);
+		}
 	}
-}
 }
 
 
@@ -202,7 +203,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	Hit hit;
 	hit.normal = 0;
 	hit.position = 0;
-	hit.distance = 150;
+	hit.distance = 1500;
 	hit.color = 0;
 	//This is a ray for each pixel and in the pixel's center.
 	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
@@ -210,19 +211,42 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
 	Ray ray = CreateCameraRay(pixel);
 	float4 result = 0;
+
+	// Trace single triangle
+	float3 v0 = float3(-150, 0, -150);
+	float3 v1 = float3(150, 0, -150);
+	float3 v2 = float3(0, 150 * sqrt(2), -150);
+	float t, u, v;
+	
+	if (TriangleTrace(ray, v0, v1, v2, t, u, v))
+	{
+		if (t > 0 && t < hit.distance)
+		{
+			hit.distance = t;
+			hit.position = ray.o + t * ray.d;
+			hit.normal = normalize(cross(v1 - v0, v2 - v0));
+			hit.color = 1.00f;
+
+		}
+	}
+	/*
 	for (int k = 0; k < 80; k++)
 	{
 
 		Trace(ray, hit);
 		float3 r = Reflection(ray, hit);
 		result += float4(hit.color, 1);
+
+
+
+		
 		if (!any(ray.energy))
 			break;
 
 	}
+	*/
 
-
-	_RayTracer[id.xy] = result;
+	_RayTracer[id.xy] = float4(hit.color, 1);
 
 
 }

@@ -220,4 +220,5 @@ void Add(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float>
 	result[currentIndex] = A[currentIndex] + B[currentIndex];
 }
 
+
 #endif

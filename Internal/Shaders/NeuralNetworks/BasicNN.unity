@@ -223,6 +223,9 @@ MonoBehaviour:
   RayTracingShader: {fileID: 7200000, guid: c266aebfe3ff7f147b4ddf8c842035b9, type: 3}
   skyBox: {fileID: 2800000, guid: a78d8299279fda54098aca1c72ecfae1, type: 3}
   _textSizeDivision: 0
+  RayTracingLayers:
+    serializedVersion: 2
+    m_Bits: 4194103
 --- !u!1 &1874997814
 GameObject:
   m_ObjectHideFlags: 0

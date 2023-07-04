@@ -1,24 +1,38 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 
 public class RayTracer : MonoBehaviour
 {
     public ComputeShader RayTracingShader;
+    public RayTracingShader RayTracingShaderScript;
     private RenderTexture _target;
     private Vector2 _previousDimen = new Vector2(0, 0);
     private Camera _cam;
     public Texture skyBox;
     public float _textSizeDivision = 0;
+
+    public LayerMask RayTracingLayers;
+    RayTracingAccelerationStructure _AccelerationStructure;
     void Awake()
     {
         _cam = GetComponent<Camera>();
+
+        //Create GPU accelerated structure.
+        var settings = new RayTracingAccelerationStructure.RASSettings();
+        settings.layerMask = RayTracingLayers;
+        //Change this to manual after some work.
+        settings.managementMode = RayTracingAccelerationStructure.ManagementMode.Automatic;
+        settings.rayTracingModeMask = RayTracingAccelerationStructure.RayTracingModeMask.Everything;
+
+        _AccelerationStructure = new RayTracingAccelerationStructure(settings);
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        _AccelerationStructure.Build();
     }
     
     private void OnRenderImage(RenderTexture source, RenderTexture destination)

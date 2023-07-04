@@ -2,7 +2,7 @@
 #include "UnityRaytracingMeshUtils.cginc"
 #include "UnityShaderVariables.cginc"
 
-RWTexture2D<float4> RenderTarget;
+RWTexture2D<float4> _RayTracedImage;
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
 
@@ -46,7 +46,7 @@ void MyRaygenShader()
     
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    RenderTarget[id.xy] = payload.color;
+    _RayTracedImage[id.xy] = 1;
 }
 
 [shader("miss")]

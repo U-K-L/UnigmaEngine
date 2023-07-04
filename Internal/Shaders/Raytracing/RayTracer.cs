@@ -6,7 +6,7 @@ using UnityEngine.Experimental.Rendering;
 public class RayTracer : MonoBehaviour
 {
     public ComputeShader RayTracingShader;
-    public RayTracingShader RayTracingShaderScript;
+    public RayTracingShader RayTracingShaderAccelerated;
     private RenderTexture _target;
     private Vector2 _previousDimen = new Vector2(0, 0);
     private Camera _cam;
@@ -15,6 +15,8 @@ public class RayTracer : MonoBehaviour
 
     public LayerMask RayTracingLayers;
     RayTracingAccelerationStructure _AccelerationStructure;
+
+    int width, height = 0;
     void Awake()
     {
         _cam = GetComponent<Camera>();
@@ -32,21 +34,40 @@ public class RayTracer : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        //Builds the BVH (Bounding Volum Hierachy aka objects for ray to hit)
         _AccelerationStructure.Build();
     }
-    
-    private void OnRenderImage(RenderTexture source, RenderTexture destination)
+
+    void DispatchGPURayTrace()
     {
-        int width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(_textSizeDivision)))), Screen.width), 32);
-        int height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(_textSizeDivision)))), Screen.height), 32);
-        InitializeRenderTexture(width, height);
         RayTracingShader.SetTexture(0, "_RayTracer", _target);
         RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
+
         int threadGroupsX = Mathf.CeilToInt(width / 32.0f);
         int threadGroupsY = Mathf.CeilToInt(height / 32.0f);
         RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
+    }
+
+    void DispatchAcceleratedRayTrace()
+    {
+        RayTracingShaderAccelerated.SetTexture("_RayTracedImage", _target);
+        RayTracingShaderAccelerated.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
+        RayTracingShaderAccelerated.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
+        RayTracingShaderAccelerated.SetShaderPass("AccelerationStructurePass");
+        RayTracingShaderAccelerated.SetAccelerationStructure("_RaytracingAccelerationStructure", _AccelerationStructure);
+        
+        RayTracingShaderAccelerated.Dispatch("MyRaygenShader", width, height, 1);
+    }
+    
+    private void OnRenderImage(RenderTexture source, RenderTexture destination)
+    {
+        width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(_textSizeDivision)))), Screen.width), 32);
+        height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(_textSizeDivision)))), Screen.height), 32);
+        InitializeRenderTexture(width, height);
+        //DispatchGPURayTrace();
+        DispatchAcceleratedRayTrace();
 
         Graphics.Blit(_target, destination);
     }

@@ -55,7 +55,7 @@ public class RayTracer : MonoBehaviour
         RayTracingShaderAccelerated.SetTexture("_RayTracedImage", _target);
         RayTracingShaderAccelerated.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         RayTracingShaderAccelerated.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
-        RayTracingShaderAccelerated.SetShaderPass("AccelerationStructurePass");
+        RayTracingShaderAccelerated.SetShaderPass("MyRaytraceShaderPass");
         RayTracingShaderAccelerated.SetAccelerationStructure("_RaytracingAccelerationStructure", _AccelerationStructure);
         
         RayTracingShaderAccelerated.Dispatch("MyRaygenShader", width, height, 1);

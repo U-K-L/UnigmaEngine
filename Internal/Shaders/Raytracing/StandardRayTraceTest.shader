@@ -1,5 +1,6 @@
 Shader "Custom/StandardRayTraceTest"
 {
+
     Properties
     {
         _Color ("Color", Color) = (1,1,1,1)
@@ -56,39 +57,48 @@ Shader "Custom/StandardRayTraceTest"
             Name "MyRaytraceShaderPass"
 
             HLSLPROGRAM
-
             #pragma raytracing MyHitShader
-
-            struct MyPayload
+            #include "UnityRaytracingMeshUtils.cginc"
+            
+            struct Vertex
+            {
+                float2 texcoord;
+            };
+        
+            struct Payload
             {
                 float4 color;
+                
             };
 
             struct AttributeData
             {
                 float2 barycentrics;
+                float2 texcoord;
             };
-            
-            [shader("raygeneration)]
-                void RayGeneration() {}
-
-            [shader("intersection")]
-            void Intersection() {}
-
-            [shader("miss")]
-            void Miss(inout MyPayload payload : SV_RayPayload) {}
 
             [shader("closesthit")]
-            void ClosestHit(inout MyPayload payload : SV_RayPayload, MyAttributes attributes : SV_IntersectionAttributes) {}
-
-            [shader("anyhit")]
-            void AnyHit(inout MyPayload payload : SV_RayPayload, MyAttributes attributes : SV_IntersectionAttributes) {}
-
-            [shader("closesthit")]
-            void MyHitShader(inout MyPayload payload : SV_RayPayload,
+            void MyHitShader(inout Payload payload : SV_RayPayload,
                 AttributeData attributes : SV_IntersectionAttributes)
             {
-                payload.color = 1;
+
+                uint primitiveIndex = PrimitiveIndex();
+                uint3 triangleIndicies = UnityRayTracingFetchTriangleIndices(primitiveIndex);
+                Vertex v0, v1, v2;
+                v0.texcoord = UnityRayTracingFetchVertexAttribute2(triangleIndicies.x, kVertexAttributeTexCoord0);
+
+                v1.texcoord = UnityRayTracingFetchVertexAttribute2(triangleIndicies.y, kVertexAttributeTexCoord0);
+
+                v2.texcoord = UnityRayTracingFetchVertexAttribute2(triangleIndicies.z, kVertexAttributeTexCoord0);
+                float3 barycentrics = float3(1.0 - attributes.barycentrics.x - attributes.barycentrics.y, attributes.barycentrics.x, attributes.barycentrics.y);
+
+                Vertex vInterpolated;
+
+                vInterpolated.texcoord = v0.texcoord * barycentrics.x + v1.texcoord * barycentrics.y + v2.texcoord * barycentrics.z;
+                
+                float2 texcoord = vInterpolated.texcoord;
+                
+                payload.color = float4(texcoord, 1,1);
             }
 
             ENDHLSL

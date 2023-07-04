@@ -43,10 +43,12 @@ void MyRaygenShader()
 
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
-    
+
+
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _RayTracedImage[id.xy] = 1;
+    _RayTracedImage[id.xy] = payload.color;
+    
 }
 
 [shader("miss")]

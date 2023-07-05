@@ -14,6 +14,8 @@ public class RayTracer : MonoBehaviour
     public float _textSizeDivision = 0;
 
     public LayerMask RayTracingLayers;
+
+    public List<Renderer> _RayTracedObjects = new List<Renderer>();
     RayTracingAccelerationStructure _AccelerationStructure;
 
     int width, height = 0;
@@ -66,8 +68,8 @@ public class RayTracer : MonoBehaviour
         width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(_textSizeDivision)))), Screen.width), 32);
         height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(_textSizeDivision)))), Screen.height), 32);
         InitializeRenderTexture(width, height);
-        //DispatchGPURayTrace();
-        DispatchAcceleratedRayTrace();
+        DispatchGPURayTrace();
+        //DispatchAcceleratedRayTrace();
 
         Graphics.Blit(_target, destination);
     }

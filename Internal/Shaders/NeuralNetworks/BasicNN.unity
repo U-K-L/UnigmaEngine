@@ -228,6 +228,8 @@ MonoBehaviour:
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
+  _RayTracedObjects:
+  - {fileID: 2082801465}
 --- !u!1 &1874997814
 GameObject:
   m_ObjectHideFlags: 0

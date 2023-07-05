@@ -24,6 +24,13 @@ struct Hit
 	float3 color;
 };
 
+struct MeshObjects
+{
+	float4x4 localToWorld;
+	int indicesOffset;
+	int indicesCount;
+}
+
 Ray CreateRay(float3 og, float3 dir, float2 pixel)
 {
 	Ray ray;

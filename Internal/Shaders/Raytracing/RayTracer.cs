@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
@@ -19,6 +20,19 @@ public class RayTracer : MonoBehaviour
     RayTracingAccelerationStructure _AccelerationStructure;
 
     int width, height = 0;
+
+    //Structs for ray tracing.
+    struct MeshObjects
+    {
+        public Matrix4x4 localToWorld;
+        public int indicesOffset;
+        public int indicesCount;
+    }
+    
+    private List<MeshObjects> meshObjects = new List<MeshObjects>();
+    private List<Vector3> Vertices = new List<Vector3>();
+    private List<int> Indices = new List<int>();
+    
     void Awake()
     {
         _cam = GetComponent<Camera>();
@@ -38,6 +52,27 @@ public class RayTracer : MonoBehaviour
     {
         //Builds the BVH (Bounding Volum Hierachy aka objects for ray to hit)
         _AccelerationStructure.Build();
+    }
+
+    void BuildTriangleList()
+    {
+        Vertices.Clear();
+        Indices.Clear();
+
+        foreach (Renderer r in _RayTracedObjects)
+        {
+            MeshFilter mf = r.GetComponent<MeshFilter>();
+            if (mf)
+            {
+                Mesh m = mf.sharedMesh;
+                int startVert = Vertices.Count;
+                int startIndex = Indices.Count;
+
+                Vertices.AddRange(m.vertices);
+                var indices = m.GetIndices(0);
+                Indices.AddRange(indices.Select(index => index + startVert));
+            }
+        }
     }
 
     void DispatchGPURayTrace()

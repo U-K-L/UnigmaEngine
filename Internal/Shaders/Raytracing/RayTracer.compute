@@ -24,12 +24,17 @@ struct Hit
 	float3 color;
 };
 
-struct MeshObjects
+struct MeshObject
 {
 	float4x4 localToWorld;
 	int indicesOffset;
 	int indicesCount;
-}
+};
+
+
+StructuredBuffer<MeshObject> _MeshObjects;
+StructuredBuffer<float3> _Vertices;
+StructuredBuffer<int> _Indices;
 
 Ray CreateRay(float3 og, float3 dir, float2 pixel)
 {
@@ -200,6 +205,30 @@ void Trace(inout Ray ray, inout Hit hit)
 	}
 }
 
+void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
+{
+	uint offset = meshObject.indicesOffset;
+	uint count = offset + meshObject.indicesCount;
+
+	for (uint i = offset; i < count; i += 3)
+	{
+		float3 v0 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i]], 1))).xyz;
+		float3 v1 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 1]], 1))).xyz;
+		float3 v2 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 2]], 1))).xyz;
+		float t, u, v;
+		if (TriangleTrace(ray, v0, v1, v2, t, u, v))
+		{
+			if (t > 0 && t < hit.distance)
+			{
+				hit.distance = t;
+				hit.position = ray.o + t * ray.d;
+				hit.normal = normalize(cross(v1 - v0, v2 - v0));
+				hit.color = 1.00f;
+			}
+		}
+	}
+}
+
 
 [numthreads(32,32,1)]
 void RayTrace(uint3 id : SV_DispatchThreadID)
@@ -220,11 +249,21 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	float4 result = 0;
 
 	// Trace single triangle
+	/*
 	float3 v0 = float3(-150, 0, -150);
 	float3 v1 = float3(150, 0, -150);
 	float3 v2 = float3(0, 150 * sqrt(2), -150);
 	float t, u, v;
-	
+
+	*/
+	uint numOfStructs, sizeOfStrides; 
+	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
+	for (int k = 0; k < numOfStructs; k++)
+	{
+		MeshObject meshObject = _MeshObjects[k];
+		TraceMesh(ray, hit, meshObject);
+	}
+	/*
 	if (TriangleTrace(ray, v0, v1, v2, t, u, v))
 	{
 		if (t > 0 && t < hit.distance)
@@ -236,6 +275,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 
 		}
 	}
+	*/
 	/*
 	for (int k = 0; k < 80; k++)
 	{

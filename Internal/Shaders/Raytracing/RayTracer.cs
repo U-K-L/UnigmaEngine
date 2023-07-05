@@ -21,15 +21,19 @@ public class RayTracer : MonoBehaviour
 
     int width, height = 0;
 
+    ComputeBuffer meshObjectBuffer;
+    ComputeBuffer verticesObjectBuffer;
+    ComputeBuffer indicesObjectBuffer;
+
     //Structs for ray tracing.
-    struct MeshObjects
+    struct MeshObject
     {
         public Matrix4x4 localToWorld;
         public int indicesOffset;
         public int indicesCount;
     }
     
-    private List<MeshObjects> meshObjects = new List<MeshObjects>();
+    private List<MeshObject> meshObjects = new List<MeshObject>();
     private List<Vector3> Vertices = new List<Vector3>();
     private List<int> Indices = new List<int>();
     
@@ -45,6 +49,8 @@ public class RayTracer : MonoBehaviour
         settings.rayTracingModeMask = RayTracingAccelerationStructure.RayTracingModeMask.Everything;
 
         _AccelerationStructure = new RayTracingAccelerationStructure(settings);
+        //Add in the objects and vertices.
+        BuildTriangleList();
     }
 
     // Update is called once per frame
@@ -71,8 +77,23 @@ public class RayTracer : MonoBehaviour
                 Vertices.AddRange(m.vertices);
                 var indices = m.GetIndices(0);
                 Indices.AddRange(indices.Select(index => index + startVert));
+
+                // Add the object itself
+                meshObjects.Add(new MeshObject()
+                {
+                    localToWorld = r.transform.localToWorldMatrix,
+                    indicesOffset = startIndex,
+                    indicesCount = indices.Length
+                });
             }
         }
+        meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 72);
+        verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 12);
+        indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
+        verticesObjectBuffer.SetData(Vertices);
+        RayTracingShader.SetBuffer(0, "_Vertices", verticesObjectBuffer);
+        indicesObjectBuffer.SetData(Indices);
+        RayTracingShader.SetBuffer(0, "_Indices", indicesObjectBuffer);
     }
 
     void DispatchGPURayTrace()
@@ -82,6 +103,23 @@ public class RayTracer : MonoBehaviour
         RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
 
+        //Update position of mesh objects.
+        for (int i = 0; i < _RayTracedObjects.Count; i++)
+        {
+            MeshObject meshobj = new MeshObject();
+            meshobj.localToWorld = _RayTracedObjects[i].transform.localToWorldMatrix;
+            meshobj.indicesOffset = meshObjects[i].indicesOffset;
+            meshobj.indicesCount = meshObjects[i].indicesCount;
+            meshObjects[i] = meshobj;
+        }
+        if (meshObjectBuffer.count > 0)
+        {
+            meshObjectBuffer.SetData(meshObjects);
+            RayTracingShader.SetBuffer(0, "_MeshObjects", meshObjectBuffer);
+        }
+
+        meshObjectBuffer.SetData(meshObjects);
+        RayTracingShader.SetBuffer(0, "_MeshObjects", meshObjectBuffer);
         int threadGroupsX = Mathf.CeilToInt(width / 32.0f);
         int threadGroupsY = Mathf.CeilToInt(height / 32.0f);
         RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
@@ -103,8 +141,8 @@ public class RayTracer : MonoBehaviour
         width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(_textSizeDivision)))), Screen.width), 32);
         height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(_textSizeDivision)))), Screen.height), 32);
         InitializeRenderTexture(width, height);
-        DispatchGPURayTrace();
-        //DispatchAcceleratedRayTrace();
+        //DispatchGPURayTrace();
+        DispatchAcceleratedRayTrace();
 
         Graphics.Blit(_target, destination);
     }

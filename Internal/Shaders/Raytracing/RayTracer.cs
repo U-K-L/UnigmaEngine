@@ -37,7 +37,7 @@ public class RayTracer : MonoBehaviour
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
 
-    public List<Renderer> _RayTracedObjects = new List<Renderer>();
+    private List<Renderer> _RayTracedObjects = new List<Renderer>();
     RayTracingAccelerationStructure _AccelerationStructure;
 
     
@@ -61,11 +61,32 @@ public class RayTracer : MonoBehaviour
     void Awake()
     {
         _cam = GetComponent<Camera>();
+        AddObjectsToList();
+
+        //Guard clause, ensure there are objects to ray trace.
+        if (_RayTracedObjects.Count == 0)
+        {
+            Debug.LogWarning("No objects to ray trace. Please add objects to the RayTracingLayers.");
+            return;
+        }
+
         if (UnigmaSettings.GetIsRTXEnabled())
             CreateAcceleratedStructure();
         else
             CreateNonAcceleratedStructure();
 
+    }
+
+    void AddObjectsToList()
+    {
+        foreach (var obj in FindObjectsOfType<Renderer>())
+        {
+            //Check if object in the RaytracingLayers.
+            if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
+            {
+                _RayTracedObjects.Add(obj);
+            }
+        }
     }
 
     void CreateAcceleratedStructure()
@@ -92,6 +113,13 @@ public class RayTracer : MonoBehaviour
 
     void Update()
     {
+        //Guard clause, ensure there are objects to ray trace.
+        if (_RayTracedObjects.Count == 0)
+        {
+            Debug.LogWarning("No objects to ray trace. Please add objects to the RayTracingLayers.");
+            return;
+        }
+        
         if (UnigmaSettings.GetIsRTXEnabled())
             UpdateAcceleratedRayTracer();
         else
@@ -112,6 +140,13 @@ public class RayTracer : MonoBehaviour
     
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
+        //Guard clause, ensure there are objects to ray trace.
+        if (_RayTracedObjects.Count == 0)
+        {
+            Debug.LogWarning("No objects to ray trace. Please add objects to the RayTracingLayers.");
+            return;
+        }
+        
         _width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.width), 32);
         _height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.height), 32);
         InitializeRenderTexture(_width, _height);

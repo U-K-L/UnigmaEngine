@@ -22,7 +22,6 @@ void MyRaygenShader()
     uint3 dim = DispatchRaysDimensions();
 
     //Convert to 0 - 1.
-    //float2 texcoord = (dispatchId.xy + float2(0.5, 0.5)) / float2(dispatchDim.x, dispatchDim.y);
     float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
     
     //Convert to camera space.

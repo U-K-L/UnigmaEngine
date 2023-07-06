@@ -73,7 +73,8 @@ Shader "Custom/StandardRayTraceTest"
 
 				float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
 
-                payload.color = float4(uvs,1,1);
+                float3 barycentrics = float3(1.0 - attributes.barycentrics.x - attributes.barycentrics.y, attributes.barycentrics.x, attributes.barycentrics.y);
+                payload.color = float4(barycentrics,1);
                 
             }
 

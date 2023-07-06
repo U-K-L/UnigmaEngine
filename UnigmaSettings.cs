@@ -11,6 +11,7 @@ public static class UnigmaSettings
         if (SystemInfo.supportsRayTracing && RTXEnabled)
         {
             return true;
+            
         }
         return false;
     }

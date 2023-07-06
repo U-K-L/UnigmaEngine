@@ -113,7 +113,8 @@ float3 RandomPointInTriangle(float3 a, float3 b, float3 c, float2 r)
     return p;
 }
 
-//Convert to baycentric coordinates to stay within the triangle.
+//Use crammer's rule to solve for the barycentric coordinates of a point in a triangle.
+//From Real-Time Collision Detection (Christer Ericson)
 float3 Barycentric(float3 a, float3 b, float3 c, float3 p)
 {
 	float3 v0 = b - a, v1 = c - a, v2 = p - a;

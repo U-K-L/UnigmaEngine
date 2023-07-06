@@ -69,24 +69,9 @@ Shader "Custom/StandardRayTraceTest"
             void MyHitShader(inout Payload payload : SV_RayPayload,
                 AttributeData attributes : SV_IntersectionAttributes)
             {
+                float2 uvs = GetUVs(attributes);
 
-                uint primitiveIndex = PrimitiveIndex();
-                uint3 triangleIndicies = UnityRayTracingFetchTriangleIndices(primitiveIndex);
-                Vertex v0, v1, v2;
-                v0.texcoord = UnityRayTracingFetchVertexAttribute2(triangleIndicies.x, kVertexAttributeTexCoord0);
-
-                v1.texcoord = UnityRayTracingFetchVertexAttribute2(triangleIndicies.y, kVertexAttributeTexCoord0);
-
-                v2.texcoord = UnityRayTracingFetchVertexAttribute2(triangleIndicies.z, kVertexAttributeTexCoord0);
-                float3 barycentrics = float3(1.0 - attributes.barycentrics.x - attributes.barycentrics.y, attributes.barycentrics.x, attributes.barycentrics.y);
-
-                Vertex vInterpolated;
-
-                vInterpolated.texcoord = v0.texcoord * barycentrics.x + v1.texcoord * barycentrics.y + v2.texcoord * barycentrics.z;
-                
-                float2 texcoord = vInterpolated.texcoord;
-
-				float4 tex = _MainTex.SampleLevel(sampler_MainTex, texcoord, 0);
+				float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
                 
                 
                 payload.color = tex;

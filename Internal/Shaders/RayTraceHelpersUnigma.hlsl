@@ -15,7 +15,7 @@ struct AttributeData
     float2 texcoord;
 };
 
-float2 GetUVs(float3 v0, v1, v2)
+float2 GetUVs(AttributeData attributes)
 {
     //Gets the triangle in question. First by getting its index then the order the vertices are in.
     uint primitiveIndex = PrimitiveIndex();
@@ -27,9 +27,8 @@ float2 GetUVs(float3 v0, v1, v2)
     v1.texcoord = UnityRayTracingFetchVertexAttribute2(triangleIndicies.y, kVertexAttributeTexCoord0);
     v2.texcoord = UnityRayTracingFetchVertexAttribute2(triangleIndicies.z, kVertexAttributeTexCoord0);
 
+    //Get the barycentric coordinates for this position.
     float3 barycentrics = float3(1.0 - attributes.barycentrics.x - attributes.barycentrics.y, attributes.barycentrics.x, attributes.barycentrics.y);
 
-    Vertex vInterpolated;
-
-    vInterpolated.texcoord = v0.texcoord * barycentrics.x + v1.texcoord * barycentrics.y + v2.texcoord * barycentrics.z;
+    return v0.texcoord * barycentrics.x + v1.texcoord * barycentrics.y + v2.texcoord * barycentrics.z;
 }

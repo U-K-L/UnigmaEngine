@@ -135,9 +135,9 @@ GameObject:
   - component: {fileID: 67356652}
   - component: {fileID: 67356651}
   - component: {fileID: 67356650}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere (8)
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -232,9 +232,9 @@ GameObject:
   - component: {fileID: 171798848}
   - component: {fileID: 171798847}
   - component: {fileID: 171798846}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere (4)
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -329,9 +329,9 @@ GameObject:
   - component: {fileID: 278642763}
   - component: {fileID: 278642762}
   - component: {fileID: 278642761}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere (5)
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -426,9 +426,9 @@ GameObject:
   - component: {fileID: 386571069}
   - component: {fileID: 386571068}
   - component: {fileID: 386571067}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere (6)
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -523,9 +523,9 @@ GameObject:
   - component: {fileID: 625157423}
   - component: {fileID: 625157422}
   - component: {fileID: 625157421}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere (7)
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -620,9 +620,9 @@ GameObject:
   - component: {fileID: 921390870}
   - component: {fileID: 921390869}
   - component: {fileID: 921390868}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere (3)
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -717,9 +717,9 @@ GameObject:
   - component: {fileID: 1001182923}
   - component: {fileID: 1001182922}
   - component: {fileID: 1001182921}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere (1)
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -906,17 +906,7 @@ MonoBehaviour:
   skyBox: {fileID: 2800000, guid: 452e307ae7fe59c4c8706de20d5aea46, type: 3}
   RayTracingLayers:
     serializedVersion: 2
-    m_Bits: 4194103
-  _RayTracedObjects:
-  - {fileID: 2082801465}
-  - {fileID: 1001182922}
-  - {fileID: 1979437505}
-  - {fileID: 921390869}
-  - {fileID: 171798847}
-  - {fileID: 278642762}
-  - {fileID: 386571068}
-  - {fileID: 625157422}
-  - {fileID: 67356651}
+    m_Bits: 524288
 --- !u!1 &1874997814
 GameObject:
   m_ObjectHideFlags: 0
@@ -1000,9 +990,9 @@ GameObject:
   - component: {fileID: 1979437506}
   - component: {fileID: 1979437505}
   - component: {fileID: 1979437504}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere (2)
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1191,9 +1181,9 @@ GameObject:
   - component: {fileID: 2082801466}
   - component: {fileID: 2082801465}
   - component: {fileID: 2082801464}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Sphere
-  m_TagString: Untagged
+  m_TagString: Egg
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

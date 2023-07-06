@@ -32,9 +32,15 @@ struct MeshObject
 	int indicesCount;
 };
 
+struct Vertex
+{
+	float3 position;
+	float3 normal;
+	float2 uv;
+};
 
 StructuredBuffer<MeshObject> _MeshObjects;
-StructuredBuffer<float3> _Vertices;
+StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
 
 Ray CreateRay(float3 og, float3 dir, float2 pixel)
@@ -213,9 +219,10 @@ void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
 
 	for (uint i = offset; i < count; i += 3)
 	{
-		float3 v0 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i]], 1))).xyz;
-		float3 v1 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 1]], 1))).xyz;
-		float3 v2 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 2]], 1))).xyz;
+		float3 v0 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i]].position, 1))).xyz;
+		float3 v1 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 1]].position, 1))).xyz;
+		float3 v2 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 2]].position, 1))).xyz;
+		
 		float t, u, v;
 		if (TriangleTrace(ray, v0, v1, v2, t, u, v))
 		{

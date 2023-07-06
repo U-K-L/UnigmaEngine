@@ -52,9 +52,16 @@ public class RayTracer : MonoBehaviour
         public int indicesOffset;
         public int indicesCount;
     }
-    
+
+    struct Vertex
+    {
+        public Vector3 position;
+        public Vector3 normal;
+        public Vector2 uv;
+    };
+
     private List<MeshObject> meshObjects = new List<MeshObject>();
-    private List<Vector3> Vertices = new List<Vector3>();
+    private List<Vertex> Vertices = new List<Vertex>();
     private List<int> Indices = new List<int>();
 
     
@@ -135,7 +142,7 @@ public class RayTracer : MonoBehaviour
 
     void UpdateNonAcceleratedRayTracer()
     {
-        
+        //TBD
     }
     
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -173,7 +180,14 @@ public class RayTracer : MonoBehaviour
                 int startVert = Vertices.Count;
                 int startIndex = Indices.Count;
 
-                Vertices.AddRange(m.vertices);
+                for (int i = 0; i < m.vertices.Length; i++)
+                {
+                    Vertex v = new Vertex();
+                    v.position = m.vertices[i];
+                    v.normal = m.normals[i];
+                    v.uv = m.uv[i];
+                    Vertices.Add(v);
+                }
                 var indices = m.GetIndices(0);
                 Indices.AddRange(indices.Select(index => index + startVert));
 
@@ -187,7 +201,7 @@ public class RayTracer : MonoBehaviour
             }
         }
         _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 72);
-        _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 12);
+        _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
         _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
         _verticesObjectBuffer.SetData(Vertices);
         _RayTracingShader.SetBuffer(0, "_Vertices", _verticesObjectBuffer);

@@ -32,7 +32,7 @@ public class RayTracer : MonoBehaviour
     private int _width, _height = 0;
     
     private Camera _cam;
-    private Texture _skyBox;
+    public Texture skyBox;
     
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -61,7 +61,7 @@ public class RayTracer : MonoBehaviour
     void Awake()
     {
         _cam = GetComponent<Camera>();
-        if(UnigmaSettings.GetIsRTXEnabled())
+        if (UnigmaSettings.GetIsRTXEnabled())
             CreateAcceleratedStructure();
         else
             CreateNonAcceleratedStructure();
@@ -70,6 +70,9 @@ public class RayTracer : MonoBehaviour
 
     void CreateAcceleratedStructure()
     {
+        if (_RayTracingShaderAccelerated == null)
+            _RayTracingShaderAccelerated = Resources.Load<RayTracingShader>("AcceleratedRayTracer");
+        
         //Create GPU accelerated structure.
         var settings = new RayTracingAccelerationStructure.RASSettings();
         settings.layerMask = RayTracingLayers;
@@ -78,25 +81,35 @@ public class RayTracer : MonoBehaviour
         settings.rayTracingModeMask = RayTracingAccelerationStructure.RayTracingModeMask.Everything;
 
         _AccelerationStructure = new RayTracingAccelerationStructure(settings);
-
-        if (_RayTracingShaderAccelerated == null)
-            _RayTracingShaderAccelerated = Resources.Load<RayTracingShader>("RayTracingShaderAccelerated");
     }
 
     void CreateNonAcceleratedStructure()
     {
-        BuildTriangleList();
-
         if (_RayTracingShader == null)
-            _RayTracingShader = Resources.Load<ComputeShader>("RayTracingShader");
+            _RayTracingShader = Resources.Load<ComputeShader>("RayTracer");
+        BuildTriangleList();
     }
 
     void Update()
+    {
+        if (UnigmaSettings.GetIsRTXEnabled())
+            UpdateAcceleratedRayTracer();
+        else
+            UpdateNonAcceleratedRayTracer();
+
+    }
+
+    void UpdateAcceleratedRayTracer()
     {
         //Builds the BVH (Bounding Volum Hierachy aka objects for ray to hit)
         _AccelerationStructure.Build();
     }
 
+    void UpdateNonAcceleratedRayTracer()
+    {
+        
+    }
+    
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         _width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.width), 32);
@@ -167,7 +180,7 @@ public class RayTracer : MonoBehaviour
         _RayTracingShader.SetTexture(0, "_RayTracer", _inProgressTarget);
         _RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         _RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
-        _RayTracingShader.SetTexture(0, "_SkyBoxTexture", _skyBox);
+        _RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
 
         //Update position of mesh objects.
         for (int i = 0; i < _RayTracedObjects.Count; i++)

@@ -212,6 +212,14 @@ void Trace(inout Ray ray, inout Hit hit)
 	}
 }
 
+void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, float3 v0, float3 v1, float3 v2)
+{
+	hit.distance = t;
+	hit.position = ray.o + t * ray.d;
+	hit.normal = normalize(cross(v1 - v0, v2 - v0));
+	hit.color = float3(tUV, 1);
+}
+
 void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
 {
 	uint offset = meshObject.indicesOffset;
@@ -228,14 +236,12 @@ void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
 		{
 			if (t > 0 && t < hit.distance)
 			{
-				hit.distance = t;
-				hit.position = ray.o + t * ray.d;
-				hit.normal = normalize(cross(v1 - v0, v2 - v0));
-				hit.color = 1.00f;
+				ExecuteShadingFunction(ray, hit, t, float2(u, v), _Vertices[_Indices[i]].position, _Vertices[_Indices[i + 1]].position, _Vertices[_Indices[i + 2]].position);
 			}
 		}
 	}
 }
+
 
 
 [numthreads(32,32,1)]

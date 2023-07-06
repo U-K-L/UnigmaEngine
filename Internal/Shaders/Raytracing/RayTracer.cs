@@ -45,8 +45,6 @@ public class RayTracer : MonoBehaviour
     ComputeBuffer _verticesObjectBuffer;
     ComputeBuffer _indicesObjectBuffer;
 
-    private bool RTXEnabled = false;
-
     //Structs for ray tracing.
     struct MeshObject
     {
@@ -63,8 +61,10 @@ public class RayTracer : MonoBehaviour
     void Awake()
     {
         _cam = GetComponent<Camera>();
-        CreateAcceleratedStructure();
-        CreateNonAcceleratedStructure();
+        if(UnigmaSettings.GetIsRTXEnabled())
+            CreateAcceleratedStructure();
+        else
+            CreateNonAcceleratedStructure();
 
     }
 
@@ -78,11 +78,17 @@ public class RayTracer : MonoBehaviour
         settings.rayTracingModeMask = RayTracingAccelerationStructure.RayTracingModeMask.Everything;
 
         _AccelerationStructure = new RayTracingAccelerationStructure(settings);
+
+        if (_RayTracingShaderAccelerated == null)
+            _RayTracingShaderAccelerated = Resources.Load<RayTracingShader>("RayTracingShaderAccelerated");
     }
 
     void CreateNonAcceleratedStructure()
     {
         BuildTriangleList();
+
+        if (_RayTracingShader == null)
+            _RayTracingShader = Resources.Load<ComputeShader>("RayTracingShader");
     }
 
     void Update()
@@ -96,8 +102,11 @@ public class RayTracer : MonoBehaviour
         _width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.width), 32);
         _height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.height), 32);
         InitializeRenderTexture(_width, _height);
-        //DispatchGPURayTrace();
-        DispatchAcceleratedRayTrace();
+
+        if (UnigmaSettings.GetIsRTXEnabled())
+            DispatchAcceleratedRayTrace();
+        else
+            DispatchGPURayTrace();
 
         Graphics.Blit(_inProgressTarget, destination);
     }

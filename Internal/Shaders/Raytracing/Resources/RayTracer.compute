@@ -221,9 +221,8 @@ void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, V
 	v1.position = (mul(meshObject.localToWorld, float4(v1.position, 1))).xyz;
 	v2.position = (mul(meshObject.localToWorld, float4(v2.position, 1))).xyz;
 	
-	float3 barycentric = Barycentric(v0.position, v1.position, v2.position, PointPosition);
-	float3 barycentrics = float3(1.0 - barycentric.x - barycentric.y, barycentric.x, barycentric.y);
-	hit.color = barycentrics;
+	float3 barycentric = Barycentric(v0.position, v1.position, v2.position, hit.position);
+	hit.color = barycentric;
 }
 
 void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)

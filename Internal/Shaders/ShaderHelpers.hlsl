@@ -6,6 +6,7 @@
 #include "UnityCG.cginc"
 #include "UnityLightingCommon.cginc"
 
+
 struct NVector
 {
     float nvector;

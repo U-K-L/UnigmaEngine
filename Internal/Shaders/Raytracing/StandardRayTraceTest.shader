@@ -59,23 +59,8 @@ Shader "Custom/StandardRayTraceTest"
             HLSLPROGRAM
             #pragma raytracing MyHitShader
             #include "UnityRaytracingMeshUtils.cginc"
-            
-            struct Vertex
-            {
-                float2 texcoord;
-            };
-        
-            struct Payload
-            {
-                float4 color;
-                
-            };
+            #include "../RayTraceHelpersUnigma.hlsl"
 
-            struct AttributeData
-            {
-                float2 barycentrics;
-                float2 texcoord;
-            };
 
             Texture2D<float4> _MainTex;
 			SamplerState sampler_MainTex;

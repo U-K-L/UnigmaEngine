@@ -225,8 +225,8 @@ void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, V
 
 	//Now that we have the barycentric coordinate we can use this to reconstruct the UVs.
 	float2 uvs = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
-
-	hit.color = float3(uvs,1);
+	_SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, uvs, 0);
+	hit.color = _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, uvs, 0).xyz;
 }
 
 void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)

@@ -70,10 +70,11 @@ Shader "Custom/StandardRayTraceTest"
                 AttributeData attributes : SV_IntersectionAttributes)
             {
                 float2 uvs = GetUVs(attributes);
+                float3 normals = GetNormals(attributes);
 
 				float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
 
-                payload.color = tex;
+                payload.color = float4(normals, 1);
                 
             }
 

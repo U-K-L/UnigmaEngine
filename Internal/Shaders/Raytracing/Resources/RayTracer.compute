@@ -31,7 +31,9 @@ struct MeshObject
 	int indicesOffset;
 	int indicesCount;
 	float3 position;
-	float3 AABB[6];
+	float2 AABBX;
+	float2 AABBY;
+	float2 AABBZ;
 };
 
 struct Vertex

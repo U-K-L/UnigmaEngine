@@ -47,13 +47,15 @@ public class RayTracer : MonoBehaviour
 
     //Structs for ray tracing.
     //Unsafe is required for the fixed array.
-    unsafe struct MeshObject
+    struct MeshObject
     {
         public Matrix4x4 localToWorld;
         public int indicesOffset;
         public int indicesCount;
         public Vector3 position;
-        public fixed float AABB[6]; //Xmax,xmin,ymax,ymin,zmax,zmin.
+        public Vector2 AABBX;
+        public Vector2 AABBY;
+        public Vector2 AABBZ;
     }
 
     struct Vertex
@@ -153,7 +155,7 @@ public class RayTracer : MonoBehaviour
     //Afterwards place them in a tree with the root node containing all of the objects.
     //The bounding box is calculated by finding the min and max vertices for each axis.
     //If the ray intersects the box we search the triangles of that node, if not we traverse another node and ignore the children.
-    void BuildBVH()
+    unsafe void BuildBVH()
     {
         //First traverse through all of the objects and create their bounding boxes.
 
@@ -167,6 +169,9 @@ public class RayTracer : MonoBehaviour
             meshobj.indicesOffset = meshObjects[i].indicesOffset;
             meshobj.indicesCount = meshObjects[i].indicesCount;
             meshobj.position = _RayTracedObjects[i].transform.position;
+            meshobj.AABBX = new Vector2(_RayTracedObjects[i].bounds.min.x, _RayTracedObjects[i].bounds.max.x);
+            meshobj.AABBY = new Vector2(_RayTracedObjects[i].bounds.min.y, _RayTracedObjects[i].bounds.max.y);
+            meshobj.AABBZ = new Vector2(_RayTracedObjects[i].bounds.min.z, _RayTracedObjects[i].bounds.max.z);
             meshObjects[i] = meshobj;
         }
         if (_meshObjectBuffer.count > 0)

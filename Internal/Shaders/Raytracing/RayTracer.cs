@@ -46,11 +46,14 @@ public class RayTracer : MonoBehaviour
     ComputeBuffer _indicesObjectBuffer;
 
     //Structs for ray tracing.
-    struct MeshObject
+    //Unsafe is required for the fixed array.
+    unsafe struct MeshObject
     {
         public Matrix4x4 localToWorld;
         public int indicesOffset;
         public int indicesCount;
+        public Vector3 position;
+        public fixed float AABB[6]; //Xmax,xmin,ymax,ymin,zmax,zmin.
     }
 
     struct Vertex
@@ -142,9 +145,41 @@ public class RayTracer : MonoBehaviour
 
     void UpdateNonAcceleratedRayTracer()
     {
-        //TBD
+        //Build the BVH
+        BuildBVH();
     }
-    
+
+    //To build the BVH we need to take all of the game objects in our raytracing list.
+    //Afterwards place them in a tree with the root node containing all of the objects.
+    //The bounding box is calculated by finding the min and max vertices for each axis.
+    //If the ray intersects the box we search the triangles of that node, if not we traverse another node and ignore the children.
+    void BuildBVH()
+    {
+        //First traverse through all of the objects and create their bounding boxes.
+
+        //Get positions stored them to mesh objects.
+
+        //Update position of mesh objects.
+        for (int i = 0; i < _RayTracedObjects.Count; i++)
+        {
+            MeshObject meshobj = new MeshObject();
+            meshobj.localToWorld = _RayTracedObjects[i].transform.localToWorldMatrix;
+            meshobj.indicesOffset = meshObjects[i].indicesOffset;
+            meshobj.indicesCount = meshObjects[i].indicesCount;
+            meshobj.position = _RayTracedObjects[i].transform.position;
+            meshObjects[i] = meshobj;
+        }
+        if (_meshObjectBuffer.count > 0)
+        {
+            _meshObjectBuffer.SetData(meshObjects);
+            _RayTracingShader.SetBuffer(0, "_MeshObjects", _meshObjectBuffer);
+        }
+
+        _meshObjectBuffer.SetData(meshObjects);
+        _RayTracingShader.SetBuffer(0, "_MeshObjects", _meshObjectBuffer);
+
+    }
+
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         //Guard clause, ensure there are objects to ray trace.
@@ -200,7 +235,7 @@ public class RayTracer : MonoBehaviour
                 });
             }
         }
-        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 72);
+        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 108);
         _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
         _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
         _verticesObjectBuffer.SetData(Vertices);
@@ -230,24 +265,6 @@ public class RayTracer : MonoBehaviour
         _RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         _RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
-
-        //Update position of mesh objects.
-        for (int i = 0; i < _RayTracedObjects.Count; i++)
-        {
-            MeshObject meshobj = new MeshObject();
-            meshobj.localToWorld = _RayTracedObjects[i].transform.localToWorldMatrix;
-            meshobj.indicesOffset = meshObjects[i].indicesOffset;
-            meshobj.indicesCount = meshObjects[i].indicesCount;
-            meshObjects[i] = meshobj;
-        }
-        if (_meshObjectBuffer.count > 0)
-        {
-            _meshObjectBuffer.SetData(meshObjects);
-            _RayTracingShader.SetBuffer(0, "_MeshObjects", _meshObjectBuffer);
-        }
-
-        _meshObjectBuffer.SetData(meshObjects);
-        _RayTracingShader.SetBuffer(0, "_MeshObjects", _meshObjectBuffer);
         int threadGroupsX = Mathf.CeilToInt(_width / 32.0f);
         int threadGroupsY = Mathf.CeilToInt(_height / 32.0f);
         _RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);

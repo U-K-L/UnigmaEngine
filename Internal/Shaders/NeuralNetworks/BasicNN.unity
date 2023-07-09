@@ -903,7 +903,7 @@ MonoBehaviour:
   taskDivisiblity: 1
   textSizeDivision: 0
   maxBounces: 1
-  skyBox: {fileID: 2800000, guid: 452e307ae7fe59c4c8706de20d5aea46, type: 3}
+  skyBox: {fileID: 2800000, guid: 33f82f2b4a8e5fa4195eda04cfe8b011, type: 3}
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 524288

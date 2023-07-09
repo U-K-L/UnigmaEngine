@@ -308,7 +308,10 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	for (int k = 0; k < numOfStructs; k++)
 	{
 		MeshObject meshObject = _MeshObjects[k];
-		hit.color = TraceAABB(ray, hit, meshObject);
+		if (TraceAABB(ray, hit, meshObject) == true)
+		{
+			hit.color = 1;
+		}
 	}
 	/*
 	if (TriangleTrace(ray, v0, v1, v2, t, u, v))

@@ -30,6 +30,8 @@ struct MeshObject
 	float4x4 localToWorld;
 	int indicesOffset;
 	int indicesCount;
+	float3 position;
+	float3 AABB[6];
 };
 
 struct Vertex

@@ -31,9 +31,8 @@ struct MeshObject
 	int indicesOffset;
 	int indicesCount;
 	float3 position;
-	float2 AABBX;
-	float2 AABBY;
-	float2 AABBZ;
+	float3 AABBMin;
+	float3 AABBMax;
 };
 
 struct Vertex
@@ -233,6 +232,13 @@ void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, V
 	float3 normals = v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z;
 	hit.normal = normals;
 	hit.color = normals;
+}
+
+//Ray slabs test for AABB.
+void TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
+{
+	float3 invRayDir = 1.0 / ray.d;
+	float3 tLower = (meshObject.AABBMin - ray.o) * invRayDir;
 }
 
 void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)

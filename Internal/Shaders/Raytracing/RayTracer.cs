@@ -53,9 +53,8 @@ public class RayTracer : MonoBehaviour
         public int indicesOffset;
         public int indicesCount;
         public Vector3 position;
-        public Vector2 AABBX;
-        public Vector2 AABBY;
-        public Vector2 AABBZ;
+        public Vector3 AABBMin;
+        public Vector3 AABBMax;
     }
 
     struct Vertex
@@ -169,9 +168,8 @@ public class RayTracer : MonoBehaviour
             meshobj.indicesOffset = meshObjects[i].indicesOffset;
             meshobj.indicesCount = meshObjects[i].indicesCount;
             meshobj.position = _RayTracedObjects[i].transform.position;
-            meshobj.AABBX = new Vector2(_RayTracedObjects[i].bounds.min.x, _RayTracedObjects[i].bounds.max.x);
-            meshobj.AABBY = new Vector2(_RayTracedObjects[i].bounds.min.y, _RayTracedObjects[i].bounds.max.y);
-            meshobj.AABBZ = new Vector2(_RayTracedObjects[i].bounds.min.z, _RayTracedObjects[i].bounds.max.z);
+            meshobj.AABBMin = _RayTracedObjects[i].bounds.min;
+            meshobj.AABBMax = _RayTracedObjects[i].bounds.max;
             meshObjects[i] = meshobj;
         }
         if (_meshObjectBuffer.count > 0)

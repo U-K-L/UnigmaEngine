@@ -310,7 +310,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 		MeshObject meshObject = _MeshObjects[k];
 		if (TraceAABB(ray, hit, meshObject) == true)
 		{
-			hit.color = 1;
+			TraceMesh(ray, hit, meshObject);
 		}
 	}
 	/*

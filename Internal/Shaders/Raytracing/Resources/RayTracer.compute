@@ -235,10 +235,21 @@ void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, V
 }
 
 //Ray slabs test for AABB.
-void TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
+bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
 {
 	float3 invRayDir = 1.0 / ray.d;
 	float3 tLower = (meshObject.AABBMin - ray.o) * invRayDir;
+	float3 tUpper = (meshObject.AABBMax - ray.o) * invRayDir;
+
+	float4 tMin = float4(min(tLower, tUpper), 0);
+	float4 tMax = float4(max(tLower, tUpper), 10000000);
+
+	//get max component of tMin.
+	float tBoxMin = max(max(tMin.x, tMin.y), tMin.z);
+	//get min component of tMax.
+	float tBoxMax = min(min(tMax.x, tMax.y), tMax.z);
+
+	return tBoxMin <= tBoxMax;
 }
 
 void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
@@ -297,7 +308,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	for (int k = 0; k < numOfStructs; k++)
 	{
 		MeshObject meshObject = _MeshObjects[k];
-		TraceMesh(ray, hit, meshObject);
+		hit.color = TraceAABB(ray, hit, meshObject);
 	}
 	/*
 	if (TriangleTrace(ray, v0, v1, v2, t, u, v))

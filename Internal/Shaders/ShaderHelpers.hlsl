@@ -42,6 +42,16 @@ void GetTriangleNormalAndTSMatrix(float3 a, float3 b, float3 c, out float3 norma
     tangentTransform = transpose(float3x3(tangent, bitangent, normal));
 }
 
+float3 PointTangentToNormal(float3 p, float3 normal) {
+
+    float3 helper = float3(1, 0, 0);
+    if (abs(normal.x) > 0.99f)
+        helper = float3(0, 0, 1);
+    float3 tangent = normalize(cross(normal, helper));
+    float3 binormal = normalize(cross(normal, tangent));
+    return mul(p, float3x3(tangent, binormal, normal));
+}
+
 float SphereSDF(float3 p, float r)
 {
 	float d = length(p) - r;
@@ -58,6 +68,13 @@ float3 GetSphereNormal(float3 p, float r)
 		SphereSDF(p + eps.yyx, r) - SphereSDF(p - eps.yyx, r));
     
 	return normalize(n);
+}
+
+//When no seed is provided simply use time.x.
+float rand()
+{
+    float3 co = float3(_Time.x, _Time.x, _Time.x);
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
 }
 
 float rand(float val)
@@ -109,8 +126,23 @@ float3x3 AngleAxis3x3(float angle, float3 axis)
 float3 RandomPointInTriangle(float3 a, float3 b, float3 c, float2 r)
 {
     float3 p = (1 - sqrt(r.x)) * a + (sqrt(r.x) * (1 - r.y)) * b + (r.y * sqrt(r.x)) * c;
-
     return p;
+}
+
+//Need to supply normal so that hemisphere is oriented with the normal.
+//Let's use the cosine weighted sampling.
+//We map a square onto a disk then project that disk onto a hemisphere.
+float3 RandomPointOnHemisphere(float3 normal, float radius, float power)
+{
+    float2 uv = float2(rand(_Time.x + 2554), rand(_Time.x + _Time.y));
+	float theta = acos(pow(1 - uv.x, 1.0 / (power + 1.0)));
+	float phi = 2 * UNITY_PI * uv.y;
+
+	float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+    
+	//Transform this direction to be on the hemisphere with the provided normal.
+    float3 transformedDir = PointTangentToNormal(dir);
+	return transformedDir;
 }
 
 //Use crammer's rule to solve for the barycentric coordinates of a point in a triangle.

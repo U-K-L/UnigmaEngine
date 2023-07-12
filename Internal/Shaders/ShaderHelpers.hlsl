@@ -12,6 +12,10 @@ struct NVector
     float nvector;
 };
 
+float sdot(float3 x, float3 y, float f = 1.0f)
+{
+    return saturate(dot(x, y) * f);
+}
 
 float3 TransformToWorldSpace(float4x4 _LocalToWorld, float3 p)
 {
@@ -83,6 +87,12 @@ float rand(float val)
     return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
 }
 
+
+float rand(float2 co)
+{
+    return frac(sin(dot(co.xy, float2(12.9898, 78.233))) * 43758.5453);
+}
+
 float rand(float3 co)
 {
     return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
@@ -132,17 +142,18 @@ float3 RandomPointInTriangle(float3 a, float3 b, float3 c, float2 r)
 //Need to supply normal so that hemisphere is oriented with the normal.
 //Let's use the cosine weighted sampling.
 //We map a square onto a disk then project that disk onto a hemisphere.
-float3 RandomPointOnHemisphere(float3 normal, float radius, float power)
+float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float radius = 1.0, float power = 0)
 {
-    float2 uv = float2(rand(_Time.x + 2554), rand(_Time.x + _Time.y));
+    float2 uv = rand(pixel);
 	float theta = acos(pow(1 - uv.x, 1.0 / (power + 1.0)));
 	float phi = 2 * UNITY_PI * uv.y;
 
-	float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+	float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) * radius;
     
 	//Transform this direction to be on the hemisphere with the provided normal.
-    float3 transformedDir = PointTangentToNormal(dir);
+    float3 transformedDir = PointTangentToNormal(dir, normal);
 	return transformedDir;
+    
 }
 
 //Use crammer's rule to solve for the barycentric coordinates of a point in a triangle.

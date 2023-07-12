@@ -108,6 +108,13 @@ float3 Reflection(inout Ray ray, inout Hit hit)
 	}
 }
 
+void LambertDiffuse(inout Ray ray, inout Hit hit, float3 normal, float2 pixel)
+{
+	ray.o = hit.position + hit.normal * 0.001;
+	ray.d = RandomPointOnHemisphere(pixel, normal);
+	hit.normal = normal;
+	ray.energy *= 2 * hit.color * sdot(hit.normal, ray.d);
+}
 
 void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)
 {
@@ -215,7 +222,7 @@ void Trace(inout Ray ray, inout Hit hit)
 	}
 }
 
-void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, Vertex v0, Vertex v1, Vertex v2, float3 PointPosition, MeshObject meshObject)
+void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, Vertex v0, Vertex v1, Vertex v2, float3 PointPosition, MeshObject meshObject, float2 pixel)
 {
 	hit.distance = t;
 	hit.position = ray.o + t * ray.d;
@@ -230,8 +237,11 @@ void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, V
 	//_SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, uvs, 0);
 	//hit.color = _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, uvs, 0).xyz;
 	float3 normals = v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z;
-	hit.normal = normals;
-	hit.color = normals;
+
+	
+	//Lambert Diffuse shading.
+	LambertDiffuse(ray, hit, normals, pixel);
+	
 }
 
 //Ray slabs test for AABB.
@@ -252,7 +262,7 @@ bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
 	return tBoxMin <= tBoxMax;
 }
 
-void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
+void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, float2 pixel)
 {
 	uint offset = meshObject.indicesOffset;
 	uint count = offset + meshObject.indicesCount;
@@ -269,7 +279,7 @@ void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
 			if (t > 0 && t < hit.distance)
 			{
 				float3 PointPosition = (mul(meshObject.localToWorld, float4(ray.o + t * ray.d, 1))).xyz;
-				ExecuteShadingFunction(ray, hit, t, float2(u, v), _Vertices[_Indices[i]], _Vertices[_Indices[i + 1]], _Vertices[_Indices[i + 2]], PointPosition, meshObject);
+				ExecuteShadingFunction(ray, hit, t, float2(u, v), _Vertices[_Indices[i]], _Vertices[_Indices[i + 1]], _Vertices[_Indices[i + 2]], PointPosition, meshObject, pixel);
 			}
 		}
 	}
@@ -287,7 +297,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	hit.normal = 0;
 	hit.position = 0;
 	hit.distance = 1500;
-	hit.color = 0;
+	hit.color = float3(0.2,0.6,0.4);
 	//This is a ray for each pixel and in the pixel's center.
 	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
 	//Then range is shifted via 2 - 1.
@@ -305,14 +315,18 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	*/
 	uint numOfStructs, sizeOfStrides; 
 	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
-	for (int k = 0; k < numOfStructs; k++)
+	for (int i = 0; i < 10; i++)
 	{
-		MeshObject meshObject = _MeshObjects[k];
-		if (TraceAABB(ray, hit, meshObject) == true)
+		for (int k = 0; k < numOfStructs; k++)
 		{
-			TraceMesh(ray, hit, meshObject);
+			MeshObject meshObject = _MeshObjects[k];
+			if (TraceAABB(ray, hit, meshObject) == true)
+			{
+				TraceMesh(ray, hit, meshObject, pixel);
+			}
 		}
 	}
+
 	/*
 	if (TriangleTrace(ray, v0, v1, v2, t, u, v))
 	{
@@ -343,7 +357,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	}
 	*/
 
-	_RayTracer[id.xy] = float4(hit.color, 1);
+	_RayTracer[id.xy] = float4(ray.energy, 1);
 
 
 }

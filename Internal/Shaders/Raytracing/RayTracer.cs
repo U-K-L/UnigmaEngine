@@ -55,6 +55,7 @@ public class RayTracer : MonoBehaviour
         public Vector3 position;
         public Vector3 AABBMin;
         public Vector3 AABBMax;
+        public float emission;
     }
 
     struct Vertex
@@ -170,6 +171,10 @@ public class RayTracer : MonoBehaviour
             meshobj.position = _RayTracedObjects[i].transform.position;
             meshobj.AABBMin = _RayTracedObjects[i].bounds.min;
             meshobj.AABBMax = _RayTracedObjects[i].bounds.max;
+            if(i == 4)
+                meshobj.emission = 10.0f;
+            else
+                meshobj.emission = 0.0f;
             meshObjects[i] = meshobj;
         }
         if (_meshObjectBuffer.count > 0)
@@ -238,7 +243,7 @@ public class RayTracer : MonoBehaviour
                 });
             }
         }
-        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 108);
+        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 112);
         _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
         _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
         _verticesObjectBuffer.SetData(Vertices);
@@ -264,6 +269,7 @@ public class RayTracer : MonoBehaviour
 
     void DispatchGPURayTrace()
     {
+        _RayTracingShader.SetInt("_MaxBounces", maxBounces);
         _RayTracingShader.SetTexture(0, "_RayTracer", _inProgressTarget);
         _RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         _RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);

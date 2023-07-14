@@ -999,8 +999,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   timeUntilNextUpdateDelta: 0.07
   taskDivisiblity: 4
-  textSizeDivision: 4
-  maxBounces: 1
+  _MaxBounces: 1
+  textSizeDivision: 0
+  maxBounces: 50
   skyBox: {fileID: 2800000, guid: 33f82f2b4a8e5fa4195eda04cfe8b011, type: 3}
   RayTracingLayers:
     serializedVersion: 2

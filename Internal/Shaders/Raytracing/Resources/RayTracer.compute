@@ -8,12 +8,14 @@ float4x4 _CameraInverseProjection;
 Texture2D<float4> _SkyBoxTexture;
 SamplerState sampler_SkyBoxTexture;
 float epsilon = 0.00001;
+int _MaxBounces;
 
 struct Ray
 {
 	float3 o;
 	float3 d;
 	float2 os; //pixel screen space.
+	float3 color;
 	float3 energy;
 };
 
@@ -33,6 +35,7 @@ struct MeshObject
 	float3 position;
 	float3 AABBMin;
 	float3 AABBMax;
+	float emission;
 };
 
 struct Vertex
@@ -52,7 +55,8 @@ Ray CreateRay(float3 og, float3 dir, float2 pixel)
 	ray.o = og;
 	ray.d = dir;
 	ray.os = pixel;
-	ray.energy = float3(1, 1, 1);
+	ray.color = float3(1, 1, 1);
+	ray.energy = float3(0, 0, 0);
 	return ray;
 }
 
@@ -108,12 +112,12 @@ float3 Reflection(inout Ray ray, inout Hit hit)
 	}
 }
 
-void LambertDiffuse(inout Ray ray, inout Hit hit, float3 normal, float2 pixel)
+void LambertDiffuse(inout Ray ray, inout Hit hit, float3 normal, float2 pixel, float2 seed)
 {
-	ray.o = hit.position + hit.normal * 0.001;
-	ray.d = RandomPointOnHemisphere(pixel, normal);
 	hit.normal = normal;
-	ray.energy *= 2 * hit.color * sdot(hit.normal, ray.d);
+	ray.o = hit.position + hit.normal * 0.001;
+	ray.d = RandomPointOnHemisphere(pixel, normal, seed);
+	ray.color *= 2 * hit.color * sdot(hit.normal, ray.d);
 }
 
 void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)
@@ -222,7 +226,7 @@ void Trace(inout Ray ray, inout Hit hit)
 	}
 }
 
-void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, Vertex v0, Vertex v1, Vertex v2, float3 PointPosition, MeshObject meshObject, float2 pixel)
+void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, Vertex v0, Vertex v1, Vertex v2, float3 PointPosition, MeshObject meshObject, float2 pixel, float2 seed)
 {
 	hit.distance = t;
 	hit.position = ray.o + t * ray.d;
@@ -237,10 +241,12 @@ void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float t, float2 tUV, V
 	//_SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, uvs, 0);
 	//hit.color = _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, uvs, 0).xyz;
 	float3 normals = v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z;
+	hit.normal = normals;
 
 	
 	//Lambert Diffuse shading.
-	LambertDiffuse(ray, hit, normals, pixel);
+	LambertDiffuse(ray, hit, normals, pixel, seed);
+	ray.energy += ray.color * (meshObject.emission+0.25);
 	
 }
 
@@ -262,7 +268,7 @@ bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
 	return tBoxMin <= tBoxMax;
 }
 
-void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, float2 pixel)
+void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, float2 pixel, float2 seed)
 {
 	uint offset = meshObject.indicesOffset;
 	uint count = offset + meshObject.indicesCount;
@@ -279,7 +285,7 @@ void TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, float2 pixel
 			if (t > 0 && t < hit.distance)
 			{
 				float3 PointPosition = (mul(meshObject.localToWorld, float4(ray.o + t * ray.d, 1))).xyz;
-				ExecuteShadingFunction(ray, hit, t, float2(u, v), _Vertices[_Indices[i]], _Vertices[_Indices[i + 1]], _Vertices[_Indices[i + 2]], PointPosition, meshObject, pixel);
+				ExecuteShadingFunction(ray, hit, t, float2(u, v), _Vertices[_Indices[i]], _Vertices[_Indices[i + 1]], _Vertices[_Indices[i + 2]], PointPosition, meshObject, pixel, seed);
 			}
 		}
 	}
@@ -315,14 +321,15 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	*/
 	uint numOfStructs, sizeOfStrides; 
 	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < _MaxBounces; i++)
 	{
 		for (int k = 0; k < numOfStructs; k++)
 		{
 			MeshObject meshObject = _MeshObjects[k];
 			if (TraceAABB(ray, hit, meshObject) == true)
 			{
-				TraceMesh(ray, hit, meshObject, pixel);
+				TraceMesh(ray, hit, meshObject, pixel, float2(i,i));
+				
 			}
 		}
 	}

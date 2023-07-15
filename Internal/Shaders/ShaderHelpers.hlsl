@@ -144,7 +144,7 @@ float3 RandomPointInTriangle(float3 a, float3 b, float3 c, float2 r)
 //We map a square onto a disk then project that disk onto a hemisphere.
 float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float2 seed, float radius = 1.0, float power = 0)
 {
-    float2 uv = rand(pixel);
+    float2 uv = rand(pixel + seed);
 	float theta = acos(pow(1 - uv.x, 1.0 / (power + 1.0)));
 	float phi = 2 * UNITY_PI * uv.y;
 

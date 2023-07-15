@@ -45,6 +45,10 @@ public class RayTracer : MonoBehaviour
     ComputeBuffer _verticesObjectBuffer;
     ComputeBuffer _indicesObjectBuffer;
 
+    public float MaxSamples = 1;
+    int _CurrentSample = 0;
+    Vector2 _FrameSeed = Vector2.one;
+
     //Structs for ray tracing.
     //Unsafe is required for the fixed array.
     struct MeshObject
@@ -55,6 +59,7 @@ public class RayTracer : MonoBehaviour
         public Vector3 position;
         public Vector3 AABBMin;
         public Vector3 AABBMax;
+        public Vector3 color;
         public float emission;
     }
 
@@ -165,16 +170,18 @@ public class RayTracer : MonoBehaviour
         for (int i = 0; i < _RayTracedObjects.Count; i++)
         {
             MeshObject meshobj = new MeshObject();
+            RayTracingObject rto = _RayTracedObjects[i].GetComponent<RayTracingObject>();
             meshobj.localToWorld = _RayTracedObjects[i].transform.localToWorldMatrix;
             meshobj.indicesOffset = meshObjects[i].indicesOffset;
             meshobj.indicesCount = meshObjects[i].indicesCount;
             meshobj.position = _RayTracedObjects[i].transform.position;
             meshobj.AABBMin = _RayTracedObjects[i].bounds.min;
             meshobj.AABBMax = _RayTracedObjects[i].bounds.max;
-            if(i == 4)
-                meshobj.emission = 10.0f;
-            else
-                meshobj.emission = 0.0f;
+            if (rto)
+            {
+                meshobj.color = new Vector3(rto.color.r, rto.color.g, rto.color.b);
+                meshobj.emission = rto.emission;
+            }
             meshObjects[i] = meshobj;
         }
         if (_meshObjectBuffer.count > 0)
@@ -243,7 +250,7 @@ public class RayTracer : MonoBehaviour
                 });
             }
         }
-        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 112);
+        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 124);
         _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
         _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
         _verticesObjectBuffer.SetData(Vertices);
@@ -274,9 +281,18 @@ public class RayTracer : MonoBehaviour
         _RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         _RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
+        
+        _RayTracingShader.SetVector("_FrameSeed", _FrameSeed);
+        _RayTracingShader.SetFloat("_Samples", MaxSamples);
         int threadGroupsX = Mathf.CeilToInt(_width / 32.0f);
         int threadGroupsY = Mathf.CeilToInt(_height / 32.0f);
-        _RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
+        if(_CurrentSample < Mathf.CeilToInt(MaxSamples))
+            _RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
+            _CurrentSample++;
+            
+        _FrameSeed = new Vector2(Random.value, Random.value);
+        
+
     }
 
     void DispatchAcceleratedRayTrace()

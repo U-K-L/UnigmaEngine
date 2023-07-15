@@ -74,7 +74,7 @@ Shader "Custom/StandardRayTraceTest"
 
 				float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
 
-                payload.color = float4(normals, 1);
+                payload.color = tex;//float4(normals, 1);
                 
             }
 

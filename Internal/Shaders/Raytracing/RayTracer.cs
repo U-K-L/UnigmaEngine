@@ -44,8 +44,10 @@ public class RayTracer : MonoBehaviour
     ComputeBuffer _meshObjectBuffer;
     ComputeBuffer _verticesObjectBuffer;
     ComputeBuffer _indicesObjectBuffer;
+    ComputeBuffer _rayBuffer;
 
     public float MaxSamples = 1;
+    public int SamplesEachIteration = 1;
     int _CurrentSample = 0;
     Vector2 _FrameSeed = Vector2.one;
 
@@ -63,6 +65,14 @@ public class RayTracer : MonoBehaviour
         public float emission;
     }
 
+    struct Ray
+    {
+        public Vector3 o;
+        public Vector3 d;
+        public Vector3 color;
+        public Vector3 energy;
+    };
+
     struct Vertex
     {
         public Vector3 position;
@@ -73,10 +83,13 @@ public class RayTracer : MonoBehaviour
     private List<MeshObject> meshObjects = new List<MeshObject>();
     private List<Vertex> Vertices = new List<Vertex>();
     private List<int> Indices = new List<int>();
+    private List<Ray> _rays = new List<Ray>();
 
-    
+
     void Awake()
     {
+        _width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.width), 32);
+        _height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.height), 32);
         _cam = GetComponent<Camera>();
         AddObjectsToList();
 
@@ -276,6 +289,14 @@ public class RayTracer : MonoBehaviour
 
     void DispatchGPURayTrace()
     {
+        //Get Kernel.
+        int kernelHandleRayTrace = _RayTracingShader.FindKernel("RayTrace");
+        
+        //Get thread sizes.
+        uint tx, ty, tz;
+        _RayTracingShader.GetKernelThreadGroupSizes(0, out tx, out ty, out tz);
+        
+        //Set shader variables.
         _RayTracingShader.SetInt("_MaxBounces", maxBounces);
         _RayTracingShader.SetTexture(0, "_RayTracer", _inProgressTarget);
         _RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
@@ -284,15 +305,31 @@ public class RayTracer : MonoBehaviour
         
         _RayTracingShader.SetVector("_FrameSeed", _FrameSeed);
         _RayTracingShader.SetFloat("_Samples", MaxSamples);
-        int threadGroupsX = Mathf.CeilToInt(_width / 32.0f);
-        int threadGroupsY = Mathf.CeilToInt(_height / 32.0f);
-        if(_CurrentSample < Mathf.CeilToInt(MaxSamples))
-            _RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
-            _CurrentSample++;
+        int threadGroupsX = Mathf.CeilToInt(_width / (float)tx);
+        int threadGroupsY = Mathf.CeilToInt(_height / (float)ty);
+        int threadGroupsZ = Mathf.CeilToInt(SamplesEachIteration / (float)tz);
+        int maxSamples = Mathf.CeilToInt(MaxSamples);
+        if (_CurrentSample < 1)
+            CreateRaysForRayTracer(threadGroupsX, threadGroupsY, threadGroupsZ);
+        if (_CurrentSample < maxSamples)
+            _RayTracingShader.Dispatch(kernelHandleRayTrace, threadGroupsX, threadGroupsY, threadGroupsZ);
+            _CurrentSample += SamplesEachIteration;
             
         _FrameSeed = new Vector2(Random.value, Random.value);
         
 
+    }
+
+    void CreateRaysForRayTracer(int x, int y, int z)
+    {
+        int kernelHandleRayTrace = _RayTracingShader.FindKernel("RayTrace");
+        int kernelHandleInitRayTrace = _RayTracingShader.FindKernel("InitializeRays");
+        _rayBuffer = new ComputeBuffer(_width * _height, 48);
+        _RayTracingShader.SetTexture(kernelHandleInitRayTrace, "_RayTracer", _inProgressTarget);
+        _rayBuffer.SetData(_rays);
+        _RayTracingShader.SetBuffer(kernelHandleInitRayTrace, "_Rays", _rayBuffer);
+        _RayTracingShader.Dispatch(kernelHandleInitRayTrace, x, y, z);
+        _RayTracingShader.SetBuffer(kernelHandleRayTrace, "_Rays", _rayBuffer);
     }
 
     void DispatchAcceleratedRayTrace()

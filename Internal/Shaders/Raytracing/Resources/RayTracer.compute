@@ -1,5 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
+
 #pragma kernel RayTrace
+#pragma kernel InitializeRays
 #include "../../ShaderHelpers.hlsl"
 
 RWTexture2D<float4> _RayTracer;
@@ -16,7 +18,6 @@ struct Ray
 {
 	float3 o;
 	float3 d;
-	float2 os; //pixel screen space.
 	float3 color;
 	float3 energy;
 };
@@ -51,6 +52,7 @@ struct Vertex
 StructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
+RWStructuredBuffer<Ray> _Rays;
 
 Vertex CreateVertex(inout Vertex v)
 {
@@ -65,7 +67,6 @@ Ray CreateRay(float3 og, float3 dir, float2 pixel)
 	Ray ray;
 	ray.o = og;
 	ray.d = dir;
-	ray.os = pixel;
 	ray.color = float3(1, 1, 1);
 	ray.energy = float3(0, 0, 0);
 	return ray;
@@ -92,7 +93,7 @@ float4 SampleSkyBox(inout Ray ray)
 	float v = 0.5 - asin(-dir.y) / UNITY_PI;
 	float4 skyTex = _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, float2(u, v), 0);
 	ray.color = skyTex.xyz;
-	ray.energy += ray.color;
+	ray.energy = ray.color;
 	return 1;
 }
 
@@ -257,9 +258,7 @@ void ExecuteShadingFunction(inout Ray ray, inout Hit hit, in Vertex v0, in Verte
 
 	
 	//Lambert Diffuse shading.
-	float4 skyTex = _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, uvs, 0);
-	ray.energy = skyTex;
-	//LambertDiffuse(ray, hit, normals, pixel, meshObject, seed);
+	LambertDiffuse(ray, hit, normals, pixel, meshObject, seed);
 	
 }
 
@@ -311,32 +310,45 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, inout float3
 	return false;
 }
 
-[numthreads(32,32,1)]
-void RayTrace(uint3 id : SV_DispatchThreadID)
+[numthreads(8, 8, 1)]
+void InitializeRays(uint3 id : SV_DispatchThreadID)
 {
 	uint width, height;
-	_RayTracer.GetDimensions(width, height);
 	
-	Hit hit;
-	hit.normal = 0;
-	hit.position = 0;
-	hit.distance = 1500;
-	hit.color = float3(0.2,0.6,0.4);
+	_RayTracer.GetDimensions(width, height);
+
+
 	//This is a ray for each pixel and in the pixel's center.
 	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
 	//Then range is shifted via 2 - 1.
 	float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
 	Ray ray = CreateCameraRay(pixel);
-	float4 result = 0;
+	_Rays[id.x + id.y * width] = ray;
+}
 
-	// Trace single triangle
-	/*
-	float3 v0 = float3(-150, 0, -150);
-	float3 v1 = float3(150, 0, -150);
-	float3 v2 = float3(0, 150 * sqrt(2), -150);
-	float t, u, v;
+[numthreads(8,8,1)]
+void RayTrace(uint3 id : SV_DispatchThreadID)
+{
+	
 
-	*/
+	float2 seed = _FrameSeed + id.z;
+	Hit hit;
+	hit.normal = 0;
+	hit.position = 0;
+	hit.distance = 1500;
+	hit.color = float3(0.2, 0.6, 0.4);
+	
+	uint width, height;
+
+	_RayTracer.GetDimensions(width, height);
+	Ray ray = _Rays[id.x + id.y * width];
+
+
+	//This is a ray for each pixel and in the pixel's center.
+	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
+	//Then range is shifted via 2 - 1.
+	float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
+	
 	uint numOfStructs, sizeOfStrides; 
 	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
 	int closesAABB = -1;
@@ -363,40 +375,12 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 		}
 		//Perform a ray trace.
 		if (closesAABB != -1)
-			ExecuteShadingFunction(ray, hit, v0, v1, v2, _MeshObjects[closesAABB], pixel, float2(i, i) + _FrameSeed);
+			ExecuteShadingFunction(ray, hit, v0, v1, v2, _MeshObjects[closesAABB], pixel, float2(i, i) + seed);
+		else
+			SampleSkyBox(ray);
 	}
 
-	/*
-	if (TriangleTrace(ray, v0, v1, v2, t, u, v))
-	{
-		if (t > 0 && t < hit.distance)
-		{
-			hit.distance = t;
-			hit.position = ray.o + t * ray.d;
-			hit.normal = normalize(cross(v1 - v0, v2 - v0));
-			hit.color = 1.00f;
-
-		}
-	}
-	*/
-	/*
-	for (int k = 0; k < 80; k++)
-	{
-
-		Trace(ray, hit);
-		float3 r = Reflection(ray, hit);
-		result += float4(hit.color, 1);
-
-
-
-		
-		if (!any(ray.energy))
-			break;
-
-	}
-	*/
-
-	_RayTracer[id.xy] = float4(ray.energy, 1.0);// *(1.0 / _Samples);
+	_RayTracer[id.xy] += float4(ray.energy, 1.0) *(1.0 / _Samples);
 
 
 }

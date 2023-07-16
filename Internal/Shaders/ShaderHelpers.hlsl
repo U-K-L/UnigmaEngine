@@ -160,19 +160,18 @@ float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float2 seed, float r
     float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
     float3 uv = float3(xy, xz.x);
     
-	float theta = acos(pow(1 - uv.x, 1.0 / (power + 1.0)));
+	float theta = acos(pow(1 - uv.x, 1.0 / (1.0 + 1.0)));
 	float phi = 2 * UNITY_PI * uv.y;
 
-	float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) * radius;
+	float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
 
     //Quick Guass test
-    float3 gaussianDistrib = float3(uv.x, uv.y, uv.z); //Range -1, 1.
-    float3 prandom =  normalize(gaussianDistrib) * radius;
+    //float3 gaussianDistrib = float3(uv.x, uv.y, uv.z); //Range -1, 1.
+    //float3 prandom =  normalize(gaussianDistrib) * radius;
     
 	//Transform this direction to be on the hemisphere with the provided normal.
-    normal = float3(1, 0, 0);
-    float3 transformedDir = PointTangentToNormal(normalize(gaussianDistrib), normal);
-    return normal;//dir * radius;
+    float3 transformedDir = PointTangentToNormal(dir, normal);
+    return transformedDir;
     
 }
 

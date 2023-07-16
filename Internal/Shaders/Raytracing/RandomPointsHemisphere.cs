@@ -29,7 +29,7 @@ public class RandomPointsHemisphere : MonoBehaviour
         {
             RandomPointsOnSphere.SetBuffer(0, "Result", _ResultBuffer);
             RandomPointsOnSphere.SetVector("_Seed", new Vector2(Random.value, Random.value));
-            RandomPointsOnSphere.SetVector("_Normal", plane.GetComponent<MeshFilter>().mesh.normals[0]);
+            RandomPointsOnSphere.SetVector("_Normal", plane.transform.localToWorldMatrix * plane.GetComponent<MeshFilter>().mesh.normals[0]);
             RandomPointsOnSphere.Dispatch(0, positions.Length, 1, 1);
             _ResultBuffer.GetData(positions);
             //Do so randomly.

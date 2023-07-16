@@ -114,6 +114,18 @@ float randNegative1to1(float3 pos, float offset) {
     return rand(pos, offset) * 2 - 1;
 }
 
+//Box–Muller transform: https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-37-efficient-random-number-generation-and-application
+float2 randGaussian(float3 pos, float offset) {
+	float u1 = rand(pos, offset);
+	float u2 = rand(pos, offset + 1);
+	float theta = 2 * UNITY_PI * u1;
+	float rho = sqrt(-2 * log(1-u2));
+	float z0 = rho * cos(theta);
+	float z1 = rho * sin(theta);
+	return float2(z0, z1);
+}
+
+
 // Construct a rotation matrix that rotates around the provided axis, sourced from:
 // https://gist.github.com/keijiro/ee439d5e7388f3aafc5296005c8c3f33
 float3x3 AngleAxis3x3(float angle, float3 axis)
@@ -144,15 +156,23 @@ float3 RandomPointInTriangle(float3 a, float3 b, float3 c, float2 r)
 //We map a square onto a disk then project that disk onto a hemisphere.
 float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float2 seed, float radius = 1.0, float power = 0)
 {
-    float2 uv = rand(pixel + seed);
+	float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
+    float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
+    float3 uv = float3(xy, xz.x);
+    
 	float theta = acos(pow(1 - uv.x, 1.0 / (power + 1.0)));
 	float phi = 2 * UNITY_PI * uv.y;
 
 	float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) * radius;
+
+    //Quick Guass test
+    float3 gaussianDistrib = float3(uv.x, uv.y, uv.z); //Range -1, 1.
+    float3 prandom =  normalize(gaussianDistrib) * radius;
     
 	//Transform this direction to be on the hemisphere with the provided normal.
-    float3 transformedDir = PointTangentToNormal(dir, normal);
-	return transformedDir;
+    normal = float3(1, 0, 0);
+    float3 transformedDir = PointTangentToNormal(normalize(gaussianDistrib), normal);
+    return normal;//dir * radius;
     
 }
 

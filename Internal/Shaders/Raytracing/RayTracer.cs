@@ -71,6 +71,7 @@ public class RayTracer : MonoBehaviour
         public Vector3 d;
         public Vector3 color;
         public Vector3 energy;
+        int bounces;
     };
 
     struct Vertex
@@ -304,27 +305,34 @@ public class RayTracer : MonoBehaviour
         _RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
         
         _RayTracingShader.SetVector("_FrameSeed", _FrameSeed);
-        _RayTracingShader.SetFloat("_Samples", MaxSamples);
+        _RayTracingShader.SetFloat("_Samples", MaxSamples / (float)maxBounces);
         int threadGroupsX = Mathf.CeilToInt(_width / (float)tx);
         int threadGroupsY = Mathf.CeilToInt(_height / (float)ty);
         int threadGroupsZ = Mathf.CeilToInt(SamplesEachIteration / (float)tz);
         int maxSamples = Mathf.CeilToInt(MaxSamples);
         if (_CurrentSample < 1)
             CreateRaysForRayTracer(threadGroupsX, threadGroupsY, threadGroupsZ);
-        if (_CurrentSample < maxSamples)
+        if (_CurrentSample < maxSamples * maxBounces)
+        {
             _RayTracingShader.Dispatch(kernelHandleRayTrace, threadGroupsX, threadGroupsY, threadGroupsZ);
             _CurrentSample += SamplesEachIteration;
+        }
             
         _FrameSeed = new Vector2(Random.value, Random.value);
         
 
     }
 
+    void UpdateRays()
+    {
+        
+    }
+
     void CreateRaysForRayTracer(int x, int y, int z)
     {
         int kernelHandleRayTrace = _RayTracingShader.FindKernel("RayTrace");
         int kernelHandleInitRayTrace = _RayTracingShader.FindKernel("InitializeRays");
-        _rayBuffer = new ComputeBuffer(_width * _height, 48);
+        _rayBuffer = new ComputeBuffer(_width * _height, 52);
         _RayTracingShader.SetTexture(kernelHandleInitRayTrace, "_RayTracer", _inProgressTarget);
         _rayBuffer.SetData(_rays);
         _RayTracingShader.SetBuffer(kernelHandleInitRayTrace, "_Rays", _rayBuffer);

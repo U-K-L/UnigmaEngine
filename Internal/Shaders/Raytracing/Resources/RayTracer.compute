@@ -20,6 +20,7 @@ struct Ray
 	float3 d;
 	float3 color;
 	float3 energy;
+	int bounces;
 };
 
 struct Hit
@@ -69,6 +70,7 @@ Ray CreateRay(float3 og, float3 dir, float2 pixel)
 	ray.d = dir;
 	ray.color = float3(1, 1, 1);
 	ray.energy = float3(0, 0, 0);
+	ray.bounces = 0;
 	return ray;
 }
 
@@ -134,8 +136,8 @@ void LambertDiffuse(inout Ray ray, inout Hit hit, float3 normal, float2 pixel, M
 	ray.d = RandomPointOnHemisphere(pixel, normal, seed);
 	float p = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
 	float cos_theta = sdot(hit.normal, ray.d);
-	ray.color *= 2 * meshObject.color;
-	ray.energy += ray.color * (meshObject.emission) * cos_theta / p;
+	//ray.color *= meshObject.color;
+	ray.energy += (1 / UNITY_PI) * (meshObject.emission) * cos_theta * p;
 }
 
 void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)
@@ -342,6 +344,8 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 
 	_RayTracer.GetDimensions(width, height);
 	Ray ray = _Rays[id.x + id.y * width];
+	if(ray.bounces > 999999)
+		return;
 
 
 	//This is a ray for each pixel and in the pixel's center.
@@ -356,8 +360,6 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	CreateVertex(v0);
 	CreateVertex(v1);
 	CreateVertex(v2);
-	for (int i = 0; i < _MaxBounces; i++)
-	{
 		//Keep searching for closes hit.
 		float3 tuv = 0;
 
@@ -375,13 +377,27 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 		}
 		//Perform a ray trace.
 		if (closesAABB != -1)
-			ExecuteShadingFunction(ray, hit, v0, v1, v2, _MeshObjects[closesAABB], pixel, float2(i, i) + seed);
+		{
+			ExecuteShadingFunction(ray, hit, v0, v1, v2, _MeshObjects[closesAABB], pixel, seed + ray.bounces * (id.x + id.y * width));
+		}
 		else
-			SampleSkyBox(ray);
-	}
+		{
 
-	_RayTracer[id.xy] += float4(ray.energy, 1.0) *(1.0 / _Samples);
+			//SampleSkyBox(ray);
+			//_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
+			//ray.bounces = 9999999;
+			//_Rays[id.x + id.y * width] = ray;
+			//return;
+		}
+	
+		ray.bounces++;
+		if (ray.bounces >= _MaxBounces)
+		{
+			_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
+			ray = CreateCameraRay(pixel);
+		}
+	
+	_Rays[id.x + id.y * width] = ray;
 
 
 }
-

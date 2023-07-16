@@ -4,6 +4,7 @@
  * 
  */
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -50,6 +51,8 @@ public class RayTracer : MonoBehaviour
     public int SamplesEachIteration = 1;
     int _CurrentSample = 0;
     Vector2 _FrameSeed = Vector2.one;
+
+    private bool RenderFrameFinished = false;
 
     //Structs for ray tracing.
     //Unsafe is required for the fixed array.
@@ -156,6 +159,14 @@ public class RayTracer : MonoBehaviour
         else
             UpdateNonAcceleratedRayTracer();
 
+
+        //if user pressess space bar call function.
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            //Save the render texture to a png file.
+            //Debug.Log("Saving Render Texture to PNG");
+            //SaveRenderTextureToPNG();
+        }
     }
 
     void UpdateAcceleratedRayTracer()
@@ -227,7 +238,52 @@ public class RayTracer : MonoBehaviour
         else
             DispatchGPURayTrace();
 
-        Graphics.Blit(_inProgressTarget, destination);
+
+        if (RenderFrameFinished)
+        {
+            Graphics.Blit(_inProgressTarget, _finalizedTarget);
+            Graphics.Blit(_finalizedTarget, destination);
+        }
+        else
+        {
+            Graphics.Blit(_inProgressTarget, _finalizedTarget);
+            Graphics.Blit(_inProgressTarget, destination);
+        }
+
+    }
+
+    void SaveRenderTextureToPNG()
+    {
+
+        RenderTexture renderTexture = _inProgressTarget;/* your render texture */
+
+        // Convert RenderTexture to Texture2D
+        Texture2D tex2D = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.ARGB4444, false);
+        RenderTexture.active = renderTexture;
+        tex2D.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+        tex2D.Apply();
+
+        // Loop through pixels
+        for (int y = 0; y < tex2D.height; y++)
+        {
+            for (int x = 0; x < tex2D.width; x++)
+            {
+                Vector4 color = tex2D.GetPixel(x, y);
+                Debug.Log("Color at position (" + x + "," + y + "): " + color);
+            }
+        }
+
+        //Create a new texture 2D.
+        Texture2D tex = new Texture2D(_width, _height, TextureFormat.ARGB4444, false);
+        //Read the pixels from the render texture.
+        RenderTexture.active = _inProgressTarget;
+        tex.ReadPixels(new Rect(0, 0, _width, _height), 0, 0);
+        //Apply the pixels to the texture.
+        tex.Apply();
+        //Convert the texture to a png file.
+        byte[] bytes = tex.EncodeToPNG();
+        //Write the png file to the disk.
+        File.WriteAllBytes(Application.dataPath + "/../SaveScreenShots/SavedScreen.png", bytes);
     }
 
     void BuildTriangleList()
@@ -279,10 +335,17 @@ public class RayTracer : MonoBehaviour
         {
             if (_inProgressTarget != null)
                 _inProgressTarget.Release();
-            RenderTexture rt = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            if (_finalizedTarget != null)
+                _finalizedTarget.Release();
+            RenderTexture rt = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Linear);
             _inProgressTarget = rt;
             _inProgressTarget.enableRandomWrite = true;
             _inProgressTarget.Create();
+            //Create finalize texture as well.
+            RenderTexture rtF = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Linear);
+            _finalizedTarget = rtF;
+            _finalizedTarget.enableRandomWrite = true;
+            _finalizedTarget.Create();
         }
         _previousDimen.x = width;
         _previousDimen.y = height;
@@ -320,6 +383,7 @@ public class RayTracer : MonoBehaviour
         else
         {
             Debug.Log("Render Complete");
+            RenderFrameFinished = true;
         }
             
         _FrameSeed = new Vector2(Random.value, Random.value);

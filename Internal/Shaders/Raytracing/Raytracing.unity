@@ -2186,7 +2186,7 @@ MonoBehaviour:
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 524288
-  MaxSamples: 10
+  MaxSamples: 70000
   SamplesEachIteration: 1
 --- !u!1 &1863825766
 GameObject:

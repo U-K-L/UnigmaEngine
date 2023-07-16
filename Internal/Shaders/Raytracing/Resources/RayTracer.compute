@@ -136,8 +136,8 @@ void LambertDiffuse(inout Ray ray, inout Hit hit, float3 normal, float2 pixel, M
 	ray.d = RandomPointOnHemisphere(pixel, normal, seed);
 	float p = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
 	float cos_theta = sdot(hit.normal, ray.d);
-	//ray.color *= meshObject.color;
-	ray.energy += (1 / UNITY_PI) * (meshObject.emission) * cos_theta * p;
+	ray.color *= 2 * meshObject.color;
+	ray.energy += (1 / UNITY_PI) * ray.color * (meshObject.emission) * cos_theta * p;
 }
 
 void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)

@@ -305,7 +305,7 @@ public class RayTracer : MonoBehaviour
         _RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
         
         _RayTracingShader.SetVector("_FrameSeed", _FrameSeed);
-        _RayTracingShader.SetFloat("_Samples", MaxSamples / (float)maxBounces);
+        _RayTracingShader.SetFloat("_Samples", MaxSamples);
         int threadGroupsX = Mathf.CeilToInt(_width / (float)tx);
         int threadGroupsY = Mathf.CeilToInt(_height / (float)ty);
         int threadGroupsZ = Mathf.CeilToInt(SamplesEachIteration / (float)tz);
@@ -316,6 +316,10 @@ public class RayTracer : MonoBehaviour
         {
             _RayTracingShader.Dispatch(kernelHandleRayTrace, threadGroupsX, threadGroupsY, threadGroupsZ);
             _CurrentSample += SamplesEachIteration;
+        }
+        else
+        {
+            Debug.Log("Render Complete");
         }
             
         _FrameSeed = new Vector2(Random.value, Random.value);

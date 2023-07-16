@@ -154,13 +154,13 @@ float3 RandomPointInTriangle(float3 a, float3 b, float3 c, float2 r)
 //Need to supply normal so that hemisphere is oriented with the normal.
 //Let's use the cosine weighted sampling.
 //We map a square onto a disk then project that disk onto a hemisphere.
-float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float2 seed, float radius = 1.0, float power = 0)
+float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float2 seed, float radius = 1.0, float power = 1.0)
 {
 	float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
     float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
     float3 uv = float3(xy, xz.x);
     
-	float theta = acos(pow(1 - uv.x, 1.0 / (1.0 + 1.0)));
+	float theta = acos(pow(1 - uv.x, 1.0 / (power + 1.0)));
 	float phi = 2 * UNITY_PI * uv.y;
 
 	float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));

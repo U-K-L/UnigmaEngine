@@ -272,9 +272,8 @@ Transform:
   - {fileID: 1863825767}
   - {fileID: 775769397}
   - {fileID: 1705150664}
-  - {fileID: 662669389}
   m_Father: {fileID: 0}
-  m_RootOrder: 14
+  m_RootOrder: 16
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &171798845
 GameObject:
@@ -752,13 +751,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 355576973}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.01, z: -0.49}
-  m_LocalScale: {x: 0.78, y: 0.05, z: 1.5268085}
+  m_LocalRotation: {x: 1, y: -0, z: -0, w: 0}
+  m_LocalPosition: {x: 7.487341, y: 9.54, z: 2.6365674}
+  m_LocalScale: {x: 6.2945995, y: 0.17170213, z: 5.2431254}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 775769397}
-  m_RootOrder: 0
+  m_Father: {fileID: 0}
+  m_RootOrder: 15
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &355576975
 MonoBehaviour:
@@ -773,7 +772,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 1, g: 0.9071684, b: 0.4669811, a: 1}
-  emission: 3500
+  emission: 50
 --- !u!65 &355576976
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1094,7 +1093,7 @@ Transform:
   - {fileID: 1465810649}
   - {fileID: 1646826552}
   m_Father: {fileID: 0}
-  m_RootOrder: 15
+  m_RootOrder: 17
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &625157420
 GameObject:
@@ -1340,7 +1339,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &662669389
 Transform:
   m_ObjectHideFlags: 0
@@ -1348,14 +1347,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 662669388}
-  m_LocalRotation: {x: 0.28256282, y: -0.2552519, z: 0.07828196, w: 0.92134506}
-  m_LocalPosition: {x: 0.95, y: 7.43, z: 2.96}
-  m_LocalScale: {x: 9.24, y: 1.6544373, z: -9.220383}
-  m_ConstrainProportionsScale: 1
+  m_LocalRotation: {x: 1, y: -0, z: -0, w: 0}
+  m_LocalPosition: {x: 7.487341, y: 11, z: 2.6365674}
+  m_LocalScale: {x: 6.2945995, y: 2.6, z: 5.2431254}
+  m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 88466703}
-  m_RootOrder: 9
-  m_LocalEulerAnglesHint: {x: 34.1, y: -30.97, z: 0}
+  m_Father: {fileID: 0}
+  m_RootOrder: 14
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &662669390
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1368,7 +1367,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.6117647, g: 0.6078633, b: 0.12549019, a: 1}
+  color: {r: 0, g: 0.34241298, b: 0.509434, a: 1}
   emission: 0
 --- !u!65 &662669391
 BoxCollider:
@@ -1577,8 +1576,7 @@ Transform:
   m_LocalPosition: {x: 0, y: 16.19, z: 0}
   m_LocalScale: {x: 8.07, y: 3.4340425, z: 3.4340425}
   m_ConstrainProportionsScale: 1
-  m_Children:
-  - {fileID: 355576974}
+  m_Children: []
   m_Father: {fileID: 88466703}
   m_RootOrder: 7
   m_LocalEulerAnglesHint: {x: 180, y: 0, z: 0}
@@ -2527,7 +2525,7 @@ MonoBehaviour:
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 524288
-  MaxSamples: 100
+  MaxSamples: 1000
   SamplesEachIteration: 1
   SceneIsDynamic: 0
 --- !u!1 &1863825766

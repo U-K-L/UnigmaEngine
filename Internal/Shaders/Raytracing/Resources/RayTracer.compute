@@ -356,28 +356,46 @@ void LambertDiffuse(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
 	//Get next event estimator.
 	float maxEmission = 0;
 	Ray lightRay;
+	float3 omega = 0;
+	uint maxEmissionID = -1;
+	MeshObject lightSource;
 	for (int i = 0; i < _MeshObjects.Length; i++)
 	{
 		MeshObject meshObj = _MeshObjects[i];
 		if (meshObj.emission > maxEmission)
 		{
-			lightRay = CreateRay(hit.position, normalize(meshObj.position - hit.position), pixel);
+			maxEmission = meshObj.emission;
+			maxEmissionID = meshObj.id;
+			lightSource = meshObj;
 		}
 	}
+
+	float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
+	float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
+	float3 uv = float3(xy, xz.x);
+	float3 area = float3(1.15,0.015,1.15);
+	float3 lightSample = (uv*area) + lightSource.position;
+	omega = normalize(lightSample - hit.position);
+	lightRay = CreateRay(hit.position, omega, pixel);
 
 	float v = 0;
 	Hit lightHit = CreateHit();
 	SceneTrace(lightRay, lightHit);
 
 	
-	if (lightHit.meshObj.id == hit.meshObj.id)
+	if (lightHit.meshObj.id == maxEmissionID)
 		v = 1;
 
-	float p = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
-	//float p = dot(
+	float ps = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
+	float p = dot(lightHit.normal, -omega) * (1 / dot(lightSample - hit.position, lightSample - hit.position));
 	float cos_theta = sdot(hit.normal, ray.d);
+	float cos_theta_omega = sdot(hit.normal, omega);
+	float weight = ray.bounces == 0 ? 1.0 : 0.5;
+	float directLightWeight = ray.bounces == 0 ? 1.0 : 0.0;
 	ray.color *= 2 * hit.meshObj.color;
-	ray.energy += hit.meshObj.emission * ray.color * cos_theta * p * (1.0 / (1.0 - _RussianRouletteChance));
+	ray.energy += lightHit.meshObj.emission * ray.color * v *cos_theta_omega * p; //* (1.0 / (1.0 - _RussianRouletteChance));
+	ray.energy += hit.meshObj.emission * ray.color * cos_theta * ps * directLightWeight;
+	ray.energy += ray.energy * (1.0 / (1.0 - _RussianRouletteChance)) * weight;
 }
 
 void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)

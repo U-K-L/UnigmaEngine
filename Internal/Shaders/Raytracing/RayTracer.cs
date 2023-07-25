@@ -267,7 +267,7 @@ public class RayTracer : MonoBehaviour
         }
         else
         {
-            if (_CurrentSample > MaxSamples / 2)
+            if (_CurrentSample > MaxSamples / 1.15)
             {
                 Graphics.Blit(_inProgressTarget, destination);
             }

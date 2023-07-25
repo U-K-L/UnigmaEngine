@@ -68,6 +68,7 @@ public class RayTracer : MonoBehaviour
         public Vector3 AABBMax;
         public Vector3 color;
         public float emission;
+        public uint id;
     }
 
     struct Ray
@@ -204,6 +205,7 @@ public class RayTracer : MonoBehaviour
             meshobj.position = _RayTracedObjects[i].transform.position;
             meshobj.AABBMin = _RayTracedObjects[i].bounds.min;
             meshobj.AABBMax = _RayTracedObjects[i].bounds.max;
+            meshobj.id = (uint)i;
             if (rto)
             {
                 meshobj.color = new Vector3(rto.color.r, rto.color.g, rto.color.b);
@@ -344,7 +346,7 @@ public class RayTracer : MonoBehaviour
                 });
             }
         }
-        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 124);
+        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 128);
         _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
         _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
         _verticesObjectBuffer.SetData(Vertices);

@@ -35,6 +35,7 @@ struct MeshObject
 	float3 AABBMax;
 	float3 color;
 	float emission;
+	uint id;
 };
 
 struct Vertex
@@ -79,6 +80,27 @@ Ray CreateRay(float3 og, float3 dir, float2 pixel)
 	ray.energy = float3(0, 0, 0);
 	ray.bounces = 0;
 	return ray;
+}
+
+Hit CreateHit()
+{
+	Hit hit;
+	hit.normal = 0;
+	hit.position = 0;
+	hit.distance = 1500;
+	hit.color = float3(0.2, 0.6, 0.4);
+	Vertex v0, v1, v2;
+	CreateVertex(v0);
+	CreateVertex(v1);
+	CreateVertex(v2);
+	hit.vertices[0] = v0;
+	hit.vertices[1] = v1;
+	hit.vertices[2] = v2;
+
+	hit.uv = 0;
+	hit.meshObj = _MeshObjects[0];
+
+	return hit;
 }
 
 Ray CreateCameraRay(float2 uv)
@@ -135,17 +157,6 @@ float3 Reflection(inout Ray ray, inout Hit hit)
 	}
 }
 
-void LambertDiffuse(inout Ray ray, inout Hit hit, float3 normal, float2 pixel, MeshObject meshObject, float2 seed)
-{
-	hit.normal = normal;
-	ray.o = hit.position + hit.normal * 0.001;
-	ray.d = RandomPointOnHemisphere(pixel, normal, seed, 1.0, 0.25);
-	float p = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
-	float cos_theta = sdot(hit.normal, ray.d);
-	ray.color *= 2*meshObject.color;
-	ray.energy += meshObject.emission * ray.color * cos_theta * p * (1.0 / (1.0 -_RussianRouletteChance));
-}
-
 void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)
 {
 
@@ -196,6 +207,91 @@ bool TriangleTrace(Ray ray, float3 a, float3 b, float3 c, inout float t, inout f
 	t = dot(edge2, qvec) * inv_det;
 	
 	return true;
+}
+
+
+//Ray slabs test for AABB.
+bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
+{
+	float3 invRayDir = 1.0 / ray.d;
+	float3 tLower = (meshObject.AABBMin - ray.o) * invRayDir;
+	float3 tUpper = (meshObject.AABBMax - ray.o) * invRayDir;
+
+	float4 tMin = float4(min(tLower, tUpper), 0);
+	float4 tMax = float4(max(tLower, tUpper), 10000000);
+
+	//get max component of tMin.
+	float tBoxMin = max(max(tMin.x, tMin.y), tMin.z);
+	//get min component of tMax.
+	float tBoxMax = min(min(tMax.x, tMax.y), tMax.z);
+
+	return tBoxMin <= tBoxMax;
+}
+
+bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
+{
+	uint offset = meshObject.indicesOffset;
+	uint count = offset + meshObject.indicesCount;
+	float3 tuv = 0;
+
+	for (uint i = offset; i < count; i += 3)
+	{
+		float3 vp0 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i]].position, 1))).xyz;
+		float3 vp1 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 1]].position, 1))).xyz;
+		float3 vp2 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 2]].position, 1))).xyz;
+
+		if (TriangleTrace(ray, vp0, vp1, vp2, tuv.x, tuv.y, tuv.z))
+		{
+			float t = tuv.x;
+			if (t > 0 && t < hit.distance)
+			{
+				//float3 PointPosition = (mul(meshObject.localToWorld, float4(ray.o + t * ray.d, 1))).xyz;
+				//Set the vertices
+				hit.vertices[0] = _Vertices[_Indices[i]];
+				hit.vertices[1] = _Vertices[_Indices[i + 1]];
+				hit.vertices[2] = _Vertices[_Indices[i + 2]];
+				hit.distance = t;
+				hit.uv = float2(tuv.y, tuv.z);
+				hit.position = ray.o + t * ray.d;
+				hit.meshObj = meshObject;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void SceneTrace(inout Ray ray, inout Hit hit)
+{
+	for (int k = 0; k < numOfStructs; k++)
+	{
+		MeshObject meshObject = _MeshObjects[k];
+		if (TraceAABB(ray, hit, meshObject) == true)
+		{
+			TraceMesh(ray, hit, meshObject);
+		}
+	}
+	
+	MeshObject meshObject = hit.meshObj;
+	Vertex v0 = hit.vertices[0];
+	Vertex v1 = hit.vertices[1];
+	Vertex v2 = hit.vertices[2];
+	//Convert to world space along with ray and compute the barycentric coordinate.
+	v0.position = (mul(meshObject.localToWorld, float4(v0.position, 1))).xyz;
+	v1.position = (mul(meshObject.localToWorld, float4(v1.position, 1))).xyz;
+	v2.position = (mul(meshObject.localToWorld, float4(v2.position, 1))).xyz;
+	v0.normal = (mul(meshObject.localToWorld, float4(v0.normal, 0))).xyz;
+	v1.normal = (mul(meshObject.localToWorld, float4(v1.normal, 0))).xyz;
+	v2.normal = (mul(meshObject.localToWorld, float4(v2.normal, 0))).xyz;
+	float3 barycentric = Barycentric(v0.position, v1.position, v2.position, hit.position);
+
+	//Now that we have the barycentric coordinate we can use this to reconstruct the UVs.
+	float2 uvs = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
+
+	float3 normals = normalize(v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z);
+	
+	hit.normal = normals;
+	hit.uv = uvs;
 }
 
 Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
@@ -252,94 +348,45 @@ void Trace(inout Ray ray, inout Hit hit)
 	}
 }
 
+void LambertDiffuse(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
+{
+	ray.o = hit.position + hit.normal * 0.001;
+	ray.d = RandomPointOnHemisphere(pixel, hit.normal, seed, 1.0, 0.25);
+
+	//Get next event estimator.
+	float maxEmission = 0;
+	Ray lightRay;
+	for (int i = 0; i < _MeshObjects.Length; i++)
+	{
+		MeshObject meshObj = _MeshObjects[i];
+		if (meshObj.emission > maxEmission)
+		{
+			lightRay = CreateRay(hit.position, normalize(meshObj.position - hit.position), pixel);
+		}
+	}
+
+	float v = 0;
+	Hit lightHit = CreateHit();
+	SceneTrace(lightRay, lightHit);
+
+	
+	if (lightHit.meshObj.id == hit.meshObj.id)
+		v = 1;
+
+	float p = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
+	//float p = dot(
+	float cos_theta = sdot(hit.normal, ray.d);
+	ray.color *= 2 * hit.meshObj.color;
+	ray.energy += hit.meshObj.emission * ray.color * cos_theta * p * (1.0 / (1.0 - _RussianRouletteChance));
+}
+
 void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
 {	
-	MeshObject meshObject = hit.meshObj;
-	Vertex v0 = hit.vertices[0];
-	Vertex v1 = hit.vertices[1];
-	Vertex v2 = hit.vertices[2];
-	//Convert to world space along with ray and compute the barycentric coordinate.
-	v0.position = (mul(meshObject.localToWorld, float4(v0.position, 1))).xyz;
-	v1.position = (mul(meshObject.localToWorld, float4(v1.position, 1))).xyz;
-	v2.position = (mul(meshObject.localToWorld, float4(v2.position, 1))).xyz;
-	v0.normal = (mul(meshObject.localToWorld, float4(v0.normal, 0))).xyz;
-	v1.normal = (mul(meshObject.localToWorld, float4(v1.normal, 0))).xyz;
-	v2.normal = (mul(meshObject.localToWorld, float4(v2.normal, 0))).xyz;
-	float3 barycentric = Barycentric(v0.position, v1.position, v2.position, hit.position);
-
-	//Now that we have the barycentric coordinate we can use this to reconstruct the UVs.
-	float2 uvs = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
-
-	float3 normals = normalize(v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z);
-
-	
 	//Lambert Diffuse shading.
-	LambertDiffuse(ray, hit, normals, pixel, meshObject, seed);
+	LambertDiffuse(ray, hit, pixel, seed);
 	
 }
 
-//Ray slabs test for AABB.
-bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
-{
-	float3 invRayDir = 1.0 / ray.d;
-	float3 tLower = (meshObject.AABBMin - ray.o) * invRayDir;
-	float3 tUpper = (meshObject.AABBMax - ray.o) * invRayDir;
-
-	float4 tMin = float4(min(tLower, tUpper), 0);
-	float4 tMax = float4(max(tLower, tUpper), 10000000);
-
-	//get max component of tMin.
-	float tBoxMin = max(max(tMin.x, tMin.y), tMin.z);
-	//get min component of tMax.
-	float tBoxMax = min(min(tMax.x, tMax.y), tMax.z);
-
-	return tBoxMin <= tBoxMax;
-}
-
-bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
-{
-	uint offset = meshObject.indicesOffset;
-	uint count = offset + meshObject.indicesCount;
-	float3 tuv = 0;
-	
-	for (uint i = offset; i < count; i += 3)
-	{
-		float3 vp0 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i]].position, 1))).xyz;
-		float3 vp1 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 1]].position, 1))).xyz;
-		float3 vp2 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 2]].position, 1))).xyz;
-		
-		if (TriangleTrace(ray, vp0, vp1, vp2, tuv.x, tuv.y, tuv.z))
-		{
-			float t = tuv.x;
-			if (t > 0 && t < hit.distance)
-			{
-				//float3 PointPosition = (mul(meshObject.localToWorld, float4(ray.o + t * ray.d, 1))).xyz;
-				//Set the vertices
-				hit.vertices[0] = _Vertices[_Indices[i]];
-				hit.vertices[1] = _Vertices[_Indices[i + 1]];
-				hit.vertices[2] = _Vertices[_Indices[i + 2]];
-				hit.distance = t;
-				hit.uv = float2(tuv.y, tuv.z);
-				hit.position = ray.o + t * ray.d;
-				hit.meshObj = meshObject;
-				return true;
-			}
-		}
-	}
-	return false;
-} 
-
-void SceneTrace(inout Ray ray, inout Hit hit)
-{
-	for (int k = 0; k < numOfStructs; k++)
-	{
-		MeshObject meshObject = _MeshObjects[k];
-		if (TraceAABB(ray, hit, meshObject) == true)
-		{
-			TraceMesh(ray, hit, meshObject);
-		}
-	}
-}
 
 [numthreads(8, 8, 1)]
 void InitializeRays(uint3 id : SV_DispatchThreadID)
@@ -363,21 +410,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	
 
 	float2 seed = _FrameSeed + id.z;
-	Hit hit;
-	hit.normal = 0;
-	hit.position = 0;
-	hit.distance = 1500;
-	hit.color = float3(0.2, 0.6, 0.4);
-	Vertex v0, v1, v2;
-	CreateVertex(v0);
-	CreateVertex(v1);
-	CreateVertex(v2);
-	hit.vertices[0] = v0;
-	hit.vertices[1] = v1;
-	hit.vertices[2] = v2;
-	
-	hit.uv = 0;
-	hit.meshObj = _MeshObjects[0];
+	Hit hit = CreateHit();
 	
 	uint width, height;
 	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);

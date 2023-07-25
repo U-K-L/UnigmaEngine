@@ -24,14 +24,6 @@ struct Ray
 	int bounces;
 };
 
-struct Hit
-{
-	float3 position;
-	float distance;
-	float3 normal;
-	float3 color;
-	
-};
 
 struct MeshObject
 {
@@ -50,6 +42,17 @@ struct Vertex
 	float3 position;
 	float3 normal;
 	float2 uv;
+};
+
+struct Hit
+{
+	float3 position;
+	float distance;
+	float3 normal;
+	float3 color;
+	Vertex vertices[3];
+	MeshObject meshObj;
+
 };
 
 StructuredBuffer<MeshObject> _MeshObjects;
@@ -247,8 +250,12 @@ void Trace(inout Ray ray, inout Hit hit)
 	}
 }
 
-void ExecuteShadingFunction(inout Ray ray, inout Hit hit, in Vertex v0, in Vertex v1, in Vertex v2, MeshObject meshObject, float2 pixel, float2 seed)
-{		
+void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
+{	
+	MeshObject meshObject = hit.meshObj;
+	Vertex v0 = hit.vertices[0];
+	Vertex v1 = hit.vertices[1];
+	Vertex v2 = hit.vertices[2];
 	//Convert to world space along with ray and compute the barycentric coordinate.
 	v0.position = (mul(meshObject.localToWorld, float4(v0.position, 1))).xyz;
 	v1.position = (mul(meshObject.localToWorld, float4(v1.position, 1))).xyz;
@@ -287,7 +294,7 @@ bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
 	return tBoxMin <= tBoxMax;
 }
 
-bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, inout float3 tuv, inout Vertex v0, inout Vertex v1, inout Vertex v2)
+bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, inout float3 tuv)
 {
 	uint offset = meshObject.indicesOffset;
 	uint count = offset + meshObject.indicesCount;
@@ -305,17 +312,18 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, inout float3
 			{
 				//float3 PointPosition = (mul(meshObject.localToWorld, float4(ray.o + t * ray.d, 1))).xyz;
 				//Set the vertices
-				v0 = _Vertices[_Indices[i]];
-				v1 = _Vertices[_Indices[i + 1]];
-				v2 = _Vertices[_Indices[i + 2]];
+				hit.vertices[0] = _Vertices[_Indices[i]];
+				hit.vertices[1] = _Vertices[_Indices[i + 1]];
+				hit.vertices[2] = _Vertices[_Indices[i + 2]];
 				hit.distance = t;
 				hit.position = ray.o + t * ray.d;
+				hit.meshObj = meshObject;
 				return true;
 			}
 		}
 	}
 	return false;
-}
+} 
 
 void SceneTrace(Ray ray, inout Hit hit)
 {
@@ -349,6 +357,15 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	hit.position = 0;
 	hit.distance = 1500;
 	hit.color = float3(0.2, 0.6, 0.4);
+	Vertex v0, v1, v2;
+	CreateVertex(v0);
+	CreateVertex(v1);
+	CreateVertex(v2);
+	hit.vertices[0] = v0;
+	hit.vertices[1] = v1;
+	hit.vertices[2] = v2;
+	
+	hit.meshObj = _MeshObjects[0];
 	
 	uint width, height;
 
@@ -368,10 +385,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	uint numOfStructs, sizeOfStrides; 
 	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
 	int closesAABB = -1;
-	Vertex v0, v1, v2;
-	CreateVertex(v0);
-	CreateVertex(v1);
-	CreateVertex(v2);
+
 		//Keep searching for closes hit.
 		float3 tuv = 0;
 
@@ -380,7 +394,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 			MeshObject meshObject = _MeshObjects[k];
 			if (TraceAABB(ray, hit, meshObject) == true)
 			{
-				if (TraceMesh(ray, hit, meshObject, tuv, v0, v1, v2))
+				if (TraceMesh(ray, hit, meshObject, tuv))
 				{
 					closesAABB = k;
 				}
@@ -390,7 +404,7 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 		//Perform a ray trace.
 		if (closesAABB != -1)
 		{
-			ExecuteShadingFunction(ray, hit, v0, v1, v2, _MeshObjects[closesAABB], pixel, seed + ray.bounces * (id.x + id.y * width));
+			ExecuteShadingFunction(ray, hit, pixel, seed + ray.bounces * (id.x + id.y * width));
 		}
 		else
 		{

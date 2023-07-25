@@ -25,6 +25,7 @@ Shader "Custom/StandardRayTraceTest"
         struct Input
         {
             float2 uv_MainTex;
+            float3 worldNormal;
         };
 
         half _Glossiness;
@@ -42,7 +43,7 @@ Shader "Custom/StandardRayTraceTest"
         {
             // Albedo comes from a texture tinted by color
             fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color;
-            o.Albedo = c.rgb;
+            o.Albedo = IN.worldNormal;
             // Metallic and smoothness come from slider variables
             o.Metallic = _Metallic;
             o.Smoothness = _Glossiness;
@@ -58,8 +59,10 @@ Shader "Custom/StandardRayTraceTest"
 
             HLSLPROGRAM
             #pragma raytracing MyHitShader
+            #include "HLSLSupport.cginc"
             #include "UnityRaytracingMeshUtils.cginc"
             #include "../RayTraceHelpersUnigma.hlsl"
+            
 
 
             Texture2D<float4> _MainTex;
@@ -71,10 +74,11 @@ Shader "Custom/StandardRayTraceTest"
             {
                 float2 uvs = GetUVs(attributes);
                 float3 normals = GetNormals(attributes);
+                //float3 worldNormal = mul((float4x4)unity_ObjectToWorld, float4(normals, 0)).xyz;
 
 				float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
 
-                payload.color = tex;//float4(normals, 1);
+                payload.color = float4(normals, 1);
                 
             }
 

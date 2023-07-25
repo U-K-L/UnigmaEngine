@@ -13,6 +13,7 @@ float epsilon = 0.00001;
 int _MaxBounces;
 float _Samples;
 float2 _FrameSeed;
+float _RussianRouletteChance;
 
 struct Ray
 {
@@ -29,6 +30,7 @@ struct Hit
 	float distance;
 	float3 normal;
 	float3 color;
+	
 };
 
 struct MeshObject
@@ -117,7 +119,6 @@ float3 Reflection(inout Ray ray, inout Hit hit)
 		ray.d = reflect(ray.d, hit.normal);
 		ray.energy *= spec;
 		hit.distance = 9999999;
-		//hit.normal = 999999999;
 		hit.color *= ray.energy;
 		return 1;
 	}
@@ -133,11 +134,11 @@ void LambertDiffuse(inout Ray ray, inout Hit hit, float3 normal, float2 pixel, M
 {
 	hit.normal = normal;
 	ray.o = hit.position + hit.normal * 0.001;
-	ray.d = RandomPointOnHemisphere(pixel, normal, seed);
+	ray.d = RandomPointOnHemisphere(pixel, normal, seed, 1.0, 0.25);
 	float p = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
 	float cos_theta = sdot(hit.normal, ray.d);
-	ray.color *= 2 * meshObject.color;
-	ray.energy += (1 / UNITY_PI) * ray.color * (meshObject.emission) * cos_theta * p;
+	ray.color *= 2*meshObject.color;
+	ray.energy += meshObject.emission * ray.color * cos_theta * p * (1.0 / (1.0 -_RussianRouletteChance));
 }
 
 void IntersectPlane(inout Hit hit, in Ray ray, float3 a, float3 b, float3 c)
@@ -252,11 +253,15 @@ void ExecuteShadingFunction(inout Ray ray, inout Hit hit, in Vertex v0, in Verte
 	v0.position = (mul(meshObject.localToWorld, float4(v0.position, 1))).xyz;
 	v1.position = (mul(meshObject.localToWorld, float4(v1.position, 1))).xyz;
 	v2.position = (mul(meshObject.localToWorld, float4(v2.position, 1))).xyz;
+	v0.normal = (mul(meshObject.localToWorld, float4(v0.normal, 0))).xyz;
+	v1.normal = (mul(meshObject.localToWorld, float4(v1.normal, 0))).xyz;
+	v2.normal = (mul(meshObject.localToWorld, float4(v2.normal, 0))).xyz;
 	float3 barycentric = Barycentric(v0.position, v1.position, v2.position, hit.position);
 
 	//Now that we have the barycentric coordinate we can use this to reconstruct the UVs.
 	float2 uvs = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
-	float3 normals = v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z;
+
+	float3 normals = normalize(v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z);
 
 	
 	//Lambert Diffuse shading.
@@ -312,6 +317,11 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, inout float3
 	return false;
 }
 
+void SceneTrace(Ray ray, inout Hit hit)
+{
+	
+}
+
 [numthreads(8, 8, 1)]
 void InitializeRays(uint3 id : SV_DispatchThreadID)
 {
@@ -348,10 +358,12 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 		return;
 
 
+
 	//This is a ray for each pixel and in the pixel's center.
 	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
 	//Then range is shifted via 2 - 1.
 	float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
+
 	
 	uint numOfStructs, sizeOfStrides; 
 	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
@@ -391,12 +403,17 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 		}
 	
 		ray.bounces++;
-		if (ray.bounces >= _MaxBounces)
-		{
-			_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
-			ray = CreateCameraRay(pixel);
-		}
-	
+		//if (ray.bounces >= _MaxBounces)
+		//{
+		//	ray = CreateCameraRay(pixel);
+		//}
+
+	if (rand(_Time.x + _FrameSeed) >= _RussianRouletteChance)
+	{
+		_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
+		ray = CreateCameraRay(pixel);
+		//return;
+	}
 	_Rays[id.x + id.y * width] = ray;
 
 

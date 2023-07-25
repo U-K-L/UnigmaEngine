@@ -27,6 +27,7 @@ public class RayTracer : MonoBehaviour
     private bool _isInProgress = false; //Is the ray tracer currently in progress of rendering an image.
     public int textSizeDivision = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
     public int maxBounces = 1; //How many times a ray can bounce before it is terminated.
+    public float RussianRouletteChance = 0.5f; //The chance a ray will be terminated early.
 
     //Dimensions of the texture. After being computed with division.
     private Vector2 _previousDimen = new Vector2(0, 0);
@@ -53,6 +54,7 @@ public class RayTracer : MonoBehaviour
     Vector2 _FrameSeed = Vector2.one;
 
     private bool RenderFrameFinished = false;
+    public bool SceneIsDynamic = true;
 
     //Structs for ray tracing.
     //Unsafe is required for the fixed array.
@@ -196,7 +198,7 @@ public class RayTracer : MonoBehaviour
         {
             MeshObject meshobj = new MeshObject();
             RayTracingObject rto = _RayTracedObjects[i].GetComponent<RayTracingObject>();
-            meshobj.localToWorld = _RayTracedObjects[i].transform.localToWorldMatrix;
+            meshobj.localToWorld = _RayTracedObjects[i].GetComponent<Renderer>().localToWorldMatrix;
             meshobj.indicesOffset = meshObjects[i].indicesOffset;
             meshobj.indicesCount = meshObjects[i].indicesCount;
             meshobj.position = _RayTracedObjects[i].transform.position;
@@ -234,22 +236,44 @@ public class RayTracer : MonoBehaviour
         InitializeRenderTexture(_width, _height);
 
         if (UnigmaSettings.GetIsRTXEnabled())
+        {
             DispatchAcceleratedRayTrace();
+            Graphics.Blit(_inProgressTarget, destination);
+        }
         else
+        {
             DispatchGPURayTrace();
+            RenderFrame(source, destination);
+        }
+        
+    }
 
+    void RenderFrame(RenderTexture source, RenderTexture destination)
+    {
 
-        if (RenderFrameFinished)
+        if (!SceneIsDynamic)
         {
             Graphics.Blit(_inProgressTarget, _finalizedTarget);
             Graphics.Blit(_finalizedTarget, destination);
         }
-        else
+        else if (RenderFrameFinished && SceneIsDynamic)
         {
             Graphics.Blit(_inProgressTarget, _finalizedTarget);
-            Graphics.Blit(_inProgressTarget, destination);
+            ClearOutRenderTexture(_inProgressTarget);
+            _CurrentSample = 0;
+            RenderFrameFinished = false;
         }
-
+        else
+        {
+            if (_CurrentSample > MaxSamples / 2)
+            {
+                Graphics.Blit(_inProgressTarget, destination);
+            }
+            else
+            {
+                Graphics.Blit(_finalizedTarget, destination);
+            }
+        }
     }
 
     void SaveRenderTextureToPNG()
@@ -351,6 +375,14 @@ public class RayTracer : MonoBehaviour
         _previousDimen.y = height;
     }
 
+    public void ClearOutRenderTexture(RenderTexture renderTexture)
+    {
+        RenderTexture rt = RenderTexture.active;
+        RenderTexture.active = renderTexture;
+        GL.Clear(true, true, Color.clear);
+        RenderTexture.active = rt;
+    }
+
     void DispatchGPURayTrace()
     {
         //Get Kernel.
@@ -362,6 +394,7 @@ public class RayTracer : MonoBehaviour
         
         //Set shader variables.
         _RayTracingShader.SetInt("_MaxBounces", maxBounces);
+        _RayTracingShader.SetFloat("_RussianRouletteChance", RussianRouletteChance);
         _RayTracingShader.SetTexture(0, "_RayTracer", _inProgressTarget);
         _RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         _RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
@@ -375,7 +408,7 @@ public class RayTracer : MonoBehaviour
         int maxSamples = Mathf.CeilToInt(MaxSamples);
         if (_CurrentSample < 1)
             CreateRaysForRayTracer(threadGroupsX, threadGroupsY, threadGroupsZ);
-        if (_CurrentSample < maxSamples * maxBounces)
+        if (_CurrentSample < maxSamples)
         {
             _RayTracingShader.Dispatch(kernelHandleRayTrace, threadGroupsX, threadGroupsY, threadGroupsZ);
             _CurrentSample += SamplesEachIteration;

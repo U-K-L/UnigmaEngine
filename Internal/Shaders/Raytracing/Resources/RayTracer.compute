@@ -50,6 +50,7 @@ struct Hit
 	float distance;
 	float3 normal;
 	float3 color;
+	float2 uv;
 	Vertex vertices[3];
 	MeshObject meshObj;
 
@@ -59,6 +60,7 @@ StructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
 RWStructuredBuffer<Ray> _Rays;
+uint numOfStructs, sizeOfStrides;
 
 Vertex CreateVertex(inout Vertex v)
 {
@@ -294,11 +296,12 @@ bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
 	return tBoxMin <= tBoxMax;
 }
 
-bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, inout float3 tuv)
+bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
 {
 	uint offset = meshObject.indicesOffset;
 	uint count = offset + meshObject.indicesCount;
-
+	float3 tuv = 0;
+	
 	for (uint i = offset; i < count; i += 3)
 	{
 		float3 vp0 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i]].position, 1))).xyz;
@@ -316,6 +319,7 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, inout float3
 				hit.vertices[1] = _Vertices[_Indices[i + 1]];
 				hit.vertices[2] = _Vertices[_Indices[i + 2]];
 				hit.distance = t;
+				hit.uv = float2(tuv.y, tuv.z);
 				hit.position = ray.o + t * ray.d;
 				hit.meshObj = meshObject;
 				return true;
@@ -325,9 +329,16 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject, inout float3
 	return false;
 } 
 
-void SceneTrace(Ray ray, inout Hit hit)
+void SceneTrace(inout Ray ray, inout Hit hit)
 {
-	
+	for (int k = 0; k < numOfStructs; k++)
+	{
+		MeshObject meshObject = _MeshObjects[k];
+		if (TraceAABB(ray, hit, meshObject) == true)
+		{
+			TraceMesh(ray, hit, meshObject);
+		}
+	}
 }
 
 [numthreads(8, 8, 1)]
@@ -365,9 +376,11 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	hit.vertices[1] = v1;
 	hit.vertices[2] = v2;
 	
+	hit.uv = 0;
 	hit.meshObj = _MeshObjects[0];
 	
 	uint width, height;
+	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
 
 	_RayTracer.GetDimensions(width, height);
 	Ray ray = _Rays[id.x + id.y * width];
@@ -382,45 +395,11 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
 
 	
-	uint numOfStructs, sizeOfStrides; 
-	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
-	int closesAABB = -1;
-
-		//Keep searching for closes hit.
-		float3 tuv = 0;
-
-		for (int k = 0; k < numOfStructs; k++)
-		{
-			MeshObject meshObject = _MeshObjects[k];
-			if (TraceAABB(ray, hit, meshObject) == true)
-			{
-				if (TraceMesh(ray, hit, meshObject, tuv))
-				{
-					closesAABB = k;
-				}
-				
-			}
-		}
-		//Perform a ray trace.
-		if (closesAABB != -1)
-		{
-			ExecuteShadingFunction(ray, hit, pixel, seed + ray.bounces * (id.x + id.y * width));
-		}
-		else
-		{
-
-			//SampleSkyBox(ray);
-			//_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
-			//ray.bounces = 9999999;
-			//_Rays[id.x + id.y * width] = ray;
-			//return;
-		}
+	//Perform a ray trace.
+	SceneTrace(ray, hit);
+	ExecuteShadingFunction(ray, hit, pixel, seed + ray.bounces * (id.x + id.y * width));
 	
-		ray.bounces++;
-		//if (ray.bounces >= _MaxBounces)
-		//{
-		//	ray = CreateCameraRay(pixel);
-		//}
+	ray.bounces++;
 
 	if (rand(_Time.x + _FrameSeed) >= _RussianRouletteChance)
 	{

@@ -14,7 +14,7 @@ public class RayTracer : MonoBehaviour
     //Provides the script to be executed for computing the ray tracer. One is RTX the other is a fallback compute shader.
     private ComputeShader _RayTracingShader;
     private RayTracingShader _RayTracingShaderAccelerated;
-    
+
     //The render texture has two stages one is an in progress image which may take multiple cycles to complete.
     //The other is a finalized target which is displayed. A single finalized target may be displayed for multiple frames before updating.
     private RenderTexture _finalizedTarget;
@@ -32,17 +32,17 @@ public class RayTracer : MonoBehaviour
     //Dimensions of the texture. After being computed with division.
     private Vector2 _previousDimen = new Vector2(0, 0);
     private int _width, _height = 0;
-    
+
     private Camera _cam;
     public Texture skyBox;
-    
+
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
 
     private List<Renderer> _RayTracedObjects = new List<Renderer>();
     RayTracingAccelerationStructure _AccelerationStructure;
 
-    
+
     ComputeBuffer _meshObjectBuffer;
     ComputeBuffer _verticesObjectBuffer;
     ComputeBuffer _indicesObjectBuffer;
@@ -130,7 +130,7 @@ public class RayTracer : MonoBehaviour
     {
         if (_RayTracingShaderAccelerated == null)
             _RayTracingShaderAccelerated = Resources.Load<RayTracingShader>("AcceleratedRayTracer");
-        
+
         //Create GPU accelerated structure.
         var settings = new RayTracingAccelerationStructure.RASSettings();
         settings.layerMask = RayTracingLayers;
@@ -156,7 +156,7 @@ public class RayTracer : MonoBehaviour
             Debug.LogWarning("No objects to ray trace. Please add objects to the RayTracingLayers.");
             return;
         }
-        
+
         if (UnigmaSettings.GetIsRTXEnabled())
             UpdateAcceleratedRayTracer();
         else
@@ -232,7 +232,7 @@ public class RayTracer : MonoBehaviour
             Debug.LogWarning("No objects to ray trace. Please add objects to the RayTracingLayers.");
             return;
         }
-        
+
         _width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.width), 32);
         _height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.height), 32);
         InitializeRenderTexture(_width, _height);
@@ -247,7 +247,7 @@ public class RayTracer : MonoBehaviour
             DispatchGPURayTrace();
             RenderFrame(source, destination);
         }
-        
+
     }
 
     void RenderFrame(RenderTexture source, RenderTexture destination)
@@ -261,20 +261,10 @@ public class RayTracer : MonoBehaviour
         else if (RenderFrameFinished && SceneIsDynamic)
         {
             Graphics.Blit(_inProgressTarget, _finalizedTarget);
+            Graphics.Blit(_finalizedTarget, destination);
             ClearOutRenderTexture(_inProgressTarget);
             _CurrentSample = 0;
             RenderFrameFinished = false;
-        }
-        else
-        {
-            if (_CurrentSample > MaxSamples / 1.15)
-            {
-                Graphics.Blit(_inProgressTarget, destination);
-            }
-            else
-            {
-                Graphics.Blit(_finalizedTarget, destination);
-            }
         }
     }
 
@@ -389,11 +379,11 @@ public class RayTracer : MonoBehaviour
     {
         //Get Kernel.
         int kernelHandleRayTrace = _RayTracingShader.FindKernel("RayTrace");
-        
+
         //Get thread sizes.
         uint tx, ty, tz;
         _RayTracingShader.GetKernelThreadGroupSizes(0, out tx, out ty, out tz);
-        
+
         //Set shader variables.
         _RayTracingShader.SetInt("_MaxBounces", maxBounces);
         _RayTracingShader.SetFloat("_RussianRouletteChance", RussianRouletteChance);
@@ -401,7 +391,7 @@ public class RayTracer : MonoBehaviour
         _RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         _RayTracingShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _RayTracingShader.SetTexture(0, "_SkyBoxTexture", skyBox);
-        
+
         _RayTracingShader.SetVector("_FrameSeed", _FrameSeed);
         _RayTracingShader.SetFloat("_Samples", MaxSamples);
         int threadGroupsX = Mathf.CeilToInt(_width / (float)tx);
@@ -420,22 +410,23 @@ public class RayTracer : MonoBehaviour
             Debug.Log("Render Complete");
             RenderFrameFinished = true;
         }
-            
+
         _FrameSeed = new Vector2(Random.value, Random.value);
-        
+
 
     }
 
     void UpdateRays()
     {
-        
+
     }
 
     void CreateRaysForRayTracer(int x, int y, int z)
     {
         int kernelHandleRayTrace = _RayTracingShader.FindKernel("RayTrace");
         int kernelHandleInitRayTrace = _RayTracingShader.FindKernel("InitializeRays");
-        _rayBuffer = new ComputeBuffer(_width * _height, 52);
+        if(_rayBuffer == null)
+            _rayBuffer = new ComputeBuffer(_width * _height, 52);
         _RayTracingShader.SetTexture(kernelHandleInitRayTrace, "_RayTracer", _inProgressTarget);
         _rayBuffer.SetData(_rays);
         _RayTracingShader.SetBuffer(kernelHandleInitRayTrace, "_Rays", _rayBuffer);
@@ -450,7 +441,41 @@ public class RayTracer : MonoBehaviour
         _RayTracingShaderAccelerated.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _RayTracingShaderAccelerated.SetShaderPass("MyRaytraceShaderPass");
         _RayTracingShaderAccelerated.SetAccelerationStructure("_RaytracingAccelerationStructure", _AccelerationStructure);
-        
+
         _RayTracingShaderAccelerated.Dispatch("MyRaygenShader", _width, _height, 1);
+    }
+
+    //Release all buffers and memory
+    void ReleaseBuffers()
+    {
+        if (_verticesObjectBuffer != null)
+            _verticesObjectBuffer.Release();
+        if (_indicesObjectBuffer != null)
+            _indicesObjectBuffer.Release();
+        if (_meshObjectBuffer != null)
+            _meshObjectBuffer.Release();
+        if (_rayBuffer != null)
+            _rayBuffer.Release();
+        if (_AccelerationStructure != null)
+            _AccelerationStructure.Release();
+
+
+    }
+
+    void OnDisable()
+    {
+        ReleaseBuffers();
+    }
+
+    //On application quit
+    void OnApplicationQuit()
+    {
+        ReleaseBuffers();
+    }
+
+    //On playtest end
+    void OnDestroy()
+    {
+        ReleaseBuffers();
     }
 }

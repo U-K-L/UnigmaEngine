@@ -27,6 +27,7 @@ public class RayTracer : MonoBehaviour
     private bool _isInProgress = false; //Is the ray tracer currently in progress of rendering an image.
     public int textSizeDivision = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
     public int maxBounces = 1; //How many times a ray can bounce before it is terminated.
+    public int minBounces = 2;
     public float RussianRouletteChance = 0.5f; //The chance a ray will be terminated early.
 
     //Dimensions of the texture. After being computed with division.
@@ -386,6 +387,7 @@ public class RayTracer : MonoBehaviour
 
         //Set shader variables.
         _RayTracingShader.SetInt("_MaxBounces", maxBounces);
+        _RayTracingShader.SetInt("_MinBounces", minBounces);
         _RayTracingShader.SetFloat("_RussianRouletteChance", RussianRouletteChance);
         _RayTracingShader.SetTexture(0, "_RayTracer", _inProgressTarget);
         _RayTracingShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);

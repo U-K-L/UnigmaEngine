@@ -11,6 +11,7 @@ Texture2D<float4> _SkyBoxTexture;
 SamplerState sampler_SkyBoxTexture;
 float epsilon = 0.00001;
 int _MaxBounces;
+int _MinBounces;
 float _Samples;
 float2 _FrameSeed;
 float _RussianRouletteChance;
@@ -475,11 +476,11 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 	ExecuteShadingFunction(ray, hit, pixel, seed + ray.bounces * (id.x + id.y * width));
 
 	ray.bounces++;
-	if (ray.bounces < 10)
+	if (ray.bounces < _MinBounces)
 	{
-		//_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
+		_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
 	}
-	else if (rand(_Time.x + _FrameSeed) >= _RussianRouletteChance)
+	else if (rand(_Time.x + _FrameSeed) >= _RussianRouletteChance || ray.bounces > _MaxBounces)
 	{
 		_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
 		ray = CreateCameraRay(pixel);

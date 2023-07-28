@@ -2520,7 +2520,7 @@ MonoBehaviour:
   taskDivisiblity: 4
   textSizeDivision: 0
   maxBounces: 1000
-  RussianRouletteChance: 0
+  RussianRouletteChance: 0.35
   skyBox: {fileID: 2800000, guid: 5dff1cdb9ab3cc74bbf1aee3dfd47ca6, type: 3}
   RayTracingLayers:
     serializedVersion: 2

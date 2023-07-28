@@ -425,7 +425,7 @@ public class RayTracer : MonoBehaviour
     {
         int kernelHandleRayTrace = _RayTracingShader.FindKernel("RayTrace");
         int kernelHandleInitRayTrace = _RayTracingShader.FindKernel("InitializeRays");
-        if(_rayBuffer == null)
+        if (_rayBuffer == null)
             _rayBuffer = new ComputeBuffer(_width * _height, 52);
         _RayTracingShader.SetTexture(kernelHandleInitRayTrace, "_RayTracer", _inProgressTarget);
         _rayBuffer.SetData(_rays);

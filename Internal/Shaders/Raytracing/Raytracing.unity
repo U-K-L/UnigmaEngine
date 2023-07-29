@@ -772,7 +772,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 1, g: 0.9071684, b: 0.4669811, a: 1}
-  emission: 25
+  emission: 50
 --- !u!65 &355576976
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2518,17 +2518,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   timeUntilNextUpdateDelta: 0.07
   taskDivisiblity: 4
-  textSizeDivision: 0
+  textSizeDivision: 4
   maxBounces: 1000
   minBounces: 2
-  RussianRouletteChance: 0.9999
+  RussianRouletteChance: 0.35
   skyBox: {fileID: 2800000, guid: 5dff1cdb9ab3cc74bbf1aee3dfd47ca6, type: 3}
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 524288
-  MaxSamples: 100
+  MaxSamples: 5
   SamplesEachIteration: 1
-  SceneIsDynamic: 0
+  SceneIsDynamic: 1
 --- !u!1 &1863825766
 GameObject:
   m_ObjectHideFlags: 0

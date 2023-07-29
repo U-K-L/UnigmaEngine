@@ -413,7 +413,7 @@ public class RayTracer : MonoBehaviour
             RenderFrameFinished = true;
         }
 
-        _FrameSeed = new Vector2(Random.value, Random.value);
+        _FrameSeed = new Vector2(Random.value, _FrameSeed.y++);
 
 
     }

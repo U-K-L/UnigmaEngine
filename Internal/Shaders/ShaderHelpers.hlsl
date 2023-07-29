@@ -119,9 +119,13 @@ float2 randGaussian(float3 pos, float offset) {
 	float u1 = rand(pos, offset);
 	float u2 = rand(pos, offset + 1);
 	float theta = 2 * UNITY_PI * u1;
-	float rho = sqrt(-2 * log(1-u2));
-	float z0 = rho * cos(theta);
-	float z1 = rho * sin(theta);
+	float rho = 0.164955 * sqrt(-2 * log(abs(u2) + 0.01));
+	float z0 = rho * cos(theta) + 0.5;
+    float z1 = rho * sin(theta) + 0.5;
+    z0 = max(z0, 0);
+	z0 = min(z0, 1);
+	z1 = max(z1, 0);
+	z1 = min(z1, 1);
 	return float2(z0, z1);
 }
 

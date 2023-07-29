@@ -69,6 +69,8 @@ public class RayTracer : MonoBehaviour
         public Vector3 AABBMax;
         public Vector3 color;
         public float emission;
+        public float smoothness;
+        public float transparency;
         public uint id;
     }
 
@@ -211,6 +213,8 @@ public class RayTracer : MonoBehaviour
             {
                 meshobj.color = new Vector3(rto.color.r, rto.color.g, rto.color.b);
                 meshobj.emission = rto.emission;
+                meshobj.smoothness = rto.smoothness;
+                meshobj.transparency = rto.transparency;
             }
             meshObjects[i] = meshobj;
         }
@@ -337,7 +341,7 @@ public class RayTracer : MonoBehaviour
                 });
             }
         }
-        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 128);
+        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 136);
         _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
         _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
         _verticesObjectBuffer.SetData(Vertices);

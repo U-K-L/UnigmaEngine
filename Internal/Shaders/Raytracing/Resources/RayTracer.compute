@@ -36,6 +36,8 @@ struct MeshObject
 	float3 AABBMax;
 	float3 color;
 	float emission;
+	float smoothness;
+	float transparency;
 	uint id;
 };
 
@@ -352,8 +354,8 @@ void Trace(inout Ray ray, inout Hit hit)
 void LambertDiffuse(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
 {
 	ray.o = hit.position + hit.normal * 0.001;
-	//ray.d = RandomPointOnHemisphere(pixel, hit.normal, seed, 1.0, 0.25);
-	ray.d = reflect(ray.d, hit.normal);
+	ray.d = RandomPointOnHemisphere(pixel, hit.normal, seed, 1.0, 0.25);
+	//ray.d = reflect(ray.d, hit.normal);
 
 	//Get next event estimator.
 	float maxEmission = 0;

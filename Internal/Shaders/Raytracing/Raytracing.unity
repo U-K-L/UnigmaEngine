@@ -235,6 +235,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 1, b: 1, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &88466702
 GameObject:
   m_ObjectHideFlags: 0
@@ -387,6 +389,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0.7735849, g: 0.4536483, b: 0.12771447, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &188683113
 GameObject:
   m_ObjectHideFlags: 0
@@ -421,6 +425,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 0.9839089, b: 0.7216981, a: 1}
   emission: 0.055
+  smoothness: 0.95
+  transparency: 1
 --- !u!135 &188683115
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -548,6 +554,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 0, b: 0.6420078, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!64 &224821458
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -724,6 +732,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0.013483422, g: 0.04038567, b: 0.9528302, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &355576973
 GameObject:
   m_ObjectHideFlags: 0
@@ -772,7 +782,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 1, g: 0.9071684, b: 0.4669811, a: 1}
-  emission: 50
+  emission: 75
+  smoothness: 0.95
+  transparency: 1
 --- !u!65 &355576976
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -949,6 +961,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0.3490566, g: 0, b: 0.20311907, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &386571066
 GameObject:
   m_ObjectHideFlags: 0
@@ -1061,6 +1075,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0.990566, g: 0.94818467, b: 0.23829652, a: 1}
   emission: 1
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &559624615
 GameObject:
   m_ObjectHideFlags: 0
@@ -1207,6 +1223,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0.7978548, g: 0.15419187, b: 0.9339623, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &646457858
 GameObject:
   m_ObjectHideFlags: 0
@@ -1256,6 +1274,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 1, b: 1, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!64 &646457861
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1369,6 +1389,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0, g: 0.34241298, b: 0.509434, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!65 &662669391
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1481,6 +1503,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0, g: 0.74659276, b: 1, a: 1}
   emission: 0.0001
+  smoothness: 0.95
+  transparency: 1
 --- !u!64 &664889851
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1594,6 +1618,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 1, b: 1, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!64 &775769399
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1770,6 +1796,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 0, b: 0, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &1001182920
 GameObject:
   m_ObjectHideFlags: 0
@@ -1882,6 +1910,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0, g: 0.7058824, b: 0.4644107, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &1465810648
 GameObject:
   m_ObjectHideFlags: 0
@@ -2030,6 +2060,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0, g: 0.6117647, b: 0.37550443, a: 1}
   emission: 0.0043
+  smoothness: 0.95
+  transparency: 1
 --- !u!64 &1548939671
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2242,6 +2274,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 1, b: 1, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!64 &1672598744
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2355,6 +2389,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 1, b: 1, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!64 &1705150666
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2518,7 +2554,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   timeUntilNextUpdateDelta: 0.07
   taskDivisiblity: 4
-  textSizeDivision: 4
+  textSizeDivision: 0
   maxBounces: 1000
   minBounces: 2
   RussianRouletteChance: 0.35
@@ -2578,6 +2614,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 1, g: 0.90588236, b: 0.46666667, a: 1}
   emission: 10
+  smoothness: 0.95
+  transparency: 1
 --- !u!64 &1863825769
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2860,6 +2898,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0.8490566, g: 0.72681564, b: 0.084104665, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!65 &1918817522
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3035,6 +3075,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0.10568706, g: 0.8962264, b: 0.64962727, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1
 --- !u!1 &2082631242
 GameObject:
   m_ObjectHideFlags: 0
@@ -3241,3 +3283,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   color: {r: 0.82571113, g: 0.9056604, b: 0.021359911, a: 1}
   emission: 0
+  smoothness: 0.95
+  transparency: 1

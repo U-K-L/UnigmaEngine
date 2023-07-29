@@ -38,6 +38,8 @@ struct MeshObject
 	float emission;
 	float smoothness;
 	float transparency;
+	float absorbtion;
+	float celShaded;
 	uint id;
 };
 
@@ -353,9 +355,17 @@ void Trace(inout Ray ray, inout Hit hit)
 
 void LambertDiffuse(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
 {
+	float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
+	float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
+	float3 uv = float3(xy, xz.x);
+	
+	
 	ray.o = hit.position + hit.normal * 0.001;
-	ray.d = RandomPointOnHemisphere(pixel, hit.normal, seed, 1.0, 0.25);
-	//ray.d = reflect(ray.d, hit.normal);
+	float3 diffuse = RandomPointOnHemisphere(pixel, hit.normal, seed, 1.0, 0.25);
+	float3 specular = reflect(ray.d, hit.normal);
+	float lightAbsorbed = hit.meshObj.absorbtion < uv.x;
+
+	ray.d = lerp(diffuse, specular, hit.meshObj.smoothness * lightAbsorbed);
 
 	//Get next event estimator.
 	float maxEmission = 0;
@@ -366,41 +376,43 @@ void LambertDiffuse(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
 	for (int i = 0; i < _MeshObjects.Length; i++)
 	{
 		MeshObject meshObj = _MeshObjects[i];
-		if (meshObj.emission > maxEmission)
+		if (meshObj.emission > 0.1)
 		{
+			
 			maxEmission = meshObj.emission;
 			maxEmissionID = meshObj.id;
 			lightSource = meshObj;
+
+
+
+			float3 area = float3(1.15, 0.015, 1.15);
+			float3 lightSample = (uv * area) + lightSource.position;
+			omega = normalize(lightSample - hit.position);
+			lightRay = CreateRay(hit.position, omega, pixel);
+
+			float v = 0;
+			Hit lightHit = CreateHit();
+			SceneTrace(lightRay, lightHit);
+
+
+			if (lightHit.meshObj.id == maxEmissionID)
+				v = 1;
+
+			float ps = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
+			float p = dot(lightHit.normal, -omega) * (1 / dot(lightSample - hit.position, lightSample - hit.position));
+			float cos_theta = sdot(hit.normal, ray.d);
+			float cos_theta_omega = sdot(hit.normal, omega);
+
+			float directLightWeight = ray.bounces == 0 ? 1.0 : 0.0;
+			ray.color *= 2 * hit.meshObj.color;
+			ray.energy += lightHit.meshObj.emission * ray.color * v * cos_theta_omega * p; //* (1.0 / (1.0 - _RussianRouletteChance));
+			float incomingLightAbsorbed = hit.meshObj.celShaded-0.55 < uv.z;
+			ray.energy += hit.meshObj.emission * ray.color * cos_theta * ps * directLightWeight * incomingLightAbsorbed;
 		}
 	}
 
-	float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
-	float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
-	float3 uv = float3(xy, xz.x);
-	float3 area = float3(1.15,0.015,1.15);
-	float3 lightSample = (uv*area) + lightSource.position;
-	omega = normalize(lightSample - hit.position);
-	lightRay = CreateRay(hit.position, omega, pixel);
-
-	float v = 0;
-	Hit lightHit = CreateHit();
-	SceneTrace(lightRay, lightHit);
-
 	
-	if (lightHit.meshObj.id == maxEmissionID)
-		v = 1;
-
-	float ps = 1 / (2 * UNITY_PI); //Probability of a random point on a hemisphere.
-	float p = dot(lightHit.normal, -omega) * (1 / dot(lightSample - hit.position, lightSample - hit.position));
-	float diffuse = sdot(hit.normal, ray.d);
-	//float specular = 
-	float cos_theta_omega = sdot(hit.normal, omega);
 	float weight = ray.bounces == 0 ? 1.0 : 0.5;
-	float directLightWeight = ray.bounces == 0 ? 1.0 : 0.0;
-	ray.color *= 2 * hit.meshObj.color;
-	//ray.energy += ray.color;
-	ray.energy += lightHit.meshObj.emission * ray.color * v *cos_theta_omega * p; //* (1.0 / (1.0 - _RussianRouletteChance));
-	ray.energy += hit.meshObj.emission * ray.color * diffuse * ps * directLightWeight;
 	ray.energy *= (1.0 / (1.0 -_RussianRouletteChance)) * weight;
 }
 

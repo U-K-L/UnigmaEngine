@@ -71,6 +71,8 @@ public class RayTracer : MonoBehaviour
         public float emission;
         public float smoothness;
         public float transparency;
+        public float absorbtion;
+        public float celShaded;
         public uint id;
     }
 
@@ -215,6 +217,8 @@ public class RayTracer : MonoBehaviour
                 meshobj.emission = rto.emission;
                 meshobj.smoothness = rto.smoothness;
                 meshobj.transparency = rto.transparency;
+                meshobj.absorbtion = rto.absorbtion;
+                meshobj.celShaded = rto.celShaded;
             }
             meshObjects[i] = meshobj;
         }
@@ -341,7 +345,7 @@ public class RayTracer : MonoBehaviour
                 });
             }
         }
-        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 136);
+        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 144);
         _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
         _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
         _verticesObjectBuffer.SetData(Vertices);

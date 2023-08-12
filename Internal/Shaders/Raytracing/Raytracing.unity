@@ -233,12 +233,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &88466702
 GameObject:
   m_ObjectHideFlags: 0
@@ -389,12 +383,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.7735849, g: 0.4536483, b: 0.12771447, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &188683113
 GameObject:
   m_ObjectHideFlags: 0
@@ -427,12 +415,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 0.9839089, b: 0.7216981, a: 1}
-  emission: 0.055
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!135 &188683115
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -524,6 +506,7 @@ GameObject:
   - component: {fileID: 224821459}
   - component: {fileID: 224821458}
   - component: {fileID: 224821457}
+  - component: {fileID: 224821461}
   m_Layer: 19
   m_Name: Wall 2
   m_TagString: Untagged
@@ -558,12 +541,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 0, b: 0.6420078, a: 1}
-  emission: 0
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 1
 --- !u!64 &224821458
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -628,6 +605,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 224821455}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &224821461
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 224821455}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 0, g: 0.638817, b: 0.9056604, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &278642760
 GameObject:
   m_ObjectHideFlags: 0
@@ -738,12 +733,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.013483422, g: 0.04038567, b: 0.9528302, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &355576973
 GameObject:
   m_ObjectHideFlags: 0
@@ -757,6 +746,7 @@ GameObject:
   - component: {fileID: 355576977}
   - component: {fileID: 355576976}
   - component: {fileID: 355576975}
+  - component: {fileID: 355576979}
   m_Layer: 19
   m_Name: Light
   m_TagString: Untagged
@@ -791,12 +781,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 0.9071684, b: 0.4669811, a: 1}
-  emission: 700
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!65 &355576976
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -860,6 +844,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 355576973}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &355576979
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 355576973}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 1, g: 0.8270795, b: 0.44716978, a: 1}
+  emission: 550
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &364852495
 GameObject:
   m_ObjectHideFlags: 0
@@ -971,12 +973,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.3490566, g: 0, b: 0.20311907, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &386571066
 GameObject:
   m_ObjectHideFlags: 0
@@ -1087,12 +1083,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.990566, g: 0.94818467, b: 0.23829652, a: 1}
-  emission: 1
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &559624615
 GameObject:
   m_ObjectHideFlags: 0
@@ -1237,12 +1227,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.7978548, g: 0.15419187, b: 0.9339623, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &646457858
 GameObject:
   m_ObjectHideFlags: 0
@@ -1256,6 +1240,7 @@ GameObject:
   - component: {fileID: 646457862}
   - component: {fileID: 646457861}
   - component: {fileID: 646457860}
+  - component: {fileID: 646457864}
   m_Layer: 19
   m_Name: Wall 3
   m_TagString: Untagged
@@ -1290,12 +1275,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 1
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!64 &646457861
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1360,6 +1339,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 646457858}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &646457864
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 646457858}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &662669388
 GameObject:
   m_ObjectHideFlags: 0
@@ -1407,12 +1404,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0, g: 0.34241298, b: 0.509434, a: 1}
-  emission: 0
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!65 &662669391
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1488,7 +1479,7 @@ GameObject:
   - component: {fileID: 664889853}
   - component: {fileID: 664889852}
   - component: {fileID: 664889851}
-  - component: {fileID: 664889850}
+  - component: {fileID: 664889854}
   m_Layer: 19
   m_Name: Wall
   m_TagString: Untagged
@@ -1511,24 +1502,6 @@ Transform:
   m_Father: {fileID: 88466703}
   m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 90}
---- !u!114 &664889850
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 664889848}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  color: {r: 0, g: 0.74659276, b: 1, a: 1}
-  emission: 0.0001
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 1
 --- !u!64 &664889851
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1593,6 +1566,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 664889848}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &664889854
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 664889848}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 1, g: 0, b: 0.60393715, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &775769396
 GameObject:
   m_ObjectHideFlags: 0
@@ -1606,6 +1597,7 @@ GameObject:
   - component: {fileID: 775769400}
   - component: {fileID: 775769399}
   - component: {fileID: 775769398}
+  - component: {fileID: 775769402}
   m_Layer: 19
   m_Name: Ceiling
   m_TagString: Untagged
@@ -1640,12 +1632,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 0
-  transparency: 1
-  absorbtion: 1
-  celShaded: 1
 --- !u!64 &775769399
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1710,6 +1696,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 775769396}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &775769402
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 775769396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &921390867
 GameObject:
   m_ObjectHideFlags: 0
@@ -1820,12 +1824,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 0, b: 0, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &1001182920
 GameObject:
   m_ObjectHideFlags: 0
@@ -1839,6 +1837,7 @@ GameObject:
   - component: {fileID: 1001182922}
   - component: {fileID: 1001182921}
   - component: {fileID: 1001182925}
+  - component: {fileID: 1001182926}
   m_Layer: 19
   m_Name: Sphere (1)
   m_TagString: Egg
@@ -1936,10 +1935,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0, g: 0.7058824, b: 0.4644107, a: 1}
+--- !u!114 &1001182926
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1001182920}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 0, g: 0.8388258, b: 0.9056604, a: 1}
   emission: 0
-  smoothness: 0
-  transparency: 1
+  smoothness: 0.76
+  transparency: 0.5
   absorbtion: 0
   celShaded: 1
 --- !u!1 &1465810648
@@ -1989,10 +2000,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa2458c52736a694d8e905a711abede4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  RandomPointsOnSphere: {fileID: 7200000, guid: 29b85a7b2b2ff8646a369391d189bf3a,
-    type: 3}
-  positionsCount: 10000
-  plane: {fileID: 1909759720}
 --- !u!135 &1465810651
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -2088,12 +2095,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0, g: 0.6117647, b: 0.37550443, a: 1}
-  emission: 0.0043
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!64 &1548939671
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2270,6 +2271,7 @@ GameObject:
   - component: {fileID: 1672598745}
   - component: {fileID: 1672598744}
   - component: {fileID: 1672598743}
+  - component: {fileID: 1672598747}
   m_Layer: 19
   m_Name: Floor
   m_TagString: Untagged
@@ -2304,12 +2306,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 1
 --- !u!64 &1672598744
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2374,6 +2370,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1672598741}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1672598747
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1672598741}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &1705150663
 GameObject:
   m_ObjectHideFlags: 0
@@ -2387,6 +2401,7 @@ GameObject:
   - component: {fileID: 1705150667}
   - component: {fileID: 1705150666}
   - component: {fileID: 1705150665}
+  - component: {fileID: 1705150669}
   m_Layer: 19
   m_Name: Wall 3 (1)
   m_TagString: Untagged
@@ -2421,12 +2436,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 1
 --- !u!64 &1705150666
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2491,6 +2500,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1705150663}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1705150669
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1705150663}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &1802515038
 GameObject:
   m_ObjectHideFlags: 0
@@ -2585,20 +2612,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 1802515038}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ffc03899e4f46d84eaa288c105fb2d41, type: 3}
+  m_Script: {fileID: 11500000, guid: 853e30e8be871d740b50c28e5eceb89b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   timeUntilNextUpdateDelta: 0.07
-  taskDivisiblity: 4
+  taskDivisiblity: 1
   textSizeDivision: 0
   maxBounces: 1000
   minBounces: 2
-  RussianRouletteChance: 0.35
-  skyBox: {fileID: 2800000, guid: 5dff1cdb9ab3cc74bbf1aee3dfd47ca6, type: 3}
+  RussianRouletteChance: 0.25
+  skyBox: {fileID: 2800000, guid: 7e9a58848d9eb4a48b4f3fa6d2a3be80, type: 3}
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 524288
-  MaxSamples: 10000
+  MaxSamples: 25000
   SamplesEachIteration: 1
   SceneIsDynamic: 0
 --- !u!1 &1863825766
@@ -2614,6 +2641,7 @@ GameObject:
   - component: {fileID: 1863825770}
   - component: {fileID: 1863825769}
   - component: {fileID: 1863825768}
+  - component: {fileID: 1863825772}
   m_Layer: 19
   m_Name: CeilingLight
   m_TagString: Untagged
@@ -2648,12 +2676,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 0.90588236, b: 0.46666667, a: 1}
-  emission: 10
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!64 &1863825769
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2718,6 +2740,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1863825766}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1863825772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1863825766}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &1874997814
 GameObject:
   m_ObjectHideFlags: 0
@@ -2788,7 +2828,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d54daece7aa5a6c49ad82551a9d0b153, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  UnigmaCompute: {fileID: 0}
 --- !u!1 &1909759720
 GameObject:
   m_ObjectHideFlags: 0
@@ -2900,6 +2939,7 @@ GameObject:
   - component: {fileID: 1918817523}
   - component: {fileID: 1918817522}
   - component: {fileID: 1918817521}
+  - component: {fileID: 1918817525}
   m_Layer: 19
   m_Name: Cube
   m_TagString: Untagged
@@ -2934,12 +2974,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.8490566, g: 0.72681564, b: 0.084104665, a: 1}
-  emission: 0
-  smoothness: 0.37
-  transparency: 1
-  absorbtion: 0
-  celShaded: 1
 --- !u!65 &1918817522
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3003,6 +3037,24 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1918817519}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1918817525
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1918817519}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  color: {r: 0.9622642, g: 0.6479207, b: 0.0127091, a: 1}
+  emission: 0
+  smoothness: 0.71
+  transparency: 0.65
+  absorbtion: 0.15
+  celShaded: 1
 --- !u!1 &1979437503
 GameObject:
   m_ObjectHideFlags: 0
@@ -3113,12 +3165,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.10568706, g: 0.8962264, b: 0.64962727, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &2082631242
 GameObject:
   m_ObjectHideFlags: 0
@@ -3323,9 +3369,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0.82571113, g: 0.9056604, b: 0.021359911, a: 1}
-  emission: 0
-  smoothness: 0.95
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0

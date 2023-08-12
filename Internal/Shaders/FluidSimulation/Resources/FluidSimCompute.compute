@@ -1,0 +1,162 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CreateGrid
+#include "../../ShaderHelpers.hlsl"
+float4x4 _CameraToWorld;
+float4x4 _CameraInverseProjection;
+float4x4 _ParentTransform;
+
+float epsilon = 0.00001;
+
+struct Ray
+{
+    float3 o;
+    float3 d;
+    float3 color;
+    float3 energy;
+    int bounces;
+};
+
+struct Hit
+{
+    float3 position;
+    float distance;
+    float3 normal;
+    float3 color;
+    float2 uv;
+    float depth;
+};
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+
+Ray CreateRay(float3 og, float3 dir, float2 pixel)
+{
+    Ray ray;
+    ray.o = og;
+    ray.d = dir;
+    ray.color = float3(1, 1, 1);
+    ray.energy = float3(0, 0, 0);
+    ray.bounces = 0;
+    return ray;
+}
+
+Hit CreateHit()
+{
+    Hit hit;
+    hit.normal = 0;
+    hit.position = 0;
+    hit.distance = 1500;
+    hit.color = float3(0.2, 0.6, 0.4);
+    hit.depth = 0;
+
+    hit.uv = 0;
+
+    return hit;
+}
+
+Ray CreateCameraRay(float2 uv)
+{
+	//Get the world position of the origin, which is basically just the camera.
+	// Last column contains position, take that.
+    float3 og = mul(_CameraToWorld, float4(0, 0, 0, 1)).xyz;
+
+	//The scene has a depth to it. The project matrix takes the depth and places it flat onto a 2D plane.
+	//The inverse projection does this process backwards. By multiplying it we go backwards.
+    float3 dir = mul(_CameraInverseProjection, float4(uv, -1, 1)).xyz;
+    dir = mul(_CameraToWorld, float4(dir, 0)).xyz; //Take this 3D pixel point and make it world position.
+    dir = normalize(dir);
+    return CreateRay(og, dir, uv);
+}
+
+
+Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
+{
+	//Quadratic formula.
+    //Move center by world matrix.
+    center = mul(_ParentTransform, float4(center, 1)).xyz;
+    //Scale radius by scale.
+    //radius *= _ParentTransform._m00;
+    float a = dot(ray.d, ray.d);
+    float b = 2 * dot((ray.o - center), ray.d);
+    float c = dot(ray.o - center, ray.o - center) - radius * radius;
+    float d = b * b - 4 * a * c;
+
+    float t1 = (-b + sqrt(b * b - 4 * a * c) / 2 * a);
+    float t2 = (-b - sqrt(b * b - 4 * a * c) / 2 * a);
+
+    
+    if (d < 0)
+        return hit;
+    if (t1 > epsilon && t1 < hit.distance && t1 < t2)
+    {
+        hit.position = ray.o + t1 * ray.d;
+        float4 clipPos = UnityWorldToClipPos(hit.position);
+        float depth = clipPos.z / clipPos.w;
+        hit.depth = 1.0 - depth;
+        float3 n = GetSphereNormal(hit.position, radius);
+        hit.normal = n;
+        hit.distance = t1;
+        
+        return hit;
+    }
+    else if (t2 > epsilon && t2 < hit.distance && t2 < t1)
+    {
+        hit.position = ray.o + t2 * ray.d;
+        float4 clipPos = UnityWorldToClipPos(hit.position);
+        float depth = clipPos.z / clipPos.w;
+        hit.depth = 1.0 - depth;
+        float3 n = GetSphereNormal(hit.position, radius);
+        hit.normal = n;
+        hit.distance = t2;
+        return hit;
+    }
+    return hit;
+}
+
+void SceneTrace(inout Ray ray, inout Hit hit)
+{
+    int nSpheres = 15;
+    for (int i = 0; i < nSpheres; i++)
+    {
+        for (int j = 0; j < nSpheres; j++)
+        {
+            for (int k = 0; k < nSpheres; k++)
+            {
+                float3 position = float3(i, j, k);
+                //float3 worldPos = mul(_CameraToWorld, float4(position, 1)).xyz;
+                
+                IntersectSphere(hit, ray, 0.725, position);
+
+            }
+
+        }
+
+    }
+
+}
+
+[numthreads(8,8,1)]
+void CreateGrid (uint3 id : SV_DispatchThreadID)
+{
+    //Create grid of spheres in 3D.
+    
+    uint width, height;
+	
+    Result.GetDimensions(width, height);
+
+
+	//This is a ray for each pixel and in the pixel's center.
+	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
+	//Then range is shifted via 2 - 1.
+    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
+    Ray ray = CreateCameraRay(pixel);
+    Hit hit = CreateHit();
+    SceneTrace(ray, hit);
+    
+    float3 camPos = mul(_CameraToWorld, float4(0, 0, 0, 1)).xyz;
+    
+    //WorldPosition, depth.
+    float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
+    Result[id.xy] = particle;
+}

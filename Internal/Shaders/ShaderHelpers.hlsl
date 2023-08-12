@@ -62,6 +62,15 @@ float SphereSDF(float3 p, float r)
     return d;
 }
 
+float3 depthWorldPosition(float2 uv, float z, float4x4 InvVP)
+{
+    float x = uv.x * 2.0f - 1.0f;
+    float y = (1.0 - uv.y) * 2.0f - 1.0f;
+    float4 position_s = float4(x, y, z, 1.0f);
+    float4 position_v = mul(InvVP, position_s);
+    return position_v.xyz / position_v.w;
+}
+
 float3 GetSphereNormal(float3 p, float r)
 {
 	float3 eps = float3(0.0001, 0.0, 0.0);

@@ -360,12 +360,13 @@ void LambertDiffuse(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
 	float3 uv = float3(xy, xz.x);
 	
 	
-	ray.o = hit.position + hit.normal * 0.001;
+	
 	float3 diffuse = RandomPointOnHemisphere(pixel, hit.normal, seed, 1.0, 0.25);
 	float3 specular = reflect(ray.d, hit.normal);
 	float lightAbsorbed = hit.meshObj.absorbtion < uv.x;
 
-	ray.d = lerp(diffuse, specular, hit.meshObj.smoothness * lightAbsorbed);
+    if (hit.meshObj.transparency > uv.y)
+		ray.d = lerp(diffuse, specular, hit.meshObj.smoothness * lightAbsorbed);
 
 	//Get next event estimator.
 	float maxEmission = 0;
@@ -404,16 +405,17 @@ void LambertDiffuse(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)
 			float cos_theta_omega = sdot(hit.normal, omega);
 
 			float directLightWeight = ray.bounces == 0 ? 1.0 : 0.0;
-			ray.color *= 2 * hit.meshObj.color;
-			ray.energy += lightHit.meshObj.emission * ray.color * v * cos_theta_omega * p; //* (1.0 / (1.0 - _RussianRouletteChance));
+			ray.color *= 2.75 * hit.meshObj.color;
+            ray.energy += lightHit.meshObj.emission * ray.color * v * cos_theta_omega * p * (hit.meshObj.transparency); //* (1.0 / (1.0 - _RussianRouletteChance));
 			float incomingLightAbsorbed = hit.meshObj.celShaded-0.55 < uv.z;
-			ray.energy += hit.meshObj.emission * ray.color * cos_theta * ps * directLightWeight * incomingLightAbsorbed;
-		}
+            ray.energy += hit.meshObj.emission * ray.color * cos_theta * ps * directLightWeight * incomingLightAbsorbed * (hit.meshObj.transparency);
+        }
 	}
 
-	
+    ray.o = hit.position + hit.normal * -0.1; //* //(0.001 * (1.0 * -(hit.meshObj.transparency > 0)));
 	float weight = ray.bounces == 0 ? 1.0 : 0.5;
 	ray.energy *= (1.0 / (1.0 -_RussianRouletteChance)) * weight;
+    //ray.color *= (1.0 / (1.0 - _RussianRouletteChance));
 }
 
 void ExecuteShadingFunction(inout Ray ray, inout Hit hit, float2 pixel, float2 seed)

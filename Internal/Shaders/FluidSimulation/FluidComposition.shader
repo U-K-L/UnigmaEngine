@@ -40,8 +40,8 @@ Shader "Hidden/FluidComposition"
 
             sampler2D _MainTex, _UnigmaFluids;
             float2 _UnigmaFluids_TexelSize;
+            const float filterRadius = 50.0;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
-            float epsilon = 0.1;
 
             /*
             float3 GetNormalFromDepth(sampler2D depth, float2 uv)
@@ -69,7 +69,7 @@ Shader "Hidden/FluidComposition"
             
             float3 viewSpacePosAtPixelPosition(float2 vpos)
             {
-                float2 uv = vpos * epsilon;
+                float2 uv = vpos * _UnigmaFluids_TexelSize;
                 return viewSpacePosAtScreenUV(uv);
             
 
@@ -116,6 +116,32 @@ Shader "Hidden/FluidComposition"
 				float4 viewSpacePos = mul(_CameraInverseProjection, clipSpacePos);
 				return viewSpacePos.xyz / viewSpacePos.w;
             }
+
+            float bilateralFilter(sampler2D depthSampler, float2 texcoord)
+            {
+                float depth = tex2D(depthSampler, texcoord).w;
+                float sum = 0;
+                float wsum = 0;
+                float blurScale = 1000.0;
+                float blurDepthFalloff = 0.1;
+                float2 blurDir = float2(1.0,1.0) * _UnigmaFluids_TexelSize;
+                for(float x=-filterRadius; x<=filterRadius; x+=1.0) {
+                    blurDir = float2(x / filterRadius,1.0 - (x / filterRadius)) * _UnigmaFluids_TexelSize;
+                    float tex = tex2D(depthSampler, texcoord + x*blurDir).w;
+                    // spatial domain
+                    float r = x * blurScale;
+                    float w = exp(-r*r);
+                    // range domain
+                    float r2 = (tex - depth) * blurDepthFalloff;
+                    float g = exp(-r2*r2);
+                    sum += tex * w * g;
+                    wsum += w * g;
+                }
+                if (wsum > 0.0) {
+                    sum /= wsum;
+                }
+                return sum;
+            }
             
             fixed4 frag (v2f i) : SV_Target
             {
@@ -124,17 +150,17 @@ Shader "Hidden/FluidComposition"
                 //fixed4 finalCol = lerp(originalImage, fluids, fluids.w);
 
                 float3 eyeSpacePos = getEyePos(_UnigmaFluids, i.uv);
-                epsilon = _UnigmaFluids_TexelSize;
-                
+                //epsilon = _UnigmaFluids_TexelSize;
+                _UnigmaFluids_TexelSize *= 20;
                 // calculate differences
-                float3 ddx = getEyePos(_UnigmaFluids, i.uv + float2(epsilon, 0)) - eyeSpacePos;
-                float3 ddx2 = eyeSpacePos - getEyePos(_UnigmaFluids, i.uv + float2(-epsilon, 0));
+                float3 ddx = getEyePos(_UnigmaFluids, i.uv + float2(_UnigmaFluids_TexelSize.x, 0)) - eyeSpacePos;
+                float3 ddx2 = eyeSpacePos - getEyePos(_UnigmaFluids, i.uv + float2(-_UnigmaFluids_TexelSize.x, 0));
                 if (abs(ddx.z) > abs(ddx2.z)) {
                     ddx = ddx2;
                 }
                 
-                float3 ddy = getEyePos(_UnigmaFluids, i.uv + float2(0, epsilon)) - eyeSpacePos;
-                float3 ddy2 = eyeSpacePos - getEyePos(_UnigmaFluids, i.uv + float2(0, -epsilon));
+                float3 ddy = getEyePos(_UnigmaFluids, i.uv + float2(0, _UnigmaFluids_TexelSize.y)) - eyeSpacePos;
+                float3 ddy2 = eyeSpacePos - getEyePos(_UnigmaFluids, i.uv + float2(0, -_UnigmaFluids_TexelSize.y));
                 if (abs(ddy2.z) < abs(ddy.z)) {
                     ddy = ddy2;
                 }
@@ -144,7 +170,7 @@ Shader "Hidden/FluidComposition"
                 
                 float3 worldPos = depthWorldPosition(i.uv, fluids.r, _ProjectionToWorld);
                 float3 normals = viewNormalAtPixelPosition(i.uv);
-                float3 finalCol = lerp(originalImage.xyz, n, max(0,fluids.w));
+                float3 finalCol = lerp(originalImage.xyz, bilateralFilter(_UnigmaFluids, i.uv), max(0,fluids.w));
                 
                 
                 return float4(finalCol,1);

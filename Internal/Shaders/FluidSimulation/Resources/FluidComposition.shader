@@ -3,6 +3,13 @@ Shader "Hidden/FluidComposition"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+		_ScaleX("Scale X", Float) = 1.0
+		_ScaleY("Scae Y", Float) = 1.0
+		_BlurFallOff("Blur Falloff", Float) = 0.25
+		_BlurRadius("Blur Radius", Float) = 5.0
+		_DepthMaxDistance("Maximum distance for depth, used for depth buffer", Float) = 100.0
+        _ShallowWaterColor("Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
+		_DeepWaterColor("Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
     }
     SubShader
     {
@@ -16,7 +23,7 @@ Shader "Hidden/FluidComposition"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
-            #include "../ShaderHelpers.hlsl"
+            #include "../../ShaderHelpers.hlsl"
 
             struct appdata
             {
@@ -38,11 +45,37 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids;
+            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals;
             float2 _UnigmaFluids_TexelSize;
-            const float filterRadius = 50.0;
+			float _BlurFallOff, _BlurRadius, _DepthMaxDistance;
+			float _ScaleX, _ScaleY;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
+            float4 _DeepWaterColor, _ShallowWaterColor;
 
+
+            float bilateralFilter(sampler2D depthSampler, float2 texcoord)
+            {
+                float depth = tex2D(depthSampler, texcoord).w;
+                float sum = 0;
+                float wsum = 0;
+                float blurScale = 1.0 / _BlurRadius;
+                for (float x = -_BlurRadius; x <= _BlurRadius; x += 1.0) {
+                    float tex = tex2D(depthSampler, texcoord + _UnigmaFluids_TexelSize * x * float2(_ScaleX, _ScaleY)).w;
+                    // spatial domain
+                    float r = x * blurScale;
+                    float r2 = (tex - depth) * _BlurFallOff;
+                    float w = exp(-r * r);
+                    float g = exp(-r2 * r2);
+                    sum += tex * w * g;
+                    wsum += w * g;
+                }
+                if (wsum > 0.0) {
+                    sum /= wsum;
+                }
+                return sum;
+            }
+
+            
             /*
             float3 GetNormalFromDepth(sampler2D depth, float2 uv)
             {
@@ -63,7 +96,7 @@ Shader "Hidden/FluidComposition"
             float3 viewSpacePosAtScreenUV(float2 uv)
             {
                 float3 viewSpaceRay = mul(_ProjectionToWorld, float4(uv * 2.0 - 1.0, 1.0, 1.0) * _ProjectionParams.z);
-                float rawDepth = tex2D(_UnigmaFluids, uv);
+                float rawDepth = bilateralFilter(_UnigmaFluids, uv);
                 return viewSpaceRay * Linear01Depth(rawDepth);
             }
             
@@ -111,69 +144,33 @@ Shader "Hidden/FluidComposition"
             
             float3 getEyePos(sampler2D depthText, float2 uv)
             {
-                float depth = tex2D(depthText, uv).w;
+                float depth = bilateralFilter(depthText, uv);
 				float4 clipSpacePos = float4(uv * 2.0 - 1.0, depth, 1.0);
 				float4 viewSpacePos = mul(_CameraInverseProjection, clipSpacePos);
 				return viewSpacePos.xyz / viewSpacePos.w;
             }
 
-            float bilateralFilter(sampler2D depthSampler, float2 texcoord)
-            {
-                float depth = tex2D(depthSampler, texcoord).w;
-                float sum = 0;
-                float wsum = 0;
-                float blurScale = 1000.0;
-                float blurDepthFalloff = 0.1;
-                float2 blurDir = float2(1.0,1.0) * _UnigmaFluids_TexelSize;
-                for(float x=-filterRadius; x<=filterRadius; x+=1.0) {
-                    blurDir = float2(x / filterRadius,1.0 - (x / filterRadius)) * _UnigmaFluids_TexelSize;
-                    float tex = tex2D(depthSampler, texcoord + x*blurDir).w;
-                    // spatial domain
-                    float r = x * blurScale;
-                    float w = exp(-r*r);
-                    // range domain
-                    float r2 = (tex - depth) * blurDepthFalloff;
-                    float g = exp(-r2*r2);
-                    sum += tex * w * g;
-                    wsum += w * g;
-                }
-                if (wsum > 0.0) {
-                    sum /= wsum;
-                }
-                return sum;
-            }
-            
             fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
+			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, i.uv);
+			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, i.uv);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
-                //fixed4 finalCol = lerp(originalImage, fluids, fluids.w);
 
-                float3 eyeSpacePos = getEyePos(_UnigmaFluids, i.uv);
-                //epsilon = _UnigmaFluids_TexelSize;
-                _UnigmaFluids_TexelSize *= 20;
-                // calculate differences
-                float3 ddx = getEyePos(_UnigmaFluids, i.uv + float2(_UnigmaFluids_TexelSize.x, 0)) - eyeSpacePos;
-                float3 ddx2 = eyeSpacePos - getEyePos(_UnigmaFluids, i.uv + float2(-_UnigmaFluids_TexelSize.x, 0));
-                if (abs(ddx.z) > abs(ddx2.z)) {
-                    ddx = ddx2;
-                }
+                //Create diffuse surface.
+
+                float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
+
+                float4 NdotL = saturate(dot(fluidsNormal.xyz, _WorldSpaceLightPos0.xyz));
+
+
+                float waterDepthDifference = saturate(fluids.x / _DepthMaxDistance);
+                float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
                 
-                float3 ddy = getEyePos(_UnigmaFluids, i.uv + float2(0, _UnigmaFluids_TexelSize.y)) - eyeSpacePos;
-                float3 ddy2 = eyeSpacePos - getEyePos(_UnigmaFluids, i.uv + float2(0, -_UnigmaFluids_TexelSize.y));
-                if (abs(ddy2.z) < abs(ddy.z)) {
-                    ddy = ddy2;
-                }
-                // calculate normal
-                float3 n = cross(ddx, ddy);
-                n = normalize(n);
-                
-                float3 worldPos = depthWorldPosition(i.uv, fluids.r, _ProjectionToWorld);
-                float3 normals = viewNormalAtPixelPosition(i.uv);
-                float3 finalCol = lerp(originalImage.xyz, bilateralFilter(_UnigmaFluids, i.uv), max(0,fluids.w));
-                
-                
-                return float4(finalCol,1);
+                fixed4 finalImage = lerp(originalImage, waterColor, fluidsDepth.w*0.75);
+
+
+                return finalImage;
             }
             ENDCG
         }

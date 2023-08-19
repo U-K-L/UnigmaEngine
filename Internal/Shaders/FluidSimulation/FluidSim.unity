@@ -392,7 +392,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 539306111}
   m_LocalRotation: {x: 0.19766597, y: -0.25087324, z: 0.052410167, w: 0.94617337}
-  m_LocalPosition: {x: 17.8, y: 17.5, z: -9.4}
+  m_LocalPosition: {x: 41.5, y: 41.7, z: -29.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -408,11 +408,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 539306111}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 64a635a81ed72184d9bc6db893ef3889, type: 3}
+  m_Script: {fileID: 11500000, guid: 6385cf413b576fa40ab4b169cd6a4f90, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ShaderMaterial: {fileID: 2100000, guid: 7dc9f163de9ec234d903eb3132f991b3, type: 2}
   fluidSimTransform: {fileID: 1634651488}
+  DeepWaterColor: {r: 0, g: 0.0008702098, b: 0.9339623, a: 1}
+  ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
+  BlurScale: {x: 1.25, y: 1.25}
+  BlurFallOff: 0.025
+  BlurRadius: 20
 --- !u!1 &1506277389
 GameObject:
   m_ObjectHideFlags: 0

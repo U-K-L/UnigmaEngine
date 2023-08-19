@@ -116,7 +116,7 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
 
 void SceneTrace(inout Ray ray, inout Hit hit)
 {
-    int nSpheres = 15;
+    int nSpheres = 30;
     for (int i = 0; i < nSpheres; i++)
     {
         for (int j = 0; j < nSpheres; j++)
@@ -126,7 +126,7 @@ void SceneTrace(inout Ray ray, inout Hit hit)
                 float3 position = float3(i, j, k);
                 //float3 worldPos = mul(_CameraToWorld, float4(position, 1)).xyz;
                 
-                IntersectSphere(hit, ray, 0.725, position);
+                IntersectSphere(hit, ray, 1, position);
 
             }
 

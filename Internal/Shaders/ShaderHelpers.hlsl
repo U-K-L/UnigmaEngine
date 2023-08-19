@@ -117,6 +117,7 @@ float rand(float4 value) {
 
 float rand(float3 pos, float offset) {
     return rand(float4(pos, offset));
+    
 }
 
 float randNegative1to1(float3 pos, float offset) {

@@ -239,10 +239,10 @@ Shader "Hidden/FluidComposition"
 
 
                 
-                fixed4 finalImage = lerp(originalImage, waterSpecular, step(0.95, fluidsDepth.w) * 0.7);
+                fixed4 finalImage = lerp(originalImage, result, step(0.95, fluidsDepth.w) * 0.7);
 
 
-                return result;//float4(fluids.xyz, 1);
+                return finalImage;
             }
             ENDCG
         }

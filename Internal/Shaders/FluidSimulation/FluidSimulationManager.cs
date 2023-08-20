@@ -72,8 +72,10 @@ public class FluidSimulationManager : MonoBehaviour
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         _fluidSimulationCompute.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
+        _fluidSimulationCompute.SetMatrix("_CameraWorldToLocal", _cam.transform.worldToLocalMatrix);
         _fluidSimulationCompute.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _fluidSimulationCompute.SetMatrix("_ParentTransform", fluidSimTransform.localToWorldMatrix);
+        
 
 
         Matrix4x4 m = GL.GetGPUProjectionMatrix(_cam.projectionMatrix, false);

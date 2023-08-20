@@ -4,6 +4,7 @@
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
 float4x4 _ParentTransform;
+float4x4 _CameraWorldToLocal;
 
 float epsilon = 0.00001;
 
@@ -74,12 +75,13 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
 {
 	//Quadratic formula.
     //Move center by world matrix.
-    center = mul(_ParentTransform, float4(center, 1)).xyz;
+    //center = mul(_ParentTransform, float4(center, 1)).xyz;
     //Scale radius by scale.
     //radius *= _ParentTransform._m00;
+	float3 rayOrig = mul(_CameraWorldToLocal, float4(ray.o, 1)).xyz;
     float a = dot(ray.d, ray.d);
-    float b = 2 * dot((ray.o - center), ray.d);
-    float c = dot(ray.o - center, ray.o - center) - radius * radius;
+    float b = 2 * dot((rayOrig - center), ray.d);
+    float c = dot(rayOrig - center, rayOrig - center) - radius * radius;
     float d = b * b - 4 * a * c;
 
     float t1 = (-b + sqrt(b * b - 4 * a * c) / 2 * a);
@@ -90,7 +92,7 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
         return hit;
     if (t1 > epsilon && t1 < hit.distance && t1 < t2)
     {
-        hit.position = ray.o + t1 * ray.d;
+        hit.position = rayOrig + t1 * ray.d;
         hit.position = mul(_ParentTransform, float4(hit.position, 1)).xyz;
         hit.position = mul(_CameraToWorld, float4(hit.position, 1)).xyz;
         float4 clipPos = UnityWorldToClipPos(hit.position);
@@ -104,7 +106,7 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
     }
     else if (t2 > epsilon && t2 < hit.distance && t2 < t1)
     {
-        hit.position = ray.o + t2 * ray.d;
+        hit.position = rayOrig + t2 * ray.d;
         hit.position = mul(_ParentTransform, float4(hit.position, 1)).xyz;
         hit.position = mul(_CameraToWorld, float4(hit.position, 1)).xyz;
         float4 clipPos = UnityWorldToClipPos(hit.position);

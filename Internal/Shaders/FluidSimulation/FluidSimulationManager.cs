@@ -23,7 +23,7 @@ public class FluidSimulationManager : MonoBehaviour
     Material _fluidSimMaterialDepthHori;
     Material _fluidSimMaterialDepthVert;
     Material _fluidSimMaterialNormal;
-    Material _fluidSimMaterialComposite;
+    public Material _fluidSimMaterialComposite;
     public Transform fluidSimTransform;
 
     public Color DeepWaterColor = Color.white;
@@ -38,13 +38,11 @@ public class FluidSimulationManager : MonoBehaviour
         
         _fluidNormalShader = Resources.Load<Shader>("FluidNormalBuffer");
         _fluidDepthShader = Resources.Load<Shader>("FluidBilateralFilter");
-        _fluidCompositeShader = Resources.Load<Shader>("FluidComposition");
         
         //Create the material for the fluid simulation.
         _fluidSimMaterialDepthHori = new Material(_fluidDepthShader);
         _fluidSimMaterialDepthVert = new Material(_fluidDepthShader);
         _fluidSimMaterialNormal = new Material(_fluidNormalShader);
-        _fluidSimMaterialComposite = new Material(_fluidCompositeShader);
 
 
         _cam = Camera.main;

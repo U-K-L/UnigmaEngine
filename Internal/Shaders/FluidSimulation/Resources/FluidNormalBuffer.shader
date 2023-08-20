@@ -48,6 +48,7 @@ Shader "Hidden/FluidNormalBuffer"
                 float4 viewSpacePos = mul(_CameraInverseProjection, clipSpacePos);
                 return viewSpacePos.xyz / viewSpacePos.w;
             }
+
             
             fixed4 frag (v2f i) : SV_Target
             {
@@ -66,11 +67,12 @@ Shader "Hidden/FluidNormalBuffer"
                     ddy = ddy2;
                 }
                 // calculate normal
-                float3 n = cross(ddx, ddy);
-                n = normalize(n);
+                float3 normal = cross(ddx, ddy);
+                normal = normalize(normal);
 
-
-                return float4(n, 1);
+				float4 finalImage = float4(normal, 1.0);
+                
+                return finalImage;
             }
             ENDCG
         }

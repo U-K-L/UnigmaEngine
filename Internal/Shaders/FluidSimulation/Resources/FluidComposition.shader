@@ -2,14 +2,15 @@ Shader "Hidden/FluidComposition"
 {
     Properties
     {
+        _NoiseTex("Noise Texture", 2D) = "white" {}
+		_NoiseScale("Noise Scale, used for noise texture", Range(0, 10)) = 1.0
         _MainTex ("Texture", 2D) = "white" {}
-		_ScaleX("Scale X", Float) = 1.0
-		_ScaleY("Scae Y", Float) = 1.0
-		_BlurFallOff("Blur Falloff", Float) = 0.25
-		_BlurRadius("Blur Radius", Float) = 5.0
 		_DepthMaxDistance("Maximum distance for depth, used for depth buffer", Float) = 100.0
         _ShallowWaterColor("Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
 		_DeepWaterColor("Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
+		_BlendSmooth("Normal Smoothing", Range(0, 10)) = 0.5
+		_Spread("Spread", Range(0, 10)) = 0.5
+		_EdgeWidth("Edge Width", Range(0, 10)) = 0.5
     }
     SubShader
     {
@@ -45,9 +46,9 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals;
-            float2 _UnigmaFluids_TexelSize;
-			float _BlurFallOff, _BlurRadius, _DepthMaxDistance;
+            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex;
+            float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize;
+			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _NoiseScale, _Spread, _EdgeWidth;
 			float _ScaleX, _ScaleY;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
             float4 _DeepWaterColor, _ShallowWaterColor;
@@ -150,6 +151,41 @@ Shader "Hidden/FluidComposition"
 				return viewSpacePos.xyz / viewSpacePos.w;
             }
 
+            //Looks at a kernel of 3x3 and return the color with the most in that kernal. modal filter
+
+            float3 ModalFilter(float2 uv)
+            {
+                //Get the average, then look for the pixel closes to said average.
+                float3 color = float3(0, 0, 0);
+                float3 maxColor = float3(0, 0, 0);
+                float3 averageColor = float3(0, 0, 0);
+                for (int x = -1; x <= 1; x++) {
+                    for (int y = -1; y <= 1; y++) {
+                        averageColor += tex2D(_UnigmaFluidsNormals, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
+                    }
+                }
+                averageColor / 9;
+                float minDist = 10000;
+                float3 finalColor = float3(0, 0, 0);
+                for (int x = -1; x <= 1; x++) {
+                    for (int y = -1; y <= 1; y++) {
+                        float3 c = tex2D(_UnigmaFluidsNormals, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
+                        float dist = distance(averageColor, c);
+                        if (minDist > dist)
+                        {
+                            minDist = dist;
+                            finalColor = tex2D(_UnigmaFluidsNormals, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
+                        }
+
+                    }
+                }
+				//finalColor.r = 1.0 * step(finalColor.r, 1.0-0.995);
+                //finalColor.g = 1.0 * step(finalColor.g, 1.0-0.995);
+                //finalColor.b = 1.0 * step(finalColor.b, 1.0-0.995);
+                return finalColor;
+            }
+            
+            
             fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
@@ -157,20 +193,56 @@ Shader "Hidden/FluidComposition"
 			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, i.uv);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
 
+                float3 fluidNormalsAvg = ModalFilter(i.uv);
+
                 //Create diffuse surface.
 
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
 
-                float4 NdotL = saturate(dot(fluidsNormal.xyz, _WorldSpaceLightPos0.xyz));
+                float4 NdotL = saturate(dot(fluidNormalsAvg.xyz, _WorldSpaceLightPos0.xyz));
 
 
-                float waterDepthDifference = saturate(fluids.x / _DepthMaxDistance);
+                float waterDepthDifference = saturate( (1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
                 
-                fixed4 finalImage = lerp(originalImage, waterColor, fluidsDepth.w*0.75);
+                float4 waterSpecular = lerp(waterColor, 1, step(0.15, NdotL));
+
+                //Triplanar
+                //------------------------------------------------------------
+
+                float3 worldNormalVec = fluidNormalsAvg;
+                float3 blendNormal = saturate(pow(worldNormalVec * _BlendSmooth, 4));
+                float3 worldPos = fluids.xyz * 100;
+              
+                float4 xn = tex2D(_NoiseTex, worldPos.zy * _NoiseScale);
+                float4 yn = tex2D(_NoiseTex, worldPos.zx * _NoiseScale);
+                float4 zn = tex2D(_NoiseTex, worldPos.xy * _NoiseScale);
+                float4 noisetexture = zn;
+                noisetexture = lerp(noisetexture, xn, blendNormal.x);
+                noisetexture = lerp(noisetexture, yn, blendNormal.y);
 
 
-                return finalImage;
+                //Determine how if on side or on top.
+                /*
+                float normDotNoise = dot(worldNormalVec + (noisetexture.y + (noisetexture * 0.5)), worldNormalVec.y);
+                //Checks if higher then top.
+                float4 topTextureResult = step(_Spread + _EdgeWidth, normDotNoise) * topTexture;
+                //Side
+                float4 sideTextureResult = step(normDotNoise, _Spread) * sideTexture;
+
+                float4 result = (topTextureResult) + sideTextureResult;
+                */
+                float4 result = noisetexture;
+                
+                //------------------------------------------------------------
+
+
+
+                
+                fixed4 finalImage = lerp(originalImage, waterSpecular, step(0.95, fluidsDepth.w) * 0.7);
+
+
+                return result;//float4(fluids.xyz, 1);
             }
             ENDCG
         }

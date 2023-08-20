@@ -91,6 +91,8 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
     if (t1 > epsilon && t1 < hit.distance && t1 < t2)
     {
         hit.position = ray.o + t1 * ray.d;
+        hit.position = mul(_ParentTransform, float4(hit.position, 1)).xyz;
+        hit.position = mul(_CameraToWorld, float4(hit.position, 1)).xyz;
         float4 clipPos = UnityWorldToClipPos(hit.position);
         float depth = clipPos.z / clipPos.w;
         hit.depth = 1.0 - depth;
@@ -103,6 +105,8 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
     else if (t2 > epsilon && t2 < hit.distance && t2 < t1)
     {
         hit.position = ray.o + t2 * ray.d;
+        hit.position = mul(_ParentTransform, float4(hit.position, 1)).xyz;
+        hit.position = mul(_CameraToWorld, float4(hit.position, 1)).xyz;
         float4 clipPos = UnityWorldToClipPos(hit.position);
         float depth = clipPos.z / clipPos.w;
         hit.depth = 1.0 - depth;
@@ -157,6 +161,6 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     float3 camPos = mul(_CameraToWorld, float4(0, 0, 0, 1)).xyz;
     
     //WorldPosition, depth.
-    float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
+    float4 particle = float4(hit.position*0.001, hit.depth); //float4(hit.normal, 1);
     Result[id.xy] = particle;
 }

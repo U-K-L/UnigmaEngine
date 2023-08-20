@@ -364,7 +364,7 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.03
+  near clip plane: 0.02
   far clip plane: 1000
   field of view: 60
   orthographic: 0
@@ -411,12 +411,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6385cf413b576fa40ab4b169cd6a4f90, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _fluidSimMaterialComposite: {fileID: 2100000, guid: 58794828c336cdb40bfa2fae27552d2f,
+    type: 2}
   fluidSimTransform: {fileID: 1634651488}
-  DeepWaterColor: {r: 0, g: 0.0008702098, b: 0.9339623, a: 1}
+  DeepWaterColor: {r: 0, g: 0.23073514, b: 0.93333334, a: 1}
   ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
+  DepthMaxDistance: 0.00031
   BlurScale: {x: 1.25, y: 1.25}
   BlurFallOff: 0.025
-  BlurRadius: 20
+  BlurRadius: 8
 --- !u!1 &1506277389
 GameObject:
   m_ObjectHideFlags: 0

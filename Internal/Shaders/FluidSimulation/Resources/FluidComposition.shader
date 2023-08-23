@@ -1,9 +1,11 @@
+// Upgrade NOTE: replaced '_CameraToWorld' with 'unity_CameraToWorld'
+
 Shader "Hidden/FluidComposition"
 {
     Properties
     {
         _NoiseTex("Noise Texture", 2D) = "white" {}
-		_NoiseScale("Noise Scale, used for noise texture", Range(0, 10)) = 1.0
+		_NoiseScale("Noise Scale, used for noise texture", Vector) = (1.0, 1.0, 1.0, 1.0)
         _MainTex ("Texture", 2D) = "white" {}
 		_DepthMaxDistance("Maximum distance for depth, used for depth buffer", Float) = 100.0
         _ShallowWaterColor("Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
@@ -48,10 +50,10 @@ Shader "Hidden/FluidComposition"
 
             sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize;
-			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _NoiseScale, _Spread, _EdgeWidth;
+			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth;
 			float _ScaleX, _ScaleY;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
-            float4 _DeepWaterColor, _ShallowWaterColor;
+            float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor;
 
 
             float bilateralFilter(sampler2D depthSampler, float2 texcoord)
@@ -195,6 +197,21 @@ Shader "Hidden/FluidComposition"
 
                 float3 fluidNormalsAvg = ModalFilter(i.uv);
 
+                //Triplanar
+//------------------------------------------------------------
+
+                float3 worldNormalVec = fluidNormalsAvg;
+                float3 blendNormal = saturate(pow(worldNormalVec * _BlendSmooth, 4));
+                float3 worldPos = fluids.xyz;
+
+                _NoiseScale.xyz *= _NoiseScale.w;
+                float4 xn = tex2D(_NoiseTex, worldPos.zy * _NoiseScale.x);
+                float4 yn = tex2D(_NoiseTex, worldPos.zx * _NoiseScale.y);
+                float4 zn = tex2D(_NoiseTex, worldPos.xy * _NoiseScale.z);
+                float4 noisetexture = zn;
+                noisetexture = lerp(noisetexture, xn, blendNormal.x);
+                noisetexture = lerp(noisetexture, yn, blendNormal.y);
+                
                 //Create diffuse surface.
 
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
@@ -204,22 +221,11 @@ Shader "Hidden/FluidComposition"
 
                 float waterDepthDifference = saturate( (1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
+				waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, 1.0 - i.uv.y);
                 
                 float4 waterSpecular = lerp(waterColor, 1, step(0.15, NdotL));
 
-                //Triplanar
-                //------------------------------------------------------------
 
-                float3 worldNormalVec = fluidNormalsAvg;
-                float3 blendNormal = saturate(pow(worldNormalVec * _BlendSmooth, 4));
-                float3 worldPos = fluids.xyz * 100;
-              
-                float4 xn = tex2D(_NoiseTex, worldPos.zy * _NoiseScale);
-                float4 yn = tex2D(_NoiseTex, worldPos.zx * _NoiseScale);
-                float4 zn = tex2D(_NoiseTex, worldPos.xy * _NoiseScale);
-                float4 noisetexture = zn;
-                noisetexture = lerp(noisetexture, xn, blendNormal.x);
-                noisetexture = lerp(noisetexture, yn, blendNormal.y);
 
 
                 //Determine how if on side or on top.
@@ -232,7 +238,7 @@ Shader "Hidden/FluidComposition"
 
                 float4 result = (topTextureResult) + sideTextureResult;
                 */
-                float4 result = noisetexture;
+                float4 result = waterColor;
                 
                 //------------------------------------------------------------
 

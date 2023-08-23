@@ -58,7 +58,6 @@ public class RayTracer : MonoBehaviour
     public bool SceneIsDynamic = true;
 
     //Structs for ray tracing.
-    //Unsafe is required for the fixed array.
     struct MeshObject
     {
         public Matrix4x4 localToWorld;

@@ -1,6 +1,7 @@
 using RayFire;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -32,6 +33,43 @@ public class FluidSimulationManager : MonoBehaviour
     public Vector2 BlurScale;
     public float BlurFallOff = 0.25f;
     public float BlurRadius = 5.0f;
+
+    ComputeBuffer _meshObjectBuffer;
+    ComputeBuffer _verticesObjectBuffer;
+    ComputeBuffer _indicesObjectBuffer;
+
+    struct MeshObject
+    {
+        public Matrix4x4 localToWorld;
+        public int indicesOffset;
+        public int indicesCount;
+        public Vector3 position;
+        public Vector3 AABBMin;
+        public Vector3 AABBMax;
+        public Vector3 color;
+        public float emission;
+        public float smoothness;
+        public float transparency;
+        public float absorbtion;
+        public float celShaded;
+        public uint id;
+    }
+    
+    struct Vertex
+    {
+        public Vector3 position;
+        public Vector3 normal;
+        public Vector2 uv;
+    };
+
+    //Items to add to the raytracer.
+    public LayerMask RayTracingLayers;
+
+    private List<Renderer> _RayTracedObjects = new List<Renderer>();
+
+    private List<MeshObject> meshObjects = new List<MeshObject>();
+    private List<Vertex> Vertices = new List<Vertex>();
+    private List<int> Indices = new List<int>();
     private void Awake()
     {
         _fluidSimulationCompute = Resources.Load<ComputeShader>("FluidSimCompute");
@@ -56,6 +94,8 @@ public class FluidSimulationManager : MonoBehaviour
         _rtTarget.enableRandomWrite = true;
         _rtTarget.Create();
         _fluidSimulationCompute.SetTexture(0, "Result", _rtTarget);
+        AddObjectsToList();
+        CreateNonAcceleratedStructure();
         CreateFluidCommandBuffers();
 
 
@@ -65,17 +105,136 @@ public class FluidSimulationManager : MonoBehaviour
     {
         //Draw mesh instantiaonation.
         //Graphics.DrawMeshInstancedIndirect()
+        UpdateNonAcceleratedRayTracer();
+
+    }
+
+    void AddObjectsToList()
+    {
+        foreach (var obj in FindObjectsOfType<Renderer>())
+        {
+            //Check if object in the RaytracingLayers.
+            if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
+            {
+                _RayTracedObjects.Add(obj);
+            }
+        }
+    }
+
+    void CreateNonAcceleratedStructure()
+    {
+        BuildTriangleList();
+    }
+
+    void BuildTriangleList()
+    {
+        Vertices.Clear();
+        Indices.Clear();
+
+        foreach (Renderer r in _RayTracedObjects)
+        {
+            MeshFilter mf = r.GetComponent<MeshFilter>();
+            if (mf)
+            {
+                Mesh m = mf.sharedMesh;
+                int startVert = Vertices.Count;
+                int startIndex = Indices.Count;
+
+                for (int i = 0; i < m.vertices.Length; i++)
+                {
+                    Vertex v = new Vertex();
+                    v.position = m.vertices[i];
+                    v.normal = m.normals[i];
+                    v.uv = m.uv[i];
+                    Vertices.Add(v);
+                }
+                var indices = m.GetIndices(0);
+                Indices.AddRange(indices.Select(index => index + startVert));
+
+                // Add the object itself
+                meshObjects.Add(new MeshObject()
+                {
+                    localToWorld = r.transform.localToWorldMatrix,
+                    indicesOffset = startIndex,
+                    indicesCount = indices.Length
+                });
+            }
+        }
+        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 144);
+        _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
+        _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
+        _verticesObjectBuffer.SetData(Vertices);
+        _fluidSimulationCompute.SetBuffer(0, "_Vertices", _verticesObjectBuffer);
+        _indicesObjectBuffer.SetData(Indices);
+        _fluidSimulationCompute.SetBuffer(0, "_Indices", _indicesObjectBuffer);
+    }
+
+    void UpdateNonAcceleratedRayTracer()
+    {
+        //Build the BVH
+        BuildBVH();
+    }
+
+    //To build the BVH we need to take all of the game objects in our raytracing list.
+    //Afterwards place them in a tree with the root node containing all of the objects.
+    //The bounding box is calculated by finding the min and max vertices for each axis.
+    //If the ray intersects the box we search the triangles of that node, if not we traverse another node and ignore the children.
+    unsafe void BuildBVH()
+    {
+        //First traverse through all of the objects and create their bounding boxes.
+
+        //Get positions stored them to mesh objects.
+
+        //Update position of mesh objects.
+        for (int i = 0; i < _RayTracedObjects.Count; i++)
+        {
+            MeshObject meshobj = new MeshObject();
+            RayTracingObject rto = _RayTracedObjects[i].GetComponent<RayTracingObject>();
+            meshobj.localToWorld = _RayTracedObjects[i].GetComponent<Renderer>().localToWorldMatrix;
+            meshobj.indicesOffset = meshObjects[i].indicesOffset;
+            meshobj.indicesCount = meshObjects[i].indicesCount;
+            meshobj.position = _RayTracedObjects[i].transform.position;
+            meshobj.AABBMin = _RayTracedObjects[i].bounds.min;
+            meshobj.AABBMax = _RayTracedObjects[i].bounds.max;
+            meshobj.id = (uint)i;
+            if (rto)
+            {
+                meshobj.color = new Vector3(rto.color.r, rto.color.g, rto.color.b);
+                meshobj.emission = rto.emission;
+                meshobj.smoothness = rto.smoothness;
+                meshobj.transparency = rto.transparency;
+                meshobj.absorbtion = rto.absorbtion;
+                meshobj.celShaded = rto.celShaded;
+            }
+            meshObjects[i] = meshobj;
+        }
+        if (_meshObjectBuffer.count > 0)
+        {
+            _meshObjectBuffer.SetData(meshObjects);
+            _fluidSimulationCompute.SetBuffer(0, "_MeshObjects", _meshObjectBuffer);
+        }
+
+        _meshObjectBuffer.SetData(meshObjects);
+        _fluidSimulationCompute.SetBuffer(0, "_MeshObjects", _meshObjectBuffer);
 
     }
 
     //Temporarily attach this simulation to camera!!!
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
+        //Guard clause, ensure there are objects to ray trace.
+        if (_RayTracedObjects.Count == 0)
+        {
+            Debug.LogWarning("No objects to ray trace. Please add objects to the RayTracingLayers.");
+            return;
+        }
+        
         _fluidSimulationCompute.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         _fluidSimulationCompute.SetMatrix("_CameraWorldToLocal", _cam.transform.worldToLocalMatrix);
         _fluidSimulationCompute.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _fluidSimulationCompute.SetMatrix("_ParentTransform", fluidSimTransform.localToWorldMatrix);
-        
+        _fluidSimulationCompute.SetMatrix("_ParentTransformToLocal", fluidSimTransform.worldToLocalMatrix);
+
 
 
         Matrix4x4 m = GL.GetGPUProjectionMatrix(_cam.projectionMatrix, false);
@@ -148,4 +307,33 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
+    //Release all buffers and memory
+    void ReleaseBuffers()
+    {
+        if (_verticesObjectBuffer != null)
+            _verticesObjectBuffer.Release();
+        if (_indicesObjectBuffer != null)
+            _indicesObjectBuffer.Release();
+        if (_meshObjectBuffer != null)
+            _meshObjectBuffer.Release();
+
+
+    }
+
+    void OnDisable()
+    {
+        ReleaseBuffers();
+    }
+
+    //On application quit
+    void OnApplicationQuit()
+    {
+        ReleaseBuffers();
+    }
+
+    //On playtest end
+    void OnDestroy()
+    {
+        ReleaseBuffers();
+    }
 }

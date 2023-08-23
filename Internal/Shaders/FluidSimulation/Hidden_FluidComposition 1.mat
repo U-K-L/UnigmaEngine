@@ -35,7 +35,7 @@ Material:
     - _BlurRadius: 1.51
     - _DepthMaxDistance: 0.00031
     - _EdgeWidth: 0.5
-    - _NoiseScale: 1
+    - _NoiseScale: 0.125
     - _ScaleX: 0.66
     - _ScaleY: -1.45
     - _Spread: 0.5

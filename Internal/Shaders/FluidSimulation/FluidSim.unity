@@ -615,6 +615,7 @@ MonoBehaviour:
   BlurScale: {x: 1.25, y: 1.25}
   BlurFallOff: 0.025
   BlurRadius: 8
+  DepthScale: {x: 1, y: 1, z: 1, w: 1}
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103

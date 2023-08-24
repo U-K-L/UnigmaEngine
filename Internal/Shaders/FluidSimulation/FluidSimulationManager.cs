@@ -14,6 +14,7 @@ public class FluidSimulationManager : MonoBehaviour
     int numParticles;
     Camera _cam;
     RenderTexture _rtTarget;
+    RenderTexture _densityMap;
     RenderTexture _tempTarget;
     RenderTexture _fluidNormalBuffer;
     RenderTexture _fluidDepthBuffer;
@@ -33,6 +34,7 @@ public class FluidSimulationManager : MonoBehaviour
     public Vector2 BlurScale;
     public float BlurFallOff = 0.25f;
     public float BlurRadius = 5.0f;
+    public Vector4 DepthScale = default;
 
     ComputeBuffer _meshObjectBuffer;
     ComputeBuffer _verticesObjectBuffer;
@@ -86,14 +88,19 @@ public class FluidSimulationManager : MonoBehaviour
         _cam = Camera.main;
         //Create the texture for compute shader.
         _rtTarget = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _densityMap = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _tempTarget = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidNormalBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidDepthBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
 
+        
 
         _rtTarget.enableRandomWrite = true;
         _rtTarget.Create();
+        _densityMap.enableRandomWrite = true;
+        _densityMap.Create();
         _fluidSimulationCompute.SetTexture(0, "Result", _rtTarget);
+        _fluidSimulationCompute.SetTexture(0, "DensityMap", _densityMap);
         AddObjectsToList();
         CreateNonAcceleratedStructure();
         CreateFluidCommandBuffers();
@@ -234,6 +241,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _fluidSimulationCompute.SetMatrix("_ParentTransform", fluidSimTransform.localToWorldMatrix);
         _fluidSimulationCompute.SetMatrix("_ParentTransformToLocal", fluidSimTransform.worldToLocalMatrix);
+        _fluidSimulationCompute.SetVector("_DepthScale", DepthScale);
 
 
 
@@ -257,6 +265,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimMaterialComposite.SetColor("_DeepWaterColor", DeepWaterColor);
         _fluidSimMaterialComposite.SetColor("_ShallowWaterColor", ShallowWaterColor);
         _fluidSimMaterialComposite.SetFloat("_DepthMaxDistance", DepthMaxDistance);
+        _fluidSimMaterialComposite.SetTexture("_DensityMap", _densityMap);
 
 
         //uint threadsX, threadsY, threadsZ;

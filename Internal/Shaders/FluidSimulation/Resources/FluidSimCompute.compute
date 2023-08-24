@@ -8,6 +8,7 @@ float4x4 _CameraWorldToLocal;
 float4x4 _ParentTransformToLocal;
 
 float epsilon = 0.00001;
+float4 _DepthScale = 1;
 
 
 
@@ -61,10 +62,12 @@ StructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
 uint numOfStructs, sizeOfStrides;
+float density = 0.0;
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> Result;
+RWTexture2D<float4> DensityMap;
 
 Vertex CreateVertex(inout Vertex v)
 {
@@ -222,25 +225,35 @@ float sphIntersect(float3 ro, float3 rd, float4 sph)
     return -b - h;
 }
 
-void IntersectSphere2(inout Hit hit, in Ray ray, float4 sphere)
+//Gets how many particles are in this ray, from camera to last particle.
+float GetDensityOfParticle(in Hit hit, in Ray ray)
 {
-    // Calculate distance along the ray where the sphere is intersected
-    //ray.o = mul(_CameraWorldToLocal, float4(ray.o, 1)).xyz;
-    float3 d = ray.o - sphere.xyz;
-    float p1 = -dot(ray.d, d);
-    float p2sqr = p1 * p1 - dot(d, d) + sphere.w * sphere.w;
-    if (p2sqr < 0)
-        return;
-    float p2 = sqrt(p2sqr);
-    float t = p1 - p2 > 0 ? p1 - p2 : p1 + p2;
-    if (t > 0 && t < hit.distance)
+    float numOfParticles = 0.0;
+    int nSpheres = 10;
+    float3 rayOrig = ray.o;
+    float3 rayDir = ray.d;
+    for (int i = 0; i < nSpheres; i++)
     {
-        hit.depth = 1;
-        hit.position = 1;
-        hit.distance = t;
-        //hit.position = ray.o + t * ray.d;
-        hit.normal = normalize(hit.position - sphere.xyz);
+        for (int j = 0; j < nSpheres; j++)
+        {
+            for (int k = 0; k < nSpheres; k++)
+            {
+                float3 center = float3(i, j, k);
+                center = mul(_ParentTransform, float4(center, 1)).xyz;
+                float t1 = sphIntersect(rayOrig, rayDir, float4(center, 0.25));
+                if (t1 > -0.9)
+                {
+                    rayOrig = rayOrig + rayDir * (t1 + epsilon*100);
+                    numOfParticles++;
+                }
+                
+            }
+
+        }
+
     }
+    return numOfParticles / (nSpheres* 4);
+    
 }
 
 Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
@@ -253,13 +266,15 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
     {
         hit.position = rayOrig + t1 * ray.d;
         float4 clipPos = UnityWorldToClipPos(hit.position);
-        float depth = clipPos.z / clipPos.w;
+        float depth = (clipPos.z* _DepthScale.x) / (clipPos.w * _DepthScale.y);
         hit.depth = 1.0 - depth;
         float3 n = GetSphereNormal(hit.position, radius);
         hit.normal = n;
         hit.distance = t1;
         hit.color = 1;
 
+        density = GetDensityOfParticle(hit, ray);
+        
         return hit;
     }
     //Convert ray from worldspace to object's local space.
@@ -412,6 +427,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 {
     //Create grid of spheres in 3D.
     
+    density = 0;
     uint width, height;
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
     Result.GetDimensions(width, height);
@@ -432,4 +448,5 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     hit.position *= 0.015;
     float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
     Result[id.xy] = particle;
+    DensityMap[id.xy] = density;
 }

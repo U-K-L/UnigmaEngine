@@ -48,7 +48,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex;
+            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth;
 			float _ScaleX, _ScaleY;
@@ -194,6 +194,7 @@ Shader "Hidden/FluidComposition"
 			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, i.uv);
 			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, i.uv);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
+				fixed4 densityMap = tex2D(_DensityMap, i.uv);
 
                 float3 fluidNormalsAvg = ModalFilter(i.uv);
 
@@ -221,7 +222,7 @@ Shader "Hidden/FluidComposition"
 
                 float waterDepthDifference = saturate( (1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
-				waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, 1.0 - i.uv.y);
+				waterColor = lerp(waterColor, _DeepWaterColor, 1.0 - i.uv.y);
                 
                 float4 waterSpecular = lerp(waterColor, 1, step(0.15, NdotL));
 
@@ -248,7 +249,7 @@ Shader "Hidden/FluidComposition"
                 fixed4 finalImage = lerp(originalImage, result, step(0.95, fluidsDepth.w) * 0.7);
 
 
-                return finalImage;
+                return densityMap;
             }
             ENDCG
         }

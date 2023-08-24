@@ -70,9 +70,19 @@ Shader "Hidden/FluidNormalBuffer"
                 float3 normal = cross(ddx, ddy);
                 normal = normalize(normal);
 
-				float4 finalImage = float4(normal, 1.0);
-                
-                return finalImage;
+				float3 hardNormals = float3(1, 0, 0) * step( 0.31, normal.x);
+                hardNormals += float3(0, 1, 0) * step(0.71, normal.y);
+                hardNormals += float3(0, 0, 1) * step(0.31, normal.z);
+
+				float4 finalImage = lerp(float4(hardNormals, 1.0), float4(normal, 1.0), 0.65);
+                float combinedNormals = 0;
+                if (normal.x > 0.42 && normal.y > 0.42)
+                    combinedNormals = 1;
+                if (normal.x > 0.52 && normal.z > 0.72)
+                    combinedNormals = 1;
+                if (normal.y > 0.52 && normal.z > 0.72)
+                    combinedNormals = 1;
+                return float4(finalImage.xyz, combinedNormals);
             }
             ENDCG
         }

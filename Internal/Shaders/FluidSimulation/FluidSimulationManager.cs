@@ -100,8 +100,11 @@ public class FluidSimulationManager : MonoBehaviour
         _rtTarget.Create();
         _densityMap.enableRandomWrite = true;
         _densityMap.Create();
+        _fluidNormalBuffer.enableRandomWrite = true;
+        _fluidNormalBuffer.Create();
         _fluidSimulationCompute.SetTexture(0, "Result", _rtTarget);
         _fluidSimulationCompute.SetTexture(0, "DensityMap", _densityMap);
+        _fluidSimulationCompute.SetTexture(0, "NormalMap", _fluidNormalBuffer);
         AddObjectsToList();
         CreateNonAcceleratedStructure();
         CreateFluidCommandBuffers();

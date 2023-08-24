@@ -69,6 +69,7 @@ float density = 0.0;
 // with cs.SetTexture
 RWTexture2D<float4> Result;
 RWTexture2D<float4> DensityMap;
+RWTexture2D<float4> NormalMap;
 
 Vertex CreateVertex(inout Vertex v)
 {
@@ -311,7 +312,7 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
         hit.distance = t1;
         hit.color = 1;
 
-        density = GetDensityOfParticle(hit, ray);
+        //density = GetDensityOfParticle(hit, ray);
         
         return hit;
     }
@@ -486,5 +487,5 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     hit.position *= 0.015;
     float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
     Result[id.xy] = particle;
-    DensityMap[id.xy] = density;
+    DensityMap[id.xy] = NormalMap[id.xy];
 }

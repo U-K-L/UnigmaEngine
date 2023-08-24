@@ -6,6 +6,9 @@ Shader "Hidden/FluidComposition"
     {
         _NoiseTex("Noise Texture", 2D) = "white" {}
 		_NoiseScale("Noise Scale, used for noise texture", Vector) = (1.0, 1.0, 1.0, 1.0)
+		_SideTexture("Texture for the sides", 2D) = "white" {}
+        _FrontSideTexture("Texture for the front sides", 2D) = "white" {}
+		_TopTexture("Texture for the top", 2D) = "white" {}
         _MainTex ("Texture", 2D) = "white" {}
 		_DepthMaxDistance("Maximum distance for depth, used for depth buffer", Float) = 100.0
         _ShallowWaterColor("Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
@@ -51,7 +54,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner;
+			sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity;
 			float _ScaleX, _ScaleY;
@@ -209,7 +212,7 @@ Shader "Hidden/FluidComposition"
                 
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
 			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, distortionBlob);
-			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, i.uv);
+			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, distortionBlob);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
                 fixed4 distortedOriginalImage = tex2D(_MainTex, distortionGrabPass);
 				fixed4 densityMap = tex2D(_DensityMap, i.uv);
@@ -224,27 +227,13 @@ Shader "Hidden/FluidComposition"
                 float3 worldPos = fluids.xyz;
 
                 _NoiseScale.xyz *= _NoiseScale.w;
-                float4 xn = tex2D(_NoiseTex, worldPos.zy * _NoiseScale.x);
-                float4 yn = tex2D(_NoiseTex, worldPos.zx * _NoiseScale.y);
-                float4 zn = tex2D(_NoiseTex, worldPos.xy * _NoiseScale.z);
+                float4 xn = tex2D(_SideTexture, worldPos.zy * _NoiseScale.x);
+                float4 yn = tex2D(_TopTexture, worldPos.zx * _NoiseScale.y);
+                float4 zn = tex2D(_FrontSideTexture, worldPos.xy * _NoiseScale.z);
                 float4 noisetexture = zn;
                 noisetexture = lerp(noisetexture, xn, blendNormal.x);
                 noisetexture = lerp(noisetexture, yn, blendNormal.y);
-                
-                //Create diffuse surface.
-
-                float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
-
-                float4 NdotL = saturate(dot(fluidNormalsAvg.xyz, _WorldSpaceLightPos0.xyz));
-
-
-                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, densityMap * 0.255);
-                float waterDepthDifference = saturate( (1.0 - frac(fluids.w)) / _DepthMaxDistance);
-                float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
-				waterColor = lerp(waterColor, waterDeepness, 1.0 - i.uv.y);
-				
-                
-                float4 waterSpecular = lerp(waterColor, 1, step(0.85  + (0.05*sin(_Time.x*10)), NdotL));
+               
 
                 //Create Lines.
                 float scaleFloor = floor(1 * 0.5);
@@ -303,8 +292,62 @@ Shader "Hidden/FluidComposition"
                 edgeNormal = edgeNormal > 0.25 ? 1 : 0;
 
 
-                float edge = max(edgeDepth, edgeNormal);
+                float edge = max(edgeDepth, 0);
+                //edge = max(edge, fluidsNormal.w);
+                /*
 
+                bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
+                topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
+                bottomRight = i.uv + float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
+                topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
+
+                
+                float4 uv0 = tex2D(_UnigmaFluids, bottomLeft);
+                float4 uv1 = tex2D(_UnigmaFluids, topRight);
+                float4 uv2 = tex2D(_UnigmaFluids, bottomRight);
+                float4 uv3 = tex2D(_UnigmaFluids, topLeft);
+                
+                //noisetexture0
+                xn = tex2D(_SideTexture, uv0.zy * _NoiseScale.x);
+                yn = tex2D(_TopTexture, uv0.zx * _NoiseScale.y);
+                zn = tex2D(_FrontSideTexture, uv0.xy * _NoiseScale.z);
+                float3 noisetexture0 = zn;
+                noisetexture0 = lerp(noisetexture0, xn, blendNormal.x);
+                noisetexture0 = lerp(noisetexture0, yn, blendNormal.y);
+
+                //noisetexture1
+                xn = tex2D(_SideTexture, uv1.zy * _NoiseScale.x);
+                yn = tex2D(_TopTexture, uv1.zx * _NoiseScale.y);
+                zn = tex2D(_FrontSideTexture, uv1.xy * _NoiseScale.z);
+                float3 noisetexture1 = zn;
+                noisetexture1 = lerp(noisetexture1, xn, blendNormal.x);
+                noisetexture1 = lerp(noisetexture1, yn, blendNormal.y);
+
+				//noisetexture2
+				xn = tex2D(_SideTexture, uv2.zy * _NoiseScale.x);
+				yn = tex2D(_TopTexture, uv2.zx * _NoiseScale.y);
+				zn = tex2D(_FrontSideTexture, uv2.xy * _NoiseScale.z);
+				float3 noisetexture2 = zn;
+				noisetexture2 = lerp(noisetexture2, xn, blendNormal.x);
+				noisetexture2 = lerp(noisetexture2, yn, blendNormal.y);
+                
+				//noisetexture3
+				xn = tex2D(_SideTexture, uv3.zy * _NoiseScale.x);
+				yn = tex2D(_TopTexture, uv3.zx * _NoiseScale.y);
+				zn = tex2D(_FrontSideTexture, uv3.xy * _NoiseScale.z);
+				float3 noisetexture3 = zn;
+				noisetexture3 = lerp(noisetexture3, xn, blendNormal.x);
+				noisetexture3 = lerp(noisetexture3, yn, blendNormal.y);
+                
+                
+                
+
+                float3 uvFiniteDifference0 = noisetexture1.xyz - noisetexture0.xyz;
+                float3 uvFiniteDifference1 = noisetexture3.xyz - noisetexture2.xyz;
+
+                float edgeUV= sqrt(dot(uvFiniteDifference0, uvFiniteDifference0) + dot(uvFiniteDifference1, uvFiniteDifference1));
+                edgeUV = edgeUV > 0.0001 ? 1 : 0;
+                */
                 //Determine how if on side or on top.
                 /*
                 float normDotNoise = dot(worldNormalVec + (noisetexture.y + (noisetexture * 0.5)), worldNormalVec.y);
@@ -315,6 +358,20 @@ Shader "Hidden/FluidComposition"
 
                 float4 result = (topTextureResult) + sideTextureResult;
                 */
+                //Create diffuse surface.
+
+                float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
+
+                float4 NdotL = saturate(dot(fluidNormalsAvg.xyz, _WorldSpaceLightPos0.xyz));
+
+
+                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, densityMap * 0.255);
+                float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
+                float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
+                waterColor = lerp(waterColor, waterDeepness, 1.0 - i.uv.y);
+
+
+                float4 waterSpecular = lerp(waterColor, 1, step(0.85 + (0.05 * sin(_Time.x * 10)), NdotL));
                 float4 result = waterColor + edge;
                 
                 //------------------------------------------------------------

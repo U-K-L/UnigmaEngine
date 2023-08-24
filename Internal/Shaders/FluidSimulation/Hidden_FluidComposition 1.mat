@@ -28,28 +28,40 @@ Material:
         m_Texture: {fileID: 2800000, guid: 06bdf21e154425948b0978955fd687b4, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _FrontSideTexture:
+        m_Texture: {fileID: 2800000, guid: abd378192194c6048a574746b0a0972b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NoiseTex:
-        m_Texture: {fileID: 2800000, guid: f20af7466f847d046bfe243323625f5c, type: 3}
+        m_Texture: {fileID: 2800000, guid: ba384a3c945464600a4046641bb57ca3, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SideTexture:
+        m_Texture: {fileID: 2800000, guid: ba384a3c945464600a4046641bb57ca3, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TopTexture:
+        m_Texture: {fileID: 2800000, guid: a50d8da0637a640dda5e2018b972cade, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BlendSmooth: 2.5
+    - _BlendSmooth: 1.64
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51
     - _DepthMaxDistance: 0.00031
-    - _EdgeWidth: 2.9
+    - _EdgeWidth: 1.62
     - _Intensity: 1.05
     - _NoiseScale: 35
     - _ScaleX: 0.66
     - _ScaleY: -1.45
-    - _Spread: 0.7
+    - _Spread: 0.18
     m_Colors:
     - _DeepWaterColor: {r: 0, g: 0.23073514, b: 0.93333334, a: 1}
-    - _NoiseScale: {r: 0.9, g: 91.9, b: 50.9, a: 1}
+    - _NoiseScale: {r: 41.24, g: 28.77, b: 42.75, a: 1}
     - _ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
   m_BuildTextureStacks: []

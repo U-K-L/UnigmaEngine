@@ -8,6 +8,7 @@ float4x4 _CameraWorldToLocal;
 float4x4 _ParentTransformToLocal;
 
 float epsilon = 0.00001;
+float _Smoothness;
 float4 _DepthScale = 1;
 
 
@@ -126,6 +127,41 @@ Ray CreateCameraRay(float2 uv)
     return CreateRay(og, dir, uv);
 }
 
+
+float opU(float d1, float d2)
+{
+    return min(d1, d2);
+}
+
+float2 sminN(float a, float b, float k, float n)
+{
+    float h = max(k - abs(a - b), 0.0) / k;
+    float m = pow(h, n) * 0.5;
+    float s = m * k / n;
+    return (a < b) ? float2(a - s, m) : float2(b - s, 1.0 - m);
+}
+
+// polynomial smooth min
+float smin(float a, float b, float k)
+{
+    float h = max(k - abs(a - b), 0.0) / k;
+    return min(a, b) - h * h * k * (1.0 / 4.0);
+}
+
+
+float opSmoothUnion(float d1, float d2, float k) {
+    float h = clamp(0.5 + 0.5 * (d2 - d1) / k, 0.0, 1.0);
+    return lerp(d2, d1, h) - k * h * (1.0 - h);
+}
+
+float3 gsmin(in float4 a, in float4 b, in float k)
+{
+    float h = max(k - abs(a.x - b.x), 0.0);
+    float m = 0.25 * h * h / k;
+    float n = 0.50 * h / k;
+    return float3(min(a.x, b.x) - m,
+        lerp(a.yzw, b.yzw, (a.x < b.x) ? n : 1.0 - n).xy);
+}
 
 //Moller method.
 bool TriangleTrace(Ray ray, float3 a, float3 b, float3 c, inout float t, inout float u, inout float v)
@@ -252,7 +288,7 @@ float GetDensityOfParticle(in Hit hit, in Ray ray)
         }
 
     }
-    return numOfParticles / (nSpheres* 4);
+    return numOfParticles / (nSpheres* nSpheres);
     
 }
 
@@ -262,9 +298,11 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
 	float3 rayDir = ray.d;
 	center = mul(_ParentTransform, float4(center, 1)).xyz;
     float t1 = sphIntersect(rayOrig, rayDir, float4(center, radius));
-    if (t1 > epsilon && t1 < hit.distance)
+    t1 = opSmoothUnion(t1, hit.distance, _Smoothness);//opU(t1, hit.distance);
+	if (t1 > epsilon && t1 < hit.distance)
     {
-        hit.position = rayOrig + t1 * ray.d;
+       
+        hit.position = rayOrig + t1 * ray.d;//gsmin(float4(rayOrig + t1 * ray.d, 0.25), float4(rayOrig + t1 * ray.d, 0.25), _Smoothness);//rayOrig + t1 * ray.d;
         float4 clipPos = UnityWorldToClipPos(hit.position);
         float depth = (clipPos.z* _DepthScale.x) / (clipPos.w * _DepthScale.y);
         hit.depth = 1.0 - depth;

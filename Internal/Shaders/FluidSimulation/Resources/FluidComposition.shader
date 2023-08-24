@@ -155,28 +155,28 @@ Shader "Hidden/FluidComposition"
 
             //Looks at a kernel of 3x3 and return the color with the most in that kernal. modal filter
 
-            float3 ModalFilter(float2 uv)
+            float3 ModalFilter(sampler2D inputTex, float2 uv)
             {
                 //Get the average, then look for the pixel closes to said average.
                 float3 color = float3(0, 0, 0);
                 float3 maxColor = float3(0, 0, 0);
                 float3 averageColor = float3(0, 0, 0);
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        averageColor += tex2D(_UnigmaFluidsNormals, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
+                for (int x = -5; x <= 5; x++) {
+                    for (int y = -5; y <= 5; y++) {
+                        averageColor += tex2D(inputTex, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
                     }
                 }
                 averageColor / 9;
                 float minDist = 10000;
                 float3 finalColor = float3(0, 0, 0);
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        float3 c = tex2D(_UnigmaFluidsNormals, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
+                for (int x = -5; x <= 5; x++) {
+                    for (int y = -5; y <= 5; y++) {
+                        float3 c = tex2D(inputTex, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
                         float dist = distance(averageColor, c);
                         if (minDist > dist)
                         {
                             minDist = dist;
-                            finalColor = tex2D(_UnigmaFluidsNormals, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
+                            finalColor = tex2D(inputTex, uv + float2(x, y) * _UnigmaFluidsNormals_TexelSize).xyz;
                         }
 
                     }
@@ -196,7 +196,7 @@ Shader "Hidden/FluidComposition"
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
 				fixed4 densityMap = tex2D(_DensityMap, i.uv);
 
-                float3 fluidNormalsAvg = ModalFilter(i.uv);
+                float3 fluidNormalsAvg = ModalFilter(_UnigmaFluidsNormals, i.uv);
 
                 //Triplanar
 //------------------------------------------------------------
@@ -220,11 +220,13 @@ Shader "Hidden/FluidComposition"
                 float4 NdotL = saturate(dot(fluidNormalsAvg.xyz, _WorldSpaceLightPos0.xyz));
 
 
+                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, densityMap * 0.255);
                 float waterDepthDifference = saturate( (1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
-				waterColor = lerp(waterColor, _DeepWaterColor, 1.0 - i.uv.y);
+				waterColor = lerp(waterColor, waterDeepness, 1.0 - i.uv.y);
+				
                 
-                float4 waterSpecular = lerp(waterColor, 1, step(0.15, NdotL));
+                float4 waterSpecular = lerp(waterColor, 1, step(0.85  + (0.05*sin(_Time.x*10)), NdotL));
 
 
 
@@ -239,17 +241,17 @@ Shader "Hidden/FluidComposition"
 
                 float4 result = (topTextureResult) + sideTextureResult;
                 */
-                float4 result = waterColor;
+                float4 result = waterSpecular;
                 
                 //------------------------------------------------------------
 
 
 
                 
-                fixed4 finalImage = lerp(originalImage, result, step(0.95, fluidsDepth.w) * 0.7);
+                fixed4 finalImage = lerp(originalImage, result, step(0.95, fluidsDepth.w) * 0.57);
 
 
-                return densityMap;
+                return finalImage;
             }
             ENDCG
         }

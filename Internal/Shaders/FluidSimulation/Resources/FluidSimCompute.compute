@@ -251,17 +251,6 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
     return false;
 }
 
-float sphIntersect(float3 ro, float3 rd, float4 sph)
-{
-    float3 oc = ro - sph.xyz;
-    float b = dot(oc, rd);
-    float c = dot(oc, oc) - sph.w * sph.w;
-    float h = b * b - c;
-    if (h < 0.0) return -1.0;
-    h = sqrt(h);
-    return -b - h;
-}
-
 //Gets how many particles are in this ray, from camera to last particle.
 float GetDensityOfParticle(in Hit hit, in Ray ray)
 {
@@ -298,8 +287,25 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
 	float3 rayOrig = ray.o;
 	float3 rayDir = ray.d;
 	center = mul(_ParentTransform, float4(center, 1)).xyz;
-    float t1 = sphIntersect(rayOrig, rayDir, float4(center, radius));
-    t1 = opSmoothUnion(t1, hit.distance, _Smoothness);//opU(t1, hit.distance);
+
+    /*
+    float4x4 translate(float x, float y, float z)
+    {
+        return mat4(1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            center.x, center.y, center.z, 1.0);
+    }
+    */
+    float4x4 tra = float4x4(1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        center.x, center.y, center.z, 1.0);
+    float4x4 txi = tra;
+    float4x4 txx = inverse(tra);
+    //float t1 = sphIntersect(rayOrig, rayDir, float4(center, radius));
+    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, radius);
+    float t1 = tNFnorm.x;//opSmoothUnion(tNFnorm.x, hit.distance, _Smoothness);//opU(t1, hit.distance);
 	if (t1 > epsilon && t1 < hit.distance)
     {
        
@@ -487,5 +493,5 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     hit.position *= 0.015;
     float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
     Result[id.xy] = particle;
-    DensityMap[id.xy] = NormalMap[id.xy];
+	DensityMap[id.xy] = density;
 }

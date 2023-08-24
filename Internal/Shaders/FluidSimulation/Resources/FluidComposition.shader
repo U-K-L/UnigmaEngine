@@ -11,8 +11,8 @@ Shader "Hidden/FluidComposition"
 		_TopTexture("Texture for the top", 2D) = "white" {}
         _MainTex ("Texture", 2D) = "white" {}
 		_DepthMaxDistance("Maximum distance for depth, used for depth buffer", Float) = 100.0
-        _ShallowWaterColor("Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
-		_DeepWaterColor("Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
+        _ShallowWaterColor("Shallow Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
+		_DeepWaterColor("Deep Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
 		_BlendSmooth("Normal Smoothing", Range(0, 10)) = 0.5
 		_Spread("Spread", Range(0, 10)) = 0.5
 		_EdgeWidth("Edge Width", Range(0, 10)) = 0.5
@@ -209,13 +209,14 @@ Shader "Hidden/FluidComposition"
                 float3 diplacementNormalsInner = UnpackNormal(tex2D(_DisplacementTexInner, screenPosUV));
                 float2 distortionBlob = duv + ((_Intensity * 0.01) * diplacementNormals.rg);
                 float2 distortionGrabPass = duv + ((_Intensity * 0.025) * diplacementNormalsInner.rg);
+                float2 distortionGrabPass2 = duv + ((_Intensity * 0.035) * diplacementNormalsInner.rg);
                 
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
 			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, distortionBlob);
 			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, distortionBlob);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
                 fixed4 distortedOriginalImage = tex2D(_MainTex, distortionGrabPass);
-				fixed4 densityMap = tex2D(_DensityMap, i.uv);
+				fixed4 densityMap = tex2D(_DensityMap, distortionGrabPass2);
 
                 float3 fluidNormalsAvg = ModalFilter(_UnigmaFluidsNormals, i.uv);
 
@@ -365,10 +366,11 @@ Shader "Hidden/FluidComposition"
                 float4 NdotL = saturate(dot(fluidNormalsAvg.xyz, _WorldSpaceLightPos0.xyz));
 
 
-                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, densityMap * 0.255);
+                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, densityMap *0.225);
                 float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
-                waterColor = lerp(waterColor, waterDeepness, 1.0 - i.uv.y);
+				waterColor = lerp(waterColor, waterDeepness, 1.0- (densityMap*0.55) );
+                //waterColor = lerp(waterColor, waterDeepness, 1.0 - i.uv.y);
 
 
                 float4 waterSpecular = lerp(waterColor, 1, step(0.85 + (0.05 * sin(_Time.x * 10)), NdotL));
@@ -379,10 +381,10 @@ Shader "Hidden/FluidComposition"
 
 
                 float4 grabPass = lerp(distortedOriginalImage, result, 0.55);
-                fixed4 finalImage = lerp(originalImage, grabPass, step(0.95, fluidsDepth.w));
+                fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
 
 
-                return finalImage;
+                return fluids;
             }
             ENDCG
         }

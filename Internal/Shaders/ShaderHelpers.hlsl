@@ -6,6 +6,46 @@
 #include "UnityCG.cginc"
 #include "UnityLightingCommon.cginc"
 
+#define IDENTITY_MATRIX float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+
+float4x4 inverse(float4x4 m) {
+    float n11 = m[0][0], n12 = m[1][0], n13 = m[2][0], n14 = m[3][0];
+    float n21 = m[0][1], n22 = m[1][1], n23 = m[2][1], n24 = m[3][1];
+    float n31 = m[0][2], n32 = m[1][2], n33 = m[2][2], n34 = m[3][2];
+    float n41 = m[0][3], n42 = m[1][3], n43 = m[2][3], n44 = m[3][3];
+
+    float t11 = n23 * n34 * n42 - n24 * n33 * n42 + n24 * n32 * n43 - n22 * n34 * n43 - n23 * n32 * n44 + n22 * n33 * n44;
+    float t12 = n14 * n33 * n42 - n13 * n34 * n42 - n14 * n32 * n43 + n12 * n34 * n43 + n13 * n32 * n44 - n12 * n33 * n44;
+    float t13 = n13 * n24 * n42 - n14 * n23 * n42 + n14 * n22 * n43 - n12 * n24 * n43 - n13 * n22 * n44 + n12 * n23 * n44;
+    float t14 = n14 * n23 * n32 - n13 * n24 * n32 - n14 * n22 * n33 + n12 * n24 * n33 + n13 * n22 * n34 - n12 * n23 * n34;
+
+    float det = n11 * t11 + n21 * t12 + n31 * t13 + n41 * t14;
+    float idet = 1.0f / det;
+
+    float4x4 ret;
+
+    ret[0][0] = t11 * idet;
+    ret[0][1] = (n24 * n33 * n41 - n23 * n34 * n41 - n24 * n31 * n43 + n21 * n34 * n43 + n23 * n31 * n44 - n21 * n33 * n44) * idet;
+    ret[0][2] = (n22 * n34 * n41 - n24 * n32 * n41 + n24 * n31 * n42 - n21 * n34 * n42 - n22 * n31 * n44 + n21 * n32 * n44) * idet;
+    ret[0][3] = (n23 * n32 * n41 - n22 * n33 * n41 - n23 * n31 * n42 + n21 * n33 * n42 + n22 * n31 * n43 - n21 * n32 * n43) * idet;
+
+    ret[1][0] = t12 * idet;
+    ret[1][1] = (n13 * n34 * n41 - n14 * n33 * n41 + n14 * n31 * n43 - n11 * n34 * n43 - n13 * n31 * n44 + n11 * n33 * n44) * idet;
+    ret[1][2] = (n14 * n32 * n41 - n12 * n34 * n41 - n14 * n31 * n42 + n11 * n34 * n42 + n12 * n31 * n44 - n11 * n32 * n44) * idet;
+    ret[1][3] = (n12 * n33 * n41 - n13 * n32 * n41 + n13 * n31 * n42 - n11 * n33 * n42 - n12 * n31 * n43 + n11 * n32 * n43) * idet;
+
+    ret[2][0] = t13 * idet;
+    ret[2][1] = (n14 * n23 * n41 - n13 * n24 * n41 - n14 * n21 * n43 + n11 * n24 * n43 + n13 * n21 * n44 - n11 * n23 * n44) * idet;
+    ret[2][2] = (n12 * n24 * n41 - n14 * n22 * n41 + n14 * n21 * n42 - n11 * n24 * n42 - n12 * n21 * n44 + n11 * n22 * n44) * idet;
+    ret[2][3] = (n13 * n22 * n41 - n12 * n23 * n41 - n13 * n21 * n42 + n11 * n23 * n42 + n12 * n21 * n43 - n11 * n22 * n43) * idet;
+
+    ret[3][0] = t14 * idet;
+    ret[3][1] = (n13 * n24 * n31 - n14 * n23 * n31 + n14 * n21 * n33 - n11 * n24 * n33 - n13 * n21 * n34 + n11 * n23 * n34) * idet;
+    ret[3][2] = (n14 * n22 * n31 - n12 * n24 * n31 - n14 * n21 * n32 + n11 * n24 * n32 + n12 * n21 * n34 - n11 * n22 * n34) * idet;
+    ret[3][3] = (n12 * n23 * n31 - n13 * n22 * n31 + n13 * n21 * n32 - n11 * n23 * n32 - n12 * n21 * n33 + n11 * n22 * n33) * idet;
+
+    return ret;
+}
 
 struct NVector
 {
@@ -61,6 +101,72 @@ float SphereSDF(float3 p, float r)
 	float d = length(p) - r;
     return d;
 }
+
+//Intersectors -- https://iquilezles.org/articles/intersectors/
+float sphIntersect(float3 ro, float3 rd, float4 sph)
+{
+    float3 oc = ro - sph.xyz;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - sph.w * sph.w;
+    float h = b * b - c;
+    if (h < 0.0) return -1.0;
+    h = sqrt(h);
+    return -b - h;
+}
+
+// axis aligned box centered at the origin, with size boxSize
+float2 boxIntersection(in float3 ro, in float3 rd, in float3 boxSize, in float4x4 txx, out float3 outNormal)
+{
+    //Convert to local space of the box
+    float3 rdd = (mul(txx, float4(rd, 0.0)) ).xyz;
+    float roo = (mul(txx, float4 (ro, 1.0))).xyz;
+    
+    float3 m = 1.0 / rd; // can precompute if traversing a set of aligned boxes
+    float3 n = m * ro;   // can precompute if traversing a set of aligned boxes
+    float3 k = abs(m) * boxSize;
+    float3 t1 = -n - k;
+    float3 t2 = -n + k;
+    float tN = max(max(t1.x, t1.y), t1.z);
+    float tF = min(min(t2.x, t2.y), t2.z);
+    
+    if (tN > tF || tF < 0.0) return float2(-1.0, -1.0); // no intersection
+    outNormal = (tN > 0.0) ? step(float3(tN, tN, tN), t1) : // ro ouside the box
+    step(t2, float3(tF, tF, tF));  // ro inside the box
+    outNormal *= -sign(rd);
+    return float2(tN, tF);
+}
+
+// https://iquilezles.org/articles/boxfunctions
+float4 boxIntersection2(in float3 ro, in float3 rd, in float4x4 txx, in float4x4 txi, in float3 rad)
+{
+    // convert from ray to box space
+    float3 rdd = (mul(txx, float4(rd, 0.0))).xyz;
+    float roo = (mul(txx, float4 (ro, 1.0))).xyz;
+
+    // ray-box intersection in box space
+    float3 m = 1.0 / rdd;
+    // more robust
+    float3 k = float3(rdd.x >= 0.0 ? rad.x : -rad.x, rdd.y >= 0.0 ? rad.y : -rad.y, rdd.z >= 0.0 ? rad.z : -rad.z);
+    float3 t1 = (-roo - k) * m;
+    float3 t2 = (-roo + k) * m;
+    
+    float tN = max(max(t1.x, t1.y), t1.z);
+    float tF = min(min(t2.x, t2.y), t2.z);
+
+    // no intersection
+    if (tN > tF || tF < 0.0) return -1.0;
+
+    // use this instead if your rays origin can be inside the box
+    float4 res = (tN > 0.0) ? float4(tN, step(tN, t1)) :
+        float4(tF, step(t2, tF));
+
+    // add sign to normal and convert to ray space
+    res.yzw = (mul(txi, float4(-sign(rdd) * res.yzw, 0.0))).xyz;
+
+    return res;
+}
+
+
 
 float3 depthWorldPosition(float2 uv, float z, float4x4 InvVP)
 {

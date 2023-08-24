@@ -50,7 +50,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BlendSmooth: 1.64
+    - _BlendSmooth: 2.4
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51
     - _DepthMaxDistance: 0.00031
@@ -61,7 +61,7 @@ Material:
     - _ScaleY: -1.45
     - _Spread: 0.18
     m_Colors:
-    - _DeepWaterColor: {r: 0, g: 0.23073514, b: 0.93333334, a: 1}
+    - _DeepWaterColor: {r: 0.93333334, g: 0, b: 0.43819827, a: 1}
     - _NoiseScale: {r: 41.24, g: 28.77, b: 42.75, a: 1}
     - _ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
   m_BuildTextureStacks: []

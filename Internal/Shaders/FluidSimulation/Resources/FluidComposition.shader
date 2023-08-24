@@ -14,6 +14,7 @@ Shader "Hidden/FluidComposition"
 		_Spread("Spread", Range(0, 10)) = 0.5
 		_EdgeWidth("Edge Width", Range(0, 10)) = 0.5
         [Normal]_DisplacementTex("Displacement Map", 2D) = "white"{}
+        [Normal]_DisplacementTexInner("Displacement Map inside of water", 2D) = "white"{}
         _Intensity("Intensity of displacement", Range(0, 2)) = 1
     }
     SubShader
@@ -50,7 +51,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex;
+            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity;
 			float _ScaleX, _ScaleY;
@@ -202,12 +203,15 @@ Shader "Hidden/FluidComposition"
                 //Create paintery effect for that under the water.
                 float2 duv = i.uv;
                 float3 diplacementNormals = UnpackNormal(tex2D(_DisplacementTex, screenPosUV));
-                float2 distortion = duv + ((_Intensity * 0.01) * diplacementNormals.rg);
+                float3 diplacementNormalsInner = UnpackNormal(tex2D(_DisplacementTexInner, screenPosUV));
+                float2 distortionBlob = duv + ((_Intensity * 0.01) * diplacementNormals.rg);
+                float2 distortionGrabPass = duv + ((_Intensity * 0.025) * diplacementNormalsInner.rg);
                 
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
-			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, distortion);
+			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, distortionBlob);
 			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, i.uv);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
+                fixed4 distortedOriginalImage = tex2D(_MainTex, distortionGrabPass);
 				fixed4 densityMap = tex2D(_DensityMap, i.uv);
 
                 float3 fluidNormalsAvg = ModalFilter(_UnigmaFluidsNormals, i.uv);
@@ -261,8 +265,8 @@ Shader "Hidden/FluidComposition"
 
 
 
-                
-                fixed4 finalImage = lerp(originalImage, result, step(0.95, fluidsDepth.w) * 0.57);
+                float4 grabPass = lerp(distortedOriginalImage, result, 0.55);
+                fixed4 finalImage = lerp(originalImage, grabPass, step(0.95, fluidsDepth.w));
 
 
                 return finalImage;

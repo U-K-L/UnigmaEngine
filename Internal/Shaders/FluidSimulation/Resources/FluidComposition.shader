@@ -52,7 +52,7 @@ Shader "Hidden/FluidComposition"
             }
 
             sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner;
-            float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize;
+            float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity;
 			float _ScaleX, _ScaleY;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
@@ -246,8 +246,64 @@ Shader "Hidden/FluidComposition"
                 
                 float4 waterSpecular = lerp(waterColor, 1, step(0.85  + (0.05*sin(_Time.x*10)), NdotL));
 
+                //Create Lines.
+                float scaleFloor = floor(1 * 0.5);
+                float scaleCeil = ceil(1 * 0.5);
+
+                float2 bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
+                float2 topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
+                float2 bottomRight = i.uv + float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
+                float2 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
 
+                float4 depthnormal0 = tex2D(_UnigmaFluidsDepth, bottomLeft);
+                float4 depthnormal1 = tex2D(_UnigmaFluidsDepth, topRight);
+                float4 depthnormal2 = tex2D(_UnigmaFluidsDepth, bottomRight);
+                float4 depthnormal3 = tex2D(_UnigmaFluidsDepth, topLeft);
+
+
+                float depthFiniteDifference3 = depthnormal1.a - depthnormal0.a;
+                float depthFiniteDifference4 = depthnormal3.a - depthnormal2.a;
+                float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2)) * 100;
+                float depthThreshold = 0.1 * depthnormal0;
+                edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
+
+                /*
+                float4 pos0 = tex2D(_IsometricPositions, bottomLeft);
+                float4 pos1 = tex2D(_IsometricPositions, topRight);
+                float4 pos2 = tex2D(_IsometricPositions, bottomRight);
+                float4 pos3 = tex2D(_IsometricPositions, topLeft);
+
+
+                float posFiniteDifference3 = length(pos1 - pos0);
+                float posFiniteDifference4 = length(pos3 - pos2);
+                float edgePos = sqrt(pow(posFiniteDifference3, 2) + pow(posFiniteDifference4, 2)) * 100;
+                float posThreshold = _PosThreshold * pos0.a;
+                edgePos = edgePos > posThreshold ? 1 : 0;
+                //float edgeMask = length(depthnormal0 + depthnormal1 + depthnormal2 + depthnormal3) > 0.01 ? 1 : 0;
+                                */
+                scaleFloor = floor(1 * 0.5);
+                scaleCeil = ceil(1 * 0.5);
+
+                bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
+                topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
+                bottomRight = i.uv + float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
+                topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
+
+
+                float4 normal0 = tex2D(_UnigmaFluidsNormals, bottomLeft);
+                float4 normal1 = tex2D(_UnigmaFluidsNormals, topRight);
+                float4 normal2 = tex2D(_UnigmaFluidsNormals, bottomRight);
+                float4 normal3 = tex2D(_UnigmaFluidsNormals, topLeft);
+
+                float3 normalFiniteDifference0 = normal1.xyz - normal0.xyz;
+                float3 normalFiniteDifference1 = normal3.xyz - normal2.xyz;
+
+                float edgeNormal = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
+                edgeNormal = edgeNormal > 0.25 ? 1 : 0;
+
+
+                float edge = max(edgeDepth, edgeNormal);
 
                 //Determine how if on side or on top.
                 /*
@@ -259,7 +315,7 @@ Shader "Hidden/FluidComposition"
 
                 float4 result = (topTextureResult) + sideTextureResult;
                 */
-                float4 result = waterColor;
+                float4 result = waterColor + edge;
                 
                 //------------------------------------------------------------
 

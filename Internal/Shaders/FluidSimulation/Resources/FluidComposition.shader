@@ -13,6 +13,8 @@ Shader "Hidden/FluidComposition"
 		_BlendSmooth("Normal Smoothing", Range(0, 10)) = 0.5
 		_Spread("Spread", Range(0, 10)) = 0.5
 		_EdgeWidth("Edge Width", Range(0, 10)) = 0.5
+        [Normal]_DisplacementTex("Displacement Map", 2D) = "white"{}
+        _Intensity("Intensity of displacement", Range(0, 2)) = 1
     }
     SubShader
     {
@@ -48,9 +50,9 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap;
+            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize;
-			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth;
+			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity;
 			float _ScaleX, _ScaleY;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
             float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor;
@@ -190,8 +192,20 @@ Shader "Hidden/FluidComposition"
             
             fixed4 frag (v2f i) : SV_Target
             {
+                float2 screenPosUV = i.uv;
+                float XUV = screenPosUV.x * 0.25 + _Time.y * 0.15;
+                float YUV = screenPosUV.y * 0.25 + _Time.y * 0.15;
+
+                screenPosUV.y += cos(XUV + YUV) * 0.25 * cos(YUV);
+                screenPosUV.x += sin(XUV - YUV) * 0.25 * sin(YUV);
+                
+                //Create paintery effect for that under the water.
+                float2 duv = i.uv;
+                float3 diplacementNormals = UnpackNormal(tex2D(_DisplacementTex, screenPosUV));
+                float2 distortion = duv + ((_Intensity * 0.01) * diplacementNormals.rg);
+                
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
-			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, i.uv);
+			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, distortion);
 			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, i.uv);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
 				fixed4 densityMap = tex2D(_DensityMap, i.uv);
@@ -241,7 +255,7 @@ Shader "Hidden/FluidComposition"
 
                 float4 result = (topTextureResult) + sideTextureResult;
                 */
-                float4 result = waterSpecular;
+                float4 result = waterColor;
                 
                 //------------------------------------------------------------
 

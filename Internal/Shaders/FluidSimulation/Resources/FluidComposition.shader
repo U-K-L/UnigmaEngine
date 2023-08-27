@@ -281,20 +281,19 @@ Shader "Hidden/FluidComposition"
                 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
 
-                float4 normal0 = tex2D(_UnigmaFluidsNormals, bottomLeft);
-                float4 normal1 = tex2D(_UnigmaFluidsNormals, topRight);
-                float4 normal2 = tex2D(_UnigmaFluidsNormals, bottomRight);
-                float4 normal3 = tex2D(_UnigmaFluidsNormals, topLeft);
+                float4 normal0 = tex2D(_UnigmaFluidsNormals, bottomLeft + (_Intensity * 0.01) * diplacementNormals.rg);
+                float4 normal1 = tex2D(_UnigmaFluidsNormals, topRight + (_Intensity * 0.01) * diplacementNormals.rg);
+                float4 normal2 = tex2D(_UnigmaFluidsNormals, bottomRight + (_Intensity * 0.01) * diplacementNormals.rg);
+                float4 normal3 = tex2D(_UnigmaFluidsNormals, topLeft + (_Intensity * 0.01) * diplacementNormals.rg);
 
                 float3 normalFiniteDifference0 = normal1.xyz - normal0.xyz;
                 float3 normalFiniteDifference1 = normal3.xyz - normal2.xyz;
 
                 float edgeNormal = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
-                edgeNormal = edgeNormal > 0.25 ? 1 : 0;
+                edgeNormal = edgeNormal > 0.055 ? 1 : 0;
 
 
-                float edge = max(edgeDepth, 0);
-                //edge = max(edge, fluidsNormal.w);
+                float edge = max(edgeDepth, edgeNormal);
                 /*
 
                 bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
@@ -384,7 +383,7 @@ Shader "Hidden/FluidComposition"
                 fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
 
 
-                return fluids.w;
+                return finalImage;
             }
             ENDCG
         }

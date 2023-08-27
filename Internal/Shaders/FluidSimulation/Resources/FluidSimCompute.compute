@@ -416,7 +416,7 @@ void SceneTrace(inout Ray ray, inout Hit hit)
             {
                 float3 position = float3(i, j, k);
 
-                IntersectSphere(hit, ray, 0.25, position);
+                IntersectSphere(hit, ray, 0.125, position);
             }
 
         }
@@ -494,7 +494,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     
     //WorldPosition, depth.
     hit.position *= 0.015;
-    float4 particle = float4(hit.position, hit.color.r); //float4(hit.normal, 1);
+    float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
     Result[id.xy] = particle;
 	DensityMap[id.xy] = density;
 }

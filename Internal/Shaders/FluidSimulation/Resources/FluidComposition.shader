@@ -373,7 +373,7 @@ Shader "Hidden/FluidComposition"
 
 
                 float4 waterSpecular = lerp(waterColor, 1, step(0.85 + (0.05 * sin(_Time.x * 10)), NdotL));
-                float4 result = waterColor + edge;
+                float4 result = (min(2.5*NdotL+0.35, 1.05) *waterColor) + edge;
                 
                 //------------------------------------------------------------
 

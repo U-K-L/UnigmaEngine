@@ -36,6 +36,8 @@ public class FluidSimulationManager : MonoBehaviour
     public float BlurRadius = 5.0f;
     public Vector4 DepthScale = default;
     public float _Smoothness = 0.25f;
+    public Transform _LightSouce;
+    public Transform _LightScale;
 
     ComputeBuffer _meshObjectBuffer;
     ComputeBuffer _verticesObjectBuffer;
@@ -247,6 +249,8 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetMatrix("_ParentTransformToLocal", fluidSimTransform.worldToLocalMatrix);
         _fluidSimulationCompute.SetVector("_DepthScale", DepthScale);
         _fluidSimulationCompute.SetFloat("_Smoothness", _Smoothness);
+        _fluidSimulationCompute.SetVector("_LightSource", _LightSouce.position);
+        _fluidSimulationCompute.SetVector("_LightScale", _LightScale.position);
 
 
 

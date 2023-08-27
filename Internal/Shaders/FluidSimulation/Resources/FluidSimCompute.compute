@@ -10,6 +10,8 @@ float4x4 _ParentTransformToLocal;
 float epsilon = 0.00001;
 float _Smoothness;
 float4 _DepthScale = 1;
+float3 _LightSource;
+float3 _LightScale;
 
 
 
@@ -251,25 +253,42 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
     return false;
 }
 
+float4x4 translate(float3 p)
+{
+    return float4x4 (1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        p.x, p.y, p.z, 1.0);
+}
+
+
 //Gets how many particles are in this ray, from camera to last particle.
 float GetDensityOfParticle(in Hit hit, in Ray ray)
 {
     float numOfParticles = 0.0;
     int nSpheres = 10;
-    float3 rayOrig = ray.o;
-    float3 rayDir = ray.d;
+    float3 rayOrig = hit.position;
+    float3 rayDir = normalize(_LightSource - rayOrig);
     for (int i = 0; i < nSpheres; i++)
     {
         for (int j = 0; j < nSpheres; j++)
         {
             for (int k = 0; k < nSpheres; k++)
             {
+                rayDir = normalize(_LightSource - rayOrig);
                 float3 center = float3(i, j, k);
                 center = mul(_ParentTransform, float4(center, 1)).xyz;
-                float t1 = sphIntersect(rayOrig, rayDir, float4(center, 0.25));
-                if (t1 > -0.9)
+                float3 centerCenter = mul(_ParentTransform, float4(1,1,1, 1)).xyz;
+                float4x4 tra = translate(center);
+                float4x4 txi = tra;
+                float4x4 txx = inverse2(txi);
+                float t1 = sphIntersect(rayOrig, rayDir, float4(center, 0.5));
+
+                //float t1 = boxIntersection2(rayOrig, rayDir, txx, txi, 0.125).x;
+                if (t1 > epsilon)
                 {
                     rayOrig = rayOrig + rayDir * (t1 + epsilon*100);
+
                     numOfParticles++;
                 }
                 
@@ -278,18 +297,10 @@ float GetDensityOfParticle(in Hit hit, in Ray ray)
         }
 
     }
-    return numOfParticles / (nSpheres* nSpheres);
+    return 5*numOfParticles / (nSpheres * nSpheres);
     
 }
 
-
-float4x4 translate(float3 p)
-{
-    return float4x4 (1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        p.x, p.y, p.z, 1.0);
-}
 
 Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
 {
@@ -321,7 +332,7 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
         hit.distance = t1;
         hit.color = 1;
 
-        //density = GetDensityOfParticle(hit, ray);
+        density = GetDensityOfParticle(hit, ray);
         
         return hit;
     }

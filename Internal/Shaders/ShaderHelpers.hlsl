@@ -47,6 +47,19 @@ float4x4 inverse(float4x4 m) {
     return ret;
 }
 
+float4x4 inverse2(in float4x4 m)
+{
+    return float4x4(
+        m[0][0], m[1][0], m[2][0], 0.0,
+        m[0][1], m[1][1], m[2][1], 0.0,
+        m[0][2], m[1][2], m[2][2], 0.0,
+        -dot(m[0].xyz, m[3].xyz),
+        -dot(m[1].xyz, m[3].xyz),
+        -dot(m[2].xyz, m[3].xyz),
+        1.0);
+}
+
+
 struct NVector
 {
     float nvector;
@@ -119,7 +132,7 @@ float2 boxIntersection(in float3 ro, in float3 rd, in float3 boxSize, in float4x
 {
     //Convert to local space of the box
     float3 rdd = (mul(txx, float4(rd, 0.0)) ).xyz;
-    float roo = (mul(txx, float4 (ro, 1.0))).xyz;
+    float3 roo = (mul(txx, float4 (ro, 1.0))).xyz;
     
     float3 m = 1.0 / rd; // can precompute if traversing a set of aligned boxes
     float3 n = m * ro;   // can precompute if traversing a set of aligned boxes
@@ -140,9 +153,10 @@ float2 boxIntersection(in float3 ro, in float3 rd, in float3 boxSize, in float4x
 float4 boxIntersection2(in float3 ro, in float3 rd, in float4x4 txx, in float4x4 txi, in float3 rad)
 {
     // convert from ray to box space
-    float3 rdd = (mul(txx, float4(rd, 0.0))).xyz;
-    float roo = (mul(txx, float4 (ro, 1.0))).xyz;
-
+    //float3 rdd = (mul(txx, float4(rd, 0.0))).xyz;
+    //float3 roo = (mul(txx, float4 (ro, 1.0))).xyz;
+    float3 rdd = rd;//float3(rd.x + txi._m30, rd.y + txi._m31, rd.z + txi._m32);//(mul(txx, float4(rd, 0.0)) ).xyz;
+    float3 roo = float3(ro.x + txx._m30, ro.y + txx._m31, ro.z + txx._m32);//(mul(txx, float4 (ro, 1.0))).xyz;
     // ray-box intersection in box space
     float3 m = 1.0 / rdd;
     // more robust
@@ -157,8 +171,8 @@ float4 boxIntersection2(in float3 ro, in float3 rd, in float4x4 txx, in float4x4
     if (tN > tF || tF < 0.0) return -1.0;
 
     // use this instead if your rays origin can be inside the box
-    float4 res = (tN > 0.0) ? float4(tN, step(tN, t1)) :
-        float4(tF, step(t2, tF));
+    float4 res = (tN > 0.0) ? float4(tN, step(float3(tN, tN, tN), t1)) :
+        float4(tF, step(t2, float3(tF, tF, tF)));
 
     // add sign to normal and convert to ray space
     res.yzw = (mul(txi, float4(-sign(rdd) * res.yzw, 0.0))).xyz;
@@ -166,7 +180,28 @@ float4 boxIntersection2(in float3 ro, in float3 rd, in float4x4 txx, in float4x4
     return res;
 }
 
-
+bool IntersectBox(in float3 roo, in float3 rdd, float3 boxmin, float3 boxmax, out float tnear, out float tfar)
+{
+    // compute intersection of ray with all six bbox planes
+    float3 invR = 1.0 / rdd;
+    float3 tbot = invR * (boxmin.xyz - roo);
+    float3 ttop = invR * (boxmax.xyz - roo);
+    // re-order intersections to find smallest and largest on each axis
+    float3 tmin = min(ttop, tbot);
+    float3 tmax = max(ttop, tbot);
+    // find the largest tmin and the smallest tmax
+    float2 t0 = max(tmin.xx, tmin.yz);
+    tnear = max(t0.x, t0.y);
+    t0 = min(tmax.xx, tmax.yz);
+    tfar = min(t0.x, t0.y);
+    // check for hit
+    bool hit;
+    if ((tnear > tfar))
+        hit = false;
+    else
+        hit = true;
+    return hit;
+}
 
 float3 depthWorldPosition(float2 uv, float z, float4x4 InvVP)
 {

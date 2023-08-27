@@ -282,30 +282,33 @@ float GetDensityOfParticle(in Hit hit, in Ray ray)
     
 }
 
+
+float4x4 translate(float3 p)
+{
+    return float4x4 (1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        p.x, p.y, p.z, 1.0);
+}
+
 Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
 {
 	float3 rayOrig = ray.o;
 	float3 rayDir = ray.d;
 	center = mul(_ParentTransform, float4(center, 1)).xyz;
 
-    /*
-    float4x4 translate(float x, float y, float z)
-    {
-        return mat4(1.0, 0.0, 0.0, 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-            center.x, center.y, center.z, 1.0);
-    }
-    */
-    float4x4 tra = float4x4(1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        center.x, center.y, center.z, 1.0);
+	float4x4 tra = translate(center);
     float4x4 txi = tra;
-    float4x4 txx = inverse(tra);
+    float4x4 txx = inverse2(txi);
     //float t1 = sphIntersect(rayOrig, rayDir, float4(center, radius));
-    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, radius);
-    float t1 = tNFnorm.x;//opSmoothUnion(tNFnorm.x, hit.distance, _Smoothness);//opU(t1, hit.distance);
+
+    //float t1 = tNFnorm.x;//opSmoothUnion(tNFnorm.x, hit.distance, _Smoothness);//opU(t1, hit.distance);
+    float t1 = 0;
+    float t2 = 0;
+	float3 rad = float3(radius, radius, radius);
+    //IntersectBox(rayOrig, rayDir, center, center + rad, t2, t1)
+    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, rad);
+	t1 = tNFnorm.x;
 	if (t1 > epsilon && t1 < hit.distance)
     {
        
@@ -491,7 +494,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     
     //WorldPosition, depth.
     hit.position *= 0.015;
-    float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
+    float4 particle = float4(hit.position, hit.color.r); //float4(hit.normal, 1);
     Result[id.xy] = particle;
 	DensityMap[id.xy] = density;
 }

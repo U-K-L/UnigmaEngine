@@ -384,7 +384,7 @@ Shader "Hidden/FluidComposition"
                 fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
 
 
-                return fluids;
+                return fluids.w;
             }
             ENDCG
         }

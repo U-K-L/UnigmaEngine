@@ -8,6 +8,93 @@
 
 #define IDENTITY_MATRIX float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 
+#define NOISE_SIMPLEX_1_DIV_289 0.00346020761245674740484429065744f
+float mod289(float x) {
+    return x - floor(x * NOISE_SIMPLEX_1_DIV_289) * 289.0;
+}
+
+float2 mod289(float2 x) {
+    return x - floor(x * NOISE_SIMPLEX_1_DIV_289) * 289.0;
+}
+
+float3 mod289(float3 x) {
+    return x - floor(x * NOISE_SIMPLEX_1_DIV_289) * 289.0;
+}
+
+float4 mod289(float4 x) {
+    return x - floor(x * NOISE_SIMPLEX_1_DIV_289) * 289.0;
+}
+
+float2 hash2(float2 p)
+{   // procedural white noise	
+    return frac(sin(float2(dot(p,float2(127.1,311.7)),dot(p,float2(269.5,183.3))))*43758.5453);
+}
+
+
+//Iquilezles, raises value slightly, m = threshold (anything above m stays unchanged).
+// n = value when 0
+// x = value input.
+float almostIdentity(float x, float m, float n) {
+    if (x > m) return x;
+
+    const float a = 2.0 * n - m;
+    const float b = 2.0 * m - 3.0 * n;
+    const float t = x / m;
+    return (a * t + b) * t * t + n;
+}
+
+// ( x*34.0 + 1.0 )*x =
+// x*x*34.0 + x
+float permute(float x) {
+    return mod289(
+        x * x * 34.0 + x
+    );
+}
+
+float3 permute(float3 x) {
+    return mod289(
+        x * x * 34.0 + x
+    );
+}
+
+float4 permute(float4 x) {
+    return mod289(
+        x * x * 34.0 + x
+    );
+}
+
+
+
+float taylorInvSqrt(float r) {
+    return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+float4 taylorInvSqrt(float4 r) {
+    return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+
+
+float4 grad4(float j, float4 ip)
+{
+    const float4 ones = float4(1.0, 1.0, 1.0, -1.0);
+    float4 p, s;
+    p.xyz = floor(frac(j * ip.xyz) * 7.0) * ip.z - 1.0;
+    p.w = 1.5 - dot(abs(p.xyz), ones.xyz);
+
+    // GLSL: lessThan(x, y) = x < y
+    // HLSL: 1 - step(y, x) = x < y
+    s = float4(
+        1 - step(0.0, p)
+        );
+
+    // Optimization hint Dolkar
+    // p.xyz = p.xyz + (s.xyz * 2 - 1) * s.www;
+    p.xyz -= sign(p.xyz) * (p.w < 0);
+
+    return p;
+}
+
 float4x4 inverse(float4x4 m) {
     float n11 = m[0][0], n12 = m[1][0], n13 = m[2][0], n14 = m[3][0];
     float n21 = m[0][1], n22 = m[1][1], n23 = m[2][1], n24 = m[3][1];
@@ -224,6 +311,8 @@ float3 GetSphereNormal(float3 p, float r)
 	return normalize(n);
 }
 
+float hash1(float n) { return frac(sin(n) * 43758.5453); }
+
 //When no seed is provided simply use time.x.
 float rand()
 {
@@ -280,6 +369,290 @@ float2 randGaussian(float3 pos, float offset) {
 	return float2(z0, z1);
 }
 
+float rand2dTo1d(float2 value, float2 dotDir = float2(12.9898, 78.233)) {
+    float2 smallValue = sin(value);
+    float random = dot(smallValue, dotDir);
+    random = frac(sin(random) * 143758.5453);
+    return random;
+}
+
+float2 rand2dTo2d(float2 value) {
+    return float2(
+        rand2dTo1d(value, float2(12.989, 78.233)),
+        rand2dTo1d(value, float2(39.346, 11.135))
+        );
+}
+
+float2 voronoiNoise(float2 value) {
+
+    //From ronja Tutorials. Gets the distance of each point to generate voronoi Noise.
+    float2 baseCell = floor(value);
+    float minDistToCell = 10;
+    float2 closestCell;
+    [unroll]
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            float2 cell = baseCell + float2(x, y);
+            float2 cellPosition = cell + rand2dTo2d(cell);
+            float2 toCell = cellPosition - value;
+            float distToCell = length(toCell);
+            if (distToCell < minDistToCell) {
+                minDistToCell = distToCell;
+                closestCell = cell;
+            }
+
+        }
+    }
+    float random = rand2dTo1d(closestCell);
+    return float2(minDistToCell, random);
+}
+
+float2 unity_voronoi_noise_randomVector(float2 UV, float offset)
+{
+    float2x2 m = float2x2(15.27, 47.63, 99.41, 89.98);
+    UV = frac(sin(mul(UV, m)) * 46839.32);
+    return float2(sin(UV.y * +offset) * 0.5 + 0.5, cos(UV.x * offset) * 0.5 + 0.5);
+}
+
+float Unity_Voronoi_float(float2 UV, float AngleOffset, float CellDensity, out float Out, out float Cells)
+{
+    float2 g = floor(UV * CellDensity);
+    float2 f = frac(UV * CellDensity);
+    float t = 8.0;
+    float3 res = float3(8.0, 0.0, 0.0);
+
+    for (int y = -1; y <= 1; y++)
+    {
+        for (int x = -1; x <= 1; x++)
+        {
+            //Find the nearest point to color the grid.
+            float2 lattice = float2(x, y); //The point.
+            float2 offset = lattice - f + unity_voronoi_noise_randomVector(lattice + g, AngleOffset); //Randomly generated point.
+            float d = distance(lattice + offset, f); //The distance between them.
+            if (d < res.x)
+            {
+                res = float3(d, offset.x, offset.y);
+                Out = res.x;
+                Cells = res.y;
+            }
+        }
+    }
+
+    float DistFromCenter = sqrt(Out);
+    float DistFromEdge = 8.0f;
+    for (int y = -1; y <= 1; y++)
+    {
+        for (int x = -1; x <= 1; x++)
+        {
+            //Find the nearest point to color the grid.
+            float2 lattice = float2(x, y); //The point.
+            float2 offset = lattice - f + unity_voronoi_noise_randomVector(lattice + g, AngleOffset); //Randomly generated point.
+            
+            float distToEdge = dot(0.5 * (offset + res.xy), normalize(offset - res.xy));
+            
+            DistFromEdge = min(DistFromEdge, distToEdge);
+        }
+    }
+
+    return DistFromEdge;
+}
+
+// The parameter w controls the smoothness
+float4 smoothVoronoi(in float2 x, float w)
+{
+    float2 n = floor(x);
+    float2 f = frac(x);
+
+    float4 m = float4(8.0, 0.0, 0.0, 0.0);
+    for (int j = -2; j <= 2; j++)
+        for (int i = -2; i <= 2; i++)
+        {
+            float2 g = float2(float(i), float(j));
+            float2 o = hash2(n + g);
+
+            // animate
+            o = 0.5 + 0.5 * sin(_Time.x + 6.2831 * o);
+
+            // distance to cell		
+            float d = length(g - f + o);
+
+            // cell color
+            float3 col = 0.5 + 0.5 * sin(hash1(dot(n + g, float2(7.0, 113.0))) * 2.5 + 3.5 + float3(2.0, 3.0, 0.0));
+            // in linear space
+            col = col * col;
+
+            // do the smooth min for colors and distances		
+            float h = smoothstep(-1.0, 1.0, (m.x - d) / w);
+            m.x = lerp(m.x, d, h) - h * (1.0 - h) * w / (1.0 + 3.0 * w); // distance
+            m.yzw = lerp(m.yzw, col, h) - h * (1.0 - h) * w / (1.0 + 3.0 * w); // color
+        }
+
+    return m;
+}
+
+//Smooth Version
+void F1Unity_Voronoi_float(float2 UV, float AngleOffset, float CellDensity, out float Out, out float Cells, float smoothness)
+{
+    float2 g = floor(UV * CellDensity);
+    float2 f = frac(UV * CellDensity);
+    float t = 8.0;
+    float3 res = float3(8.0, 0.0, 0.0);
+    float resX = 0.0;
+
+    for (int y = -1; y <= 1; y++)
+    {
+        for (int x = -1; x <= 1; x++)
+        {
+            //Find the nearest point to color the grid.
+            float2 lattice = float2(x, y); //The point.
+            float2 offset = unity_voronoi_noise_randomVector(lattice + g, AngleOffset); //Randomly generated point.
+            float d = distance(lattice + offset, f); //The distance between them.
+
+            resX += 1.0 / pow(d, smoothness);
+            if (d < res.x)
+            {
+                res = float3(d, offset.x, offset.y);
+                Out = pow(1.0 / resX, 1.0 / 16.0);
+                Cells = res.y;
+            }
+        }
+    }
+}
+
+float3 Ivoronoi(in float2 x)
+{
+    float2 n = floor(x);
+    float2 f = frac(x);
+
+    //----------------------------------
+    // first pass: regular voronoi
+    //----------------------------------
+    float2 mg, mr;
+
+    float md = 8.0;
+    for (int j = -1; j <= 1; j++)
+        for (int i = -1; i <= 1; i++)
+        {
+            float2 g = float2(float(i), float(j));
+            float2 o = hash2(n + g);
+            o = 0.5 + 0.5 * sin(10*_Time.x + 6.2831 * o);
+            float2 r = g + o - f;
+            float d = dot(r, r);
+
+            if (d < md)
+            {
+                md = d;
+                mr = r;
+                mg = g;
+            }
+        }
+
+    //----------------------------------
+    // second pass: distance to borders
+    //----------------------------------
+    md = 8.0;
+    for (int j = -2; j <= 2; j++)
+        for (int i = -2; i <= 2; i++)
+        {
+            float2 g = mg + float2(float(i), float(j));
+            float2 o = hash2(n + g);
+            o = 0.5 + 0.5 * sin(10 * _Time.x + 6.2831 * o);
+            float2 r = g + o - f;
+
+            if (dot(mr - r, mr - r) > 0.00001)
+                md = min(md, dot(0.5 * (mr + r), normalize(r - mr)));
+        }
+
+    return float3(md, mr);
+}
+
+float snoise(float3 v)
+{
+    const float2 C = float2(
+        0.166666666666666667, // 1/6
+        0.333333333333333333 // 1/3
+        );
+    const float4 D = float4(0.0, 0.5, 1.0, 2.0);
+    // First corner
+    float3 i = floor(v + dot(v, C.yyy));
+    float3 x0 = v - i + dot(i, C.xxx);
+    // Other corners
+    float3 g = step(x0.yzx, x0.xyz);
+    float3 l = 1 - g;
+    float3 i1 = min(g.xyz, l.zxy);
+    float3 i2 = max(g.xyz, l.zxy);
+    float3 x1 = x0 - i1 + C.xxx;
+    float3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
+    float3 x3 = x0 - D.yyy; // -1.0+3.0*C.x = -0.5 = -D.y
+    // Permutations
+    i = mod289(i);
+    float4 p = permute(
+        permute(
+            permute(
+                i.z + float4(0.0, i1.z, i2.z, 1.0)
+            ) + i.y + float4(0.0, i1.y, i2.y, 1.0)
+        ) + i.x + float4(0.0, i1.x, i2.x, 1.0)
+    );
+    // Gradients: 7x7 points over a square, mapped onto an octahedron.
+    // The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
+    float n_ = 0.142857142857; // 1/7
+    float3 ns = n_ * D.wyz - D.xzx;
+    float4 j = p - 49.0 * floor(p * ns.z * ns.z); // mod(p,7*7)
+    float4 x_ = floor(j * ns.z);
+    float4 y_ = floor(j - 7.0 * x_); // mod(j,N)
+    float4 x = x_ * ns.x + ns.yyyy;
+    float4 y = y_ * ns.x + ns.yyyy;
+    float4 h = 1.0 - abs(x) - abs(y);
+    float4 b0 = float4(x.xy, y.xy);
+    float4 b1 = float4(x.zw, y.zw);
+    //float4 s0 = float4(lessThan(b0,0.0))*2.0 - 1.0;
+    //float4 s1 = float4(lessThan(b1,0.0))*2.0 - 1.0;
+    float4 s0 = floor(b0) * 2.0 + 1.0;
+    float4 s1 = floor(b1) * 2.0 + 1.0;
+    float4 sh = -step(h, float4(0, 0, 0, 0));
+    float4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+    float4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+    float3 p0 = float3(a0.xy, h.x);
+    float3 p1 = float3(a0.zw, h.y);
+    float3 p2 = float3(a1.xy, h.z);
+    float3 p3 = float3(a1.zw, h.w);
+    //Normalise gradients
+    float4 norm = rsqrt(float4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+    p0 *= norm.x;
+    p1 *= norm.y;
+    p2 *= norm.z;
+    p3 *= norm.w;
+    // Mix final noise value
+    float4 m = max(0.5 - float4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+    m = m * m;
+    return 105.0 * dot(m * m, float4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+}
+
+//Returns the sawtooth function.
+float sawTooth(float speed, float t) {
+    float cot = 1 / tan((speed * t * UNITY_PI) / 2);
+    float s = -(1 / UNITY_PI) * atan(cot) + 0.5;
+    return s;
+}
+
+float2 animateUVs(float2 uv, float speed) {
+
+    //uv *= -abs(sin(_Time.r * speed));
+    //uv *= sawTooth(speed, _Time.r);
+    float progress = frac((2 + ((3 + _Time.r) % 7)) * speed * 0.0001);
+    return uv * (progress * 10000);
+}
+
+//Creates a twirling effect for texture.
+float2 Twirl(float2 UV, float2 Center, float Strength, float2 Offsets, float speed)
+{
+    Center += (Strength * 0.5);
+    float2 delta = (UV * Strength) - Center;
+    float angle = (_Time.y * speed) + Strength * length(delta);
+    float x = cos(angle) * delta.x - sin(angle) * delta.y;
+    float y = sin(angle) * delta.x + cos(angle) * delta.y;
+    return float2(x + Center.x + Offsets.x, y + Center.y + Offsets.y);
+}
 
 // Construct a rotation matrix that rotates around the provided axis, sourced from:
 // https://gist.github.com/keijiro/ee439d5e7388f3aafc5296005c8c3f33

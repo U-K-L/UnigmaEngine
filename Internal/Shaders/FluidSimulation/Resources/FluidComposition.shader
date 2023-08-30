@@ -193,7 +193,6 @@ Shader "Hidden/FluidComposition"
                 return finalColor;
             }
             
-            
             fixed4 frag (v2f i) : SV_Target
             {
                 float2 screenPosUV = i.uv;
@@ -376,14 +375,45 @@ Shader "Hidden/FluidComposition"
                 float4 result = (min(2.5*NdotL+0.35, 1.05) *waterColor) + edge;
                 
                 //------------------------------------------------------------
+                // 
+                //Create causatics
 
+                //Voronoi noise.
+				float voronoi = 0;
+				float cells = 0;
+				float uVoronoi = 0;
+				float uCells = 0;
+                float simplexN = snoise(float3(i.uv, 1));
+                
+                float2 animatedUV = animateUVs(float2(0, 1), 1.25);
+                float2 twirl = Twirl(i.uv, float2(0, 0), 5.25, float2(0, 0), 0.55);
+                float2 distortion = UnpackNormal(tex2D(_DisplacementTex, twirl)).xy;
+                
+                F1Unity_Voronoi_float(animatedUV + i.uv + simplexN *0.015 * simplexN, UNITY_PI, 7, voronoi, cells, 50);
+                float3 iVoronoi = Ivoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN )*10);
+                iVoronoi = 1.0 - smoothstep(0.02, 0.05, iVoronoi);
+                float distFromEdge = Unity_Voronoi_float(animatedUV + i.uv + distortion * 0.014 * simplexN, 0, 7, uVoronoi, uCells);
+
+				float voronoiDiff = voronoi - uVoronoi;
+                
+                float4 smoothVoronoi1 = smoothVoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN) * 10, 0.395 * (1.0 - diplacementNormals.x*1.2));
+                float4 smoothVoronoi2 = smoothVoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN) * 10, 0);
+                
+                float causaticPattern = lerp(0, 1, smoothstep(0.0001, 0.0025, smoothVoronoi2.x - smoothVoronoi1.x));
+                
+				float voronoiRamped = lerp(0, 1, step(0.35, voronoi));
+				voronoiRamped = lerp(voronoi, voronoiRamped, step(0.35, voronoiDiff));
+				//float4 colorVoronois = lerp(waterColor, 1, step(0.15, voronoi));
+                
 
 
                 float4 grabPass = lerp(distortedOriginalImage, result, 0.55);
                 fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
 
 
-                return finalImage;
+                return causaticPattern;
+
+                
             }
             ENDCG
         }

@@ -654,6 +654,118 @@ float2 Twirl(float2 UV, float2 Center, float Strength, float2 Offsets, float spe
     return float2(x + Center.x + Offsets.x, y + Center.y + Offsets.y);
 }
 
+float sdStar5(float2 p, float r, float rf)
+{
+    const float2 k1 = float2(0.809016994375, -0.587785252292);
+    const float2 k2 = float2(-k1.x, k1.y);
+    p.x = abs(p.x);
+    p -= 2.0 * max(dot(k1, p), 0.0) * k1;
+    p -= 2.0 * max(dot(k2, p), 0.0) * k2;
+    p.x = abs(p.x);
+    p.y -= r;
+    float2 ba = rf * float2(-k1.y, k1.x) - float2(0, 1);
+    float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r);
+    return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
+}
+
+float sdCircle(float2 p, float r)
+{
+    return length(p) - r;
+}
+
+float sdMoon(float2 p, float d, float ra, float rb)
+{
+    p.y = abs(p.y);
+    float a = (ra * ra - rb * rb + d * d) / (2.0 * d);
+    float b = sqrt(max(ra * ra - a * a, 0.0));
+    if (d * (p.x * b - p.y * a) > d * d * max(b - p.y, 0.0))
+        return length(p - float2(a, b));
+    return max((length(p) - ra),
+        -(length(p - float2(d, 0)) - rb));
+}
+float2 dot2(float2 p)
+{
+    return dot(p, p);
+}
+float sdHeart(float2 p, float r)
+{
+    p.x = abs(p.x);
+
+    if (p.y + p.x > 1.0)
+        return sqrt(dot2(p - float2(0.25, 0.75))) - sqrt(2.0) / 4.0;
+    return sqrt(min(dot2(p - float2(0.00, 1.00)),
+        dot2(p - 0.5 * max(p.x + p.y, 0.0)))) * sign(p.x - p.y);
+}
+
+float4 vec4(float3 vec)
+{
+    return float4(vec.x, vec.y, vec.z, 1);
+}
+
+
+float4 vec4(float vec)
+{
+    return float4(vec, vec, vec, 1);
+}
+
+float LineCluster(float p, float spacing, float count)
+{
+    float result = step(frac(p * count), spacing);
+
+    return result;
+}
+
+
+float PointGrid(float2 p)
+{
+    float2 vecSteps = step(frac(p * 10), float2(ddx(p.x), ddy(p.y)) * 10);
+    float result = vecSteps.x * vecSteps.y;
+    return result;
+}
+
+float2 ClosetCell(float2 p, int _count)
+{
+    float minDistToCell = 100;
+    float2 finalCell = p;
+    for (int i = 0; i < _count; i++)
+    {
+        for (int j = 0; j < _count; j++)
+        {
+            float2 currentPoint = float2((1.0 / _count) * i, (1.0 / _count) * j);
+            float dist = distance(currentPoint, p);
+            if (dist < minDistToCell)
+            {
+                minDistToCell = dist;
+                finalCell = currentPoint;
+            }
+        }
+
+    }
+
+    return finalCell;
+}
+
+float2 ClosetLineCell(float2 p)
+{
+    float minDistToCell = 100;
+    float2 finalCell = p;
+    const int count = 10;
+    for (int i = 0; i < count; i++)
+    {
+        float2 currentPoint = float2(1 - ((1.0 / count) * i), (1.0 / count) * i);
+        float dist = distance(currentPoint, p);
+        if (dist < minDistToCell)
+        {
+            minDistToCell = dist;
+            finalCell = currentPoint;
+        }
+
+    }
+
+    return finalCell;
+}
+
+
 // Construct a rotation matrix that rotates around the provided axis, sourced from:
 // https://gist.github.com/keijiro/ee439d5e7388f3aafc5296005c8c3f33
 float3x3 AngleAxis3x3(float angle, float3 axis)

@@ -48,6 +48,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: a50d8da0637a640dda5e2018b972cade, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _UnderWaterTexture:
+        m_Texture: {fileID: 2800000, guid: da2c1e050ab1e7b4baf3d703f7820516, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BlendSmooth: 2.4

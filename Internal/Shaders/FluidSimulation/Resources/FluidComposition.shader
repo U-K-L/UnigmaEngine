@@ -19,6 +19,7 @@ Shader "Hidden/FluidComposition"
         [Normal]_DisplacementTex("Displacement Map", 2D) = "white"{}
         [Normal]_DisplacementTexInner("Displacement Map inside of water", 2D) = "white"{}
         _Intensity("Intensity of displacement", Range(0, 2)) = 1
+        _UnderWaterTexture("UnderWater Texture", 2D) = "white" {}
     }
     SubShader
     {
@@ -54,7 +55,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-			sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture;
+			sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity;
 			float _ScaleX, _ScaleY;
@@ -216,6 +217,8 @@ Shader "Hidden/FluidComposition"
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
                 fixed4 distortedOriginalImage = tex2D(_MainTex, distortionGrabPass);
 				fixed4 densityMap = tex2D(_DensityMap, distortionGrabPass2);
+                
+				fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass *2);
 
                 float3 fluidNormalsAvg = ModalFilter(_UnigmaFluidsNormals, i.uv);
 
@@ -378,6 +381,12 @@ Shader "Hidden/FluidComposition"
                 // 
                 //Create causatics
 
+
+ 
+
+
+
+
                 //Voronoi noise.
 				float voronoi = 0;
 				float cells = 0;
@@ -385,10 +394,36 @@ Shader "Hidden/FluidComposition"
 				float uCells = 0;
                 float simplexN = snoise(float3(i.uv, 1));
                 
-                float2 animatedUV = animateUVs(float2(0, 1), 1.25);
+                float2 animatedUV = animateUVs(float2(blendNormal.x, blendNormal.y), 0.25);
                 float2 twirl = Twirl(i.uv, float2(0, 0), 5.25, float2(0, 0), 0.55);
                 float2 distortion = UnpackNormal(tex2D(_DisplacementTex, twirl)).xy;
                 
+
+                float2 uv = i.uv + distortion*0.01 + animatedUV;//i.screenPosition.xy / i.screenPosition.w;
+                uv += float2(0.0001 * _Time.y, 0.00001 * _Time.y);
+                uv = fmod(uv, 0.1);//float2((uv.x % 1.001), (uv.y % 1.001));
+
+                float2 positionalPoint = ClosetCell(uv, 10);
+                float2 circlePos = uv - positionalPoint;
+
+                float dist = distance(i.uv, ClosetLineCell(i.uv));
+
+                float x = dist;// the input value
+                float PatternResult = sin(2.5 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 0.01555
+                    * (cos(760.0 * (1.0 - (1.0 / sqrt(1.0 + pow(x, 3.0))))) + 1.0);
+
+                float circleDistort = 40 * smoothstep(0, 1, distance(i.uv, float2(0.5, 0.5)));
+                float radiusIntensity = 0.5 * PatternResult * circleDistort;
+
+                float circleResult = sdCircle(circlePos, 0.01 * radiusIntensity);
+                float circleGrid = smoothstep(0, 0.0025, circleResult);
+
+                //Use different SDFs.
+                float di = 1.2 * cos(_Time.y + 3.9);
+                float sdfResult = sdStar5(circlePos, 0.01 * radiusIntensity, 2.0);//sdHeart(circlePos, _Radius * radiusIntensity);
+                float sdfGrid = smoothstep(0, 0.0025, sdfResult);
+
+
                 F1Unity_Voronoi_float(animatedUV + i.uv + simplexN *0.015 * simplexN, UNITY_PI, 7, voronoi, cells, 50);
                 float3 iVoronoi = Ivoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN )*10);
                 iVoronoi = 1.0 - smoothstep(0.02, 0.05, iVoronoi);
@@ -396,10 +431,15 @@ Shader "Hidden/FluidComposition"
 
 				float voronoiDiff = voronoi - uVoronoi;
                 
-                float4 smoothVoronoi1 = smoothVoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN) * 10, 0.395 * (1.0 - diplacementNormals.x*1.2));
-                float4 smoothVoronoi2 = smoothVoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN) * 10, 0);
+                float4 smoothVoronoi1 = smoothVoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN) * 32, 0.095 * (1.0 - diplacementNormals.x*1.2));
+                float4 smoothVoronoi2 = smoothVoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN) * 32, 0);
+
+                float4 smoothVoronoi3 = smoothVoronoi((animatedUV + i.uv + simplexN * 0.015 * simplexN) * 12, 0.395 * (1.0 - diplacementNormals.x * 1.2));
                 
-                float causaticPattern = lerp(0, 1, smoothstep(0.0001, 0.0025, smoothVoronoi2.x - smoothVoronoi1.x));
+                float causaticPattern = lerp(0, 1, smoothstep(0.0001, 0.00025, (smoothVoronoi2.x - smoothVoronoi1.x) * 100 * (1.0 - simplexN * 0.5)));
+                
+				float4 causaticColor = lerp(0, waterColor, causaticPattern*5);
+                //causaticColor = lerp(causaticColor, _DeepWaterColor, 1.0 - causaticColor*5);
                 
 				float voronoiRamped = lerp(0, 1, step(0.35, voronoi));
 				voronoiRamped = lerp(voronoi, voronoiRamped, step(0.35, voronoiDiff));
@@ -407,12 +447,24 @@ Shader "Hidden/FluidComposition"
                 
 
 
+
+
+                float finalMask = lerp(sdfGrid, circleGrid, 0.00000001255 * radiusIntensity);
+                finalMask = max(step(1, 1 - finalMask), 0);
+                //finalMask = lerp(underWaterTex + causaticColor * 0.45, finalMask*100, finalMask);
+
+                //return underWaterTex + causaticColor*0.45;
+                float4 CausaticFinal = finalMask + underWaterTex + causaticColor * 0.45;
+
+                
+                
+
+
                 float4 grabPass = lerp(distortedOriginalImage, result, 0.55);
                 fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
 
 
-                return causaticPattern;
-
+                return lerp(finalImage, lerp(finalImage, CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
                 
             }
             ENDCG

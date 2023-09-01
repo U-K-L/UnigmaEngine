@@ -12,6 +12,8 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _textureBuffer;
     ComputeBuffer _fluidSimParticles;
     int numParticles;
+    int _UpdateParticlesKernel;
+    int _CreateGrid;
     Camera _cam;
     RenderTexture _rtTarget;
     RenderTexture _densityMap;
@@ -38,10 +40,12 @@ public class FluidSimulationManager : MonoBehaviour
     public float _Smoothness = 0.25f;
     public Transform _LightSouce;
     public Transform _LightScale;
+    public int numOfParticles;
 
     ComputeBuffer _meshObjectBuffer;
     ComputeBuffer _verticesObjectBuffer;
     ComputeBuffer _indicesObjectBuffer;
+    ComputeBuffer _particleBuffer;
 
     struct MeshObject
     {
@@ -67,6 +71,11 @@ public class FluidSimulationManager : MonoBehaviour
         public Vector2 uv;
     };
 
+    struct Particles
+    {
+        Vector3 positions;
+    };
+    
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
 
@@ -75,6 +84,7 @@ public class FluidSimulationManager : MonoBehaviour
     private List<MeshObject> meshObjects = new List<MeshObject>();
     private List<Vertex> Vertices = new List<Vertex>();
     private List<int> Indices = new List<int>();
+    private List<Particles> _Particles;
     private void Awake()
     {
         _fluidSimulationCompute = Resources.Load<ComputeShader>("FluidSimCompute");
@@ -96,7 +106,10 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidNormalBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidDepthBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
 
-        
+        _Particles = new List<Particles>(new Particles[numOfParticles]);
+
+        _UpdateParticlesKernel = _fluidSimulationCompute.FindKernel("UpdateParticles");
+        _CreateGrid = _fluidSimulationCompute.FindKernel("CreateGrid");
 
         _rtTarget.enableRandomWrite = true;
         _rtTarget.Create();
@@ -104,9 +117,11 @@ public class FluidSimulationManager : MonoBehaviour
         _densityMap.Create();
         _fluidNormalBuffer.enableRandomWrite = true;
         _fluidNormalBuffer.Create();
-        _fluidSimulationCompute.SetTexture(0, "Result", _rtTarget);
-        _fluidSimulationCompute.SetTexture(0, "DensityMap", _densityMap);
-        _fluidSimulationCompute.SetTexture(0, "NormalMap", _fluidNormalBuffer);
+        _fluidSimulationCompute.SetTexture(_CreateGrid, "Result", _rtTarget);
+        _fluidSimulationCompute.SetTexture(_CreateGrid, "DensityMap", _densityMap);
+        _fluidSimulationCompute.SetTexture(_CreateGrid, "NormalMap", _fluidNormalBuffer);
+        
+        
         AddObjectsToList();
         CreateNonAcceleratedStructure();
         CreateFluidCommandBuffers();
@@ -177,15 +192,16 @@ public class FluidSimulationManager : MonoBehaviour
         _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
         _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
         _verticesObjectBuffer.SetData(Vertices);
-        _fluidSimulationCompute.SetBuffer(0, "_Vertices", _verticesObjectBuffer);
+        _fluidSimulationCompute.SetBuffer(_CreateGrid, "_Vertices", _verticesObjectBuffer);
         _indicesObjectBuffer.SetData(Indices);
-        _fluidSimulationCompute.SetBuffer(0, "_Indices", _indicesObjectBuffer);
+        _fluidSimulationCompute.SetBuffer(_CreateGrid, "_Indices", _indicesObjectBuffer);
     }
 
     void UpdateNonAcceleratedRayTracer()
     {
         //Build the BVH
         BuildBVH();
+        UpdateParticles();
     }
 
     //To build the BVH we need to take all of the game objects in our raytracing list.
@@ -224,12 +240,31 @@ public class FluidSimulationManager : MonoBehaviour
         if (_meshObjectBuffer.count > 0)
         {
             _meshObjectBuffer.SetData(meshObjects);
-            _fluidSimulationCompute.SetBuffer(0, "_MeshObjects", _meshObjectBuffer);
+            _fluidSimulationCompute.SetBuffer(_CreateGrid, "_MeshObjects", _meshObjectBuffer);
         }
 
         _meshObjectBuffer.SetData(meshObjects);
-        _fluidSimulationCompute.SetBuffer(0, "_MeshObjects", _meshObjectBuffer);
+        _fluidSimulationCompute.SetBuffer(_CreateGrid, "_MeshObjects", _meshObjectBuffer);
 
+    }
+
+    void UpdateParticles()
+    {
+        //Create particle buffer.
+        if (_particleBuffer == null)
+        {
+            _particleBuffer = new ComputeBuffer(numOfParticles, sizeof(float) * 3);
+            _particleBuffer.SetData(_Particles);
+        }
+
+        //Update particles.
+        uint threadsX, threadsY, threadsZ;
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
+        _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_Particles", _particleBuffer);
+        _fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, (int)threadsX, (int)threadsY, (int)threadsZ);
+
+        //Set particle buffer to shader.
+        _fluidSimulationCompute.SetBuffer(_CreateGrid, "_Particles", _particleBuffer);
     }
 
     //Temporarily attach this simulation to camera!!!
@@ -297,10 +332,10 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0,0,0,0));
 
         uint threadsX, threadsY, threadsZ;
-        _fluidSimulationCompute.GetKernelThreadGroupSizes(0, out threadsX, out threadsY, out threadsZ);
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_CreateGrid, out threadsX, out threadsY, out threadsZ);
 
-        fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationCompute, 0, "Result", _rtTarget);
-        fluidCommandBuffers.DispatchCompute(_fluidSimulationCompute, 0, Mathf.CeilToInt(Screen.width / threadsX), Mathf.CeilToInt(Screen.width / threadsY), (int)threadsZ);
+        fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationCompute, _CreateGrid, "Result", _rtTarget);
+        fluidCommandBuffers.DispatchCompute(_fluidSimulationCompute, _CreateGrid, Mathf.CeilToInt(Screen.width / threadsX), Mathf.CeilToInt(Screen.width / threadsY), (int)threadsZ);
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _fluidDepthBuffer);
 
@@ -334,6 +369,8 @@ public class FluidSimulationManager : MonoBehaviour
             _indicesObjectBuffer.Release();
         if (_meshObjectBuffer != null)
             _meshObjectBuffer.Release();
+        if (_particleBuffer != null)
+            _particleBuffer.Release();
 
 
     }

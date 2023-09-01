@@ -1,5 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CreateGrid
+#pragma kernel UpdateParticles
+
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
@@ -61,10 +63,16 @@ struct Hit
     MeshObject meshObj;
 };
 
+struct Particle
+{
+    float3 position;
+};
+
 StructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
-uint numOfStructs, sizeOfStrides;
+RWStructuredBuffer<Particle> _Particles;
+uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
 float density = 0.0;
 
 // Create a RenderTexture with enableRandomWrite flag and set it
@@ -116,6 +124,15 @@ Hit CreateHit()
     return hit;
 }
 
+
+float4x4 translate(float3 p)
+{
+    return float4x4 (1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        p.x, p.y, p.z, 1.0);
+}
+
 Ray CreateCameraRay(float2 uv)
 {
 	//Get the world position of the origin, which is basically just the camera.
@@ -128,42 +145,6 @@ Ray CreateCameraRay(float2 uv)
     dir = mul(_CameraToWorld, float4(dir, 0)).xyz; //Take this 3D pixel point and make it world position.
     dir = normalize(dir);
     return CreateRay(og, dir, uv);
-}
-
-
-float opU(float d1, float d2)
-{
-    return min(d1, d2);
-}
-
-float2 sminN(float a, float b, float k, float n)
-{
-    float h = max(k - abs(a - b), 0.0) / k;
-    float m = pow(h, n) * 0.5;
-    float s = m * k / n;
-    return (a < b) ? float2(a - s, m) : float2(b - s, 1.0 - m);
-}
-
-// polynomial smooth min
-float smin(float a, float b, float k)
-{
-    float h = max(k - abs(a - b), 0.0) / k;
-    return min(a, b) - h * h * k * (1.0 / 4.0);
-}
-
-
-float opSmoothUnion(float d1, float d2, float k) {
-    float h = clamp(0.5 + 0.5 * (d2 - d1) / k, 0.0, 1.0);
-    return lerp(d2, d1, h) - k * h * (1.0 - h);
-}
-
-float3 gsmin(in float4 a, in float4 b, in float k)
-{
-    float h = max(k - abs(a.x - b.x), 0.0);
-    float m = 0.25 * h * h / k;
-    float n = 0.50 * h / k;
-    return float3(min(a.x, b.x) - m,
-        lerp(a.yzw, b.yzw, (a.x < b.x) ? n : 1.0 - n).xy);
 }
 
 //Moller method.
@@ -253,80 +234,68 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
     return false;
 }
 
-float4x4 translate(float3 p)
-{
-    return float4x4 (1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        p.x, p.y, p.z, 1.0);
-}
-
-
-//Gets how many particles are in this ray, from camera to last particle.
+//Gets how many particles are in this ray, from main directional light to last particle.
 float GetDensityOfParticle(in Hit hit, in Ray ray)
 {
-    float numOfParticles = 0.0;
-    int nSpheres = 10;
-    float3 rayOrig = hit.position;
-    float3 rayDir = normalize(_LightSource - rayOrig);
-    for (int i = 0; i < nSpheres; i++)
+    int particleDensity = 0; //This will be the density later on.
+
+    for (int i = 0; i < numOfParticles; i++)
     {
-        for (int j = 0; j < nSpheres; j++)
+        //Shoot ray to the direction of the light.
+        float3 rayOrig = hit.position; //Start from the hit position, then shoot towards light.
+        float3 rayDir = normalize(_LightSource - rayOrig);
+		float3 center = _Particles[i].position;
+        
+        rayDir = normalize(_LightSource - rayOrig);
+        center = mul(_ParentTransform, float4(center, 1)).xyz;
+        
+        float t1 = sphIntersect(rayOrig, rayDir, float4(center, 0.5));
+        
+        //If it hit a particle add that to the total number of particles to obtain density.
+        if (t1 > epsilon)
         {
-            for (int k = 0; k < nSpheres; k++)
-            {
-                rayDir = normalize(_LightSource - rayOrig);
-                float3 center = float3(i, j, k);
-                center = mul(_ParentTransform, float4(center, 1)).xyz;
-                float3 centerCenter = mul(_ParentTransform, float4(1,1,1, 1)).xyz;
-                float4x4 tra = translate(center);
-                float4x4 txi = tra;
-                float4x4 txx = inverse2(txi);
-                float t1 = sphIntersect(rayOrig, rayDir, float4(center, 0.5));
+            //New point is now the nearest particle.
+            rayOrig = rayOrig + rayDir * (t1 + epsilon * 100);
 
-                //float t1 = boxIntersection2(rayOrig, rayDir, txx, txi, 0.125).x;
-                if (t1 > epsilon)
-                {
-                    rayOrig = rayOrig + rayDir * (t1 + epsilon*100);
-
-                    numOfParticles++;
-                }
-                
-            }
-
+            particleDensity++;
         }
-
     }
-    return 5*numOfParticles / (nSpheres * nSpheres);
+
+    //Now we do an attenuation, which is the y/x^2.
+    return 5* particleDensity / (numOfParticles * numOfParticles);
     
 }
 
-
-Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
+//Intersects particles with the ray being casted. Used to render particles.
+Hit IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 {
 	float3 rayOrig = ray.o;
 	float3 rayDir = ray.d;
 	center = mul(_ParentTransform, float4(center, 1)).xyz;
 
+    //Get box transformation matrix.
 	float4x4 tra = translate(center);
     float4x4 txi = tra;
     float4x4 txx = inverse2(txi);
-    //float t1 = sphIntersect(rayOrig, rayDir, float4(center, radius));
-
-    //float t1 = tNFnorm.x;//opSmoothUnion(tNFnorm.x, hit.distance, _Smoothness);//opU(t1, hit.distance);
     float t1 = 0;
-    float t2 = 0;
 	float3 rad = float3(radius, radius, radius);
-    //IntersectBox(rayOrig, rayDir, center, center + rad, t2, t1)
+    
+    //Intersect with a box and then smoothly combine boxes together with union operation.
     float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, rad);
 	t1 = tNFnorm.x;
+    t1 = opU(t1, hit.distance);
+    
+    //If it hit a box give it the detail to render this particle.
 	if (t1 > epsilon && t1 < hit.distance)
     {
-       
-        hit.position = rayOrig + t1 * ray.d;//gsmin(float4(rayOrig + t1 * ray.d, 0.25), float4(rayOrig + t1 * ray.d, 0.25), _Smoothness);//rayOrig + t1 * ray.d;
+        hit.position = rayOrig + t1 * ray.d;
+        
+        //Calculate the depth by dividing the perspective of the camera.
         float4 clipPos = UnityWorldToClipPos(hit.position);
         float depth = (clipPos.z* _DepthScale.x) / (clipPos.w * _DepthScale.y);
         hit.depth = 1.0 - depth;
+
+		//Calculate the normal of a supposed sphere, this isn't the normal of the particle that is a seperate buffer.
         float3 n = GetSphereNormal(hit.position, radius);
         hit.normal = n;
         hit.distance = t1;
@@ -336,74 +305,7 @@ Hit IntersectSphere(inout Hit hit, in Ray ray, float radius, float3 center)
         
         return hit;
     }
-    //Convert ray from worldspace to object's local space.
-    /*
-	rayOrig = mul(_CameraWorldToLocal, float4(rayOrig, 1)).xyz;
-	rayDir = mul(_CameraWorldToLocal, float4(rayDir, 0)).xyz;
-	center = mul(_CameraWorldToLocal, float4(center, 1)).xyz;
-    */
-	//rayOrig = mul(_ParentTransformToLocal, float4(rayOrig, 1)).xyz;
-	//rayDir = mul(_ParentTransformToLocal, float4(rayDir, 0)).xyz;
-    
-    
-	//Quadratic formula.
-    //Move center by world matrix.
-    //center = mul(_ParentTransform, float4(center, 1)).xyz;
-	//center = mul(_CameraWorldToLocal, float4(center, 1)).xyz;
-	//center = mul(_ParentTransformToLocal, float4(center, 1)).xyz;
-    //Scale radius by scale.
-    //radius *= _ParentTransform._m00;
-    //float3 rayOrig = mul(_ParentTransformToLocal, float4(ray.o, 1)).xyz;//ray.o;//mul(_CameraWorldToLocal, float4(ray.o, 1)).xyz;
-    //rayOrig = mul(_CameraWorldToLocal, float4(ray.o, 1)).xyz;
-    //rayOrig = mul(_ParentTransformToLocal, float4(ray.o, 1)).xyz;
-    //rayOrig += center;
-    //float3 rayDir = mul(_ParentTransformToLocal, float4(ray.d, 1)).xyz;//ray.d;//mul(_CameraWorldToLocal, float4(ray.d, 1)).xyz;
-	//rayDir = mul(_CameraWorldToLocal, float4(ray.d, 1)).xyz;
-	//rayDir = mul(_ParentTransformToLocal, float4(ray.d, 1)).xyz;
 
-    /*
-    float a = dot(rayDir, rayDir);
-    float b = 2 * dot((rayOrig - center), rayDir);
-    float c = dot(rayOrig - center, rayOrig - center) - radius * radius;
-    float d = b * b - 4 * a * c;
-
-    float t1 = (-b + sqrt(b * b - 4 * a * c) / 2 * a);
-    float t2 = (-b - sqrt(b * b - 4 * a * c) / 2 * a);
-
-    
-    if (d < 0)
-        return hit;
-    if (t1 > epsilon && t1 < hit.distance && t1 < t2)
-    {
-        hit.position = rayOrig + t1 * ray.d;
-        hit.position = mul(_ParentTransform, float4(hit.position, 1)).xyz;
-        hit.position = mul(_CameraToWorld, float4(hit.position, 1)).xyz;
-        float4 clipPos = UnityWorldToClipPos(hit.position);
-        float depth = clipPos.z / clipPos.w;
-        hit.depth = 1.0 - depth;
-        float3 n = GetSphereNormal(hit.position, radius);
-        hit.normal = n;
-        hit.distance = t1;
-        hit.color = 1;
-        
-        return hit;
-    }
-    else if (t2 > epsilon && t2 < hit.distance && t2 < t1)
-    {
-        hit.position = rayOrig + t2 * ray.d;
-        hit.position = mul(_ParentTransform, float4(hit.position, 1)).xyz;
-        hit.position = mul(_CameraToWorld, float4(hit.position, 1)).xyz;
-        float4 clipPos = UnityWorldToClipPos(hit.position);
-        float depth = clipPos.z / clipPos.w;
-        hit.depth = 1.0 - depth;
-        float3 n = GetSphereNormal(hit.position, radius);
-        hit.normal = n;
-        hit.distance = t2;
-        hit.color = 1;
-
-        return hit;
-    }
-    */
     return hit;
 }
 
@@ -418,21 +320,15 @@ void SceneTrace(inout Ray ray, inout Hit hit)
         }
 
     }
-    int nSpheres = 10;
-    for (int i = 0; i < nSpheres; i++)
+
+    //If a particle is in front perform the calculation. This will overwrite the information about meshes in the scene.
+    for (int k = 0; k < numOfParticles; k++)
     {
-        for (int j = 0; j < nSpheres; j++)
-        {
-            for (int k = 0; k < nSpheres; k++)
-            {
-                float3 position = float3(i, j, k);
+        float3 position = _Particles[k].position;
 
-                IntersectSphere(hit, ray, 0.125, position);
-            }
-
-        }
-
+        IntersectParticles(hit, ray, 0.125, position);
     }
+    
     MeshObject meshObject = hit.meshObj;
     Vertex v0 = hit.vertices[0];
     Vertex v1 = hit.vertices[1];
@@ -454,33 +350,10 @@ void SceneTrace(inout Ray ray, inout Hit hit)
     hit.normal = normals;
     hit.uv = uvs;
 
+
+
 }
 
-/*
-void SceneTrace(inout Ray ray, inout Hit hit)
-{
-    /*
-    int nSpheres = 30;
-    for (int i = 0; i < nSpheres; i++)
-    {
-        for (int j = 0; j < nSpheres; j++)
-        {
-            for (int k = 0; k < nSpheres; k++)
-            {
-                float3 position = float3(i, j, k);
-                float3 worldPos = mul(_CameraToWorld, float4(position, 1)).xyz;
-                
-                //IntersectSphere(hit, ray, 1, position);
-				IntersectSphere2(hit, ray, float4(worldPos, 1));
-            }
-
-        }
-
-    }
-    //float3 center = mul(_ParentTransform, float4(1,1,1, 1)).xyz;
-    IntersectSphere(hit, ray, 10, float3(0,0,0));
-}
-*/
 [numthreads(8,8,1)]
 void CreateGrid (uint3 id : SV_DispatchThreadID)
 {
@@ -489,6 +362,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     density = 0;
     uint width, height;
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
+	_Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     Result.GetDimensions(width, height);
 
 
@@ -508,4 +382,10 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
     Result[id.xy] = particle;
 	DensityMap[id.xy] = density;
+}
+
+[numthreads(64, 1, 1)]
+void UpdateParticles(uint3 id : SV_DispatchThreadID)
+{
+	_Particles[id.x].position = float3(id);
 }

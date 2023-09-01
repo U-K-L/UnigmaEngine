@@ -525,7 +525,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!23 &317329366
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -692,7 +692,7 @@ MonoBehaviour:
   _fluidSimMaterialComposite: {fileID: 2100000, guid: 58794828c336cdb40bfa2fae27552d2f,
     type: 2}
   fluidSimTransform: {fileID: 1634651488}
-  DeepWaterColor: {r: 0.93333334, g: 0, b: 0.43819827, a: 1}
+  DeepWaterColor: {r: 0.03087387, g: 0, b: 0.93333334, a: 1}
   ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
   DepthMaxDistance: 0.00031
   BlurScale: {x: 1.25, y: 1.25}
@@ -702,6 +702,7 @@ MonoBehaviour:
   _Smoothness: 0.05
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
+  numOfParticles: 1000
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
@@ -1563,6 +1564,7 @@ MonoBehaviour:
   _Smoothness: 0.05
   _LightSouce: {fileID: 0}
   _LightScale: {fileID: 0}
+  numOfParticles: 0
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103

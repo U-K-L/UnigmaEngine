@@ -13,6 +13,7 @@ Shader "Hidden/FluidComposition"
 		_DepthMaxDistance("Maximum distance for depth, used for depth buffer", Float) = 100.0
         _ShallowWaterColor("Shallow Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
 		_DeepWaterColor("Deep Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
+        _DeepestWaterColor("Deepest Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
 		_BlendSmooth("Normal Smoothing", Range(0, 10)) = 0.5
 		_Spread("Spread", Range(0, 10)) = 0.5
 		_EdgeWidth("Edge Width", Range(0, 10)) = 0.5
@@ -60,7 +61,7 @@ Shader "Hidden/FluidComposition"
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity;
 			float _ScaleX, _ScaleY;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
-            float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor;
+            float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor, _DeepestWaterColor;
 
 
             float bilateralFilter(sampler2D depthSampler, float2 texcoord)
@@ -367,15 +368,16 @@ Shader "Hidden/FluidComposition"
                 float4 NdotL = saturate(dot(fluidNormalsAvg.xyz, _WorldSpaceLightPos0.xyz));
 
 
-                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, densityMap *0.225);
+                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, densityMap);
                 float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
-				waterColor = lerp(waterColor, waterDeepness, 1.0- (densityMap*0.55) );
+				waterColor = lerp(waterColor, waterDeepness, 1.0- (densityMap) );
+				waterColor = lerp(waterColor, _DeepestWaterColor, 1.0 - smoothstep(0.785, 0.05, densityMap));
                 //waterColor = lerp(waterColor, waterDeepness, 1.0 - i.uv.y);
 
 
                 float4 waterSpecular = lerp(waterColor, 1, step(0.85 + (0.05 * sin(_Time.x * 10)), NdotL));
-                float4 result = (min(2.5*NdotL+0.35, 1.05) *waterColor) + edge;
+                float4 result = (min(2.5*NdotL+0.55, 1.05) *waterColor) + edge;
                 
                 //------------------------------------------------------------
                 // 
@@ -394,7 +396,7 @@ Shader "Hidden/FluidComposition"
 				float uCells = 0;
                 float simplexN = snoise(float3(i.uv, 1));
                 
-                float2 animatedUV = animateUVs(float2(blendNormal.x, blendNormal.y), 0.25);
+                float2 animatedUV = animateUVs(float2(-worldPos.z, 0), 0.25);
                 float2 twirl = Twirl(i.uv, float2(0, 0), 5.25, float2(0, 0), 0.55);
                 float2 distortion = UnpackNormal(tex2D(_DisplacementTex, twirl)).xy;
                 
@@ -454,7 +456,7 @@ Shader "Hidden/FluidComposition"
                 //finalMask = lerp(underWaterTex + causaticColor * 0.45, finalMask*100, finalMask);
 
                 //return underWaterTex + causaticColor*0.45;
-                float4 CausaticFinal = finalMask + underWaterTex + causaticColor * 0.45;
+                float4 CausaticFinal = finalMask + causaticColor;
 
                 
                 
@@ -464,8 +466,8 @@ Shader "Hidden/FluidComposition"
                 fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
 
 
-                return lerp(finalImage, lerp(finalImage, CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
-                
+                return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
+                //return float4(fluids.xyz, 1);
             }
             ENDCG
         }

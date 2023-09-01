@@ -766,6 +766,41 @@ float2 ClosetLineCell(float2 p)
 }
 
 
+float opU(float d1, float d2)
+{
+    return min(d1, d2);
+}
+
+float2 sminN(float a, float b, float k, float n)
+{
+    float h = max(k - abs(a - b), 0.0) / k;
+    float m = pow(h, n) * 0.5;
+    float s = m * k / n;
+    return (a < b) ? float2(a - s, m) : float2(b - s, 1.0 - m);
+}
+
+// polynomial smooth min
+float smin(float a, float b, float k)
+{
+    float h = max(k - abs(a - b), 0.0) / k;
+    return min(a, b) - h * h * k * (1.0 / 4.0);
+}
+
+
+float opSmoothUnion(float d1, float d2, float k) {
+    float h = clamp(0.5 + 0.5 * (d2 - d1) / k, 0.0, 1.0);
+    return lerp(d2, d1, h) - k * h * (1.0 - h);
+}
+
+float3 gsmin(in float4 a, in float4 b, in float k)
+{
+    float h = max(k - abs(a.x - b.x), 0.0);
+    float m = 0.25 * h * h / k;
+    float n = 0.50 * h / k;
+    return float3(min(a.x, b.x) - m,
+        lerp(a.yzw, b.yzw, (a.x < b.x) ? n : 1.0 - n).xy);
+}
+
 // Construct a rotation matrix that rotates around the provided axis, sourced from:
 // https://gist.github.com/keijiro/ee439d5e7388f3aafc5296005c8c3f33
 float3x3 AngleAxis3x3(float angle, float3 axis)

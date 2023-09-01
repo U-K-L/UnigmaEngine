@@ -288,6 +288,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetVector("_LightSource", _LightSouce.position);
         _fluidSimulationCompute.SetVector("_LightScale", _LightScale.position);
         _fluidSimulationCompute.SetFloat("_SizeOfParticle", _SizeOfParticle);
+        _fluidSimulationCompute.SetBool("_IsOrthogonal", _cam.orthographic);
 
 
 

@@ -15,7 +15,8 @@ float _Smoothness;
 float4 _DepthScale = 1;
 float3 _LightSource;
 float3 _LightScale;
-
+float3 worldSpaceViewForward;
+bool _IsOrthogonal;
 
 
 
@@ -138,12 +139,22 @@ Ray CreateCameraRay(float2 uv)
 {
 	//Get the world position of the origin, which is basically just the camera.
 	// Last column contains position, take that.
-    float3 og = mul(_CameraToWorld, float4(0, 0, 0, 1)).xyz;
+    float3 og = mul(_CameraInverseProjection, float4(uv, -1, 1)).xyz;
+    og = mul(_CameraToWorld, float4(og, 1)).xyz;
 
 	//The scene has a depth to it. The project matrix takes the depth and places it flat onto a 2D plane.
 	//The inverse projection does this process backwards. By multiplying it we go backwards.
-    float3 dir = mul(_CameraInverseProjection, float4(uv, -1, 1)).xyz;
-    dir = mul(_CameraToWorld, float4(dir, 0)).xyz; //Take this 3D pixel point and make it world position.
+    float3 dir = float3(0,0,0);
+    dir = worldSpaceViewForward;
+    if (_IsOrthogonal)
+        dir = worldSpaceViewForward;
+    else
+    {
+        dir = mul(_CameraInverseProjection, float4(uv, -1, 1)).xyz;
+        dir = mul(_CameraToWorld, float4(dir, 0)).xyz; //Take this 3D pixel point and make it world position.
+    }
+    
+
     dir = normalize(dir);
     return CreateRay(og, dir, uv);
 }
@@ -363,6 +374,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     
     density = 0;
     uint width, height;
+    worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
 	_Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     Result.GetDimensions(width, height);

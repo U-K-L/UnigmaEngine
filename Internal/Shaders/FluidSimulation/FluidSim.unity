@@ -703,6 +703,7 @@ MonoBehaviour:
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
   numOfParticles: 1000
+  _SizeOfParticle: 0.125
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
@@ -1565,6 +1566,7 @@ MonoBehaviour:
   _LightSouce: {fileID: 0}
   _LightScale: {fileID: 0}
   numOfParticles: 0
+  _SizeOfParticle: 0
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103

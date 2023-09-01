@@ -10,6 +10,7 @@ float4x4 _CameraWorldToLocal;
 float4x4 _ParentTransformToLocal;
 
 float epsilon = 0.00001;
+float _SizeOfParticle;
 float _Smoothness;
 float4 _DepthScale = 1;
 float3 _LightSource;
@@ -238,6 +239,7 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
 float GetDensityOfParticle(in Hit hit, in Ray ray)
 {
     int particleDensity = 0; //This will be the density later on.
+    float squaredDepthOfParticle = sqrt(numOfParticles)*25;
 
     for (int i = 0; i < numOfParticles; i++)
     {
@@ -262,7 +264,7 @@ float GetDensityOfParticle(in Hit hit, in Ray ray)
     }
 
     //Now we do an attenuation, which is the y/x^2.
-    return 5* particleDensity / (numOfParticles * numOfParticles);
+    return 2.55* particleDensity / (squaredDepthOfParticle);
     
 }
 
@@ -326,7 +328,7 @@ void SceneTrace(inout Ray ray, inout Hit hit)
     {
         float3 position = _Particles[k].position;
 
-        IntersectParticles(hit, ray, 0.125, position);
+        IntersectParticles(hit, ray, _SizeOfParticle, position);
     }
     
     MeshObject meshObject = hit.meshObj;
@@ -387,5 +389,5 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void UpdateParticles(uint3 id : SV_DispatchThreadID)
 {
-	_Particles[id.x].position = float3(id);
+	_Particles[id.x].position = float3(id.x % 10, (id.x / 10) % 10, (id.x / 100) % 10);
 }

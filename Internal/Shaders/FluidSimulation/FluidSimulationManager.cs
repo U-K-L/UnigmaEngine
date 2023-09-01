@@ -41,6 +41,7 @@ public class FluidSimulationManager : MonoBehaviour
     public Transform _LightSouce;
     public Transform _LightScale;
     public int numOfParticles;
+    public float _SizeOfParticle = 0.125f;
 
     ComputeBuffer _meshObjectBuffer;
     ComputeBuffer _verticesObjectBuffer;
@@ -286,6 +287,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetFloat("_Smoothness", _Smoothness);
         _fluidSimulationCompute.SetVector("_LightSource", _LightSouce.position);
         _fluidSimulationCompute.SetVector("_LightScale", _LightScale.position);
+        _fluidSimulationCompute.SetFloat("_SizeOfParticle", _SizeOfParticle);
 
 
 

@@ -16,7 +16,7 @@ float4 _DepthScale = 1;
 float3 _LightSource;
 float3 _LightScale;
 float3 worldSpaceViewForward;
-bool _IsOrthogonal;
+bool _IsOrthographic;
 
 
 
@@ -146,7 +146,7 @@ Ray CreateCameraRay(float2 uv)
 	//The inverse projection does this process backwards. By multiplying it we go backwards.
     float3 dir = float3(0,0,0);
     dir = worldSpaceViewForward;
-    if (_IsOrthogonal)
+    if (_IsOrthographic)
         dir = worldSpaceViewForward;
     else
     {
@@ -307,6 +307,10 @@ Hit IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
         float4 clipPos = UnityWorldToClipPos(hit.position);
         float depth = (clipPos.z* _DepthScale.x) / (clipPos.w * _DepthScale.y);
         hit.depth = 1.0 - depth;
+        if(_IsOrthographic)
+		{
+            hit.depth *= 100;
+		}
 
 		//Calculate the normal of a supposed sphere, this isn't the normal of the particle that is a seperate buffer.
         float3 n = GetSphereNormal(hit.position, radius);

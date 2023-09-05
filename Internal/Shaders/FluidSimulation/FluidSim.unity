@@ -645,7 +645,7 @@ Camera:
   near clip plane: 0.02
   far clip plane: 1000
   field of view: 60
-  orthographic: 1
+  orthographic: 0
   orthographic size: 5
   m_Depth: -1
   m_CullingMask:
@@ -704,6 +704,10 @@ MonoBehaviour:
   _LightScale: {fileID: 1827817484}
   numOfParticles: 1000
   _SizeOfParticle: 0.125
+  _GasConstant: 1
+  _Radius: 0.125
+  _RestDensity: 1
+  _BoxSize: {x: 1, y: 1, z: 1}
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
@@ -1567,6 +1571,10 @@ MonoBehaviour:
   _LightScale: {fileID: 0}
   numOfParticles: 0
   _SizeOfParticle: 0
+  _GasConstant: 1
+  _Radius: 0.125
+  _RestDensity: 1
+  _BoxSize: {x: 0, y: 0, z: 0}
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103

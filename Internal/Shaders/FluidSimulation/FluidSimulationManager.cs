@@ -13,6 +13,8 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _fluidSimParticles;
     int numParticles;
     int _UpdateParticlesKernel;
+    int _ComputeForces;
+    int _ComputeDensity;
     int _CreateGrid;
     Camera _cam;
     RenderTexture _rtTarget;
@@ -82,7 +84,7 @@ public class FluidSimulationManager : MonoBehaviour
         Vector3 force;
         Vector3 velocity;
         float density;
-        float mass;
+        public float mass;
         float pressure;
     };
 
@@ -122,6 +124,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         _UpdateParticlesKernel = _fluidSimulationCompute.FindKernel("UpdateParticles");
         _CreateGrid = _fluidSimulationCompute.FindKernel("CreateGrid");
+        _ComputeForces = _fluidSimulationCompute.FindKernel("ComputeForces");
+        _ComputeDensity = _fluidSimulationCompute.FindKernel("ComputeDensity");
+
 
         _rtTarget.enableRandomWrite = true;
         _rtTarget.Create();
@@ -276,20 +281,26 @@ public class FluidSimulationManager : MonoBehaviour
             {
                 _Particles[i].position = new Vector3(i % 10, (i / 10) % 10, (i / 100) % 10);
                 _Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
+                _Particles[i].mass = 1.0f;
             }
 
             _particleBuffer.SetData(_Particles);
             _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_Particles", _particleBuffer);
             //Set particle buffer to shader.
             _fluidSimulationCompute.SetBuffer(_CreateGrid, "_Particles", _particleBuffer);
+            _fluidSimulationCompute.SetBuffer(_ComputeForces, "_Particles", _particleBuffer);
+            _fluidSimulationCompute.SetBuffer(_ComputeDensity, "_Particles", _particleBuffer);
+
         }
 
         //Update particles.
         uint threadsX, threadsY, threadsZ;
         _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
 
+        _fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles, (int)threadsY, (int)threadsZ);
+        _fluidSimulationCompute.Dispatch(_ComputeForces, numOfParticles, (int)threadsY, (int)threadsZ);
         _fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, numOfParticles, (int)threadsY, (int)threadsZ);
-
+        
 
     }
 

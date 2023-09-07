@@ -331,7 +331,7 @@ Hit IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 	float3 rad = float3(radius, radius, radius);
     
     //Intersect with a box and then smoothly combine boxes together with union operation.
-    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, rad);
+    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
 	t1 = tNFnorm.x;
     t1 = opU(t1, hit.distance);
     
@@ -355,7 +355,7 @@ Hit IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
         hit.distance = t1;
         hit.color = 1;
 
-        density = GetDensityOfParticle(hit, ray);
+        //density = GetDensityOfParticle(hit, ray);
         
         return hit;
     }
@@ -475,15 +475,16 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     Ray ray = CreateCameraRay(pixel);
     Hit hit = CreateHit();
     
+    /*
 	ray.o = previousPoint;
 	ray.d = normalize(nextPoint - previousPoint);
 
     CollisionTrace(ray, hit);
     
-	if (hit.distance < abs(length(nextPoint - previousPoint)) + _Radius)
+	if (hit.distance < abs(length(nextPoint - previousPoint)))
 	{
 		//We hit something.
-		//_Particles[id.x].position = hit.position;
+		_Particles[id.x].position = hit.position;
         
 	}
     else
@@ -492,7 +493,25 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
         _Particles[id.x].position = nextPoint;
     }
     //Handle collisions.
+    */
+    
+    ray.o = previousPoint;
+    ray.d = normalize(float3(0, -1, 0));
 
+    CollisionTrace(ray, hit);
+
+    if (hit.distance < 0.525)
+    {
+        //We hit something.
+        //_Particles[id.x].position = hit.position;
+
+    }
+    else
+    {
+
+        _Particles[id.x].position = nextPoint;
+    }
+    
     _Particles[id.x].velocity = vel;
     //Check if the particle collided with bounding box.
 
@@ -512,9 +531,9 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
     for (int i = 0; i < numOfParticles; i++)
     {
         float distance = dot(_Particles[i].position - oPos, _Particles[i].position - oPos);
-        if (distance < _Radius)
+        if (distance > _Radius * 0.004)
         {
-            sum += distance;
+            sum += Poly6Kernel(distance*0.004);
         }
     }
 
@@ -531,7 +550,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 	float mass = _Particles[id.x].mass * _Particles[id.x].mass;
 	float3 pressure = float3(0, 0, 0);
 	float3 visc = float3(0, 0, 0);
-    float viscosity = 1;
+    float viscosity = -0.00003;
 
     for (int i = 0; i < numOfParticles; i++)
     {

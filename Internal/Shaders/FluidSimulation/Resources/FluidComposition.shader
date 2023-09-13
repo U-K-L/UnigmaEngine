@@ -222,7 +222,7 @@ Shader "Hidden/FluidComposition"
 				fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass *2);
 
                 float3 fluidNormalsAvg = ModalFilter(_UnigmaFluidsNormals, i.uv);
-
+                
                 //Triplanar
 //------------------------------------------------------------
 
@@ -259,22 +259,9 @@ Shader "Hidden/FluidComposition"
                 float depthFiniteDifference4 = depthnormal3.a - depthnormal2.a;
                 float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2)) * 100;
                 float depthThreshold = 0.1 * depthnormal0;
-                edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
+                edgeDepth = edgeDepth > 0 ? 1 : 0;
 
-                /*
-                float4 pos0 = tex2D(_IsometricPositions, bottomLeft);
-                float4 pos1 = tex2D(_IsometricPositions, topRight);
-                float4 pos2 = tex2D(_IsometricPositions, bottomRight);
-                float4 pos3 = tex2D(_IsometricPositions, topLeft);
-
-
-                float posFiniteDifference3 = length(pos1 - pos0);
-                float posFiniteDifference4 = length(pos3 - pos2);
-                float edgePos = sqrt(pow(posFiniteDifference3, 2) + pow(posFiniteDifference4, 2)) * 100;
-                float posThreshold = _PosThreshold * pos0.a;
-                edgePos = edgePos > posThreshold ? 1 : 0;
-                //float edgeMask = length(depthnormal0 + depthnormal1 + depthnormal2 + depthnormal3) > 0.01 ? 1 : 0;
-                                */
+                
                 scaleFloor = floor(1 * 0.5);
                 scaleCeil = ceil(1 * 0.5);
 
@@ -293,11 +280,11 @@ Shader "Hidden/FluidComposition"
                 float3 normalFiniteDifference1 = normal3.xyz - normal2.xyz;
 
                 float edgeNormal = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
-                edgeNormal = edgeNormal > 0.055 ? 1 : 0;
+                edgeNormal = edgeNormal > 0.1 ? 1 : 0;
 
 
                 float edge = max(edgeDepth, edgeNormal);
-                /*
+
 
                 bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
                 topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
@@ -350,17 +337,17 @@ Shader "Hidden/FluidComposition"
 
                 float edgeUV= sqrt(dot(uvFiniteDifference0, uvFiniteDifference0) + dot(uvFiniteDifference1, uvFiniteDifference1));
                 edgeUV = edgeUV > 0.0001 ? 1 : 0;
-                */
+
                 //Determine how if on side or on top.
-                /*
+
                 float normDotNoise = dot(worldNormalVec + (noisetexture.y + (noisetexture * 0.5)), worldNormalVec.y);
                 //Checks if higher then top.
-                float4 topTextureResult = step(_Spread + _EdgeWidth, normDotNoise) * topTexture;
+                //float4 topTextureResult = step(_Spread + _EdgeWidth, normDotNoise) * topTexture;
                 //Side
-                float4 sideTextureResult = step(normDotNoise, _Spread) * sideTexture;
+                //float4 sideTextureResult = step(normDotNoise, _Spread) * sideTexture;
 
-                float4 result = (topTextureResult) + sideTextureResult;
-                */
+                //float4 result = (topTextureResult) + sideTextureResult;
+
                 //Create diffuse surface.
 
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
@@ -377,7 +364,7 @@ Shader "Hidden/FluidComposition"
 
 
                 float4 waterSpecular = lerp(waterColor, 1, step(0.85 + (0.05 * sin(_Time.x * 10)), NdotL));
-                float4 result = (min(2.5 * NdotL + 0.55, 1.05) * waterColor);// +edge;
+                float4 result = (min(2.5 * NdotL + 0.55, 1.05) * waterColor) + edge;
                 
                 //------------------------------------------------------------
                 // 
@@ -464,12 +451,17 @@ Shader "Hidden/FluidComposition"
 
                 float4 grabPass = lerp(distortedOriginalImage, result, 0.55);
                 fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
+				fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor* fluidsDepth.w, 0.55);
+				cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.65, fluidsDepth.w));
 
-
-                return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
+                //return fluidsDepth;
+                return cleanFluidSingleColor;
+              
+                //return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
                 //return densityMap;
                 //return float4(fluids.xyz, 1);
                 //return fluids.w;
+                //return NdotL;
             }
             ENDCG
         }

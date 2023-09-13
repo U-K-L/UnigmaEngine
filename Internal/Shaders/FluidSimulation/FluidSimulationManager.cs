@@ -31,6 +31,8 @@ public class FluidSimulationManager : MonoBehaviour
     Material _fluidSimMaterialNormal;
     public Material _fluidSimMaterialComposite;
     public Transform fluidSimTransform;
+    public int textSizeDivision = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
+    private int _width, _height = 0;
 
     public Color DeepWaterColor = Color.white;
     public Color ShallowWaterColor = Color.white;
@@ -53,6 +55,7 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _verticesObjectBuffer;
     ComputeBuffer _indicesObjectBuffer;
     ComputeBuffer _particleBuffer;
+    ComputeBuffer _pNodesBuffer;
 
     struct MeshObject
     {
@@ -86,9 +89,16 @@ public class FluidSimulationManager : MonoBehaviour
         float density;
         public float mass;
         float pressure;
+        public int cellID;
     };
 
-    int _ParticleStride = sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 3);
+    struct PNode
+    {
+        public int index;
+        public int[] children;
+    }
+
+    int _ParticleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 3);
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -99,8 +109,13 @@ public class FluidSimulationManager : MonoBehaviour
     private List<Vertex> Vertices = new List<Vertex>();
     private List<int> Indices = new List<int>();
     private Particles[] _Particles;
+    private Stack<int> _ParticleIDs = new Stack<int>();
+
+    private List<PNode> PNodes;
     private void Awake()
     {
+        _width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.width), 32);
+        _height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.height), 32);
         _fluidSimulationCompute = Resources.Load<ComputeShader>("FluidSimCompute");
         
         _fluidNormalShader = Resources.Load<Shader>("FluidNormalBuffer");
@@ -114,7 +129,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         _cam = Camera.main;
         //Create the texture for compute shader.
-        _rtTarget = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _rtTarget = RenderTexture.GetTemporary(_width, _height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _densityMap = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _tempTarget = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidNormalBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
@@ -276,10 +291,13 @@ public class FluidSimulationManager : MonoBehaviour
         {
             _particleBuffer = new ComputeBuffer(numOfParticles, _ParticleStride );
 
+            //Cubed root num of particles:
+            float numOfParticlesCubedRoot = Mathf.Pow(numOfParticles, 1.0f / 3.0f);
+            float numOfParticlesSquaredRoot = Mathf.Sqrt(numOfParticles);
             //Create particles.
             for (int i = 0; i < numOfParticles; i++)
             {
-                _Particles[i].position = new Vector3(i % 10, (i / 10) % 10, (i / 100) % 10);
+                _Particles[i].position = new Vector3( (i % numOfParticlesCubedRoot) / ((1/_BoxSize.x)* numOfParticlesCubedRoot) - (_BoxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/_BoxSize.y)* numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/_BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
                 _Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
                 _Particles[i].mass = 1.0f;
             }
@@ -291,15 +309,16 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationCompute.SetBuffer(_ComputeForces, "_Particles", _particleBuffer);
             _fluidSimulationCompute.SetBuffer(_ComputeDensity, "_Particles", _particleBuffer);
 
-        }
+            CreateQuadTree();
 
+        }
         //Update particles.
         uint threadsX, threadsY, threadsZ;
         _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
 
-        _fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles, (int)threadsY, (int)threadsZ);
-        _fluidSimulationCompute.Dispatch(_ComputeForces, numOfParticles, (int)threadsY, (int)threadsZ);
-        _fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, numOfParticles, (int)threadsY, (int)threadsZ);
+        //_fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles, (int)threadsY, (int)threadsZ);
+        //_fluidSimulationCompute.Dispatch(_ComputeForces, numOfParticles, (int)threadsY, (int)threadsZ);
+        //_fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, numOfParticles, (int)threadsY, (int)threadsZ);
         
 
     }
@@ -313,7 +332,21 @@ public class FluidSimulationManager : MonoBehaviour
             Debug.LogWarning("No objects to ray trace. Please add objects to the RayTracingLayers.");
             return;
         }
-        
+
+        _width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.width), 32);
+        _height = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.height), 32);
+
+        if (_width != _rtTarget.width || _height != _rtTarget.height)
+        {
+            if (_rtTarget != null)
+            {
+                _rtTarget.Release();
+            }
+            _rtTarget = RenderTexture.GetTemporary(_width, _height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            _rtTarget.enableRandomWrite = true;
+            _rtTarget.Create();
+        }
+
         _fluidSimulationCompute.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         _fluidSimulationCompute.SetMatrix("_CameraWorldToLocal", _cam.transform.worldToLocalMatrix);
         _fluidSimulationCompute.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
@@ -327,6 +360,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetFloat("_Radius", _Radius);
         _fluidSimulationCompute.SetFloat("_GasConstant", _GasConstant);
         _fluidSimulationCompute.SetFloat("_RestDensity", _RestDensity);
+        _fluidSimulationCompute.SetVector("_BoxSize", _BoxSize);
         _fluidSimulationCompute.SetBool("_IsOrthographic", _cam.orthographic);
 
 
@@ -377,7 +411,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.GetKernelThreadGroupSizes(_CreateGrid, out threadsX, out threadsY, out threadsZ);
 
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationCompute, _CreateGrid, "Result", _rtTarget);
-        fluidCommandBuffers.DispatchCompute(_fluidSimulationCompute, _CreateGrid, Mathf.CeilToInt(Screen.width / threadsX), Mathf.CeilToInt(Screen.width / threadsY), (int)threadsZ);
+        fluidCommandBuffers.DispatchCompute(_fluidSimulationCompute, _CreateGrid, Mathf.CeilToInt(_width / threadsX), Mathf.CeilToInt(_height / threadsY), (int)threadsZ);
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _fluidDepthBuffer);
 
@@ -399,6 +433,52 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.Blit(_fluidDepthBuffer, _fluidNormalBuffer, _fluidSimMaterialNormal);
 
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, fluidCommandBuffers);
+
+    }
+    int HashVec(Vector3 p)
+    {
+        int p1 = 18397;
+        int p2 = 20483;
+        int p3 = 29303;
+
+        //float e = p1 * Mathf.Pow(p.x, p2) * Mathf.Pow(p.y, p3) * p.z;
+        //int n = Mathf.FloorToInt(e);
+        //return (n % _Particles.Length + _Particles.Length) % _Particles.Length;
+        int n = (Mathf.FloorToInt(p.x) * p1 + Mathf.FloorToInt(p.y) * p2 + Mathf.FloorToInt(p.z) * p3);
+        return n % _Particles.Length;
+    }
+    
+    void CreateQuadTree()
+    {
+        float startRadius = 0.03125f;
+        for (int i = 0; i < _Particles.Length; i++)
+        {
+            Vector3 pos = _Particles[i].position / startRadius;
+            Vector3 squashedPos = new Vector3(Mathf.Floor(pos.x), Mathf.Floor(pos.y), Mathf.Floor(pos.z));
+            int key = HashVec(squashedPos);
+            _Particles[i].cellID = key;
+
+            Debug.Log("Cell ID: " + _Particles[i].cellID); //" Floored Position: " + squashedPos.ToString("F8") + " Position: " + _Particles[i].position.ToString("F8"));
+        }
+        /*
+        for (int i = 0; i < _Particles.Length; i++)
+        {
+            _ParticleIDs.Push(i);
+        }
+
+        int id = _ParticleIDs.Pop();
+        Particles currentParticle = _Particles[id];
+        Stack<int> _pNodes = new Stack<int>();
+        while (_ParticleIDs.Count > 0)
+        {
+            for (int i = 0; i < _Particles.Length; i++)
+            {
+                if (Vector3.Distance(_Particles[id].position, _Particles[i].position) < startRadius)
+                    _pNodes.Push(i);
+            }
+        }
+        _pNodesBuffer = new ComputeBuffer(PNodes.Count, 2 * sizeof(int));
+        */
 
     }
 
@@ -438,6 +518,8 @@ public class FluidSimulationManager : MonoBehaviour
     {
         Gizmos.color = Color.yellow;
         //Gizmos.DrawSphere(fluidSimTransform.position, 10);
-        Gizmos.DrawWireCube(fluidSimTransform.position, _BoxSize);
+        Matrix4x4 rotationMatrix = Matrix4x4.TRS(fluidSimTransform.position, fluidSimTransform.rotation, fluidSimTransform.lossyScale);
+        Gizmos.matrix = rotationMatrix;
+        Gizmos.DrawWireCube(Vector3.zero, _BoxSize);
     }
 }

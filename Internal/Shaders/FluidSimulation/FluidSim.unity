@@ -738,14 +738,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 539306111}
-  m_LocalRotation: {x: -0.1861085, y: 0.33564842, z: -0.06783074, w: -0.92092496}
-  m_LocalPosition: {x: 51.4, y: 46.3, z: -35.8}
+  m_LocalRotation: {x: 0.22426145, y: 0.4291448, z: -0.11096104, w: 0.86788774}
+  m_LocalPosition: {x: -2.01, y: 1.11, z: -2.42}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 23.6, y: -29.7, z: 0}
+  m_LocalEulerAnglesHint: {x: 28.98, y: 52.62, z: -0.008}
 --- !u!114 &539306115
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -761,20 +761,21 @@ MonoBehaviour:
   _fluidSimMaterialComposite: {fileID: 2100000, guid: 58794828c336cdb40bfa2fae27552d2f,
     type: 2}
   fluidSimTransform: {fileID: 1634651488}
+  textSizeDivision: 3
   DeepWaterColor: {r: 0.03087387, g: 0, b: 0.93333334, a: 1}
   ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
   DepthMaxDistance: 0.00031
-  BlurScale: {x: 2.25, y: 1.25}
+  BlurScale: {x: 2.7, y: 2.7}
   BlurFallOff: 0.025
   BlurRadius: 8
   DepthScale: {x: 1, y: 1, z: 1, w: 1}
   _Smoothness: 0.05
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
-  numOfParticles: 5000
-  _SizeOfParticle: 0.0625
+  numOfParticles: 1024
+  _SizeOfParticle: 0.03125
   _GasConstant: 2
-  _Radius: 0.0925
+  _Radius: 0.01562
   _RestDensity: 1
   _BoxSize: {x: 1, y: 1, z: 1}
   RayTracingLayers:
@@ -1035,9 +1036,9 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1506277389}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 42.35, y: 44.62, z: -27}
-  m_LocalScale: {x: 0.14, y: 0.14, z: 0.14}
-  m_ConstrainProportionsScale: 0
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1634651488}
   - {fileID: 85675358}
@@ -1628,6 +1629,7 @@ MonoBehaviour:
   _fluidSimMaterialComposite: {fileID: 2100000, guid: 58794828c336cdb40bfa2fae27552d2f,
     type: 2}
   fluidSimTransform: {fileID: 1634651488}
+  textSizeDivision: 0
   DeepWaterColor: {r: 0.93333334, g: 0, b: 0.43819827, a: 1}
   ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
   DepthMaxDistance: 0.00031

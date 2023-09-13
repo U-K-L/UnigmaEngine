@@ -2,6 +2,7 @@
 #pragma kernel UpdateParticles
 #pragma kernel ComputeDensity
 #pragma kernel ComputeForces
+#pragma kernel SpacePartition
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -149,22 +150,22 @@ float4x4 translate(float3 p)
 
 float Poly6Kernel(float distance)
 {
-	float h = 1.0f - distance / _Radius;
+	float h = 1.0f - distance / (_Radius* _Radius);
     //return the poly6
-	return 315.0f / (64.0f * UNITY_PI * pow(_Radius, 9.0f)) * pow(h, 9.0f);
+	return 315.0f / (64.0f * UNITY_PI * pow(_Radius, 3.0f)) * pow(h, 3.0f);
 }
 
 float SpikyKernelD1(float distance)
 {
 	float h = 1.0f - distance / _Radius;
 	//return the spiky
-	return -45.0f / (UNITY_PI * pow(_Radius, 6.0f)) * pow(h, 6.0f);
+	return -45.0f / (UNITY_PI * pow(_Radius, 4.0f)) * pow(h, 2.0f);
 }
 
 float SpikyKernelD2(float distance)
 {
 	float h = 1.0f - distance / _Radius;
-    return 90.0f / (UNITY_PI * pow(_Radius, 6.0f)) * h;
+    return 90.0f / (UNITY_PI * pow(_Radius, 5.0f)) * h;
 }
 
 float3 SpikyKernelGradient(float distance, float3 direction)
@@ -247,7 +248,7 @@ bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
     //get min component of tMax.
     float tBoxMax = min(min(tMax.x, tMax.y), tMax.z);
 
-    return tBoxMin <= tBoxMax;
+	return (tBoxMin <= tBoxMax) && (tBoxMax < 99999) && (tBoxMin > epsilon);
 }
 
 bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
@@ -317,7 +318,7 @@ float GetDensityOfParticle(in Hit hit, in Ray ray)
 }
 
 //Intersects particles with the ray being casted. Used to render particles.
-Hit IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
+float IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 {
 	float3 rayOrig = ray.o;
 	float3 rayDir = ray.d;
@@ -335,6 +336,7 @@ Hit IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 	t1 = tNFnorm.x;
     t1 = opU(t1, hit.distance);
     
+    /*
     //If it hit a box give it the detail to render this particle.
 	if (t1 > epsilon && t1 < hit.distance)
     {
@@ -355,16 +357,18 @@ Hit IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
         hit.distance = t1;
         hit.color = 1;
 
-        //density = GetDensityOfParticle(hit, ray);
+        density = GetDensityOfParticle(hit, ray);
         
         return hit;
     }
-
-    return hit;
+    */
+    return t1;
 }
 
-void SceneTrace(inout Ray ray, inout Hit hit)
+float4 SceneTrace(inout Ray ray, inout Hit hit)
 {
+    float minDistance = 99999999;
+    /*
     for (int k = 0; k < numOfStructs; k++)
     {
         MeshObject meshObject = _MeshObjects[k];
@@ -374,15 +378,22 @@ void SceneTrace(inout Ray ray, inout Hit hit)
         }
 
     }
-
+    */
     //If a particle is in front perform the calculation. This will overwrite the information about meshes in the scene.
+
     for (int k = 0; k < numOfParticles; k++)
     {
         float3 position = _Particles[k].position;
 
-        IntersectParticles(hit, ray, _SizeOfParticle, position);
+        float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+        if (t1 > epsilon && t1 < minDistance)
+        {
+            minDistance = t1;
+        }
     }
     
+    /*
     MeshObject meshObject = hit.meshObj;
     Vertex v0 = hit.vertices[0];
     Vertex v1 = hit.vertices[1];
@@ -403,9 +414,14 @@ void SceneTrace(inout Ray ray, inout Hit hit)
 
     hit.normal = normals;
     hit.uv = uvs;
-
-
-
+    */
+	float3 position = ray.o + minDistance * ray.d;
+    float4 clipPos = UnityWorldToClipPos(position);
+    float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
+    depth = 1.0 - depth;
+    depth *= minDistance < 99999;
+	return float4(position, depth);
+    
 }
 
 void CollisionTrace(inout Ray ray, inout Hit hit)
@@ -421,7 +437,7 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
     }
 }
 
-[numthreads(8,8,1)]
+[numthreads(32,32,1)]
 void CreateGrid (uint3 id : SV_DispatchThreadID)
 {
     //Create grid of spheres in 3D.
@@ -441,27 +457,23 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     Ray ray = CreateCameraRay(pixel);
     Hit hit = CreateHit();
 
-    SceneTrace(ray, hit);
-    
-    float3 camPos = mul(_CameraToWorld, float4(0, 0, 0, 1)).xyz;
-    
-    //WorldPosition, depth.
-    hit.position *= 0.015;
-    float4 particle = float4(hit.position, hit.depth); //float4(hit.normal, 1);
-    Result[id.xy] = particle;
+    float4 particle = SceneTrace(ray, hit);
+    Result[id.xy] = float4(particle.xyz * 0.015, particle.w);
 	DensityMap[id.xy] = density;
 }
 
 //Based on the following paper: https://matthias-research.github.io/pages/publications/sca03.pdf
 // Particle-Based Fluid Simulation for Interactive Applications
-[numthreads(64, 1, 1)]
+[numthreads(100, 1, 1)]
 void UpdateParticles(uint3 id : SV_DispatchThreadID)
 {
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     _TimeStep = 0.02;
-    //_Particles[id.x].force = float3(0, -9.8, 0);
+    float boundsDamping = -0.3;
+    //_Particles[id.x].force = float3(0, 9.8, 0);
     // Compute the new velocity via the current force by the mass via f = ma. Then integrate the velocity via v = v + at.
+
 	float3 vel = _Particles[id.x].velocity + (_Particles[id.x].force/ 1) * _TimeStep;
 
     //center = mul(_ParentTransform, float4(center, 1)).xyz;
@@ -474,7 +486,6 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(1, 1)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
     Ray ray = CreateCameraRay(pixel);
     Hit hit = CreateHit();
-    
     /*
 	ray.o = previousPoint;
 	ray.d = normalize(nextPoint - previousPoint);
@@ -495,6 +506,7 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     //Handle collisions.
     */
     
+    /*
     ray.o = previousPoint;
     ray.d = normalize(float3(0, -1, 0));
 
@@ -511,9 +523,50 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
 
         _Particles[id.x].position = nextPoint;
     }
+    */
+    float3 boxSize = _BoxSize;//mul(_ParentTransform, float4(_BoxSize, 1)).xyz;
+    float3 topRight = boxSize/2;
+	float3 bottomLeft = -boxSize/2;
+	//bottomLeft = mul(_ParentTransform, float4(bottomLeft, 1)).xyz;
+	//topRight = mul(_ParentTransform, float4(topRight, 1)).xyz;
+    //Min Boundary Enforcements
+	_Particles[id.x].position = nextPoint;
+
+	if (_Particles[id.x].position.x - _Radius < bottomLeft.x)
+	{
+		vel.x *= boundsDamping;
+		_Particles[id.x].position.x = bottomLeft.x + _Radius;
+	}
+	if (_Particles[id.x].position.y - _Radius < bottomLeft.y)
+	{
+		vel.y *= boundsDamping;
+		_Particles[id.x].position.y = bottomLeft.y + _Radius;
+	}
+	if (_Particles[id.x].position.z - _Radius < bottomLeft.z)
+	{
+		vel.z *= boundsDamping;
+		_Particles[id.x].position.z = bottomLeft.z + _Radius;
+	}
+
+
+    //Max Boundary Enforcements
+	if (_Particles[id.x].position.x + _Radius > topRight.x)
+	{
+		vel.x *= boundsDamping;
+		_Particles[id.x].position.x = topRight.x - _Radius;
+	}
+	if (_Particles[id.x].position.y + _Radius > topRight.y)
+	{
+		vel.y *= boundsDamping;
+		_Particles[id.x].position.y = topRight.y - _Radius;
+	}
+	if (_Particles[id.x].position.z + _Radius > topRight.z)
+	{
+		vel.z *= boundsDamping;
+		_Particles[id.x].position.z = topRight.z - _Radius;
+	}
     
     _Particles[id.x].velocity = vel;
-    //Check if the particle collided with bounding box.
 
 }
 
@@ -531,7 +584,11 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
     for (int i = 0; i < numOfParticles; i++)
     {
         float distance = dot(_Particles[i].position - oPos, _Particles[i].position - oPos);
-        if (distance > _Radius * 0.004)
+        if (distance < 0.000001)
+        {
+            continue;
+        }
+        if (distance * 0.004 > _Radius*_Radius * 0.004)
         {
             sum += Poly6Kernel(distance*0.004);
         }
@@ -550,7 +607,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 	float mass = _Particles[id.x].mass * _Particles[id.x].mass;
 	float3 pressure = float3(0, 0, 0);
 	float3 visc = float3(0, 0, 0);
-    float viscosity = -0.00003;
+    float viscosity = -0.006;
 
     for (int i = 0; i < numOfParticles; i++)
     {
@@ -564,15 +621,22 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
         {
 			float3 pressureGradDir = normalize(origin - _Particles[i].position);
             float3 pressureContrib = mass * SpikyKernelGradient(dist, pressureGradDir);
-			pressureContrib *= (_Particles[id.x].pressure / density + _Particles[i].pressure / (_Particles[id.x].density * _Particles[id.x].density));
+			pressureContrib *= (_Particles[id.x].pressure / density + _Particles[i].pressure / (_Particles[i].density * _Particles[i].density));
 
-            float3 viscosityContrib = viscosity * mass * (_Particles[i].velocity - _Particles[id.x].velocity) / _Particles[i].density;
-            viscosityContrib *= SpikyKernelD2(dist);
+            float3 viscosityContrib = viscosity * mass * (_Particles[i].velocity - _Particles[id.x].velocity) / _Particles[i].density * SpikyKernelD2(dist);
             
 			pressure += pressureContrib;
 			visc += viscosityContrib;
+            
         }
     }
     
     _Particles[id.x].force = float3(0, -9.81 * _Particles[id.x].mass, 0) - pressure + visc;
+}
+
+
+[numthreads(64, 1, 1)]
+void SpacePartition(uint3 id : SV_DispatchThreadID)
+{
+    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
 }

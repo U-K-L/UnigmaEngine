@@ -98,6 +98,17 @@ public class FluidSimulationManager : MonoBehaviour
         public int[] children;
     }
 
+    struct BVHNode
+    {
+        public Vector3 aabbMin;
+        public Vector3 aabbMax;
+        public int leftChild;
+        public int rightChild;
+        public bool isLeaf;
+        public int primitiveOffset;
+        public int primitiveCount;
+    }
+    
     int _ParticleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 3);
 
     //Items to add to the raytracer.
@@ -109,9 +120,12 @@ public class FluidSimulationManager : MonoBehaviour
     private List<Vertex> Vertices = new List<Vertex>();
     private List<int> Indices = new List<int>();
     private Particles[] _Particles;
-    private Stack<int> _ParticleIDs = new Stack<int>();
+    private int[] _ParticleIDs;
+    //private Stack<int> _ParticleIDs = new Stack<int>();
 
     private List<PNode> PNodes;
+    private BVHNode[] _BVHNodes;
+    int nodesUsed = 1;
     private void Awake()
     {
         _width = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(textSizeDivision)))), Screen.width), 32);
@@ -136,6 +150,8 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidDepthBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
 
         _Particles = new Particles[numOfParticles];
+        _ParticleIDs = new int[numOfParticles];
+        _BVHNodes = new BVHNode[numOfParticles];
 
         _UpdateParticlesKernel = _fluidSimulationCompute.FindKernel("UpdateParticles");
         _CreateGrid = _fluidSimulationCompute.FindKernel("CreateGrid");
@@ -234,8 +250,9 @@ public class FluidSimulationManager : MonoBehaviour
     void UpdateNonAcceleratedRayTracer()
     {
         //Build the BVH
-        BuildBVH();
         UpdateParticles();
+        BuildBVH();
+
     }
 
     //To build the BVH we need to take all of the game objects in our raytracing list.
@@ -249,6 +266,7 @@ public class FluidSimulationManager : MonoBehaviour
         //Get positions stored them to mesh objects.
 
         //Update position of mesh objects.
+
         for (int i = 0; i < _RayTracedObjects.Count; i++)
         {
             MeshObject meshobj = new MeshObject();
@@ -282,6 +300,100 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_MeshObjects", _meshObjectBuffer);
         _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_MeshObjects", _meshObjectBuffer);
 
+        //Update Particle BVH.
+        int rootNodeIndex = 0;
+        nodesUsed = 1;
+        //BVHNode root = _BVHNodes[rootNodeIndex];
+        _BVHNodes[rootNodeIndex].leftChild = 0;
+        _BVHNodes[rootNodeIndex].rightChild = 0;
+        _BVHNodes[rootNodeIndex].primitiveOffset = 0;
+        _BVHNodes[rootNodeIndex].primitiveCount = numOfParticles;
+        UpdateNodeBounds(rootNodeIndex);
+        SubdivideBVH(rootNodeIndex);
+        PrintBVH();
+
+    }
+
+    void UpdateNodeBounds(int nodeIndex)
+    {
+        BVHNode node = _BVHNodes[nodeIndex];
+        //Make bounds maximum.
+        node.aabbMin = new Vector3(1e30f, 1e30f, 1e30f);
+        node.aabbMax = new Vector3(-1e30f, -1e30f, -1e30f);
+
+        for (int i = 0; i < numOfParticles; i++)
+        {
+            int particleIndex = _ParticleIDs[i];
+            Vector3 particlePos = _Particles[particleIndex].position;
+            node.aabbMin = Vector3.Min(node.aabbMin, particlePos);
+            node.aabbMax = Vector3.Max(node.aabbMax, particlePos);
+        }
+    }
+
+    void SubdivideBVH(int nodeIndex)
+    {
+        BVHNode node = _BVHNodes[nodeIndex];
+        if (node.primitiveCount <= 2)
+        {
+            return;
+        }
+        Vector3 extent = _BVHNodes[nodeIndex].aabbMax - _BVHNodes[nodeIndex].aabbMin;
+        int axis = 0;
+        if (extent.y > extent.x) axis = 1;
+        if (extent.z > extent[axis]) axis = 2;
+
+        float splitPos = 0.5f * (_BVHNodes[nodeIndex].aabbMin[axis] + _BVHNodes[nodeIndex].aabbMax[axis]);
+
+        int i = _BVHNodes[nodeIndex].primitiveOffset;
+        int n = _BVHNodes[nodeIndex].primitiveCount - 1;
+
+        while (i <= n)
+        {
+            if (_Particles[i].position[axis] < splitPos)
+            {
+                i++;
+            }
+            else
+            {
+                SwapParticles(i, n);
+                n--;
+            }
+        }
+
+        int leftCount = i - _BVHNodes[nodeIndex].primitiveOffset;
+        if (leftCount == 0 || leftCount == _BVHNodes[nodeIndex].primitiveCount)
+        {
+            return;
+        }
+
+        int leftChildIndex = nodesUsed++;
+        int rightChildIndex = nodesUsed++;
+
+        node.leftChild = leftChildIndex;
+        _BVHNodes[leftChildIndex].primitiveOffset = node.primitiveOffset;
+        _BVHNodes[leftChildIndex].primitiveCount = leftCount;
+        _BVHNodes[rightChildIndex].primitiveOffset = i;
+        _BVHNodes[rightChildIndex].primitiveCount = node.primitiveCount - leftCount;
+        node.primitiveCount = 0;
+        UpdateNodeBounds(leftChildIndex);
+        UpdateNodeBounds(rightChildIndex);
+        SubdivideBVH(leftChildIndex);
+        SubdivideBVH(rightChildIndex);
+    }
+
+    void SwapParticles(int i, int j)
+    {
+        int temp = _ParticleIDs[i];
+        _ParticleIDs[i] = _ParticleIDs[j];
+        _ParticleIDs[j] = temp;
+    }
+
+    void PrintBVH()
+    {
+        for (int i = 0; i < nodesUsed; i++)
+        {
+            Debug.Log("Node " + i + " AABB Min: " + _BVHNodes[i].aabbMin + " AABB Max: " + _BVHNodes[i].aabbMax + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Primitive Offset: " + _BVHNodes[i].primitiveOffset + " Primitive Count: " + _BVHNodes[i].primitiveCount);
+        }
     }
 
     void UpdateParticles()
@@ -297,6 +409,7 @@ public class FluidSimulationManager : MonoBehaviour
             //Create particles.
             for (int i = 0; i < numOfParticles; i++)
             {
+                _ParticleIDs[i] = i;
                 _Particles[i].position = new Vector3( (i % numOfParticlesCubedRoot) / ((1/_BoxSize.x)* numOfParticlesCubedRoot) - (_BoxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/_BoxSize.y)* numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/_BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
                 _Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
                 _Particles[i].mass = 1.0f;
@@ -309,12 +422,12 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationCompute.SetBuffer(_ComputeForces, "_Particles", _particleBuffer);
             _fluidSimulationCompute.SetBuffer(_ComputeDensity, "_Particles", _particleBuffer);
 
-            CreateQuadTree();
+            //CreateQuadTree();
 
         }
         //Update particles.
-        uint threadsX, threadsY, threadsZ;
-        _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
+        //uint threadsX, threadsY, threadsZ;
+        //_fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
 
         //_fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles, (int)threadsY, (int)threadsZ);
         //_fluidSimulationCompute.Dispatch(_ComputeForces, numOfParticles, (int)threadsY, (int)threadsZ);
@@ -450,6 +563,7 @@ public class FluidSimulationManager : MonoBehaviour
     
     void CreateQuadTree()
     {
+        /*
         float startRadius = 0.03125f;
         for (int i = 0; i < _Particles.Length; i++)
         {
@@ -460,6 +574,7 @@ public class FluidSimulationManager : MonoBehaviour
 
             Debug.Log("Cell ID: " + _Particles[i].cellID); //" Floored Position: " + squashedPos.ToString("F8") + " Position: " + _Particles[i].position.ToString("F8"));
         }
+        */
         /*
         for (int i = 0; i < _Particles.Length; i++)
         {

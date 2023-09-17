@@ -471,7 +471,7 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     _TimeStep = 0.02;
     float boundsDamping = -0.3;
-    //_Particles[id.x].force = float3(0, 9.8, 0);
+    _Particles[id.x].force = float3(0, -9.8, 0);
     // Compute the new velocity via the current force by the mass via f = ma. Then integrate the velocity via v = v + at.
 
 	float3 vel = _Particles[id.x].velocity + (_Particles[id.x].force/ 1) * _TimeStep;

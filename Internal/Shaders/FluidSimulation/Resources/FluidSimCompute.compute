@@ -83,10 +83,24 @@ struct Particle
     float pressure;
 };
 
+struct BVHNode
+{
+    float3 aabbMin;
+    float3 aabbMax;
+    int leftChild;
+    int rightChild;
+    int parent;
+    int primitiveOffset;
+    int primitiveCount;
+    int index;
+};
+
 StructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
 RWStructuredBuffer<Particle> _Particles;
+StructuredBuffer<BVHNode> _BVHNodes;
+StructuredBuffer<int> _ParticleIDs;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
 float density = 0.0;
 
@@ -251,6 +265,23 @@ bool TraceAABB(inout Ray ray, inout Hit hit, MeshObject meshObject)
 	return (tBoxMin <= tBoxMax) && (tBoxMax < 99999) && (tBoxMin > epsilon);
 }
 
+bool TraceBVH(inout Ray ray, inout Hit hit, BVHNode node)
+{
+    float3 invRayDir = 1.0 / ray.d;
+    float3 tLower = (node.aabbMin - ray.o) * invRayDir;
+    float3 tUpper = (node.aabbMax - ray.o) * invRayDir;
+
+    float4 tMin = float4(min(tLower, tUpper), 0);
+    float4 tMax = float4(max(tLower, tUpper), 10000000);
+
+    //get max component of tMin.
+    float tBoxMin = max(max(tMin.x, tMin.y), tMin.z);
+    //get min component of tMax.
+    float tBoxMax = min(min(tMax.x, tMax.y), tMax.z);
+
+    return (tBoxMin <= tBoxMax);
+}
+
 bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
 {
     uint offset = meshObject.indicesOffset;
@@ -365,6 +396,30 @@ float IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
     return t1;
 }
 
+int nextNode(in BVHNode node, in Ray ray, in Hit hit, int nodeIndex)
+{
+    if(node.leftChild != -1)
+	{
+		return node.leftChild;
+	}
+    if (node.rightChild != -1)
+    {
+        return node.rightChild;
+    }
+
+    while (node.parent > -1)
+    {
+        //If I am the left child, and my parent has right child...go to the right child.
+        if (node.index == _BVHNodes[node.parent].leftChild && _BVHNodes[node.parent].rightChild != -1)
+        {
+            return _BVHNodes[node.parent].rightChild;
+        }
+        node = _BVHNodes[node.parent];
+    }
+
+    return -1;
+}
+
 float4 SceneTrace(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
@@ -379,8 +434,95 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
 
     }
     */
-    //If a particle is in front perform the calculation. This will overwrite the information about meshes in the scene.
 
+    //If a particle is in front perform the calculation. This will overwrite the information about meshes in the scene.
+    int nodeIndex = 0;
+    int currentNode = 0;
+    BVHNode node = _BVHNodes[currentNode];
+	bool particleHit = false;
+    while (particleHit == false)
+    {
+        /*
+        if (!TraceBVH(ray, hit, node))
+        {
+            particleHit = true;
+            break;
+        }
+        */
+        if (node.primitiveCount > 0)
+        {
+            for (int k = node.primitiveOffset; k < node.primitiveCount; k++)
+            {
+                float3 position = _Particles[_ParticleIDs[k]].position;
+
+                float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+                if (t1 > epsilon && t1 < minDistance)
+                {
+                    minDistance = t1;
+                }
+            }
+            //particleHit = true;
+
+        }
+        /*
+
+        int nextNode = -1;
+
+        if (!TraceBVH(ray, hit, _BVHNodes[node.leftChild]))
+        {
+            _BVHNodes[node.leftChild].visited = 2;
+        }
+
+        if (!TraceBVH(ray, hit, _BVHNodes[node.leftChild + 1]))
+        {
+            _BVHNodes[node.leftChild + 1].visited = 2;
+        }
+
+        if (node.visited == 0)
+        {
+            nextNode = node.leftChild;
+            node.visited++;
+        }
+
+        if (node.visited == 1)
+        {
+            nextNode = node.leftChild + 1;
+            node.visited++;
+        }
+
+        if (node.visited == 2 || node.primitiveCount > 0)
+        {
+            nextNode = node.parent;
+        }
+        */
+        /*
+        if(TraceBVH(ray, hit, _BVHNodes[node.leftChild]))
+		{
+            currentNode = node.leftChild;
+		}
+		else if (TraceBVH(ray, hit, _BVHNodes[node.rightChild]))
+		{
+            currentNode = node.rightChild;
+		}
+        else
+        {
+            break;
+        }
+        */
+        nodeIndex++;
+        currentNode = nextNode(node,ray, hit, currentNode);//_BVHNodes[nextNode];
+        node = _BVHNodes[currentNode];
+        //node = _BVHNodes[nodeIndex];
+
+
+        if (nodeIndex >= numOfParticles || currentNode == -1)
+        {
+            particleHit = true;
+            break;
+        }
+    }
+    /*
     for (int k = 0; k < numOfParticles; k++)
     {
         float3 position = _Particles[k].position;
@@ -392,7 +534,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
             minDistance = t1;
         }
     }
-    
+    */
     /*
     MeshObject meshObject = hit.meshObj;
     Vertex v0 = hit.vertices[0];

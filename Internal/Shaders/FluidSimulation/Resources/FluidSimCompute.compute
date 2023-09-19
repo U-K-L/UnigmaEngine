@@ -420,101 +420,60 @@ int nextNode(in BVHNode node, in Ray ray, in Hit hit, int nodeIndex)
     return -1;
 }
 
-float4 SceneTrace(inout Ray ray, inout Hit hit)
+float TraceParticlesBVH(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
-    /*
-    for (int k = 0; k < numOfStructs; k++)
-    {
-        MeshObject meshObject = _MeshObjects[k];
-        if (TraceAABB(ray, hit, meshObject) == true)
-        {
-            TraceMesh(ray, hit, meshObject);
-        }
 
-    }
-    */
-
-    //If a particle is in front perform the calculation. This will overwrite the information about meshes in the scene.
     int nodeIndex = 0;
     int currentNode = 0;
     BVHNode node = _BVHNodes[currentNode];
-	bool particleHit = false;
+    bool particleHit = false;
+    
+    int numOfTimes = 0;
     while (particleHit == false)
     {
-        /*
-        if (!TraceBVH(ray, hit, node))
+
+        if (node.primitiveCount > 0 )
         {
-            particleHit = true;
-            break;
-        }
-        */
-        if (node.primitiveCount > 0)
-        {
-            for (int k = node.primitiveOffset; k < node.primitiveCount; k++)
+            if (TraceBVH(ray, hit, node))
             {
-                float3 position = _Particles[_ParticleIDs[k]].position;
-
-                float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
-
-                if (t1 > epsilon && t1 < minDistance)
+                for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
                 {
-                    minDistance = t1;
+                    float3 position = _Particles[_ParticleIDs[k]].position;
+
+                    float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+                    if (t1 > epsilon && t1 < minDistance)
+                    {
+                        minDistance = t1;
+                    }
+                    numOfTimes++;
                 }
+                particleHit = true;
+
+                
             }
-            //particleHit = true;
-
+            currentNode = nextNode(node, ray, hit, currentNode);
         }
-        /*
-
-        int nextNode = -1;
-
-        if (!TraceBVH(ray, hit, _BVHNodes[node.leftChild]))
+        else if (!TraceBVH(ray, hit, _BVHNodes[node.leftChild]) && node.rightChild != -1)
         {
-            _BVHNodes[node.leftChild].visited = 2;
-        }
-
-        if (!TraceBVH(ray, hit, _BVHNodes[node.leftChild + 1]))
-        {
-            _BVHNodes[node.leftChild + 1].visited = 2;
-        }
-
-        if (node.visited == 0)
-        {
-            nextNode = node.leftChild;
-            node.visited++;
-        }
-
-        if (node.visited == 1)
-        {
-            nextNode = node.leftChild + 1;
-            node.visited++;
-        }
-
-        if (node.visited == 2 || node.primitiveCount > 0)
-        {
-            nextNode = node.parent;
-        }
-        */
-        /*
-        if(TraceBVH(ray, hit, _BVHNodes[node.leftChild]))
-		{
-            currentNode = node.leftChild;
-		}
-		else if (TraceBVH(ray, hit, _BVHNodes[node.rightChild]))
-		{
+            numOfTimes++;
             currentNode = node.rightChild;
-		}
+        }
+        else if (!TraceBVH(ray, hit, _BVHNodes[node.rightChild]) && node.leftChild != -1)
+        {
+            numOfTimes++;
+            currentNode = node.leftChild;
+        }
         else
         {
-            break;
+            numOfTimes++;
+            currentNode = nextNode(node, ray, hit, currentNode);
         }
-        */
         nodeIndex++;
-        currentNode = nextNode(node,ray, hit, currentNode);//_BVHNodes[nextNode];
-        node = _BVHNodes[currentNode];
-        //node = _BVHNodes[nodeIndex];
 
+        //currentNode = nextNode(node, ray, hit, currentNode);
+        node = _BVHNodes[currentNode];
 
         if (nodeIndex >= numOfParticles || currentNode == -1)
         {
@@ -522,7 +481,13 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
             break;
         }
     }
-    /*
+    
+    return numOfTimes;
+}
+
+float TraceParticlesIterative(inout Ray ray, inout Hit hit)
+{
+    float minDistance = 99999999;
     for (int k = 0; k < numOfParticles; k++)
     {
         float3 position = _Particles[k].position;
@@ -534,7 +499,14 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
             minDistance = t1;
         }
     }
-    */
+    return minDistance;
+}
+
+float4 SceneTrace(inout Ray ray, inout Hit hit)
+{
+    float minDistance = 99999999;
+    minDistance = TraceParticlesBVH(ray, hit);
+    //minDistance = TraceParticlesIterative(ray, hit);
     /*
     MeshObject meshObject = hit.meshObj;
     Vertex v0 = hit.vertices[0];
@@ -562,7 +534,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
     float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
     depth = 1.0 - depth;
     depth *= minDistance < 99999;
-	return float4(position, depth);
+	return float4(position, minDistance/numOfParticles);
     
 }
 

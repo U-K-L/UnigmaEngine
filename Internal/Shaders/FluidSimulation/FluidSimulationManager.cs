@@ -176,7 +176,7 @@ public class FluidSimulationManager : MonoBehaviour
         AddObjectsToList();
         CreateNonAcceleratedStructure();
         CreateFluidCommandBuffers();
-
+        UpdateNonAcceleratedRayTracer();
 
     }
 
@@ -184,7 +184,7 @@ public class FluidSimulationManager : MonoBehaviour
     {
         //Draw mesh instantiaonation.
         //Graphics.DrawMeshInstancedIndirect()
-        UpdateNonAcceleratedRayTracer();
+        //UpdateNonAcceleratedRayTracer();
 
     }
 
@@ -336,18 +336,19 @@ public class FluidSimulationManager : MonoBehaviour
         _BVHNodes[nodeIndex].aabbMin = new Vector3(1e30f, 1e30f, 1e30f);
         _BVHNodes[nodeIndex].aabbMax = new Vector3(-1e30f, -1e30f, -1e30f);
 
-        for (int i = _BVHNodes[nodeIndex].primitiveOffset; i < _BVHNodes[nodeIndex].primitiveCount; i++)
+        for (int i = _BVHNodes[nodeIndex].primitiveOffset; i < _BVHNodes[nodeIndex].primitiveCount + _BVHNodes[nodeIndex].primitiveOffset; i++)
         {
             int particleIndex = _ParticleIDs[i];
             Vector3 particlePos = _Particles[particleIndex].position;
-            _BVHNodes[nodeIndex].aabbMin = Vector3.Min(_BVHNodes[nodeIndex].aabbMin, particlePos);
-            _BVHNodes[nodeIndex].aabbMax = Vector3.Max(_BVHNodes[nodeIndex].aabbMax, particlePos);
+            Vector3 sizeOfParticle = 200*new Vector3(_SizeOfParticle, _SizeOfParticle, _SizeOfParticle);
+            _BVHNodes[nodeIndex].aabbMin = Vector3.Min(_BVHNodes[nodeIndex].aabbMin, particlePos - sizeOfParticle);
+            _BVHNodes[nodeIndex].aabbMax = Vector3.Max(_BVHNodes[nodeIndex].aabbMax, particlePos + sizeOfParticle);
         }
     }
 
     void SubdivideBVH(int nodeIndex)
     {
-        if (_BVHNodes[nodeIndex].primitiveCount <= 2)
+        if (_BVHNodes[nodeIndex].primitiveCount <= 8192)
         {
             return;
         }
@@ -359,7 +360,7 @@ public class FluidSimulationManager : MonoBehaviour
         float splitPos = _BVHNodes[nodeIndex].aabbMin[axis] + extent[axis] * 0.5f;
 
         int i = _BVHNodes[nodeIndex].primitiveOffset;
-        int n = _BVHNodes[nodeIndex].primitiveCount - 1;
+        int n = i + _BVHNodes[nodeIndex].primitiveCount - 1;
 
         while (i <= n)
         {
@@ -413,7 +414,15 @@ public class FluidSimulationManager : MonoBehaviour
     {
         for (int i = 0; i < nodesUsed; i++)
         {
-            Debug.Log("Node " + i + " AABB Min: " + _BVHNodes[i].aabbMin + " AABB Max: " + _BVHNodes[i].aabbMax + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Primitive Count: " + _BVHNodes[i].primitiveCount + " Primitive Offset: " + _BVHNodes[i].primitiveOffset + " Parent: " + _BVHNodes[i].parent);
+            string log = "Node " + i + " AABB Min: " + _BVHNodes[i].aabbMin + " AABB Max: " + _BVHNodes[i].aabbMax + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Primitive Count: " + _BVHNodes[i].primitiveCount + " Primitive Offset: " + _BVHNodes[i].primitiveOffset + " Parent: " + _BVHNodes[i].parent;
+            Debug.Log(log);
+            /*
+            for (int j = _BVHNodes[i].primitiveOffset; j < _BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset; j++)
+            {
+                log += " Particle " + _ParticleIDs[j];
+            }
+            Debug.Log(log);
+           */
         }
     }
 

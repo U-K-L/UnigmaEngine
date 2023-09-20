@@ -25,6 +25,7 @@ float _RestDensity;
 float _TimeStep = 2;
 float _BoundDamping = 0.2;
 float3 _BoxSize;
+int _NumOfNodes;
 
 
 
@@ -93,6 +94,8 @@ struct BVHNode
     int primitiveOffset;
     int primitiveCount;
     int index;
+    int hit;
+    int miss;
 };
 
 StructuredBuffer<MeshObject> _MeshObjects;
@@ -282,6 +285,25 @@ bool TraceBVH(inout Ray ray, inout Hit hit, BVHNode node)
     return (tBoxMin <= tBoxMax);
 }
 
+float TraceBVHF(inout Ray ray, inout Hit hit, BVHNode node)
+{
+    float3 invRayDir = 1.0 / ray.d;
+    float3 tLower = (node.aabbMin - ray.o) * invRayDir;
+    float3 tUpper = (node.aabbMax - ray.o) * invRayDir;
+
+    float4 tMin = float4(min(tLower, tUpper), 0);
+    float4 tMax = float4(max(tLower, tUpper), 10000000);
+
+    //get max component of tMin.
+    float tBoxMin = max(max(tMin.x, tMin.y), tMin.z);
+    //get min component of tMax.
+    float tBoxMax = min(min(tMax.x, tMax.y), tMax.z);
+
+    if (tBoxMin <= tBoxMax)
+        return tBoxMin;
+    return 9999999;
+}
+
 bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
 {
     uint offset = meshObject.indicesOffset;
@@ -449,7 +471,7 @@ float TraceParticlesBVH(inout Ray ray, inout Hit hit)
                     }
                     numOfTimes++;
                 }
-                particleHit = true;
+                //particleHit = true;
 
                 
             }
@@ -482,8 +504,147 @@ float TraceParticlesBVH(inout Ray ray, inout Hit hit)
         }
     }
     
-    return numOfTimes;
+    return minDistance;
 }
+
+float TraceParticlesBVHIterative(inout Ray ray, inout Hit hit)
+{
+    float minDistance = 99999999;
+    BVHNode node = _BVHNodes[0];
+    for (int i = 0; i < _NumOfNodes; i++)
+    {
+		node = _BVHNodes[i];
+        if (TraceBVH(ray, hit, node))
+        {
+            minDistance = i;
+            /*
+            if (node.primitiveCount > 0)
+            {
+                for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
+                {
+                    float3 position = _Particles[_ParticleIDs[k]].position;
+
+                    float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+                    if (t1 > epsilon && t1 < minDistance)
+                    {
+                        minDistance = t1;
+                    }
+                }
+            }
+            */
+        }
+    }
+	return minDistance;
+}
+
+float TraceParticlesTBVH(inout Ray ray, inout Hit hit)
+{
+    float minDistance = 99999999;
+	float minBVHDistance = 99999999;
+    int bvhminIndex = -1;
+    int nodeIndex = 0;
+    BVHNode node = _BVHNodes[0];
+    for (int i = 0; i < _NumOfNodes; i++)
+    {
+        //Find next node.
+        if (nodeIndex != i)
+            continue;
+        node = _BVHNodes[i];
+        if (TraceBVH(ray, hit, node))
+        {
+            
+            if (node.primitiveCount > 0)
+            {
+                minDistance = 0;
+                /*
+                for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
+                {
+                    float3 position = _Particles[_ParticleIDs[k]].position;
+
+                    float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+                    if (t1 > epsilon && t1 < minDistance)
+                    {
+                        minDistance = t1;
+                    }
+                }
+                */
+            }
+
+            nodeIndex = node.hit;
+        }
+        else
+        {
+
+            nodeIndex = node.miss;
+        }
+
+    }
+
+    
+    /*
+    int nodeIndex = 0;
+    int currentNode = 0;
+    BVHNode node = _BVHNodes[currentNode];
+    bool particleHit = false;
+
+    int numOfTimes = 0;
+    while (particleHit == false)
+    {
+
+        if (node.primitiveCount > 0)
+        {
+            if (TraceBVH(ray, hit, node))
+            {
+                for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
+                {
+                    float3 position = _Particles[_ParticleIDs[k]].position;
+
+                    float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+                    if (t1 > epsilon && t1 < minDistance)
+                    {
+                        minDistance = t1;
+                    }
+                    numOfTimes++;
+                }
+                //particleHit = true;
+
+
+            }
+            currentNode = nextNode(node, ray, hit, currentNode);
+        }
+        else if (!TraceBVH(ray, hit, _BVHNodes[node.leftChild]) && node.rightChild != -1)
+        {
+            numOfTimes++;
+            currentNode = node.rightChild;
+        }
+        else if (!TraceBVH(ray, hit, _BVHNodes[node.rightChild]) && node.leftChild != -1)
+        {
+            numOfTimes++;
+            currentNode = node.leftChild;
+        }
+        else
+        {
+            numOfTimes++;
+            currentNode = nextNode(node, ray, hit, currentNode);
+        }
+        nodeIndex++;
+
+        //currentNode = nextNode(node, ray, hit, currentNode);
+        node = _BVHNodes[currentNode];
+
+        if (nodeIndex >= numOfParticles || currentNode == -1)
+        {
+            particleHit = true;
+            break;
+        }
+    }
+    */
+    return minDistance;
+}
+
 
 float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 {
@@ -505,7 +666,8 @@ float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 float4 SceneTrace(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
-    minDistance = TraceParticlesBVH(ray, hit);
+    minDistance = TraceParticlesBVHIterative(ray, hit);
+    //minDistance = TraceParticlesBVH(ray, hit);
     //minDistance = TraceParticlesIterative(ray, hit);
     /*
     MeshObject meshObject = hit.meshObj;
@@ -534,7 +696,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
     float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
     depth = 1.0 - depth;
     depth *= minDistance < 99999;
-	return float4(position, minDistance/numOfParticles);
+	return float4(position, depth);
     
 }
 

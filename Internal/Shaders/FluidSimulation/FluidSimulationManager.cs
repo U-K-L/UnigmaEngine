@@ -344,7 +344,7 @@ public class FluidSimulationManager : MonoBehaviour
         {
             int particleIndex = _ParticleIDs[i];
             Vector3 particlePos = _Particles[particleIndex].position;
-            Vector3 sizeOfParticle = 0*new Vector3(_SizeOfParticle, _SizeOfParticle, _SizeOfParticle);
+            Vector3 sizeOfParticle = 1 * new Vector3(_SizeOfParticle, _SizeOfParticle, _SizeOfParticle);
             _BVHNodes[nodeIndex].aabbMin = Vector3.Min(_BVHNodes[nodeIndex].aabbMin, particlePos - sizeOfParticle);
             _BVHNodes[nodeIndex].aabbMax = Vector3.Max(_BVHNodes[nodeIndex].aabbMax, particlePos + sizeOfParticle);
         }
@@ -352,7 +352,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     void SubdivideBVH(int nodeIndex)
     {
-        if (_BVHNodes[nodeIndex].primitiveCount <= 2)
+        if (_BVHNodes[nodeIndex].primitiveCount <= 256)
         {
             return;
         }
@@ -386,37 +386,50 @@ public class FluidSimulationManager : MonoBehaviour
         }
 
         int leftChildIndex = nodesUsed++;
-        int rightChildIndex = nodesUsed++;
+        
 
         _BVHNodes[leftChildIndex].index = leftChildIndex;
         _BVHNodes[leftChildIndex].parent = nodeIndex;
         _BVHNodes[leftChildIndex].primitiveOffset = _BVHNodes[nodeIndex].primitiveOffset;
         _BVHNodes[leftChildIndex].primitiveCount = leftCount;
+        _BVHNodes[nodeIndex].leftChild = leftChildIndex;
+        
+        UpdateNodeBounds(leftChildIndex);
+        SubdivideBVH(leftChildIndex);
+        int rightChildIndex = nodesUsed++;
 
         _BVHNodes[rightChildIndex].index = rightChildIndex;
         _BVHNodes[rightChildIndex].parent = nodeIndex;
         _BVHNodes[rightChildIndex].primitiveOffset = i;
         _BVHNodes[rightChildIndex].primitiveCount = _BVHNodes[nodeIndex].primitiveCount - leftCount;
         _BVHNodes[nodeIndex].primitiveCount = 0;
-        _BVHNodes[nodeIndex].leftChild = leftChildIndex;
-        _BVHNodes[nodeIndex].rightChild = rightChildIndex;
+        _BVHNodes[nodeIndex].rightChild = nodesUsed - 1;
 
-        UpdateNodeBounds(leftChildIndex);
         UpdateNodeBounds(rightChildIndex);
-        SubdivideBVH(leftChildIndex);
         SubdivideBVH(rightChildIndex);
+
+
     }
 
     void CreateHitMissLinks()
     {
-        for (int i = 0; i < _BVHNodes.Length; i++)
+        for (int i = 0; i < nodesUsed; i++)
         {
             BVHNode node = _BVHNodes[i];
             _BVHNodes[i].hit = -1;
             _BVHNodes[i].miss = -1;
 
-            _BVHNodes[i].hit = _BVHNodes[i].index + 1;
             
+            if (_BVHNodes[i].index + 1 >= nodesUsed)
+            {
+                _BVHNodes[i].hit = -1;
+                _BVHNodes[i].miss = -1;
+                continue;
+            }
+
+            _BVHNodes[i].hit = _BVHNodes[i].index + 1;
+
+
             if (node.primitiveCount > 0)
             {
                 _BVHNodes[i].miss = _BVHNodes[i].index + 1;
@@ -433,6 +446,9 @@ public class FluidSimulationManager : MonoBehaviour
                 node = _BVHNodes[node.parent];
             }
 
+
+
+
         }
     }
 
@@ -447,7 +463,7 @@ public class FluidSimulationManager : MonoBehaviour
     {
         for (int i = 0; i < nodesUsed; i++)
         {
-            string log = "Node " + i + " AABB Min: " + _BVHNodes[i].aabbMin + " AABB Max: " + _BVHNodes[i].aabbMax + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Primitive Count: " + _BVHNodes[i].primitiveCount + " Primitive Offset: " + _BVHNodes[i].primitiveOffset + " Parent: " + _BVHNodes[i].parent + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss;
+            string log = "ID: " + i + " Node: " + _BVHNodes[i].index + " AABB Min: " + _BVHNodes[i].aabbMin + " AABB Max: " + _BVHNodes[i].aabbMax + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Primitive Count: " + _BVHNodes[i].primitiveCount + " Primitive Offset: " + _BVHNodes[i].primitiveOffset + " Parent: " + _BVHNodes[i].parent + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss;
             Debug.Log(log);
             /*
             for (int j = _BVHNodes[i].primitiveOffset; j < _BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset; j++)
@@ -473,6 +489,7 @@ public class FluidSimulationManager : MonoBehaviour
             for (int i = 0; i < numOfParticles; i++)
             {
                 _ParticleIDs[i] = i;
+                //_Particles[i].position = new Vector3(0.25f, 0.25f, 0.25f) * i;
                 _Particles[i].position = new Vector3( (i % numOfParticlesCubedRoot) / ((1/_BoxSize.x)* numOfParticlesCubedRoot) - (_BoxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/_BoxSize.y)* numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/_BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
                 //_Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
                 _Particles[i].mass = 1.0f;

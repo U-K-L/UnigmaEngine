@@ -82,6 +82,7 @@ struct Particle
     float density;
     float mass;
     float pressure;
+    int cellID;
 };
 
 struct BVHNode
@@ -385,7 +386,7 @@ float IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 	float3 rad = float3(radius, radius, radius);
     
     //Intersect with a box and then smoothly combine boxes together with union operation.
-    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
+    float4 tNFnorm = sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
 	t1 = tNFnorm.x;
     t1 = opU(t1, hit.distance);
     
@@ -516,8 +517,6 @@ float TraceParticlesBVHIterative(inout Ray ray, inout Hit hit)
 		node = _BVHNodes[i];
         if (TraceBVH(ray, hit, node))
         {
-            minDistance = i;
-            /*
             if (node.primitiveCount > 0)
             {
                 for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
@@ -532,7 +531,6 @@ float TraceParticlesBVHIterative(inout Ray ray, inout Hit hit)
                     }
                 }
             }
-            */
         }
     }
 	return minDistance;
@@ -553,23 +551,16 @@ float TraceParticlesTBVH(inout Ray ray, inout Hit hit)
         node = _BVHNodes[i];
         if (TraceBVH(ray, hit, node))
         {
-            
-            if (node.primitiveCount > 0)
+            for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
             {
-                minDistance = 0;
-                /*
-                for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
+                float3 position = _Particles[_ParticleIDs[k]].position;
+
+                float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+                if (t1 > epsilon && t1 < minDistance)
                 {
-                    float3 position = _Particles[_ParticleIDs[k]].position;
-
-                    float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
-
-                    if (t1 > epsilon && t1 < minDistance)
-                    {
-                        minDistance = t1;
-                    }
+                    minDistance = t1;
                 }
-                */
             }
 
             nodeIndex = node.hit;
@@ -666,10 +657,11 @@ float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 float4 SceneTrace(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
-    minDistance = TraceParticlesBVHIterative(ray, hit);
+    minDistance = TraceParticlesTBVH(ray, hit);
+    //minDistance = TraceParticlesBVHIterative(ray, hit);
     //minDistance = TraceParticlesBVH(ray, hit);
     //minDistance = TraceParticlesIterative(ray, hit);
-    /*
+
     MeshObject meshObject = hit.meshObj;
     Vertex v0 = hit.vertices[0];
     Vertex v1 = hit.vertices[1];
@@ -690,13 +682,70 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
 
     hit.normal = normals;
     hit.uv = uvs;
-    */
-	float3 position = ray.o + minDistance * ray.d;
+
+
+    /*
+    BVHNode node = _BVHNodes[0];
+    float4 colorIdentity = 0;
+    float colorMin = 99999;
+    for (int i = 0; i < _NumOfNodes; i++)
+    {
+        node = _BVHNodes[i];
+        for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
+        {
+            float3 position = _Particles[_ParticleIDs[k]].position;
+
+            float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+            if (t1 > epsilon && t1 < colorMin)
+            {
+                
+                if (i == 0)
+                    colorIdentity = float4(0.5, 0, 0, 1);
+                if (i == 1)
+                    colorIdentity = float4(0, 0.5, 0, 1);
+                if (i == 2)
+                    colorIdentity = float4(0, 0, 0.5, 1);
+                if (i == 3)
+                    colorIdentity = float4(0, 0.5, 0.5, 1);
+                colorMin = t1;
+            }
+        }
+    }
+    
+    float minDist3 = 9999;
+    for (int k = 0; k < numOfParticles; k++)
+    {
+        float3 position = _Particles[k].position;
+
+        float t1 = IntersectParticles(hit, ray, _SizeOfParticle, float3(0.25, 0.25, 0.25) * k);
+
+        if (t1 > epsilon && t1 < minDist3)
+        {
+            minDist3 = t1;
+        }
+    }
+    minDist3 = minDist3 < 9999;
+    
+
+
+    if(minDistance == 0)
+        colorIdentity = float4(0.5, 0, 0, 1) + colorIdentity;
+    if(minDistance == 1)
+        colorIdentity = float4(0, 0.5, 0, 1) + colorIdentity;
+    if (minDistance == 2)
+        colorIdentity = float4(0, 0, 0.5, 1) + colorIdentity;
+    if (minDistance == 3)
+        colorIdentity = float4(0, 0.5, 0.5, 1) + colorIdentity;
+                    */
+    float3 position = ray.o + minDistance * ray.d;
     float4 clipPos = UnityWorldToClipPos(position);
     float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
     depth = 1.0 - depth;
-    depth *= minDistance < 99999;
-	return float4(position, depth);
+    depth *= minDistance < 999999;
+    
+    
+    return float4(position, depth);// +colorIdentity + minDist3;
     
 }
 
@@ -734,7 +783,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     Hit hit = CreateHit();
 
     float4 particle = SceneTrace(ray, hit);
-    Result[id.xy] = float4(particle.xyz * 0.015, particle.w);
+    Result[id.xy] = float4(particle.xyz, particle.w);
 	DensityMap[id.xy] = density;
 }
 
@@ -806,7 +855,7 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
 	//bottomLeft = mul(_ParentTransform, float4(bottomLeft, 1)).xyz;
 	//topRight = mul(_ParentTransform, float4(topRight, 1)).xyz;
     //Min Boundary Enforcements
-	_Particles[id.x].position = nextPoint;
+	//_Particles[id.x].position = nextPoint;
 
 	if (_Particles[id.x].position.x - _Radius < bottomLeft.x)
 	{

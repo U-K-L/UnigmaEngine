@@ -777,7 +777,7 @@ MonoBehaviour:
   _GasConstant: 2
   _Radius: 0.01562
   _RestDensity: 1
-  _BoxSize: {x: 20, y: 20, z: 20}
+  _BoxSize: {x: 1, y: 1, z: 1}
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103

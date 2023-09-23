@@ -107,6 +107,7 @@ StructuredBuffer<BVHNode> _BVHNodes;
 StructuredBuffer<int> _ParticleIDs;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
 float density = 0.0;
+int _BoxViewDebug;
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -386,7 +387,7 @@ float IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 	float3 rad = float3(radius, radius, radius);
     
     //Intersect with a box and then smoothly combine boxes together with union operation.
-    float4 tNFnorm = sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
+    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
 	t1 = tNFnorm.x;
     t1 = opU(t1, hit.distance);
     
@@ -548,7 +549,7 @@ float TraceParticlesTBVH(inout Ray ray, inout Hit hit)
         //Find next node.
         if (nodeIndex != i)
             continue;
-        node = _BVHNodes[i];
+        node = _BVHNodes[nodeIndex];
         if (TraceBVH(ray, hit, node))
         {
             for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
@@ -658,94 +659,14 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
     minDistance = TraceParticlesTBVH(ray, hit);
-    //minDistance = TraceParticlesBVHIterative(ray, hit);
-    //minDistance = TraceParticlesBVH(ray, hit);
-    //minDistance = TraceParticlesIterative(ray, hit);
 
-    MeshObject meshObject = hit.meshObj;
-    Vertex v0 = hit.vertices[0];
-    Vertex v1 = hit.vertices[1];
-    Vertex v2 = hit.vertices[2];
-    //Convert to world space along with ray and compute the barycentric coordinate.
-    v0.position = (mul(meshObject.localToWorld, float4(v0.position, 1))).xyz;
-    v1.position = (mul(meshObject.localToWorld, float4(v1.position, 1))).xyz;
-    v2.position = (mul(meshObject.localToWorld, float4(v2.position, 1))).xyz;
-    v0.normal = (mul(meshObject.localToWorld, float4(v0.normal, 0))).xyz;
-    v1.normal = (mul(meshObject.localToWorld, float4(v1.normal, 0))).xyz;
-    v2.normal = (mul(meshObject.localToWorld, float4(v2.normal, 0))).xyz;
-    float3 barycentric = Barycentric(v0.position, v1.position, v2.position, hit.position);
-
-    //Now that we have the barycentric coordinate we can use this to reconstruct the UVs.
-    float2 uvs = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
-
-    float3 normals = normalize(v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z);
-
-    hit.normal = normals;
-    hit.uv = uvs;
-
-
-    /*
-    BVHNode node = _BVHNodes[0];
-    float4 colorIdentity = 0;
-    float colorMin = 99999;
-    for (int i = 0; i < _NumOfNodes; i++)
-    {
-        node = _BVHNodes[i];
-        for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
-        {
-            float3 position = _Particles[_ParticleIDs[k]].position;
-
-            float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
-
-            if (t1 > epsilon && t1 < colorMin)
-            {
-                
-                if (i == 0)
-                    colorIdentity = float4(0.5, 0, 0, 1);
-                if (i == 1)
-                    colorIdentity = float4(0, 0.5, 0, 1);
-                if (i == 2)
-                    colorIdentity = float4(0, 0, 0.5, 1);
-                if (i == 3)
-                    colorIdentity = float4(0, 0.5, 0.5, 1);
-                colorMin = t1;
-            }
-        }
-    }
-    
-    float minDist3 = 9999;
-    for (int k = 0; k < numOfParticles; k++)
-    {
-        float3 position = _Particles[k].position;
-
-        float t1 = IntersectParticles(hit, ray, _SizeOfParticle, float3(0.25, 0.25, 0.25) * k);
-
-        if (t1 > epsilon && t1 < minDist3)
-        {
-            minDist3 = t1;
-        }
-    }
-    minDist3 = minDist3 < 9999;
-    
-
-
-    if(minDistance == 0)
-        colorIdentity = float4(0.5, 0, 0, 1) + colorIdentity;
-    if(minDistance == 1)
-        colorIdentity = float4(0, 0.5, 0, 1) + colorIdentity;
-    if (minDistance == 2)
-        colorIdentity = float4(0, 0, 0.5, 1) + colorIdentity;
-    if (minDistance == 3)
-        colorIdentity = float4(0, 0.5, 0.5, 1) + colorIdentity;
-                    */
     float3 position = ray.o + minDistance * ray.d;
     float4 clipPos = UnityWorldToClipPos(position);
     float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
     depth = 1.0 - depth;
     depth *= minDistance < 999999;
-    
-    
-    return float4(position, depth);// +colorIdentity + minDist3;
+
+	return float4(position, depth);
     
 }
 

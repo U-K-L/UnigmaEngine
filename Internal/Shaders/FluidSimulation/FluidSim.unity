@@ -761,7 +761,7 @@ MonoBehaviour:
   _fluidSimMaterialComposite: {fileID: 2100000, guid: 58794828c336cdb40bfa2fae27552d2f,
     type: 2}
   fluidSimTransform: {fileID: 1634651488}
-  textSizeDivision: 3
+  textSizeDivision: 0
   DeepWaterColor: {r: 0.03087387, g: 0, b: 0.93333334, a: 1}
   ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
   DepthMaxDistance: 0.00031
@@ -773,11 +773,12 @@ MonoBehaviour:
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
   numOfParticles: 131072
-  _SizeOfParticle: 0.03125
+  _SizeOfParticle: 0.015625
   _GasConstant: 2
   _Radius: 0.01562
   _RestDensity: 1
   _BoxSize: {x: 1, y: 1, z: 1}
+  _BoxViewDebug: 0
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
@@ -1646,6 +1647,7 @@ MonoBehaviour:
   _Radius: 0.125
   _RestDensity: 1
   _BoxSize: {x: 0, y: 0, z: 0}
+  _BoxViewDebug: 0
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103

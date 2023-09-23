@@ -455,12 +455,12 @@ Shader "Hidden/FluidComposition"
 				cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.65, fluidsDepth.w));
 
                 //return fluidsDepth;
-               // return cleanFluidSingleColor;
+                return cleanFluidSingleColor;
               
                 //return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
                 //return densityMap;
                 //return float4(fluids.xyz, 1);
-                return fluids.w;
+                //return fluids*fluids.w;
                 //return NdotL;
             }
             ENDCG

@@ -51,6 +51,7 @@ public class FluidSimulationManager : MonoBehaviour
     public float _Radius = 0.125f;
     public float _RestDensity = 1.0f;
     public Vector3 _BoxSize = Vector3.one;
+    public int _BoxViewDebug = 0;
 
     ComputeBuffer _meshObjectBuffer;
     ComputeBuffer _verticesObjectBuffer;
@@ -178,7 +179,7 @@ public class FluidSimulationManager : MonoBehaviour
         AddObjectsToList();
         CreateNonAcceleratedStructure();
         CreateFluidCommandBuffers();
-        UpdateNonAcceleratedRayTracer();
+        //UpdateNonAcceleratedRayTracer();
 
     }
 
@@ -186,7 +187,7 @@ public class FluidSimulationManager : MonoBehaviour
     {
         //Draw mesh instantiaonation.
         //Graphics.DrawMeshInstancedIndirect()
-        //UpdateNonAcceleratedRayTracer();
+        UpdateNonAcceleratedRayTracer();
 
     }
 
@@ -330,7 +331,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_BVHNodes", _BVHNodesBuffer);
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_ParticleIDs", _particleIDsBuffer);
         _fluidSimulationCompute.SetInt("_NumOfNodes", nodesUsed);
-        PrintBVH();
+        //PrintBVH();
 
     }
 
@@ -352,7 +353,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     void SubdivideBVH(int nodeIndex)
     {
-        if (_BVHNodes[nodeIndex].primitiveCount <= 256)
+        if (_BVHNodes[nodeIndex].primitiveCount <= 512)
         {
             return;
         }
@@ -403,7 +404,7 @@ public class FluidSimulationManager : MonoBehaviour
         _BVHNodes[rightChildIndex].primitiveOffset = i;
         _BVHNodes[rightChildIndex].primitiveCount = _BVHNodes[nodeIndex].primitiveCount - leftCount;
         _BVHNodes[nodeIndex].primitiveCount = 0;
-        _BVHNodes[nodeIndex].rightChild = nodesUsed - 1;
+        _BVHNodes[nodeIndex].rightChild = rightChildIndex;
 
         UpdateNodeBounds(rightChildIndex);
         SubdivideBVH(rightChildIndex);
@@ -441,7 +442,8 @@ public class FluidSimulationManager : MonoBehaviour
                 
                 if (node.index == _BVHNodes[node.parent].leftChild && _BVHNodes[node.parent].rightChild != -1)
                 {
-                    _BVHNodes[i].miss = _BVHNodes[_BVHNodes[i].parent].rightChild;
+                    _BVHNodes[i].miss = _BVHNodes[node.parent].rightChild;
+                    break;
                 }
                 node = _BVHNodes[node.parent];
             }
@@ -725,6 +727,9 @@ public class FluidSimulationManager : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        //Set int for simulation
+        if (_fluidSimulationCompute != null)
+            _fluidSimulationCompute.SetInt("_BoxViewDebug", _BoxViewDebug);
         Gizmos.color = Color.yellow;
         //Gizmos.DrawSphere(fluidSimTransform.position, 10);
         Matrix4x4 rotationMatrix = Matrix4x4.TRS(fluidSimTransform.position, fluidSimTransform.rotation, fluidSimTransform.lossyScale);

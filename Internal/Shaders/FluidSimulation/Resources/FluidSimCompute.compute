@@ -21,6 +21,8 @@ float3 worldSpaceViewForward;
 bool _IsOrthographic;
 float _Radius = 1;
 float _GasConstant;
+float _BoundsDamping;
+float _Viscosity;
 float _RestDensity;
 float _TimeStep = 2;
 float _BoundDamping = 0.2;
@@ -715,12 +717,10 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
 {
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    _TimeStep = 0.01;
-    float boundsDamping = -0.3;
     //_Particles[id.x].force = float3(0, -9.8, 0);
     // Compute the new velocity via the current force by the mass via f = ma. Then integrate the velocity via v = v + at.
 
-	float3 vel = _Particles[id.x].velocity + (_Particles[id.x].force/ 1) * _TimeStep;
+	float3 vel = _Particles[id.x].velocity + (_Particles[id.x].force/ _Particles[id.x].mass) * _TimeStep;
 
     //center = mul(_ParentTransform, float4(center, 1)).xyz;
 	float3 previousPoint = _Particles[id.x].position;
@@ -779,17 +779,17 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
 
 	if (_Particles[id.x].position.x - _Radius < bottomLeft.x)
 	{
-		vel.x *= boundsDamping;
+        vel.x *= _BoundsDamping;
 		_Particles[id.x].position.x = bottomLeft.x + _Radius;
 	}
 	if (_Particles[id.x].position.y - _Radius < bottomLeft.y)
 	{
-		vel.y *= boundsDamping;
+		vel.y *= _BoundsDamping;
 		_Particles[id.x].position.y = bottomLeft.y + _Radius;
 	}
 	if (_Particles[id.x].position.z - _Radius < bottomLeft.z)
 	{
-		vel.z *= boundsDamping;
+		vel.z *= _BoundsDamping;
 		_Particles[id.x].position.z = bottomLeft.z + _Radius;
 	}
 
@@ -797,17 +797,17 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     //Max Boundary Enforcements
 	if (_Particles[id.x].position.x + _Radius > topRight.x)
 	{
-		vel.x *= boundsDamping;
+		vel.x *= _BoundsDamping;
 		_Particles[id.x].position.x = topRight.x - _Radius;
 	}
 	if (_Particles[id.x].position.y + _Radius > topRight.y)
 	{
-		vel.y *= boundsDamping;
+		vel.y *= _BoundsDamping;
 		_Particles[id.x].position.y = topRight.y - _Radius;
 	}
 	if (_Particles[id.x].position.z + _Radius > topRight.z)
 	{
-		vel.z *= boundsDamping;
+		vel.z *= _BoundsDamping;
 		_Particles[id.x].position.z = topRight.z - _Radius;
 	}
     
@@ -830,12 +830,10 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
     for (int i = 0; i < numOfParticles; i++)
     {
         float distance = dot(oPos -_Particles[i].position , oPos - _Particles[i].position );
-        /*
         if (distance < 0.000001)
         {
             continue;
         }
-        */
         if (distance * 0.004 < _Radius*_Radius * 0.004)
         {
             sum += Poly6Kernel(distance*0.004);
@@ -857,7 +855,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 	float mass = _Particles[id.x].mass * _Particles[id.x].mass;
 	float3 pressure = float3(0, 0, 0);
 	float3 visc = float3(0, 0, 0);
-    float viscosity = -0.003;
+    //float viscosity = -0.003;
 
     for (int i = 0; i < numOfParticles; i++)
     {
@@ -873,7 +871,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
             float3 pressureContrib = mass * SpikyKernelGradient(dist, pressureGradDir);
 			pressureContrib *= (_Particles[id.x].pressure / density + _Particles[i].pressure / (_Particles[i].density * _Particles[i].density));
 
-            float3 viscosityContrib = viscosity * mass * (_Particles[i].velocity - _Particles[id.x].velocity) / _Particles[i].density;
+            float3 viscosityContrib = _Viscosity * mass * (_Particles[i].velocity - _Particles[id.x].velocity) / _Particles[i].density;
             viscosityContrib *= SpikyKernelD2(dist);
             
 			pressure += pressureContrib;

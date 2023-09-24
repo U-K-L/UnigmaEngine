@@ -47,7 +47,11 @@ public class FluidSimulationManager : MonoBehaviour
     public Transform _LightScale;
     public int numOfParticles;
     public float _SizeOfParticle = 0.125f;
+    public float _MassOfParticle = 1.0f;
     public float _GasConstant = 1.0f;
+    public float _Viscosity = 1.0f;
+    public float _TimeStep = 0.02f;
+    public float _BoundsDamping = 9.8f;
     public float _Radius = 0.125f;
     public float _RestDensity = 1.0f;
     public Vector3 _BoxSize = Vector3.one;
@@ -494,7 +498,7 @@ public class FluidSimulationManager : MonoBehaviour
                 //_Particles[i].position = new Vector3(0.25f, 0.25f, 0.25f) * i;
                 _Particles[i].position = new Vector3( (i % numOfParticlesCubedRoot) / ((1/_BoxSize.x)* numOfParticlesCubedRoot) - (_BoxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/_BoxSize.y)* numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/_BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
                 //_Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
-                _Particles[i].mass = 1.0f;
+                _Particles[i].mass = _MassOfParticle;
             }
 
             _particleBuffer.SetData(_Particles);
@@ -515,6 +519,7 @@ public class FluidSimulationManager : MonoBehaviour
             _BVHNodes[i].parent = -1;
             _BVHNodes[i].leftChild = -1;
             _BVHNodes[i].rightChild = -1;
+            _Particles[i].mass = _MassOfParticle;
         }
         //Update particles.
         uint threadsX, threadsY, threadsZ;
@@ -566,6 +571,9 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetFloat("_SizeOfParticle", _SizeOfParticle);
         _fluidSimulationCompute.SetFloat("_Radius", _Radius);
         _fluidSimulationCompute.SetFloat("_GasConstant", _GasConstant);
+        _fluidSimulationCompute.SetFloat("_Viscosity", _Viscosity);
+        _fluidSimulationCompute.SetFloat("_TimeStep", _TimeStep);
+        _fluidSimulationCompute.SetFloat("_BoundsDamping", _BoundsDamping);
         _fluidSimulationCompute.SetFloat("_RestDensity", _RestDensity);
         _fluidSimulationCompute.SetVector("_BoxSize", _BoxSize);
         _fluidSimulationCompute.SetBool("_IsOrthographic", _cam.orthographic);

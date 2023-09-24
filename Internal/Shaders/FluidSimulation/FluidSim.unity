@@ -772,7 +772,7 @@ MonoBehaviour:
   _Smoothness: 0.05
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
-  numOfParticles: 32768
+  numOfParticles: 8192
   _SizeOfParticle: 0.1
   _GasConstant: 2
   _Radius: 0.1

@@ -738,14 +738,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 539306111}
-  m_LocalRotation: {x: 0.22426145, y: 0.4291448, z: -0.11096104, w: 0.86788774}
-  m_LocalPosition: {x: -1.25, y: 0.88, z: -1.18}
+  m_LocalRotation: {x: 0.2580437, y: 0.41107628, z: -0.122602254, w: 0.865678}
+  m_LocalPosition: {x: -9.36, y: 6.95, z: -10.07}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 28.98, y: 52.62, z: -0.008}
+  m_LocalEulerAnglesHint: {x: 33.2, y: 50.8, z: -0.008}
 --- !u!114 &539306115
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -767,17 +767,17 @@ MonoBehaviour:
   DepthMaxDistance: 0.00031
   BlurScale: {x: 2.7, y: 2.7}
   BlurFallOff: 0.025
-  BlurRadius: 8
+  BlurRadius: 3.44
   DepthScale: {x: 1, y: 1, z: 1, w: 1}
   _Smoothness: 0.05
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
-  numOfParticles: 131072
-  _SizeOfParticle: 0.015625
+  numOfParticles: 32768
+  _SizeOfParticle: 0.1
   _GasConstant: 2
-  _Radius: 0.01562
+  _Radius: 0.1
   _RestDensity: 1
-  _BoxSize: {x: 1, y: 1, z: 1}
+  _BoxSize: {x: 10, y: 10, z: 10}
   _BoxViewDebug: 0
   RayTracingLayers:
     serializedVersion: 2

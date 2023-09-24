@@ -517,13 +517,16 @@ public class FluidSimulationManager : MonoBehaviour
             _BVHNodes[i].rightChild = -1;
         }
         //Update particles.
-        //uint threadsX, threadsY, threadsZ;
-        //_fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
+        uint threadsX, threadsY, threadsZ;
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
 
-        //_fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles, (int)threadsY, (int)threadsZ);
-        //_fluidSimulationCompute.Dispatch(_ComputeForces, numOfParticles, (int)threadsY, (int)threadsZ);
-        //_fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, numOfParticles, (int)threadsY, (int)threadsZ);
+        //Make proper thread group sizes.
+        _fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles/64, (int)threadsY, (int)threadsZ);
+        _fluidSimulationCompute.Dispatch(_ComputeForces, numOfParticles/64, (int)threadsY, (int)threadsZ);
+        _fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, numOfParticles/64, (int)threadsY, (int)threadsZ);
 
+        //Set Particle positions to script.
+        _particleBuffer.GetData(_Particles);
 
     }
 

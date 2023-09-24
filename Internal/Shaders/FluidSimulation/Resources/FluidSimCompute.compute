@@ -659,7 +659,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
     minDistance = TraceParticlesTBVH(ray, hit);
-
+    //minDistance = TraceParticlesIterative(ray, hit);
     float3 position = ray.o + minDistance * ray.d;
     float4 clipPos = UnityWorldToClipPos(position);
     float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
@@ -710,14 +710,14 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 
 //Based on the following paper: https://matthias-research.github.io/pages/publications/sca03.pdf
 // Particle-Based Fluid Simulation for Interactive Applications
-[numthreads(100, 1, 1)]
+[numthreads(64, 1, 1)]
 void UpdateParticles(uint3 id : SV_DispatchThreadID)
 {
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    _TimeStep = 0.02;
+    _TimeStep = 0.01;
     float boundsDamping = -0.3;
-    _Particles[id.x].force = float3(0, -9.8, 0);
+    //_Particles[id.x].force = float3(0, -9.8, 0);
     // Compute the new velocity via the current force by the mass via f = ma. Then integrate the velocity via v = v + at.
 
 	float3 vel = _Particles[id.x].velocity + (_Particles[id.x].force/ 1) * _TimeStep;
@@ -770,13 +770,12 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
         _Particles[id.x].position = nextPoint;
     }
     */
-    float3 boxSize = _BoxSize;//mul(_ParentTransform, float4(_BoxSize, 1)).xyz;
+    float3 boxSize = _BoxSize;
     float3 topRight = boxSize/2;
 	float3 bottomLeft = -boxSize/2;
-	//bottomLeft = mul(_ParentTransform, float4(bottomLeft, 1)).xyz;
-	//topRight = mul(_ParentTransform, float4(topRight, 1)).xyz;
+    
     //Min Boundary Enforcements
-	//_Particles[id.x].position = nextPoint;
+	_Particles[id.x].position = nextPoint;
 
 	if (_Particles[id.x].position.x - _Radius < bottomLeft.x)
 	{
@@ -816,6 +815,7 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
 
 }
 
+
 //Figure (1)
 [numthreads(64, 1, 1)]
 void ComputeDensity(uint3 id : SV_DispatchThreadID)
@@ -829,19 +829,23 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
     //Check if that particle is in the radius.
     for (int i = 0; i < numOfParticles; i++)
     {
-        float distance = dot(_Particles[i].position - oPos, _Particles[i].position - oPos);
+        float distance = dot(oPos -_Particles[i].position , oPos - _Particles[i].position );
+        /*
         if (distance < 0.000001)
         {
             continue;
         }
-        if (distance * 0.004 > _Radius*_Radius * 0.004)
+        */
+        if (distance * 0.004 < _Radius*_Radius * 0.004)
         {
             sum += Poly6Kernel(distance*0.004);
         }
     }
 
-    _Particles[id.x].density = sum * _Particles[id.x].mass * 0.000001;
+    _Particles[id.x].density = sum * _Particles[id.x].mass + 0.000001f;
     _Particles[id.x].pressure = _GasConstant * (_Particles[id.x].density - _RestDensity);
+
+    if (_Particles[id.x].pressure <= 0) _Particles[id.x].pressure = 0;
 }
 
 [numthreads(64, 1, 1)]
@@ -853,23 +857,24 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 	float mass = _Particles[id.x].mass * _Particles[id.x].mass;
 	float3 pressure = float3(0, 0, 0);
 	float3 visc = float3(0, 0, 0);
-    float viscosity = -0.006;
+    float viscosity = -0.003;
 
     for (int i = 0; i < numOfParticles; i++)
     {
-        float dist = distance(_Particles[i].position, origin);
-        if (dist < 0.000001)
-        {
+
+        if (origin.x == _Particles[i].position.x && origin.y == _Particles[i].position.y && origin.z == _Particles[i].position.z) {
             continue;
         }
         
+        float dist = distance(_Particles[i].position, origin);
         if (dist < _Radius * 2)
         {
 			float3 pressureGradDir = normalize(origin - _Particles[i].position);
             float3 pressureContrib = mass * SpikyKernelGradient(dist, pressureGradDir);
 			pressureContrib *= (_Particles[id.x].pressure / density + _Particles[i].pressure / (_Particles[i].density * _Particles[i].density));
 
-            float3 viscosityContrib = viscosity * mass * (_Particles[i].velocity - _Particles[id.x].velocity) / _Particles[i].density * SpikyKernelD2(dist);
+            float3 viscosityContrib = viscosity * mass * (_Particles[i].velocity - _Particles[id.x].velocity) / _Particles[i].density;
+            viscosityContrib *= SpikyKernelD2(dist);
             
 			pressure += pressureContrib;
 			visc += viscosityContrib;

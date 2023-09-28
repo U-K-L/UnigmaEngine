@@ -171,16 +171,25 @@ float4x4 translate(float3 p)
 
 float Poly6Kernel(float distance)
 {
-	float h = 1.0f - distance / (_Radius* _Radius);
+	//float h = 1.0f - distance / (_Radius* _Radius);
+    float h = _Radius;
+    float h9 = pow(h, 9.0f);
+	float constPoly6 = 315.0f / (64.0f * UNITY_PI  * h9);
+	float poly6 = constPoly6 * pow(h * h - distance, 3.0f);
+    return poly6;
     //return the poly6
-	return 315.0f / (64.0f * UNITY_PI * pow(_Radius, 3.0f)) * pow(h, 3.0f);
+	return 315.0f / (64.0f * UNITY_PI * pow(_Radius, 3.0f)) * pow(h, 9.0f);
 }
 
 float SpikyKernelD1(float distance)
 {
 	float h = 1.0f - distance / _Radius;
+	float h6 = pow(_Radius, 6.0f);
+	float spikyConst = 45.0f / (UNITY_PI * h6);
+	float spikyKern = spikyConst * pow(_Radius - distance, 2.0f);
+    return spikyKern;
 	//return the spiky
-	return -45.0f / (UNITY_PI * pow(_Radius, 4.0f)) * pow(h, 2.0f);
+	//return -45.0f / (UNITY_PI * pow(_Radius, 4.0f)) * pow(h, 2.0f);
 }
 
 float SpikyKernelD2(float distance)
@@ -720,11 +729,10 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     //_Particles[id.x].force = float3(0, -9.8, 0);
     // Compute the new velocity via the current force by the mass via f = ma. Then integrate the velocity via v = v + at.
 
-	float3 vel = _Particles[id.x].velocity + (_Particles[id.x].force/ _Particles[id.x].mass) * _TimeStep;
-
+	float3 vel = _Particles[id.x].velocity + (_Particles[id.x].force * _TimeStep);
+    _Particles[id.x].position += vel * _TimeStep;
+    
     //center = mul(_ParentTransform, float4(center, 1)).xyz;
-	float3 previousPoint = _Particles[id.x].position;
-	float3 nextPoint = previousPoint + vel * _TimeStep;
 
 	//float3 wpreviousPoint = mul(_ParentTransform, float4(previousPoint, 1)).xyz;
 	//float3 wnextPoint = mul(_ParentTransform, float4(nextPoint, 1)).xyz;
@@ -773,9 +781,6 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     float3 boxSize = _BoxSize;
     float3 topRight = boxSize/2;
 	float3 bottomLeft = -boxSize/2;
-    
-    //Min Boundary Enforcements
-	_Particles[id.x].position = nextPoint;
 
 	if (_Particles[id.x].position.x - _Radius < bottomLeft.x)
 	{
@@ -830,17 +835,14 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
     for (int i = 0; i < numOfParticles; i++)
     {
         float distance = dot(oPos -_Particles[i].position , oPos - _Particles[i].position );
-        if (distance < 0.000001)
+        if (distance < _Radius*_Radius )
         {
-            continue;
-        }
-        if (distance * 0.004 < _Radius*_Radius * 0.004)
-        {
-            sum += Poly6Kernel(distance*0.004);
+            sum += Poly6Kernel(distance) * _Particles[i].mass;
         }
     }
 
-    _Particles[id.x].density = sum * _Particles[id.x].mass + 0.000001f;
+    _Particles[id.x].density = sum;
+	_Particles[id.x].density = max(_RestDensity, _Particles[id.x].density);
     _Particles[id.x].pressure = _GasConstant * (_Particles[id.x].density - _RestDensity);
 
     if (_Particles[id.x].pressure <= 0) _Particles[id.x].pressure = 0;
@@ -864,23 +866,36 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
             continue;
         }
         
+		float3 diff = origin - _Particles[i].position;
+		float r2 = dot(diff, diff);
+		float r = sqrt(r2);
+        float r3 = r2 * r;
+		float h3 = _Radius * _Radius * _Radius;
+		float h2 = _Radius * _Radius;
+		float h = _Radius;
         float dist = distance(_Particles[i].position, origin);
-        if (dist < _Radius * 2)
+        const float W = -(r3 / (2 * h3)) + (r2 / h2) +
+            (h / (2 * r)) - 1;
+		if (r > 0 && r < _Radius)
         {
-			float3 pressureGradDir = normalize(origin - _Particles[i].position);
-            float3 pressureContrib = mass * SpikyKernelGradient(dist, pressureGradDir);
-			pressureContrib *= (_Particles[id.x].pressure / density + _Particles[i].pressure / (_Particles[i].density * _Particles[i].density));
 
-            float3 viscosityContrib = _Viscosity * mass * (_Particles[i].velocity - _Particles[id.x].velocity) / _Particles[i].density;
-            viscosityContrib *= SpikyKernelD2(dist);
-            
-			pressure += pressureContrib;
-			visc += viscosityContrib;
+			float3 pressureGradDir = normalize(origin - _Particles[i].position);
+
+            pressure += (_Particles[i].mass / _Particles[id.x].mass) * ((_Particles[id.x].pressure + _Particles[i].pressure) / (2 * _Particles[id.x].density * _Particles[i].density)) * SpikyKernelD1(dist) * pressureGradDir;
+
+            //pressure += mass * (_Particles[id.x].pressure / density + _Particles[i].pressure / (_Particles[i].density * _Particles[i].density)) * SpikyKernelGradient(dist, pressureGradDir);   // Kim
+            //visc += _Viscosity * mass * (_Particles[i].velocity - _Particles[id.x].velocity) / _Particles[i].density * SpikyKernelD2(dist);
+            visc += (_Particles[i].mass / _Particles[id.x].mass) *
+                (1.0f / _Particles[i].density) *
+                (_Particles[i].velocity - _Particles[id.x].velocity) *
+                SpikyKernelD1(dist) * pressureGradDir;
             
         }
     }
     
-    _Particles[id.x].force = float3(0, -9.81 * _Particles[id.x].mass, 0) - pressure + visc;
+    visc *= _Viscosity;
+    pressure *= -1;
+	_Particles[id.x].force = (visc + pressure) / _Particles[id.x].density + float3(0,-9.8,0);
 }
 
 

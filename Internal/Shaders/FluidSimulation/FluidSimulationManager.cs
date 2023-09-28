@@ -191,8 +191,13 @@ public class FluidSimulationManager : MonoBehaviour
     {
         //Draw mesh instantiaonation.
         //Graphics.DrawMeshInstancedIndirect()
-        UpdateNonAcceleratedRayTracer();
+        
 
+    }
+
+    private void FixedUpdate()
+    {
+        UpdateNonAcceleratedRayTracer();
     }
 
     void AddObjectsToList()

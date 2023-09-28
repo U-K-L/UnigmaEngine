@@ -774,10 +774,14 @@ MonoBehaviour:
   _LightScale: {fileID: 1827817484}
   numOfParticles: 8192
   _SizeOfParticle: 0.1
-  _GasConstant: 2
-  _Radius: 0.1
+  _MassOfParticle: 0.085
+  _GasConstant: 100
+  _Viscosity: 0.018
+  _TimeStep: 0.016
+  _BoundsDamping: -0.3
+  _Radius: 0.085
   _RestDensity: 1
-  _BoxSize: {x: 10, y: 10, z: 10}
+  _BoxSize: {x: 6, y: 10, z: 10}
   _BoxViewDebug: 0
   RayTracingLayers:
     serializedVersion: 2
@@ -1643,7 +1647,11 @@ MonoBehaviour:
   _LightScale: {fileID: 0}
   numOfParticles: 0
   _SizeOfParticle: 0
+  _MassOfParticle: 1
   _GasConstant: 1
+  _Viscosity: 1
+  _TimeStep: 0.02
+  _BoundsDamping: 9.8
   _Radius: 0.125
   _RestDensity: 1
   _BoxSize: {x: 0, y: 0, z: 0}

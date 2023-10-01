@@ -779,7 +779,7 @@ MonoBehaviour:
   _Viscosity: 0.018
   _TimeStep: 0.016
   _BoundsDamping: -0.3
-  _Radius: 0.5
+  _Radius: 1
   _RestDensity: 1
   _BoxSize: {x: 5, y: 5, z: 5}
   _BoxViewDebug: 0

@@ -3,6 +3,11 @@
 #pragma kernel ComputeDensity
 #pragma kernel ComputeForces
 #pragma kernel SpacePartition
+#pragma kernel UpdatePositionDeltas
+#pragma kernel UpdatePositions
+#pragma kernel HashParticles
+#pragma kernel BitonicSort
+#pragma kernel CalculateCellOffsets
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -28,6 +33,11 @@ float _TimeStep = 2;
 float _BoundDamping = 0.2;
 float3 _BoxSize;
 int _NumOfNodes;
+int _FrustrumSize = 10;
+uint _NumOfParticles;
+int biBlock;
+int biDim;
+int _ChosenParticle = 128;
 
 
 
@@ -85,6 +95,8 @@ struct Particle
     float mass;
     float pressure;
     int cellID;
+    float3 predictedPosition;
+    float3 debugVector;
 };
 
 struct BVHNode
@@ -105,6 +117,9 @@ StructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
 RWStructuredBuffer<Particle> _Particles;
+RWStructuredBuffer<int> _ParticleIndices;
+RWStructuredBuffer<int> _ParticleCellIndices;
+RWStructuredBuffer<int> _ParticleCellOffsets;
 StructuredBuffer<BVHNode> _BVHNodes;
 StructuredBuffer<int> _ParticleIDs;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
@@ -169,27 +184,38 @@ float4x4 translate(float3 p)
         p.x, p.y, p.z, 1.0);
 }
 
-float Poly6Kernel(float distance)
+float Poly6Kernel(float distance2)
 {
-	//float h = 1.0f - distance / (_Radius* _Radius);
-    float h = _Radius;
-    float h9 = pow(h, 9.0f);
-	float constPoly6 = 315.0f / (64.0f * UNITY_PI  * h9);
-	float poly6 = constPoly6 * pow(h * h - distance, 3.0f);
-    return poly6;
-    //return the poly6
-	return 315.0f / (64.0f * UNITY_PI * pow(_Radius, 3.0f)) * pow(h, 9.0f);
+    float result = 0.0;
+    float h = _Radius;//1.0f - distance2 * distance2 / _Radius * _Radius;
+
+    if (0.05 < distance2 && distance2 < h)
+    {
+
+        float h9 = pow(h, 9.0f);
+        float constPoly6 = 315.0f / (64.0f * UNITY_PI * h9);
+        float poly6 = constPoly6 * pow(h * h - distance2 * distance2, 3.0f);
+        result = poly6;
+    }
+    /*
+    if (0.5 < distance2 && distance2 < 2)
+    {
+
+        float h9 = pow(h, 3.0f);
+        float constPoly6 = 21.0f / (16.0f * UNITY_PI * h9);
+		float poly6 = constPoly6 * pow(1 - distance2 / 2, 4.0f) * (1 + 2 * distance2);
+        result = poly6;
+    }
+        */
+    return result;
 }
 
 float SpikyKernelD1(float distance)
 {
-	float h = 1.0f - distance / _Radius;
 	float h6 = pow(_Radius, 6.0f);
 	float spikyConst = 45.0f / (UNITY_PI * h6);
 	float spikyKern = spikyConst * pow(_Radius - distance, 2.0f);
     return spikyKern;
-	//return the spiky
-	//return -45.0f / (UNITY_PI * pow(_Radius, 4.0f)) * pow(h, 2.0f);
 }
 
 float SpikyKernelD2(float distance)
@@ -198,9 +224,36 @@ float SpikyKernelD2(float distance)
     return 90.0f / (UNITY_PI * pow(_Radius, 5.0f)) * h;
 }
 
-float3 SpikyKernelGradient(float distance, float3 direction)
+float3 SpikyKernelGradient(float distance2, float3 direction)
 {
-	return SpikyKernelD1(distance) * direction;
+
+    //return SpikyKernelD1(distance) * direction;
+    float3 result = 0.0;
+    float h = _Radius;//1.0f -distance2 * distance2 / _Radius * _Radius;
+    if (0.05 < distance2 && distance2 < h)
+    {
+        float m = pow(h - distance2, 2.0f);
+        float h6 = pow(h, 6.0f);
+        float spikyConst = -45.0f / (UNITY_PI * h6);
+        float3 spikyKern = spikyConst * m * direction;
+        result = spikyKern;
+    }
+
+    return result;
+
+    /*
+    float3 result = 0.0;
+    float h = _Radius;//1.0f -distance2 * distance2 / _Radius * _Radius;
+    if (0.5 < distance2 && distance2 < 2)
+    {
+        float m = pow(1 - distance2/2, 3.0f);
+        float h6 = pow(h, 5.0f);
+        float spikyConst = -5*21.0f / (16.0f * UNITY_PI * h6);
+        float3 spikyKern = spikyConst * m * direction;
+        result = spikyKern;
+    }
+        */
+    return result;
 }
 
 Ray CreateCameraRay(float2 uv)
@@ -225,6 +278,23 @@ Ray CreateCameraRay(float2 uv)
 
     dir = normalize(dir);
     return CreateRay(og, dir, uv);
+}
+
+int3 GetCell(float3 position)
+{
+    float3 halfS = _BoxSize / 2;
+    return int3((position.x + halfS.x) / _Radius, (position.y + halfS.y) / _Radius, (position.z + halfS.z) / _Radius);
+}
+
+inline uint HashCell(in int3 cellIndex)
+{
+	const uint p1 = 73856093;
+	const uint p2 = 19349663;
+	const uint p3 = 83492791;
+    
+	uint n = p1 * cellIndex.x ^ p2 * cellIndex.y ^ p3 * cellIndex.z;
+	n %= _NumOfParticles;
+    return n;
 }
 
 //Moller method.
@@ -548,12 +618,13 @@ float TraceParticlesBVHIterative(inout Ray ray, inout Hit hit)
 	return minDistance;
 }
 
-float TraceParticlesTBVH(inout Ray ray, inout Hit hit)
+float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
 	float minBVHDistance = 99999999;
     int bvhminIndex = -1;
     int nodeIndex = 0;
+	int particleIndex = -1;
     BVHNode node = _BVHNodes[0];
     for (int i = 0; i < _NumOfNodes; i++)
     {
@@ -572,6 +643,7 @@ float TraceParticlesTBVH(inout Ray ray, inout Hit hit)
                 if (t1 > epsilon && t1 < minDistance)
                 {
                     minDistance = t1;
+                    particleIndex = _ParticleIDs[k];
                 }
             }
 
@@ -645,7 +717,7 @@ float TraceParticlesTBVH(inout Ray ray, inout Hit hit)
         }
     }
     */
-    return minDistance;
+    return float4(minDistance, minDistance, minDistance, particleIndex);
 }
 
 
@@ -668,16 +740,23 @@ float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 
 float4 SceneTrace(inout Ray ray, inout Hit hit)
 {
+
+    float4 result = 99999999;
     float minDistance = 99999999;
-    minDistance = TraceParticlesTBVH(ray, hit);
+	int particleID = -1;
+    result = TraceParticlesTBVH(ray, hit);
+	minDistance = result.x;
+	particleID = result.w;
     //minDistance = TraceParticlesIterative(ray, hit);
     float3 position = ray.o + minDistance * ray.d;
     float4 clipPos = UnityWorldToClipPos(position);
     float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
     depth = 1.0 - depth;
     depth *= minDistance < 999999;
+    //if(particleID == _ChosenParticle)
+    return float4(_Particles[particleID].debugVector, depth);
 
-	return float4(position, depth);
+	//return float4(1,1,1, depth);
     
 }
 
@@ -724,22 +803,26 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void UpdateParticles(uint3 id : SV_DispatchThreadID)
 {
+    int numOfParticles = _NumOfParticles;
+    uint particleIndex = _ParticleIndices[id.x];
+    int3 cellIndex = GetCell(_Particles[particleIndex].position);
+    
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
-    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     //_Particles[id.x].force = float3(0, -9.8, 0);
     // Compute the new velocity via the current force by the mass via f = ma. Then integrate the velocity via v = v + at.
 
-	float3 vel = _Particles[id.x].velocity + (_Particles[id.x].force * _TimeStep);
-    _Particles[id.x].position += vel * _TimeStep;
+	float3 vel = _Particles[particleIndex].velocity + (_Particles[particleIndex].force * _TimeStep);
+    //_Particles[id.x].position += vel * _TimeStep;
+	float3 predictPosition = _Particles[particleIndex].position + vel * _TimeStep;
     
     //center = mul(_ParentTransform, float4(center, 1)).xyz;
 
 	//float3 wpreviousPoint = mul(_ParentTransform, float4(previousPoint, 1)).xyz;
 	//float3 wnextPoint = mul(_ParentTransform, float4(nextPoint, 1)).xyz;
 
-    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(1, 1)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
-    Ray ray = CreateCameraRay(pixel);
-    Hit hit = CreateHit();
+    //float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(1, 1)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
+    //Ray ray = CreateCameraRay(pixel);
+    //Hit hit = CreateHit();
     /*
 	ray.o = previousPoint;
 	ray.d = normalize(nextPoint - previousPoint);
@@ -778,6 +861,8 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
         _Particles[id.x].position = nextPoint;
     }
     */
+
+    /*
     float3 boxSize = _BoxSize;
     float3 topRight = boxSize/2;
 	float3 bottomLeft = -boxSize/2;
@@ -815,43 +900,183 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
 		vel.z *= _BoundsDamping;
 		_Particles[id.x].position.z = topRight.z - _Radius;
 	}
+    */
     
-    _Particles[id.x].velocity = vel;
 
+    //Calculate lambda.
+
+	float3 origin = _Particles[particleIndex].position;
+    float density = (_Particles[particleIndex].density / _RestDensity) - 1;
+    float dNorm = 0;
+
+
+    for (int i = -2; i <= 2; ++i)
+    {
+        for (int j = -2; j <= 2; ++j)
+        {
+            for (int k = -2; k <= 2; ++k)
+            {
+                int3 neighbourIndex = cellIndex + int3(i, j, k);
+                uint hashedNeighborIndex = HashCell(neighbourIndex);
+                uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
+
+                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
+                {
+                    uint particleIndexB = _ParticleIndices[neighbourIterator];
+
+                    if (_ParticleCellIndices[particleIndexB] != hashedNeighborIndex)
+                    {
+                        break;
+                    }
+
+                    Particle neighbour = _Particles[particleIndexB];
+                    if (particleIndexB == particleIndex)
+                    {
+                        neighbourIterator++;
+                        continue;
+                    }
+                    float dist = distance(_Particles[particleIndex].position, _Particles[particleIndexB].position);
+
+                    if (0.01 < dist && dist < _Radius * 2)
+                    {
+                        
+                        float3 pressureGradDir = normalize(_Particles[particleIndex].position - _Particles[particleIndexB].position);
+                        dNorm += dot(density * SpikyKernelGradient(dist, pressureGradDir), density * SpikyKernelGradient(dist, pressureGradDir));
+
+                        if (particleIndex == _ChosenParticle)
+                        {
+                            //Set to color red.
+                            _Particles[particleIndex].debugVector = float3(1, 0, 0);
+                            _Particles[particleIndexB].debugVector = float3(0, 1, 0);
+                        }
+                    }
+                    neighbourIterator++;
+                }
+            }
+        }
+    }
+
+    float lambda = -density / (dNorm + epsilon + 100);
+    _Particles[particleIndex].pressure = lambda;//max(0, min(lambda, 9999));
+    _Particles[particleIndex].predictedPosition = predictPosition;
+    //_Particles[id.x].position = predictPosition;
+    //_Particles[id.x].velocity = vel;
 }
 
+void GetDensityIterative(uint3 id)
+{
+    int numOfParticles = _NumOfParticles;
+    //Loop through all particles comparing it to current particle.
+    float3 oPos = _Particles[id.x].position;
+    float sum = 0;
+    //Check if that particle is in the radius.
+    for (int i = 0; i < numOfParticles; i++)
+    {
+        float distance2 = distance(oPos, _Particles[i].position);//dot(oPos -_Particles[i].position , oPos - _Particles[i].position );
+        sum += Poly6Kernel(distance2) * _Particles[i].mass;
+
+    }
+
+    sum = max(0, sum);
+    sum = min(sum, 9999);
+    _Particles[id.x].density = sum;
+}
+
+void GetDensityGrid(uint3 id)
+{
+    int numOfParticles = _NumOfParticles;
+    uint particleIndex = _ParticleIndices[id.x];
+    int3 cellIndex = GetCell(_Particles[particleIndex].position);
+
+    float3 oPos = _Particles[particleIndex].position;
+    float sum = 0;
+    for (int i = -2; i <= 2; ++i)
+    {
+        for (int j = -2; j <= 2; ++j)
+        {
+            for (int k = -2; k <= 2; ++k)
+            {
+				int3 neighbourIndex = cellIndex + int3(i, j, k);
+				uint hashedNeighborIndex = HashCell(neighbourIndex);
+                uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
+
+                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
+                {
+					uint particleIndexB = _ParticleIndices[neighbourIterator];
+                    
+					if (_ParticleCellIndices[particleIndexB] != hashedNeighborIndex)
+					{
+						break;
+					}
+                    
+					Particle neighbour = _Particles[particleIndexB];
+                    float distance2 = distance(oPos, _Particles[particleIndexB].position);
+                    
+                    if (0.01 < distance2 && distance2 < _Radius * 2)
+                    {
+                        sum += Poly6Kernel(distance2) * _Particles[particleIndexB].mass;
+
+                        if (particleIndex == _ChosenParticle)
+                        {
+                            //Set to color red.
+                            _Particles[particleIndex].debugVector = float3(1, 0, 0);
+                            _Particles[particleIndexB].debugVector = float3(0, 1, 0);
+                        }
+                    }
+                    neighbourIterator++;
+                }
+            }
+        }
+    }
+    
+
+    //sum = max(0, sum);
+    //sum = min(sum, 9999);
+    /*
+    if (id.x == _ChosenParticle)
+    {
+        //Set to color red.
+		_Particles[id.x].debugVector = float3(1, 0, 0);
+    }
+    */
+    _Particles[id.x].density = sum;
+}
 
 //Figure (1)
 [numthreads(64, 1, 1)]
 void ComputeDensity(uint3 id : SV_DispatchThreadID)
 {
+    GetDensityGrid(id);
+    
+    
+    /*
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
 
     //Loop through all particles comparing it to current particle.
     float3 oPos = _Particles[id.x].position;
     float sum = 0;
-
     //Check if that particle is in the radius.
     for (int i = 0; i < numOfParticles; i++)
     {
-        float distance = dot(oPos -_Particles[i].position , oPos - _Particles[i].position );
-        if (distance < _Radius*_Radius )
-        {
-            sum += Poly6Kernel(distance) * _Particles[i].mass;
-        }
+        float distance2 = distance(oPos, _Particles[i].position);//dot(oPos -_Particles[i].position , oPos - _Particles[i].position );
+        sum += Poly6Kernel(distance2) * _Particles[i].mass;
+        
     }
 
+    sum = max(0, sum);
+	sum = min(sum, 9999);
     _Particles[id.x].density = sum;
-	_Particles[id.x].density = max(_RestDensity, _Particles[id.x].density);
-    _Particles[id.x].pressure = _GasConstant * (_Particles[id.x].density - _RestDensity);
+    //_Particles[id.x].pressure = _GasConstant * (_Particles[id.x].density - _RestDensity);
 
-    if (_Particles[id.x].pressure <= 0) _Particles[id.x].pressure = 0;
+    //if (_Particles[id.x].pressure <= 0) _Particles[id.x].pressure = 0;
+    */
 }
 
 [numthreads(64, 1, 1)]
 void ComputeForces(uint3 id : SV_DispatchThreadID)
 {
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
+    /*
     float3 origin = _Particles[id.x].position;
     float density = _Particles[id.x].density * _Particles[id.x].density;
 	float mass = _Particles[id.x].mass * _Particles[id.x].mass;
@@ -895,7 +1120,9 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     
     visc *= _Viscosity;
     pressure *= -1;
-	_Particles[id.x].force = (visc + pressure) / _Particles[id.x].density + float3(0,-9.8,0);
+    */
+	//_Particles[id.x].force = (visc + pressure) / _Particles[id.x].density + float3(0,-9.8,0);
+    _Particles[id.x].force = float3(0, -9.8, 0);
 }
 
 
@@ -903,4 +1130,168 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 void SpacePartition(uint3 id : SV_DispatchThreadID)
 {
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
+}
+
+[numthreads(64, 1, 1)]
+void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
+{
+    int numOfParticles = _NumOfParticles;
+    uint particleIndex = _ParticleIndices[id.x];
+    int3 cellIndex = GetCell(_Particles[particleIndex].position);
+    
+	float3 origin = _Particles[particleIndex].position;
+    float invDensity = 1 / _RestDensity;
+    float3 positionDelta = 0;
+    float3 sum = 0;
+    
+
+    for (int i = -2; i <= 2; ++i)
+    {
+        for (int j = -2; j <= 2; ++j)
+        {
+            for (int k = -2; k <= 2; ++k)
+            {
+                int3 neighbourIndex = cellIndex + int3(i, j, k);
+                uint hashedNeighborIndex = HashCell(neighbourIndex);
+                uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
+
+                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
+                {
+                    uint particleIndexB = _ParticleIndices[neighbourIterator];
+
+                    if (_ParticleCellIndices[particleIndexB] != hashedNeighborIndex)
+                    {
+                        break;
+                    }
+
+                    Particle neighbour = _Particles[particleIndexB];
+                    float dist = distance(_Particles[particleIndex].position, _Particles[particleIndexB].position);
+
+                    if (0.01 < dist && dist < _Radius * 2)
+                    {
+                        
+                        sum += (_Particles[particleIndex].pressure + _Particles[particleIndexB].pressure) * SpikyKernelGradient(dist, normalize(_Particles[particleIndex].position - _Particles[particleIndexB].position));
+
+                        if (particleIndex == _ChosenParticle)
+                        {
+                            //Set to color red.
+                            _Particles[particleIndex].debugVector = float3(1, 0, 0);
+                            _Particles[particleIndexB].debugVector = float3(0, 1, 0);
+                        }
+                    }
+                    neighbourIterator++;
+                }
+            }
+        }
+    }
+    
+    
+    positionDelta = invDensity*sum;
+    positionDelta += _Particles[particleIndex].predictedPosition;
+    float3 vel = 1;
+
+    float3 boxSize = _BoxSize;
+    float3 topRight = boxSize / 2;
+    float3 bottomLeft = -boxSize / 2;
+
+    if (positionDelta.x - _SizeOfParticle < bottomLeft.x)
+    {
+        vel.x *= _BoundsDamping;
+        positionDelta.x = bottomLeft.x + _SizeOfParticle;
+    }
+    if (positionDelta.y - _SizeOfParticle < bottomLeft.y)
+    {
+        vel.y *= _BoundsDamping;
+        positionDelta.y = bottomLeft.y + _SizeOfParticle;
+    }
+    if (positionDelta.z - _SizeOfParticle < bottomLeft.z)
+    {
+        vel.z *= _BoundsDamping;
+        positionDelta.z = bottomLeft.z + _SizeOfParticle;
+    }
+
+
+    //Max Boundary Enforcements
+    if (positionDelta.x + _SizeOfParticle > topRight.x)
+    {
+        vel.x *= _BoundsDamping;
+        positionDelta.x = topRight.x - _SizeOfParticle;
+    }
+    if (positionDelta.y + _SizeOfParticle > topRight.y)
+    {
+        vel.y *= _BoundsDamping;
+        positionDelta.y = topRight.y - _SizeOfParticle;
+    }
+    if (positionDelta.z + _SizeOfParticle > topRight.z)
+    {
+        vel.z *= _BoundsDamping;
+        positionDelta.z = topRight.z - _SizeOfParticle;
+    }
+
+    //Correct position
+	
+    //_Particles[id.x].pressure = sum.x;
+    vel = vel * (positionDelta - _Particles[particleIndex].position) / _TimeStep;
+    vel = min(vel, float3(9999, 9999, 9999));
+    _Particles[particleIndex].predictedPosition = positionDelta;
+	_Particles[particleIndex].velocity = vel;
+    //_Particles[id.x].debugVector = sum;
+}
+
+[numthreads(64, 1, 1)]
+void UpdatePositions(uint3 id : SV_DispatchThreadID)
+{
+    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
+	_Particles[id.x].position = _Particles[id.x].predictedPosition;
+}
+
+[numthreads(256, 1, 1)]
+void HashParticles(uint3 id : SV_DispatchThreadID)
+{
+    _Particles[id.x].debugVector = 1;
+    _ParticleCellOffsets[id.x] = 99999999;
+	_ParticleCellIndices[id.x] = 0;
+    _ParticleIndices[id.x] = id.x;
+    
+    uint particleIndex = _ParticleIndices[id.x];
+    
+    _ParticleCellIndices[particleIndex] = HashCell(GetCell(_Particles[particleIndex].position));
+    
+	_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].position));
+    
+}
+
+[numthreads(256, 1, 1)]
+void BitonicSort(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x + id.y * 256 * 1024;
+    uint j = i ^ biBlock;
+    
+	if (j < i || i >= _NumOfParticles)
+		return;
+
+    uint key_i = _ParticleIndices[i];
+	uint key_j = _ParticleIndices[j];
+	float value_i = _ParticleCellIndices[key_i];
+	float value_j = _ParticleCellIndices[key_j];
+    
+	float diff = (value_i - value_j) * ((i & biDim) == 0 ? 1 : -1);
+    if (diff > 0)
+    {
+		_ParticleIndices[i] = key_j;
+		_ParticleIndices[j] = key_i;
+		//_ParticleCellIndices[i] = value_j;
+		//_ParticleCellIndices[j] = value_i;
+    }
+
+}
+
+[numthreads(256, 1, 1)]
+void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
+{
+	uint particleIndex = _ParticleIndices[id.x];
+	uint cellIndex = _ParticleCellIndices[particleIndex];
+
+	//Sets this value at the index cellIndex. However it waits for all threads and ensures this is the minimum value at that index.
+	InterlockedMin(_ParticleCellOffsets[cellIndex], id.x);
 }

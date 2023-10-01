@@ -738,8 +738,8 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 539306111}
-  m_LocalRotation: {x: 0.2580437, y: 0.41107628, z: -0.122602254, w: 0.865678}
-  m_LocalPosition: {x: -9.36, y: 6.95, z: -10.07}
+  m_LocalRotation: {x: 0.12203047, y: 0.24000117, z: -0.030425634, w: 0.96259147}
+  m_LocalPosition: {x: -4.1, y: 3.1, z: -8.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -772,17 +772,18 @@ MonoBehaviour:
   _Smoothness: 0.05
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
-  numOfParticles: 8192
+  numOfParticles: 2048
   _SizeOfParticle: 0.1
-  _MassOfParticle: 0.085
+  _MassOfParticle: 1
   _GasConstant: 100
   _Viscosity: 0.018
   _TimeStep: 0.016
   _BoundsDamping: -0.3
-  _Radius: 0.085
+  _Radius: 0.5
   _RestDensity: 1
-  _BoxSize: {x: 6, y: 10, z: 10}
+  _BoxSize: {x: 5, y: 5, z: 5}
   _BoxViewDebug: 0
+  _ChosenParticle: 0
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
@@ -1656,6 +1657,7 @@ MonoBehaviour:
   _RestDensity: 1
   _BoxSize: {x: 0, y: 0, z: 0}
   _BoxViewDebug: 0
+  _ChosenParticle: 0
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103

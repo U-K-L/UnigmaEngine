@@ -257,9 +257,9 @@ Shader "Hidden/FluidComposition"
 
                 float depthFiniteDifference3 = depthnormal1.a - depthnormal0.a;
                 float depthFiniteDifference4 = depthnormal3.a - depthnormal2.a;
-                float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2)) * 100;
+                float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2));
                 float depthThreshold = 0.1 * depthnormal0;
-                edgeDepth = edgeDepth > 0 ? 1 : 0;
+                edgeDepth = edgeDepth > 0.005 ? 1 : 0;
 
                 
                 scaleFloor = floor(1 * 0.5);
@@ -454,13 +454,16 @@ Shader "Hidden/FluidComposition"
 				fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor* fluidsDepth.w, 0.55);
 				cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.65, fluidsDepth.w));
 
+                //return edgeNormal;
+                //return waterSpecular;
+                //return fluidsNormal;
                 //return fluidsDepth;
-                //return cleanFluidSingleColor;
+                return fluids.w*waterSpecular +cleanFluidSingleColor + float4(fluids.xyz * fluids.w, fluids.w)*0.25 + edgeDepth;
               
                 //return finalImage;
                 //return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
                 //return densityMap;
-                return float4(fluids.xyz * fluids.w, fluids.w);
+                //return float4(fluids.xyz * fluids.w, fluids.w);
                 //return fluids.w;
                 //return NdotL;
             }

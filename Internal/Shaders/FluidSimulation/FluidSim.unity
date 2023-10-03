@@ -772,22 +772,22 @@ MonoBehaviour:
   _Smoothness: 0.05
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
-  numOfParticles: 2048
-  _SizeOfParticle: 0.1
+  numOfParticles: 8192
+  _SizeOfParticle: 0.25
   _MassOfParticle: 1
   _GasConstant: 100
   _Viscosity: 0.018
-  _TimeStep: 0.05
+  _TimeStep: 0.016
   _BoundsDamping: -0.3
   _Radius: 1
-  _RestDensity: 1
-  _BoxSize: {x: 5, y: 5, z: 5}
+  _RestDensity: 32
+  _BoxSize: {x: 9, y: 6, z: 7}
   _BoxViewDebug: 0
   _ChosenParticle: 0
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
-  _SolveIterations: 5
+  _SolveIterations: 1
 --- !u!114 &539306116
 MonoBehaviour:
   m_ObjectHideFlags: 0

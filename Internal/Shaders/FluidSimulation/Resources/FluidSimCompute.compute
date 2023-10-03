@@ -441,7 +441,7 @@ float IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 	float3 rad = float3(radius, radius, radius);
     
     //Intersect with a box and then smoothly combine boxes together with union operation.
-    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
+    float4 tNFnorm = sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
 	t1 = tNFnorm.x;
     t1 = opU(t1, hit.distance);
     
@@ -727,7 +727,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
     depth = 1.0 - depth;
     depth *= minDistance < 999999;
     //if(particleID == _ChosenParticle)
-    return float4(_Particles[particleID].debugVector, depth);
+    return float4(position, depth);
 
 	//return float4(1,1,1, depth);
     
@@ -914,8 +914,8 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
 
                     if (0.0001f < dist && dist < _Radius * 2.0f)
                     {
-                        float Scorr = 0;//-0.0001 * pow(Poly6Kernel(dist) / Poly6Kernel(0.3), 4);
-                        float left = _Particles[particleIndex].pressure + _Particles[particleIndexB].pressure;// +Scorr;
+                        float Scorr = -0.04 * pow(Poly6Kernel(dist) / Poly6Kernel(0.3), 4);
+                        float left = _Particles[particleIndex].pressure + _Particles[particleIndexB].pressure +Scorr;
 						float3 right = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
 
                         positionDelta += left * right / _RestDensity;//left * right / _RestDensity;

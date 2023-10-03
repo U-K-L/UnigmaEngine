@@ -2,7 +2,6 @@
 #pragma kernel UpdateParticles
 #pragma kernel ComputeDensity
 #pragma kernel ComputeForces
-#pragma kernel SpacePartition
 #pragma kernel UpdatePositionDeltas
 #pragma kernel UpdatePositions
 #pragma kernel HashParticles
@@ -97,6 +96,7 @@ struct Particle
     int cellID;
     float3 predictedPosition;
     float3 debugVector;
+    float3 lastPosition;
 };
 
 struct BVHNode
@@ -218,12 +218,12 @@ float3 SpikyKernelGradient(float distance2, float3 direction)
 {
     float3 result = 0.0;
     float h = _Radius;
-    if (0.0005  < distance2 && distance2 < h)
+    if (0.0f  < distance2 && distance2 < h)
     {
         float m = pow(h - distance2, 2.0f);
         float h6 = pow(h, 6.0f);
-        float spikyConst = -45.0f / (UNITY_PI * h6);
-        float3 spikyKern = spikyConst * m * direction;
+        float spikyConst = -45.0f / (UNITY_PI);
+        float3 spikyKern = (spikyConst * m / (h6 * distance2)) * direction;
         result = spikyKern;
     }
     return result;
@@ -771,15 +771,18 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 	DensityMap[id.xy] = density;
 }
 
-//Based on the following paper: https://matthias-research.github.io/pages/publications/sca03.pdf
-// Particle-Based Fluid Simulation for Interactive Applications
 [numthreads(64, 1, 1)]
-void UpdateParticles(uint3 id : SV_DispatchThreadID)
+void ComputeForces(uint3 id : SV_DispatchThreadID)
 {
-    int numOfParticles = _NumOfParticles;
-    uint particleIndex = _ParticleIndices[id.x];
-    _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
-   
+    //Good.
+    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
+    float3 forces = float3(0, -9.8, 0);
+    float3 vel = _Particles[id.x].velocity;
+    vel += forces * _TimeStep;
+    _Particles[id.x].force = forces;
+    _Particles[id.x].velocity = vel;
+    _Particles[id.x].lastPosition = _Particles[id.x].position;
+    _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
 }
 
 void GetDensityIterative(uint3 id)
@@ -830,9 +833,9 @@ void GetDensityGrid(uint3 id)
                     
 					Particle neighbour = _Particles[particleIndexB];
                     float distance2 = distance(_Particles[particleIndex].predictedPosition, _Particles[particleIndexB].predictedPosition);
-                    float3 pressureGradDir = normalize(_Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
+                    float3 pressureGradDir = _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition;
                     
-                    if (0.001 < distance2 && distance2 < _Radius * 2)
+                    if (0.0001f < distance2 && distance2 < _Radius * 2)
                     {
                         //Poly6
                         densitySum += Poly6Kernel(distance2) * _Particles[particleIndex].mass;
@@ -854,33 +857,14 @@ void GetDensityGrid(uint3 id)
         }
     }
     
-	float constraint = (densitySum / _RestDensity) - 1;
+    float constraint = (densitySum / _RestDensity) - 1;
 	dNorm += dot(spiky_i, spiky_i);
-	float lambda = -constraint / (dNorm + epsilon + 10000);
-
-    //sum = max(0, sum);
-    //sum = min(sum, 9999);
-    /*
-    if (id.x == _ChosenParticle)
-    {
-        //Set to color red.
-		_Particles[id.x].debugVector = float3(1, 0, 0);
-    }
-    */
-    _Particles[id.x].density = densitySum;
-	_Particles[id.x].pressure = lambda;
+    float lambda = -constraint / (dNorm + epsilon + 100.0f);
+    _Particles[particleIndex].density = densitySum;
+    _Particles[particleIndex].debugVector += float3(0, 0, 1) * (densitySum / _RestDensity);
+	_Particles[particleIndex].pressure = lambda;
 }
 
-[numthreads(64, 1, 1)]
-void ComputeForces(uint3 id : SV_DispatchThreadID)
-{
-    //Good.
-    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    float3 forces = float3(0, -9.8, 0);
-    _Particles[id.x].force = forces;
-    _Particles[id.x].velocity += forces * _TimeStep;
-    _Particles[id.x].predictedPosition = _Particles[id.x].position + _Particles[id.x].velocity * _TimeStep;
-}
 
 //Figure (1)
 [numthreads(64, 1, 1)]
@@ -889,14 +873,6 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
     GetDensityGrid(id);
 }
 
-
-
-
-[numthreads(64, 1, 1)]
-void SpacePartition(uint3 id : SV_DispatchThreadID)
-{
-    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-}
 
 [numthreads(64, 1, 1)]
 void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
@@ -927,16 +903,22 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
                         break;
                     }
 
+                    if (particleIndexB == particleIndex)
+                    {
+                        neighbourIterator++;
+                        continue;
+                    }
+                    
                     Particle neighbour = _Particles[particleIndexB];
                     float dist = distance(_Particles[particleIndex].predictedPosition, _Particles[particleIndexB].predictedPosition);
 
-                    if (0.01 < dist && dist < _Radius * 2)
+                    if (0.0001f < dist && dist < _Radius * 2.0f)
                     {
-                        float Scorr = 0;//-0.004 * pow(Poly6Kernel(dist) / Poly6Kernel(0.3), 4);
-						float left = _Particles[particleIndex].pressure + _Particles[particleIndexB].pressure + Scorr;
-						float right = SpikyKernelGradient(dist, normalize(_Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition));
+                        float Scorr = 0;//-0.0001 * pow(Poly6Kernel(dist) / Poly6Kernel(0.3), 4);
+                        float left = _Particles[particleIndex].pressure + _Particles[particleIndexB].pressure;// +Scorr;
+						float3 right = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
 
-						positionDelta += left * right / _RestDensity;
+                        positionDelta += left * right / _RestDensity;//left * right / _RestDensity;
 
                         if (particleIndex == _ChosenParticle)
                         {
@@ -955,19 +937,20 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
     //_Particles[id.x].pressure = sum.x;
     //vel = vel * (positionDelta - _Particles[particleIndex].position) / _TimeStep;
     //vel = min(vel, float3(9999, 9999, 9999));
-    float3 vel = ((positionDelta - _Particles[id.x].position) / _TimeStep);
-    _Particles[particleIndex].position += positionDelta;
-	_Particles[particleIndex].velocity = vel;
+	positionDelta += _Particles[particleIndex].predictedPosition;
+    _Particles[particleIndex].position = positionDelta;
+	//_Particles[particleIndex].velocity = vel;
     //_Particles[id.x].debugVector = sum;
 }
 
-[numthreads(64, 1, 1)]
-void UpdatePositions(uint3 id : SV_DispatchThreadID)
-{
-    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
 
+//Based on the following paper: https://matthias-research.github.io/pages/publications/sca03.pdf
+// Particle-Based Fluid Simulation for Interactive Applications
+[numthreads(64, 1, 1)]
+void UpdateParticles(uint3 id : SV_DispatchThreadID)
+{
     float3 positionDelta = _Particles[id.x].position;
-    float3 vel = 1;
+    float3 velDamping = 1;
 
     float3 boxSize = _BoxSize;
     float3 topRight = boxSize / 2;
@@ -975,17 +958,17 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
 
     if (positionDelta.x - _SizeOfParticle < bottomLeft.x)
     {
-        vel.x *= _BoundsDamping;
+        velDamping.x *= _BoundsDamping;
         positionDelta.x = bottomLeft.x + _SizeOfParticle;
     }
     if (positionDelta.y - _SizeOfParticle < bottomLeft.y)
     {
-        vel.y *= _BoundsDamping;
+        velDamping.y *= _BoundsDamping;
         positionDelta.y = bottomLeft.y + _SizeOfParticle;
     }
     if (positionDelta.z - _SizeOfParticle < bottomLeft.z)
     {
-        vel.z *= _BoundsDamping;
+        velDamping.z *= _BoundsDamping;
         positionDelta.z = bottomLeft.z + _SizeOfParticle;
     }
 
@@ -993,28 +976,79 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     //Max Boundary Enforcements
     if (positionDelta.x + _SizeOfParticle > topRight.x)
     {
-        vel.x *= _BoundsDamping;
+        velDamping.x *= _BoundsDamping;
         positionDelta.x = topRight.x - _SizeOfParticle;
     }
     if (positionDelta.y + _SizeOfParticle > topRight.y)
     {
-        vel.y *= _BoundsDamping;
+        velDamping.y *= _BoundsDamping;
         positionDelta.y = topRight.y - _SizeOfParticle;
     }
     if (positionDelta.z + _SizeOfParticle > topRight.z)
     {
-        vel.z *= _BoundsDamping;
+        velDamping.z *= _BoundsDamping;
         positionDelta.z = topRight.z - _SizeOfParticle;
     }
 
-    _Particles[id.x].velocity *= vel;
+    _Particles[id.x].predictedPosition = positionDelta;
+}
+
+[numthreads(64, 1, 1)]
+void UpdatePositions(uint3 id : SV_DispatchThreadID)
+{
+    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
+
+    float3 positionDelta = _Particles[id.x].predictedPosition;
+    float3 velDamping = 1;
+
+    float3 boxSize = _BoxSize;
+    float3 topRight = boxSize / 2;
+    float3 bottomLeft = -boxSize / 2;
+
+    if (positionDelta.x - _SizeOfParticle < bottomLeft.x)
+    {
+        velDamping.x *= _BoundsDamping;
+        positionDelta.x = bottomLeft.x + _SizeOfParticle;
+    }
+    if (positionDelta.y - _SizeOfParticle < bottomLeft.y)
+    {
+        velDamping.y *= _BoundsDamping;
+        positionDelta.y = bottomLeft.y + _SizeOfParticle;
+    }
+    if (positionDelta.z - _SizeOfParticle < bottomLeft.z)
+    {
+        velDamping.z *= _BoundsDamping;
+        positionDelta.z = bottomLeft.z + _SizeOfParticle;
+    }
+
+
+    //Max Boundary Enforcements
+    if (positionDelta.x + _SizeOfParticle > topRight.x)
+    {
+        velDamping.x *= _BoundsDamping;
+        positionDelta.x = topRight.x - _SizeOfParticle;
+    }
+    if (positionDelta.y + _SizeOfParticle > topRight.y)
+    {
+        velDamping.y *= _BoundsDamping;
+        positionDelta.y = topRight.y - _SizeOfParticle;
+    }
+    if (positionDelta.z + _SizeOfParticle > topRight.z)
+    {
+        velDamping.z *= _BoundsDamping;
+        positionDelta.z = topRight.z - _SizeOfParticle;
+    }
+
+    float3 vel = ((positionDelta - _Particles[id.x].lastPosition) / _TimeStep);
+    
+    _Particles[id.x].velocity = vel; //* velDamping;
 	_Particles[id.x].position = positionDelta;
 }
 
 [numthreads(256, 1, 1)]
 void HashParticles(uint3 id : SV_DispatchThreadID)
 {
-    _Particles[id.x].debugVector = 1;
+    _Particles[id.x].debugVector = 0.25;
     _ParticleCellOffsets[id.x] = 99999999;
 	_ParticleCellIndices[id.x] = 0;
     _ParticleIndices[id.x] = id.x;

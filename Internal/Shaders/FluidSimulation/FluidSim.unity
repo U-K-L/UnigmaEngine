@@ -777,7 +777,7 @@ MonoBehaviour:
   _MassOfParticle: 1
   _GasConstant: 100
   _Viscosity: 0.018
-  _TimeStep: 0.016
+  _TimeStep: 0.05
   _BoundsDamping: -0.3
   _Radius: 1
   _RestDensity: 1
@@ -787,6 +787,7 @@ MonoBehaviour:
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
+  _SolveIterations: 5
 --- !u!114 &539306116
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1661,6 +1662,7 @@ MonoBehaviour:
   RayTracingLayers:
     serializedVersion: 2
     m_Bits: 4194103
+  _SolveIterations: 1
 --- !u!114 &6381133546050614430
 MonoBehaviour:
   m_ObjectHideFlags: 0

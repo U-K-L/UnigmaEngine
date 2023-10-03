@@ -107,6 +107,7 @@ public class FluidSimulationManager : MonoBehaviour
         public int cellID;
         public Vector3 predictedPosition;
         public Vector3 debugVector;
+        public Vector3 lastPosition;
     };
 
     struct PNode
@@ -129,7 +130,7 @@ public class FluidSimulationManager : MonoBehaviour
         public int miss;
     }
     
-    int _ParticleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 5);
+    int _ParticleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 6);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 8;
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -148,6 +149,8 @@ public class FluidSimulationManager : MonoBehaviour
 
     private List<PNode> PNodes;
     private BVHNode[] _BVHNodes;
+
+    public int _SolveIterations = 1;
     int nodesUsed = 1;
     private void Awake()
     {
@@ -662,9 +665,13 @@ public class FluidSimulationManager : MonoBehaviour
         SortParticles();
         _fluidSimulationCompute.Dispatch(_CalculateCellOffsets, numOfParticles / 256, (int)threadsY, (int)threadsZ);
 
-        _fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles/64, (int)threadsY, (int)threadsZ);
-        //_fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, numOfParticles/64, (int)threadsY, (int)threadsZ);
-        _fluidSimulationCompute.Dispatch(_UpdatePositionDeltas, numOfParticles / 64, (int)threadsY, (int)threadsZ);
+        for (int i = 0; i < _SolveIterations; i++)
+        {
+            _fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles / 64, (int)threadsY, (int)threadsZ);
+            _fluidSimulationCompute.Dispatch(_UpdatePositionDeltas, numOfParticles / 64, (int)threadsY, (int)threadsZ);
+            _fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, numOfParticles / 64, (int)threadsY, (int)threadsZ);
+        }
+
         _fluidSimulationCompute.Dispatch(_UpdatePositions, numOfParticles / 64, (int)threadsY, (int)threadsZ);
 
         //Set Particle positions to script.

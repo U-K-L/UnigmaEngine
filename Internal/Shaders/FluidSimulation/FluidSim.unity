@@ -772,7 +772,8 @@ MonoBehaviour:
   _Smoothness: 0.05
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
-  numOfParticles: 8192
+  numOfParticles: 2048
+  maxNumOfParticles: 8192
   _SizeOfParticle: 0.25
   _MassOfParticle: 1
   _GasConstant: 100
@@ -1648,6 +1649,7 @@ MonoBehaviour:
   _LightSouce: {fileID: 0}
   _LightScale: {fileID: 0}
   numOfParticles: 0
+  maxNumOfParticles: 0
   _SizeOfParticle: 0
   _MassOfParticle: 1
   _GasConstant: 1

@@ -20,6 +20,18 @@ public class FluidSimulationManager : MonoBehaviour
     int _HashParticles;
     int _SortParticles;
     int _CalculateCellOffsets;
+
+    //Get the thread size for each kernel.
+    Vector3 _updateParticlesThreadSize;
+    Vector3 _computeForcesThreadSize;
+    Vector3 _computeDensityThreadSize;
+    Vector3 _createGridThreadSize;
+    Vector3 _updatePositionDeltasThreadSize;
+    Vector3 _updatePositionsThreadSize;
+    Vector3 _hashParticlesThreadSize;
+    Vector3 _sortParticlesThreadSize;
+    Vector3 _calculateCellOffsetsThreadSize;
+
     Camera _cam;
     RenderTexture _rtTarget;
     RenderTexture _densityMap;
@@ -49,6 +61,7 @@ public class FluidSimulationManager : MonoBehaviour
     public Transform _LightSouce;
     public Transform _LightScale;
     public int numOfParticles;
+    public int maxNumOfParticles;
     public float _SizeOfParticle = 0.125f;
     public float _MassOfParticle = 1.0f;
     public float _GasConstant = 1.0f;
@@ -99,7 +112,7 @@ public class FluidSimulationManager : MonoBehaviour
     struct Particles
     {
         public Vector3 position;
-        public Vector3 force;
+        public Vector4 force;
         public Vector3 velocity;
         public float density;
         public float mass;
@@ -130,7 +143,7 @@ public class FluidSimulationManager : MonoBehaviour
         public int miss;
     }
     
-    int _ParticleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 6);
+    int _ParticleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 5 + (sizeof(float) * 4));
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 8;
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -176,12 +189,12 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidNormalBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidDepthBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
 
-        _Particles = new Particles[numOfParticles];
-        _ParticleIDs = new int[numOfParticles];
-        _ParticleIndices = new int[numOfParticles];
-        _ParticleCellIndices = new int[numOfParticles];
-        _ParticleCellOffsets = new int[numOfParticles];
-        _BVHNodes = new BVHNode[numOfParticles];
+        _Particles = new Particles[maxNumOfParticles];
+        _ParticleIDs = new int[maxNumOfParticles];
+        _ParticleIndices = new int[maxNumOfParticles];
+        _ParticleCellIndices = new int[maxNumOfParticles];
+        _ParticleCellOffsets = new int[maxNumOfParticles];
+        _BVHNodes = new BVHNode[maxNumOfParticles];
 
         _UpdateParticlesKernel = _fluidSimulationCompute.FindKernel("UpdateParticles");
         _HashParticles = _fluidSimulationCompute.FindKernel("HashParticles");
@@ -203,12 +216,45 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetTexture(_CreateGrid, "Result", _rtTarget);
         _fluidSimulationCompute.SetTexture(_CreateGrid, "DensityMap", _densityMap);
         _fluidSimulationCompute.SetTexture(_CreateGrid, "NormalMap", _fluidNormalBuffer);
-        
-        
+
+
+        GetThreadSizes();
         AddObjectsToList();
         CreateNonAcceleratedStructure();
         CreateFluidCommandBuffers();
         //UpdateNonAcceleratedRayTracer();
+
+    }
+
+    void GetThreadSizes()
+    {
+        uint threadsX, threadsY, threadsZ;
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
+        _updateParticlesThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_HashParticles, out threadsX, out threadsY, out threadsZ);
+        _hashParticlesThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_SortParticles, out threadsX, out threadsY, out threadsZ);
+        _sortParticlesThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_CalculateCellOffsets, out threadsX, out threadsY, out threadsZ);
+        _calculateCellOffsetsThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_CreateGrid, out threadsX, out threadsY, out threadsZ);
+        _createGridThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_ComputeForces, out threadsX, out threadsY, out threadsZ);
+        _computeForcesThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_ComputeDensity, out threadsX, out threadsY, out threadsZ);
+        _computeDensityThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdatePositionDeltas, out threadsX, out threadsY, out threadsZ);
+        _updatePositionDeltasThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdatePositions, out threadsX, out threadsY, out threadsZ);
+        _updatePositionsThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
     }
 
@@ -302,16 +348,51 @@ public class FluidSimulationManager : MonoBehaviour
 
     void UpdateNonAcceleratedRayTracer()
     {
+        if (Input.GetKey(KeyCode.Space))
+        {
+            //PrintParticleData();
+            ShootParticles();
+        }
         //Build the BVH
         UpdateParticles();
         BuildBVH();
         //Only if spacebar is pressed
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            PrintParticleData();
-        }
+
         
 
+    }
+
+    void ShootParticles()
+    {
+        int sizeOfNewParticlesAdded = 1;
+        //Cubed root num of particles:
+        float numOfParticlesCubedRoot = Mathf.Pow(sizeOfNewParticlesAdded, 1.0f / 3.0f);
+        float numOfParticlesSquaredRoot = Mathf.Sqrt(sizeOfNewParticlesAdded);
+        //Create particles.
+        //SpawnParticlesInBox();
+        for (int i = numOfParticles; i < numOfParticles + sizeOfNewParticlesAdded; i++)
+        {
+            _ParticleIndices[i] = i;
+            //_ParticleCellIndices[i] = i;
+            //_ParticleCellOffsets[i] = i;
+            _ParticleIDs[i] = i;
+            //Random position in sphere within box.
+            Vector3 randomPos = Random.insideUnitSphere;
+            _Particles[i].position = randomPos;
+            //_Particles[i].position = new Vector3(0.25f, 0.25f, 0.25f) * i;
+            //_Particles[i].position = new Vector3((i % numOfParticlesCubedRoot) / ((1 / _BoxSize.x) * numOfParticlesCubedRoot) - (_BoxSize.x * 0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.y) * numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
+            //_Particles[i].position = SpawnParticles[i];
+            //_Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
+            //_Particles[i].position = new Vector3((i % numOfParticlesCubedRoot) / (_SizeOfParticle * numOfParticlesCubedRoot) - (_BoxSize.x * 0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.y) * numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
+            _Particles[i].mass = _MassOfParticle;
+            _Particles[i].velocity = Vector3.zero;
+            _Particles[i].force = new Vector4(355.0f, 0.0f, 0.0f, 0.0f);
+            _Particles[i].density = 0.0f;
+            _Particles[i].pressure = 0.0f;
+            _Particles[i].predictedPosition = _Particles[i].position;
+        }
+        numOfParticles += sizeOfNewParticlesAdded;
+        _particleBuffer.SetData(_Particles);
     }
 
     //To build the BVH we need to take all of the game objects in our raytracing list.
@@ -385,6 +466,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_ParticleIDs", _particleIDsBuffer);
         _fluidSimulationCompute.SetInt("_NumOfNodes", nodesUsed);
         _fluidSimulationCompute.SetInt("_NumOfParticles", numOfParticles);
+        _fluidSimulationCompute.SetInt("_MaxNumOfParticles", maxNumOfParticles);
         //PrintBVH();
 
     }
@@ -569,10 +651,10 @@ public class FluidSimulationManager : MonoBehaviour
         //Create particle buffer.
         if (_particleBuffer == null)
         {
-            _particleBuffer = new ComputeBuffer(numOfParticles, _ParticleStride );
-            _particleIndices = new ComputeBuffer(numOfParticles, sizeof(int));
-            _particleCellIndices = new ComputeBuffer(numOfParticles, sizeof(int));
-            _particleCellOffsets = new ComputeBuffer(numOfParticles, sizeof(int));
+            _particleBuffer = new ComputeBuffer(maxNumOfParticles, _ParticleStride );
+            _particleIndices = new ComputeBuffer(maxNumOfParticles, sizeof(int));
+            _particleCellIndices = new ComputeBuffer(maxNumOfParticles, sizeof(int));
+            _particleCellOffsets = new ComputeBuffer(maxNumOfParticles, sizeof(int));
 
             //Cubed root num of particles:
             float numOfParticlesCubedRoot = Mathf.Pow(numOfParticles, 1.0f / 3.0f);
@@ -592,7 +674,7 @@ public class FluidSimulationManager : MonoBehaviour
                 //_Particles[i].position = new Vector3((i % numOfParticlesCubedRoot) / (_SizeOfParticle * numOfParticlesCubedRoot) - (_BoxSize.x * 0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.y) * numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
                 _Particles[i].mass = _MassOfParticle;
                 _Particles[i].velocity = Vector3.zero;
-                _Particles[i].force = Vector3.zero;
+                _Particles[i].force = new Vector4(0.0f, -9.8f, 0.0f);
                 _Particles[i].density = 0.0f;
                 _Particles[i].pressure = 0.0f;
                 _Particles[i].predictedPosition = _Particles[i].position;
@@ -654,26 +736,24 @@ public class FluidSimulationManager : MonoBehaviour
             _BVHNodes[i].rightChild = -1;
             _Particles[i].mass = _MassOfParticle;
         }
-        //Update particles.
-        uint threadsX, threadsY, threadsZ;
-        _fluidSimulationCompute.GetKernelThreadGroupSizes(_UpdateParticlesKernel, out threadsX, out threadsY, out threadsZ);
 
         //Make proper thread group sizes.
-        _fluidSimulationCompute.Dispatch(_ComputeForces, numOfParticles / 64, (int)threadsY, (int)threadsZ);
+        Debug.Log(Mathf.CeilToInt(numOfParticles / _computeForcesThreadSize.x));
 
-        _fluidSimulationCompute.Dispatch(_HashParticles, numOfParticles / 256, (int)threadsY, (int)threadsZ);
+        _fluidSimulationCompute.Dispatch(_ComputeForces, Mathf.CeilToInt(numOfParticles / _computeForcesThreadSize.x), 1, 1);
+        _fluidSimulationCompute.Dispatch(_HashParticles, Mathf.CeilToInt(numOfParticles / _hashParticlesThreadSize.x), 1, 1);
         SortParticles();
-        _fluidSimulationCompute.Dispatch(_CalculateCellOffsets, numOfParticles / 256, (int)threadsY, (int)threadsZ);
+
+        _fluidSimulationCompute.Dispatch(_CalculateCellOffsets, Mathf.CeilToInt(numOfParticles / _calculateCellOffsetsThreadSize.x), 1, 1);
 
         for (int i = 0; i < _SolveIterations; i++)
         {
-            _fluidSimulationCompute.Dispatch(_ComputeDensity, numOfParticles / 64, (int)threadsY, (int)threadsZ);
-            _fluidSimulationCompute.Dispatch(_UpdatePositionDeltas, numOfParticles / 64, (int)threadsY, (int)threadsZ);
-            _fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, numOfParticles / 64, (int)threadsY, (int)threadsZ);
+            _fluidSimulationCompute.Dispatch(_ComputeDensity, Mathf.CeilToInt(numOfParticles / _computeDensityThreadSize.x), 1, 1);
+            _fluidSimulationCompute.Dispatch(_UpdatePositionDeltas, Mathf.CeilToInt(numOfParticles / _updatePositionDeltasThreadSize.x), 1, 1);
+            _fluidSimulationCompute.Dispatch(_UpdateParticlesKernel, Mathf.CeilToInt(numOfParticles / _updateParticlesThreadSize.x), 1, 1);
         }
 
-        _fluidSimulationCompute.Dispatch(_UpdatePositions, numOfParticles / 64, (int)threadsY, (int)threadsZ);
-
+        _fluidSimulationCompute.Dispatch(_UpdatePositions, Mathf.CeilToInt(numOfParticles / _updatePositionsThreadSize.x), 1, 1);
         //Set Particle positions to script.
         _particleBuffer.GetData(_Particles);
 

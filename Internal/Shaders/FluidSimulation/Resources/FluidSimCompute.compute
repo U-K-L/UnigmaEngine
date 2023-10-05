@@ -34,6 +34,7 @@ float3 _BoxSize;
 int _NumOfNodes;
 int _FrustrumSize = 10;
 uint _NumOfParticles;
+uint _MaxNumOfParticles;
 int biBlock;
 int biDim;
 int _ChosenParticle = 128;
@@ -88,7 +89,7 @@ struct Hit
 struct Particle
 {
     float3 position;
-    float3 force;
+    float4 force;
     float3 velocity;
     float density;
     float mass;
@@ -727,7 +728,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
     depth = 1.0 - depth;
     depth *= minDistance < 999999;
     //if(particleID == _ChosenParticle)
-    return float4(position, depth);
+    return float4(position.xyz, depth);
 
 	//return float4(1,1,1, depth);
     
@@ -775,10 +776,16 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 void ComputeForces(uint3 id : SV_DispatchThreadID)
 {
     //Good.
+	if (id.x >= _NumOfParticles)
+	{
+		return;
+	}
+
+	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    float3 forces = float3(0, -9.8, 0);
+    float4 forces = _Particles[id.x].force + constantForces;
     float3 vel = _Particles[id.x].velocity;
-    vel += forces * _TimeStep;
+    vel += forces.xyz * _TimeStep;
     _Particles[id.x].force = forces;
     _Particles[id.x].velocity = vel;
     _Particles[id.x].lastPosition = _Particles[id.x].position;
@@ -870,6 +877,11 @@ void GetDensityGrid(uint3 id)
 [numthreads(64, 1, 1)]
 void ComputeDensity(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
     GetDensityGrid(id);
 }
 
@@ -877,6 +889,11 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
     int numOfParticles = _NumOfParticles;
     uint particleIndex = _ParticleIndices[id.x];
     int3 cellIndex = GetCell(_Particles[particleIndex].predictedPosition);
@@ -949,6 +966,11 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void UpdateParticles(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
     float3 positionDelta = _Particles[id.x].position;
     float3 velDamping = 1;
 
@@ -996,6 +1018,11 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void UpdatePositions(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
 
     float3 positionDelta = _Particles[id.x].predictedPosition;
@@ -1022,6 +1049,7 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     }
 
 
+    /*
     //Max Boundary Enforcements
     if (positionDelta.x + _SizeOfParticle > topRight.x)
     {
@@ -1038,16 +1066,22 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
         velDamping.z *= _BoundsDamping;
         positionDelta.z = topRight.z - _SizeOfParticle;
     }
-
+    */
     float3 vel = ((positionDelta - _Particles[id.x].lastPosition) / _TimeStep);
     
     _Particles[id.x].velocity = vel; //* velDamping;
 	_Particles[id.x].position = positionDelta;
+	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
 }
 
 [numthreads(256, 1, 1)]
 void HashParticles(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
     _Particles[id.x].debugVector = 0.25;
     _ParticleCellOffsets[id.x] = 99999999;
 	_ParticleCellIndices[id.x] = 0;
@@ -1064,6 +1098,11 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
 [numthreads(256, 1, 1)]
 void BitonicSort(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
     uint i = id.x + id.y * 256 * 1024;
     uint j = i ^ biBlock;
     
@@ -1089,6 +1128,11 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
 [numthreads(256, 1, 1)]
 void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
 	uint particleIndex = _ParticleIndices[id.x];
 	uint cellIndex = _ParticleCellIndices[particleIndex];
 

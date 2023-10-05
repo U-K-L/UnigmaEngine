@@ -614,9 +614,12 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
 
                 float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
 
-                if (t1 > epsilon && t1 < minDistance)
+                if (t1 > epsilon && t1 < hit.distance)
                 {
-                    minDistance = t1;
+                    float4 clipPos = UnityWorldToClipPos(position);
+                    float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
+                    hit.depth = 1.0 - depth;
+                    hit.distance = t1;
                     particleIndex = _ParticleIDs[k];
                 }
             }
@@ -718,17 +721,24 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
     float4 result = 99999999;
     float minDistance = 99999999;
 	int particleID = -1;
+
+    for (int k = 0; k < numOfStructs; k++)
+    {
+        MeshObject meshObject = _MeshObjects[k];
+        if (TraceAABB(ray, hit, meshObject) == true)
+        {
+            TraceMesh(ray, hit, meshObject);
+        }
+
+    }
+    
     result = TraceParticlesTBVH(ray, hit);
 	minDistance = result.x;
 	particleID = result.w;
     //minDistance = TraceParticlesIterative(ray, hit);
-    float3 position = ray.o + minDistance * ray.d;
-    float4 clipPos = UnityWorldToClipPos(position);
-    float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
-    depth = 1.0 - depth;
-    depth *= minDistance < 999999;
+    float3 position = ray.o + hit.distance * ray.d;
     //if(particleID == _ChosenParticle)
-    return float4(position.xyz, depth);
+    return float4(position.xyz, hit.depth);
 
 	//return float4(1,1,1, depth);
     
@@ -781,7 +791,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
-	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0);
+	float4 constantForces = float4(0.0, -12.8, 0.0, 0.0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force + constantForces;
     float3 vel = _Particles[id.x].velocity;
@@ -1011,7 +1021,22 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
         velDamping.z *= _BoundsDamping;
         positionDelta.z = topRight.z - _SizeOfParticle;
     }
+    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(1, 1)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
+    Ray ray = CreateCameraRay(pixel);
+    Hit hit = CreateHit();
 
+    ray.o = _Particles[id.x].lastPosition;
+    ray.d = normalize(positionDelta - _Particles[id.x].lastPosition);
+
+    CollisionTrace(ray, hit);
+    
+    if (hit.distance < abs(length(positionDelta - _Particles[id.x].lastPosition)) + 10)
+    {
+        //We hit something.
+        positionDelta = hit.position;
+
+    }
+        
     _Particles[id.x].predictedPosition = positionDelta;
 }
 
@@ -1048,8 +1073,6 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
         positionDelta.z = bottomLeft.z + _SizeOfParticle;
     }
 
-
-    /*
     //Max Boundary Enforcements
     if (positionDelta.x + _SizeOfParticle > topRight.x)
     {
@@ -1066,7 +1089,25 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
         velDamping.z *= _BoundsDamping;
         positionDelta.z = topRight.z - _SizeOfParticle;
     }
-    */
+
+    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(1, 1)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
+    Ray ray = CreateCameraRay(pixel);
+    Hit hit = CreateHit();
+
+    ray.o = _Particles[id.x].lastPosition;
+    ray.d = normalize(positionDelta - _Particles[id.x].lastPosition);
+
+    CollisionTrace(ray, hit);
+
+    if (hit.distance < abs(length(positionDelta - _Particles[id.x].lastPosition)) + 10)
+    {
+        //We hit something.
+        positionDelta = _Particles[id.x].lastPosition;
+        
+
+    }
+
+    
     float3 vel = ((positionDelta - _Particles[id.x].lastPosition) / _TimeStep);
     
     _Particles[id.x].velocity = vel; //* velDamping;

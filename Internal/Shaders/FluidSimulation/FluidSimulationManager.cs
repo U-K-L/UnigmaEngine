@@ -341,9 +341,12 @@ public class FluidSimulationManager : MonoBehaviour
         _verticesObjectBuffer.SetData(Vertices);
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_Vertices", _verticesObjectBuffer);
         _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_Vertices", _verticesObjectBuffer);
+        _fluidSimulationCompute.SetBuffer(_UpdatePositions, "_Vertices", _verticesObjectBuffer);
         _indicesObjectBuffer.SetData(Indices);
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_Indices", _indicesObjectBuffer);
         _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_Indices", _indicesObjectBuffer);
+        _fluidSimulationCompute.SetBuffer(_UpdatePositions, "_Indices", _indicesObjectBuffer);
+
     }
 
     void UpdateNonAcceleratedRayTracer()
@@ -354,6 +357,7 @@ public class FluidSimulationManager : MonoBehaviour
             ShootParticles();
         }
         //Build the BVH
+        CreateMeshes();
         UpdateParticles();
         BuildBVH();
         //Only if spacebar is pressed
@@ -362,56 +366,8 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
-    void ShootParticles()
+    void CreateMeshes()
     {
-        int sizeOfNewParticlesAdded = 1;
-        //Cubed root num of particles:
-        float numOfParticlesCubedRoot = Mathf.Pow(sizeOfNewParticlesAdded, 1.0f / 3.0f);
-        float numOfParticlesSquaredRoot = Mathf.Sqrt(sizeOfNewParticlesAdded);
-        //Create particles.
-        //SpawnParticlesInBox();
-        for (int i = numOfParticles; i < numOfParticles + sizeOfNewParticlesAdded; i++)
-        {
-            _ParticleIndices[i] = i;
-            //_ParticleCellIndices[i] = i;
-            //_ParticleCellOffsets[i] = i;
-            _ParticleIDs[i] = i;
-            //Random position in sphere within box.
-            Vector3 randomPos = Random.insideUnitSphere;
-            _Particles[i].position = randomPos;
-            //_Particles[i].position = new Vector3(0.25f, 0.25f, 0.25f) * i;
-            //_Particles[i].position = new Vector3((i % numOfParticlesCubedRoot) / ((1 / _BoxSize.x) * numOfParticlesCubedRoot) - (_BoxSize.x * 0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.y) * numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
-            //_Particles[i].position = SpawnParticles[i];
-            //_Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
-            //_Particles[i].position = new Vector3((i % numOfParticlesCubedRoot) / (_SizeOfParticle * numOfParticlesCubedRoot) - (_BoxSize.x * 0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.y) * numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
-            _Particles[i].mass = _MassOfParticle;
-            _Particles[i].velocity = Vector3.zero;
-            _Particles[i].force = new Vector4(355.0f, 0.0f, 0.0f, 0.0f);
-            _Particles[i].density = 0.0f;
-            _Particles[i].pressure = 0.0f;
-            _Particles[i].predictedPosition = _Particles[i].position;
-        }
-        numOfParticles += sizeOfNewParticlesAdded;
-        _particleBuffer.SetData(_Particles);
-    }
-
-    //To build the BVH we need to take all of the game objects in our raytracing list.
-    //Afterwards place them in a tree with the root node containing all of the objects.
-    //The bounding box is calculated by finding the min and max vertices for each axis.
-    //If the ray intersects the box we search the triangles of that node, if not we traverse another node and ignore the children.
-    unsafe void BuildBVH()
-    {
-        //First traverse through all of the objects and create their bounding boxes.
-
-        //Get positions stored them to mesh objects.
-
-        //Update position of mesh objects.
-        if (_BVHNodesBuffer == null)
-        {
-            _BVHNodesBuffer = new ComputeBuffer(_BVHNodes.Length, _BVHStride);
-            _particleIDsBuffer = new ComputeBuffer(_ParticleIDs.Length, 4);
-        }
-
         for (int i = 0; i < _RayTracedObjects.Count; i++)
         {
             MeshObject meshobj = new MeshObject();
@@ -439,11 +395,70 @@ public class FluidSimulationManager : MonoBehaviour
             _meshObjectBuffer.SetData(meshObjects);
             _fluidSimulationCompute.SetBuffer(_CreateGrid, "_MeshObjects", _meshObjectBuffer);
             _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_MeshObjects", _meshObjectBuffer);
+            _fluidSimulationCompute.SetBuffer(_UpdatePositions, "_MeshObjects", _meshObjectBuffer);
         }
 
         _meshObjectBuffer.SetData(meshObjects);
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_MeshObjects", _meshObjectBuffer);
         _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_MeshObjects", _meshObjectBuffer);
+        _fluidSimulationCompute.SetBuffer(_UpdatePositions, "_MeshObjects", _meshObjectBuffer);
+
+    }
+
+    void ShootParticles()
+    {
+        if (numOfParticles >= maxNumOfParticles)
+        {
+            return;
+        }
+        int sizeOfNewParticlesAdded = 16;
+        //Cubed root num of particles:
+        float numOfParticlesCubedRoot = Mathf.Pow(sizeOfNewParticlesAdded, 1.0f / 3.0f);
+        float numOfParticlesSquaredRoot = Mathf.Sqrt(sizeOfNewParticlesAdded);
+        //Create particles.
+        //SpawnParticlesInBox();
+        for (int i = numOfParticles; i < numOfParticles + sizeOfNewParticlesAdded; i++)
+        {
+            _ParticleIndices[i] = i;
+            //_ParticleCellIndices[i] = i;
+            //_ParticleCellOffsets[i] = i;
+            _ParticleIDs[i] = i;
+            //Random position in sphere within box.
+            Vector3 randomPos = Random.insideUnitSphere;
+            _Particles[i].position = randomPos;
+            //_Particles[i].position = new Vector3(0.25f, 0.25f, 0.25f) * i;
+            //_Particles[i].position = new Vector3((i % numOfParticlesCubedRoot) / ((1 / _BoxSize.x) * numOfParticlesCubedRoot) - (_BoxSize.x * 0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.y) * numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
+            //_Particles[i].position = SpawnParticles[i];
+            //_Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
+            //_Particles[i].position = new Vector3((i % numOfParticlesCubedRoot) / (_SizeOfParticle * numOfParticlesCubedRoot) - (_BoxSize.x * 0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.y) * numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
+            _Particles[i].mass = _MassOfParticle;
+            _Particles[i].velocity = Vector3.zero;
+            _Particles[i].force = new Vector4(555.0f, 0.0f, 0.0f, 0.35f);
+            _Particles[i].density = 0.0f;
+            _Particles[i].pressure = 0.0f;
+            _Particles[i].predictedPosition = _Particles[i].position;
+        }
+        numOfParticles += sizeOfNewParticlesAdded;
+        _particleBuffer.SetData(_Particles);
+    }
+
+    //To build the BVH we need to take all of the game objects in our raytracing list.
+    //Afterwards place them in a tree with the root node containing all of the objects.
+    //The bounding box is calculated by finding the min and max vertices for each axis.
+    //If the ray intersects the box we search the triangles of that node, if not we traverse another node and ignore the children.
+    unsafe void BuildBVH()
+    {
+        //First traverse through all of the objects and create their bounding boxes.
+
+        //Get positions stored them to mesh objects.
+
+        //Update position of mesh objects.
+        if (_BVHNodesBuffer == null)
+        {
+            _BVHNodesBuffer = new ComputeBuffer(_BVHNodes.Length, _BVHStride);
+            _particleIDsBuffer = new ComputeBuffer(_ParticleIDs.Length, 4);
+        }
+
 
         //Update Particle BVH.
         int rootNodeIndex = 0;
@@ -741,6 +756,7 @@ public class FluidSimulationManager : MonoBehaviour
         Debug.Log(Mathf.CeilToInt(numOfParticles / _computeForcesThreadSize.x));
 
         _fluidSimulationCompute.Dispatch(_ComputeForces, Mathf.CeilToInt(numOfParticles / _computeForcesThreadSize.x), 1, 1);
+
         _fluidSimulationCompute.Dispatch(_HashParticles, Mathf.CeilToInt(numOfParticles / _hashParticlesThreadSize.x), 1, 1);
         SortParticles();
 

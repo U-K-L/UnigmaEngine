@@ -458,13 +458,13 @@ Shader "Hidden/FluidComposition"
                 //return waterSpecular;
                 //return fluidsNormal;
                 //return fluidsDepth;
-                //return fluids.w*waterSpecular +cleanFluidSingleColor + float4(fluids.xyz * fluids.w, fluids.w)*0.25 + edgeDepth;
+                return fluids.w*waterSpecular +cleanFluidSingleColor + float4(fluids.xyz * fluids.w, fluids.w)*0.25 + edgeDepth;
               
                 //return finalImage;
                 //return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
                 //return densityMap;
-                return float4(fluids.xyz * fluids.w, fluids.w);
-                //return fluids.w;
+                //return float4(fluids.xyz * fluids.w, fluids.w);
+                //return finalImage;
                 //return NdotL;
             }
             ENDCG

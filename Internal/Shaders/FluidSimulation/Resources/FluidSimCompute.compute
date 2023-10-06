@@ -737,6 +737,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
 	particleID = result.w;
     //minDistance = TraceParticlesIterative(ray, hit);
     float3 position = ray.o + hit.distance * ray.d;
+    position *= hit.distance < 1499;
     //if(particleID == _ChosenParticle)
     return float4(position.xyz, hit.depth);
 
@@ -755,6 +756,28 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
         }
 
     }
+
+    MeshObject meshObject = hit.meshObj;
+    Vertex v0 = hit.vertices[0];
+    Vertex v1 = hit.vertices[1];
+    Vertex v2 = hit.vertices[2];
+    //Convert to world space along with ray and compute the barycentric coordinate.
+    v0.position = (mul(meshObject.localToWorld, float4(v0.position, 1))).xyz;
+    v1.position = (mul(meshObject.localToWorld, float4(v1.position, 1))).xyz;
+    v2.position = (mul(meshObject.localToWorld, float4(v2.position, 1))).xyz;
+    v0.normal = (mul(meshObject.localToWorld, float4(v0.normal, 0))).xyz;
+    v1.normal = (mul(meshObject.localToWorld, float4(v1.normal, 0))).xyz;
+    v2.normal = (mul(meshObject.localToWorld, float4(v2.normal, 0))).xyz;
+    float3 barycentric = Barycentric(v0.position, v1.position, v2.position, hit.position);
+
+    //Now that we have the barycentric coordinate we can use this to reconstruct the UVs.
+    float2 uvs = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
+
+    float3 normals = normalize(v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z);
+
+    hit.normal = normals;
+    hit.uv = uvs;
+    
 }
 
 [numthreads(32,32,1)]
@@ -864,8 +887,8 @@ void GetDensityGrid(uint3 id)
                         if (particleIndex == _ChosenParticle)
                         {
                             //Set to color red.
-                            _Particles[particleIndex].debugVector = float3(1, 0, 0);
-                            _Particles[particleIndexB].debugVector = float3(0, 1, 0);
+                            //_Particles[particleIndex].debugVector = float3(1, 0, 0);
+                            //_Particles[particleIndexB].debugVector = float3(0, 1, 0);
                         }
                     }
                     neighbourIterator++;
@@ -878,7 +901,7 @@ void GetDensityGrid(uint3 id)
 	dNorm += dot(spiky_i, spiky_i);
     float lambda = -constraint / (dNorm + epsilon + 100.0f);
     _Particles[particleIndex].density = densitySum;
-    _Particles[particleIndex].debugVector += float3(0, 0, 1) * (densitySum / _RestDensity);
+    //_Particles[particleIndex].debugVector += float3(0, 0, 1) * (densitySum / _RestDensity);
 	_Particles[particleIndex].pressure = lambda;
 }
 
@@ -950,8 +973,8 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
                         if (particleIndex == _ChosenParticle)
                         {
                             //Set to color red.
-                            _Particles[particleIndex].debugVector = float3(1, 0, 0);
-                            _Particles[particleIndexB].debugVector = float3(0, 1, 0);
+                            //_Particles[particleIndex].debugVector = float3(1, 0, 0);
+                            //_Particles[particleIndexB].debugVector = float3(0, 1, 0);
                         }
                     }
                     neighbourIterator++;
@@ -980,6 +1003,8 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
+    
+    _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
     
     float3 positionDelta = _Particles[id.x].position;
     float3 velDamping = 1;
@@ -1021,6 +1046,7 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
         velDamping.z *= _BoundsDamping;
         positionDelta.z = topRight.z - _SizeOfParticle;
     }
+        
     float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(1, 1)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
     Ray ray = CreateCameraRay(pixel);
     Hit hit = CreateHit();
@@ -1029,14 +1055,15 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     ray.d = normalize(positionDelta - _Particles[id.x].lastPosition);
 
     CollisionTrace(ray, hit);
-    
-    if (hit.distance < abs(length(positionDelta - _Particles[id.x].lastPosition)) + 10)
+
+    if (hit.distance < abs(length(positionDelta - _Particles[id.x].lastPosition)) + _SizeOfParticle * 2)
     {
         //We hit something.
-        positionDelta = hit.position;
+        //positionDelta = ray.o + ray.d * hit.distance;
+        //positionDelta = float3(0, 0, 0);
 
     }
-        
+
     _Particles[id.x].predictedPosition = positionDelta;
 }
 
@@ -1048,6 +1075,7 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
         return;
     }
     
+    _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
 
     float3 positionDelta = _Particles[id.x].predictedPosition;
@@ -1099,20 +1127,22 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
 
     CollisionTrace(ray, hit);
 
-    if (hit.distance < abs(length(positionDelta - _Particles[id.x].lastPosition)) + 10)
+    if (hit.distance < abs(length(positionDelta - _Particles[id.x].lastPosition)) + _SizeOfParticle * 2)
     {
         //We hit something.
-        positionDelta = _Particles[id.x].lastPosition;
-        
-
+        float3 normal = hit.normal;
+        positionDelta = ray.o + (ray.d * ( hit.distance- _SizeOfParticle * 2));
+        velDamping = -normal * _BoundsDamping;
+        //positionDelta = float3(0, 0, 0);
     }
 
     
     float3 vel = ((positionDelta - _Particles[id.x].lastPosition) / _TimeStep);
     
-    _Particles[id.x].velocity = vel; //* velDamping;
+    _Particles[id.x].velocity = vel * velDamping;
 	_Particles[id.x].position = positionDelta;
 	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
+    _Particles[id.x].debugVector = ray.d;
 }
 
 [numthreads(256, 1, 1)]
@@ -1123,7 +1153,7 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
         return;
     }
     
-    _Particles[id.x].debugVector = 0.25;
+    //_Particles[id.x].debugVector = 0.25;
     _ParticleCellOffsets[id.x] = 99999999;
 	_ParticleCellIndices[id.x] = 0;
     _ParticleIndices[id.x] = id.x;

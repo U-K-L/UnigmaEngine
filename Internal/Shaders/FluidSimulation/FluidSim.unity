@@ -310,8 +310,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 133640600}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.1, y: -1.7, z: -2.07}
-  m_LocalScale: {x: 4.08, y: 4.03, z: 2.63}
+  m_LocalPosition: {x: 7.99, y: -1.7, z: -0.2}
+  m_LocalScale: {x: 4.08, y: 4.03, z: 3.4}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -407,7 +407,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 145023223}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 38.425, y: 40.7, z: -26.9}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -870,7 +870,7 @@ MonoBehaviour:
   _LightSouce: {fileID: 1372719454}
   _LightScale: {fileID: 1827817484}
   numOfParticles: 2048
-  maxNumOfParticles: 131072
+  maxNumOfParticles: 8192
   _SizeOfParticle: 0.25
   _MassOfParticle: 1
   _GasConstant: 100
@@ -922,7 +922,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!64 &1224491990
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -995,7 +995,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1224491989}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 41.50885, y: 40.601208, z: -26.629194}
+  m_LocalPosition: {x: 0, y: -3.72, z: 0}
   m_LocalScale: {x: 75.68, y: 75.68, z: 75.68}
   m_ConstrainProportionsScale: 1
   m_Children: []

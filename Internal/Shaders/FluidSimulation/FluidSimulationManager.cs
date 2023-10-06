@@ -358,11 +358,12 @@ public class FluidSimulationManager : MonoBehaviour
         }
         //Build the BVH
         CreateMeshes();
+
         UpdateParticles();
         BuildBVH();
         //Only if spacebar is pressed
 
-        
+
 
     }
 
@@ -390,6 +391,7 @@ public class FluidSimulationManager : MonoBehaviour
             }
             meshObjects[i] = meshobj;
         }
+        
         if (_meshObjectBuffer.count > 0)
         {
             _meshObjectBuffer.SetData(meshObjects);
@@ -479,6 +481,10 @@ public class FluidSimulationManager : MonoBehaviour
         _particleIDsBuffer.SetData(_ParticleIDs);
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_BVHNodes", _BVHNodesBuffer);
         _fluidSimulationCompute.SetBuffer(_CreateGrid, "_ParticleIDs", _particleIDsBuffer);
+        _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_BVHNodes", _BVHNodesBuffer);
+        _fluidSimulationCompute.SetBuffer(_UpdateParticlesKernel, "_ParticleIDs", _particleIDsBuffer);
+        _fluidSimulationCompute.SetBuffer(_UpdatePositions, "_BVHNodes", _BVHNodesBuffer);
+        _fluidSimulationCompute.SetBuffer(_UpdatePositions, "_ParticleIDs", _particleIDsBuffer);
         _fluidSimulationCompute.SetInt("_NumOfNodes", nodesUsed);
         _fluidSimulationCompute.SetInt("_NumOfParticles", numOfParticles);
         _fluidSimulationCompute.SetInt("_MaxNumOfParticles", maxNumOfParticles);
@@ -674,8 +680,8 @@ public class FluidSimulationManager : MonoBehaviour
             //Cubed root num of particles:
             float numOfParticlesCubedRoot = Mathf.Pow(numOfParticles, 1.0f / 3.0f);
             float numOfParticlesSquaredRoot = Mathf.Sqrt(numOfParticles);
+            Vector3 boxSize = new Vector3(5, 5, 4);//_BoxSize;
             //Create particles.
-            SpawnParticlesInBox();
             for (int i = 0; i < numOfParticles; i++)
             {
                 _ParticleIndices[i] = i;
@@ -683,7 +689,7 @@ public class FluidSimulationManager : MonoBehaviour
                 //_ParticleCellOffsets[i] = i;
                 _ParticleIDs[i] = i;
                 //_Particles[i].position = new Vector3(0.25f, 0.25f, 0.25f) * i;
-                _Particles[i].position = new Vector3( (i % numOfParticlesCubedRoot) / ((1/_BoxSize.x)* numOfParticlesCubedRoot) - (_BoxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/_BoxSize.y)* numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/_BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));
+                _Particles[i].position = new Vector3( (i % numOfParticlesCubedRoot) / ((1/ boxSize.x)* numOfParticlesCubedRoot) - (boxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/ boxSize.y)* numOfParticlesCubedRoot) - (boxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/ boxSize.z) * numOfParticlesCubedRoot) - (boxSize.z * 0.5f));
                 //_Particles[i].position = SpawnParticles[i];
                 //_Particles[i].position = fluidSimTransform.localToWorldMatrix.MultiplyPoint(_Particles[i].position);
                 //_Particles[i].position = new Vector3((i % numOfParticlesCubedRoot) / (_SizeOfParticle * numOfParticlesCubedRoot) - (_BoxSize.x * 0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.y) * numOfParticlesCubedRoot) - (_BoxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1 / _BoxSize.z) * numOfParticlesCubedRoot) - (_BoxSize.z * 0.5f));

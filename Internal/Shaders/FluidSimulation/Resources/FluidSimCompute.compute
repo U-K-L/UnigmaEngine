@@ -190,7 +190,7 @@ float Poly6Kernel(float distance2)
     float result = 0.0;
     float h = _Radius;
 
-    if (0.0005 < distance2 && distance2 < h)
+    if (0.0f < distance2 && distance2 < h)
     {
 
         float h9 = pow(h, 9.0f);
@@ -445,33 +445,6 @@ float IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
     float4 tNFnorm = sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
 	t1 = tNFnorm.x;
     t1 = opU(t1, hit.distance);
-    
-    /*
-    //If it hit a box give it the detail to render this particle.
-	if (t1 > epsilon && t1 < hit.distance)
-    {
-        hit.position = rayOrig + t1 * ray.d;
-        
-        //Calculate the depth by dividing the perspective of the camera.
-        float4 clipPos = UnityWorldToClipPos(hit.position);
-        float depth = (clipPos.z* _DepthScale.x) / (clipPos.w * _DepthScale.y);
-        hit.depth = 1.0 - depth;
-        if(_IsOrthographic)
-		{
-            hit.depth *= 100;
-		}
-
-		//Calculate the normal of a supposed sphere, this isn't the normal of the particle that is a seperate buffer.
-        float3 n = GetSphereNormal(hit.position, radius);
-        hit.normal = n;
-        hit.distance = t1;
-        hit.color = 1;
-
-        density = GetDensityOfParticle(hit, ray);
-        
-        return hit;
-    }
-    */
     return t1;
 }
 
@@ -739,6 +712,10 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
     float3 position = ray.o + hit.distance * ray.d;
     position *= hit.distance < 1499;
     //if(particleID == _ChosenParticle)
+    if (_IsOrthographic)
+    {
+        hit.depth *= 100;
+    }
     return float4(position.xyz, hit.depth);
 
 	//return float4(1,1,1, depth);
@@ -819,7 +796,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     float4 forces = _Particles[id.x].force + constantForces;
     float3 vel = _Particles[id.x].velocity;
     vel += forces.xyz * _TimeStep;
-    _Particles[id.x].force = forces;
+    //_Particles[id.x].force = forces;
     _Particles[id.x].velocity = vel;
     _Particles[id.x].lastPosition = _Particles[id.x].position;
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
@@ -962,9 +939,9 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
                     Particle neighbour = _Particles[particleIndexB];
                     float dist = distance(_Particles[particleIndex].predictedPosition, _Particles[particleIndexB].predictedPosition);
 
-                    if (0.0001f < dist && dist < _Radius * 2.0f)
+                    if (0.001f < dist && dist < _Radius * 2.0f)
                     {
-                        float Scorr = -0.04 * pow(Poly6Kernel(dist) / Poly6Kernel(0.3), 4);
+                        float Scorr = -0.0001 * pow(Poly6Kernel(dist) / Poly6Kernel(0.02), 4);
                         float left = _Particles[particleIndex].pressure + _Particles[particleIndexB].pressure +Scorr;
 						float3 right = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
 
@@ -1045,23 +1022,6 @@ void UpdateParticles(uint3 id : SV_DispatchThreadID)
     {
         velDamping.z *= _BoundsDamping;
         positionDelta.z = topRight.z - _SizeOfParticle;
-    }
-        
-    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(1, 1)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
-    Ray ray = CreateCameraRay(pixel);
-    Hit hit = CreateHit();
-
-    ray.o = _Particles[id.x].lastPosition;
-    ray.d = normalize(positionDelta - _Particles[id.x].lastPosition);
-
-    CollisionTrace(ray, hit);
-
-    if (hit.distance < abs(length(positionDelta - _Particles[id.x].lastPosition)) + _SizeOfParticle * 2)
-    {
-        //We hit something.
-        //positionDelta = ray.o + ray.d * hit.distance;
-        //positionDelta = float3(0, 0, 0);
-
     }
 
     _Particles[id.x].predictedPosition = positionDelta;

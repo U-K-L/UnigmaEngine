@@ -346,11 +346,6 @@ public class FluidSimulationManager : MonoBehaviour
 
     void UpdateNonAcceleratedRayTracer()
     {
-        if (Input.GetKey(KeyCode.Space))
-        {
-            //PrintParticleData();
-            ShootParticles();
-        }
         //Build the BVH
         CreateMeshes();
 
@@ -402,13 +397,13 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
-    void ShootParticles()
+    public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force)
     {
         if (NumOfParticles >= MaxNumOfParticles)
         {
             return;
         }
-        int sizeOfNewParticlesAdded = 16;
+        int sizeOfNewParticlesAdded = numberOfParticles;
         //Cubed root num of particles:
         float numOfParticlesCubedRoot = Mathf.Pow(sizeOfNewParticlesAdded, 1.0f / 3.0f);
         float numOfParticlesSquaredRoot = Mathf.Sqrt(sizeOfNewParticlesAdded);
@@ -419,11 +414,11 @@ public class FluidSimulationManager : MonoBehaviour
             _ParticleIndices[i] = i;
             _ParticleIDs[i] = i;
 
-            Vector3 randomPos = Random.insideUnitSphere;
+            Vector3 randomPos = Random.insideUnitSphere + initialSpawnPosition;
             _particles[i].position = randomPos;
             _particles[i].mass = MassOfParticle;
             _particles[i].velocity = Vector3.zero;
-            _particles[i].force = new Vector4(555.0f, 0.0f, 0.0f, 0.35f);
+            _particles[i].force = force;
             _particles[i].density = 0.0f;
             _particles[i].pressure = 0.0f;
             _particles[i].predictedPosition = _particles[i].position;

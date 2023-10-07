@@ -259,7 +259,7 @@ Shader "Hidden/FluidComposition"
                 float depthFiniteDifference4 = depthnormal3.a - depthnormal2.a;
                 float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2));
                 float depthThreshold = 0.1 * depthnormal0;
-                edgeDepth = edgeDepth > 0.005 ? 1 : 0;
+                edgeDepth = edgeDepth > 0.05 ? 1 : 0;
 
                 
                 scaleFloor = floor(1 * 0.5);

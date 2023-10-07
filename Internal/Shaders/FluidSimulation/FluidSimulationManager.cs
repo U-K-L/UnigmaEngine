@@ -632,7 +632,6 @@ public class FluidSimulationManager : MonoBehaviour
     
     void UpdateParticles()
     {
-        //Create particle buffer.
         if (_particleBuffer == null)
         {
             _particleBuffer = new ComputeBuffer(MaxNumOfParticles, _particleStride );

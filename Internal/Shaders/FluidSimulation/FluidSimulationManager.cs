@@ -397,6 +397,46 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
+    public void AddParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector3 containerSize, int containerType)
+    {
+        if (NumOfParticles >= MaxNumOfParticles)
+        {
+            return;
+        }
+        int sizeOfNewParticlesAdded = numberOfParticles;
+        //Cubed root num of particles:
+        int numOfParticlesCubedRoot = Mathf.CeilToInt(Mathf.Pow(sizeOfNewParticlesAdded, 1.0f / 3.0f));
+
+        switch (containerType)
+        {
+            case 0:
+                //Cube
+                SpawnInCube(numOfParticlesCubedRoot, containerSize, initialSpawnPosition);
+                break;
+        }
+
+        //Create particles.
+        //SpawnParticlesInBox();
+        /*
+        for (int i = NumOfParticles; i < NumOfParticles + sizeOfNewParticlesAdded; i++)
+        {
+            _ParticleIndices[i] = i;
+            _ParticleIDs[i] = i;
+
+            Vector3 randomPos = Random.insideUnitSphere + initialSpawnPosition;
+            _particles[i].position = randomPos;
+            _particles[i].mass = MassOfParticle;
+            _particles[i].velocity = Vector3.zero;
+            _particles[i].force = force;
+            _particles[i].density = 0.0f;
+            _particles[i].pressure = 0.0f;
+            _particles[i].predictedPosition = _particles[i].position;
+        }
+        */
+        NumOfParticles += sizeOfNewParticlesAdded;
+        _particleBuffer.SetData(_particles);
+    }
+
     public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force)
     {
         if (NumOfParticles >= MaxNumOfParticles)
@@ -425,6 +465,37 @@ public class FluidSimulationManager : MonoBehaviour
         }
         NumOfParticles += sizeOfNewParticlesAdded;
         _particleBuffer.SetData(_particles);
+    }
+
+    void SpawnInCube(int numberOfParticlesCubed, Vector3 containerSize, Vector3 initialSpawnPosition)
+    {
+        float particleSpacing = containerSize.x / numberOfParticlesCubed;
+        float halfContainerSize = containerSize.x / 2.0f;
+        int particleIndex = NumOfParticles;
+        for (int i = 0; i < numberOfParticlesCubed; i++)
+        {
+            for (int j = 0; j < numberOfParticlesCubed; j++)
+            {
+                for (int k = 0; k < numberOfParticlesCubed; k++)
+                {
+                    if (particleIndex >= MaxNumOfParticles)
+                    {
+                        return;
+                    }
+                    _ParticleIndices[particleIndex] = particleIndex;
+                    _ParticleIDs[particleIndex] = particleIndex;
+                    Vector3 randomPos = new Vector3(i * particleSpacing - halfContainerSize, j * particleSpacing - halfContainerSize, k * particleSpacing - halfContainerSize);
+                    _particles[particleIndex].position = initialSpawnPosition + randomPos;
+                    _particles[particleIndex].mass = MassOfParticle;
+                    _particles[particleIndex].velocity = Vector3.zero;
+                    _particles[particleIndex].force = Vector3.zero;
+                    _particles[particleIndex].density = 0.0f;
+                    _particles[particleIndex].pressure = 0.0f;
+                    _particles[particleIndex].predictedPosition = _particles[particleIndex].position;
+                    particleIndex++;
+                }
+            }
+        }
     }
 
     //To build the BVH we need to take all of the game objects in our raytracing list.

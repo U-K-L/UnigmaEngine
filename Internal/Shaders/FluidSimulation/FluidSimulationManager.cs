@@ -102,10 +102,6 @@ public class FluidSimulationManager : MonoBehaviour
     private BVHNode[] _BVHNodes;
     private int _renderTextureWidth, _renderTextureHeight = 0;
     private List<Vector3> _spawnParticles = default;
-    
-    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 5 + (sizeof(float) * 4));
-    int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 8;
-
 
     struct MeshObject
     {
@@ -133,23 +129,26 @@ public class FluidSimulationManager : MonoBehaviour
 
     struct Particles
     {
-        public Vector3 position;
         public Vector4 force;
+        public Vector3 position;
+        public Vector3 lastPosition;
+        public Vector3 predictedPosition;
+        public Vector3 positionDelta;
+        public Vector3 debugVector;
         public Vector3 velocity;
         public float density;
+        public float lambda;
         public float mass;
-        public float pressure;
         public int cellID;
-        public Vector3 predictedPosition;
-        public Vector3 debugVector;
-        public Vector3 lastPosition;
+
     };
+    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 6 + (sizeof(float) * 4));
 
     struct PNode
     {
         public int index;
         public int[] children;
-    }
+    };
 
     struct BVHNode
     {
@@ -163,7 +162,8 @@ public class FluidSimulationManager : MonoBehaviour
         public int index;
         public int hit;
         public int miss;
-    }
+    };
+    int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 8;
     
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -460,7 +460,7 @@ public class FluidSimulationManager : MonoBehaviour
             _particles[i].velocity = Vector3.zero;
             _particles[i].force = force;
             _particles[i].density = 0.0f;
-            _particles[i].pressure = 0.0f;
+            _particles[i].lambda = 0.0f;
             _particles[i].predictedPosition = _particles[i].position;
         }
         NumOfParticles += sizeOfNewParticlesAdded;
@@ -490,7 +490,7 @@ public class FluidSimulationManager : MonoBehaviour
                     _particles[particleIndex].velocity = Vector3.zero;
                     _particles[particleIndex].force = Vector3.zero;
                     _particles[particleIndex].density = 0.0f;
-                    _particles[particleIndex].pressure = 0.0f;
+                    _particles[particleIndex].lambda = 0.0f;
                     _particles[particleIndex].predictedPosition = _particles[particleIndex].position;
                     particleIndex++;
                 }
@@ -677,7 +677,7 @@ public class FluidSimulationManager : MonoBehaviour
         for (int i = 0; i < NumOfParticles; i++)
         {
             //Debug each particle struct.
-            string log = "Particle ID: " + i + " Position: " + _particles[i].position + "Predicted Position: " + _particles[i].predictedPosition + " Velocity: " + _particles[i].velocity + " Force: " + _particles[i].force + " Mass: " + _particles[i].mass + " Density: " + _particles[i].density.ToString("F6") + " Pressure: " + _particles[i].pressure.ToString("F6") + " Debug Vector: " + _particles[i].debugVector.ToString("F6") + "Cell ID: " + _particles[i].cellID;
+            string log = "Particle ID: " + i + " Position: " + _particles[i].position + "Predicted Position: " + _particles[i].predictedPosition + " Velocity: " + _particles[i].velocity + " Force: " + _particles[i].force + " Mass: " + _particles[i].mass + " Density: " + _particles[i].density.ToString("F6") + " Lambda: " + _particles[i].lambda.ToString("F6") + " Debug Vector: " + _particles[i].debugVector.ToString("F6") + "Cell ID: " + _particles[i].cellID;
             Debug.Log(log);
         }
     }
@@ -719,7 +719,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _particles[i].velocity = Vector3.zero;
                 _particles[i].force = new Vector4(0.0f, -9.8f, 0.0f);
                 _particles[i].density = 0.0f;
-                _particles[i].pressure = 0.0f;
+                _particles[i].lambda = 0.0f;
                 _particles[i].predictedPosition = _particles[i].position;
             }
 

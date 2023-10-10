@@ -37,7 +37,7 @@ Shader "Hidden/FluidNormalBuffer"
                 return o;
             }
 
-            sampler2D _MainTex;
+            sampler2D _MainTex, _UnigmaFluids;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
             float2 _MainTex_TexelSize;
 
@@ -53,6 +53,7 @@ Shader "Hidden/FluidNormalBuffer"
             fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 fluids = tex2D(_MainTex, i.uv);
+                fixed4 colorFieldGrad = tex2D(_UnigmaFluids, i.uv);
                 float3 eyeSpacePos = getEyePos(_MainTex, i.uv);
                 // calculate differences
                 float3 ddx = getEyePos(_MainTex, i.uv + float2(_MainTex_TexelSize.x, 0)) - eyeSpacePos;
@@ -75,14 +76,7 @@ Shader "Hidden/FluidNormalBuffer"
                 hardNormals += float3(0, 0, 1) * step(0.31, normal.z);
 
 				float4 finalImage = lerp(float4(hardNormals, 1.0), float4(normal, 1.0), 0.65);
-                float combinedNormals = 0;
-                if (normal.x > 0.42 && normal.y > 0.42)
-                    combinedNormals = 1;
-                if (normal.x > 0.52 && normal.z > 0.72)
-                    combinedNormals = 1;
-                if (normal.y > 0.52 && normal.z > 0.72)
-                    combinedNormals = 1;
-                return float4(finalImage.xyz, combinedNormals);
+                return float4(finalImage.xyz, 1);
             }
             ENDCG
         }

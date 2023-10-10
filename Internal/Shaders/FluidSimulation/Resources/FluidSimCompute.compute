@@ -202,6 +202,18 @@ float Poly6Kernel(float distance2)
     return result;
 }
 
+float3 Poly6GradientKernel(float distance2, float3 direction)
+{
+    float3 result = 0.0;
+    float h = _Radius;
+
+    float h9 = pow(h, 9.0f);
+    float constPoly6 = -945.0f / (32.0f * UNITY_PI * h9);
+    float3 poly6 = constPoly6 * direction * pow((h * h) - (distance2 * distance2), 2.0f);
+    result = poly6;
+    return result;
+}
+
 float SpikyKernelD1(float distance)
 {
 	float h6 = pow(_Radius, 6.0f);
@@ -607,67 +619,6 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
         }
 
     }
-
-    
-    /*
-    int nodeIndex = 0;
-    int currentNode = 0;
-    BVHNode node = _BVHNodes[currentNode];
-    bool particleHit = false;
-
-    int numOfTimes = 0;
-    while (particleHit == false)
-    {
-
-        if (node.primitiveCount > 0)
-        {
-            if (TraceBVH(ray, hit, node))
-            {
-                for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
-                {
-                    float3 position = _Particles[_ParticleIDs[k]].position;
-
-                    float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
-
-                    if (t1 > epsilon && t1 < minDistance)
-                    {
-                        minDistance = t1;
-                    }
-                    numOfTimes++;
-                }
-                //particleHit = true;
-
-
-            }
-            currentNode = nextNode(node, ray, hit, currentNode);
-        }
-        else if (!TraceBVH(ray, hit, _BVHNodes[node.leftChild]) && node.rightChild != -1)
-        {
-            numOfTimes++;
-            currentNode = node.rightChild;
-        }
-        else if (!TraceBVH(ray, hit, _BVHNodes[node.rightChild]) && node.leftChild != -1)
-        {
-            numOfTimes++;
-            currentNode = node.leftChild;
-        }
-        else
-        {
-            numOfTimes++;
-            currentNode = nextNode(node, ray, hit, currentNode);
-        }
-        nodeIndex++;
-
-        //currentNode = nextNode(node, ray, hit, currentNode);
-        node = _BVHNodes[currentNode];
-
-        if (nodeIndex >= numOfParticles || currentNode == -1)
-        {
-            particleHit = true;
-            break;
-        }
-    }
-    */
     return float4(minDistance, minDistance, minDistance, particleIndex);
 }
 
@@ -710,8 +661,8 @@ float4 SceneTrace(inout Ray ray, inout Hit hit)
 	minDistance = result.x;
 	particleID = result.w;
     //minDistance = TraceParticlesIterative(ray, hit);
-    float3 position = ray.o + hit.distance * ray.d;
-    position *= hit.distance < 1499;
+    float3 position = _Particles[particleID].debugVector;//ray.o + hit.distance * ray.d;
+    //position *= hit.distance < 1499;
     //if(particleID == _ChosenParticle)
     if (_IsOrthographic)
     {
@@ -792,9 +743,9 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
-	float4 constantForces = float4(0.0, -12.8, 0.0, 0.0);
+	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    float4 forces = _Particles[id.x].force + constantForces;
+    float4 forces = _Particles[id.x].force +constantForces;
     float3 vel = _Particles[id.x].velocity;
     vel += forces.xyz * _TimeStep;
     //_Particles[id.x].force = forces;
@@ -830,6 +781,7 @@ void GetDensityGrid(uint3 id)
     float densitySum = 0;
     float dNorm = 0;
     float3 spiky_i = 0;
+    float3 colorField = 0;
     for (int i = -2; i <= 2; ++i)
     {
         for (int j = -2; j <= 2; ++j)
@@ -861,7 +813,7 @@ void GetDensityGrid(uint3 id)
 						float3 spiky = SpikyKernelGradient(distance2, pressureGradDir) / _RestDensity;
 						spiky_i += spiky;
                         dNorm += dot(spiky, spiky);
-                        
+                        colorField += _Particles[particleIndexB].mass * (1 / _Particles[particleIndexB].density) * Poly6GradientKernel(distance2, pressureGradDir);
                         if (particleIndex == _ChosenParticle)
                         {
                             //Set to color red.
@@ -877,10 +829,11 @@ void GetDensityGrid(uint3 id)
     
     float constraint = (densitySum / _RestDensity) - 1;
 	dNorm += dot(spiky_i, spiky_i);
-    float lambda = -constraint / (dNorm + epsilon + 100.0f);
+    float lambda = -constraint / (dNorm + epsilon + 600.0f);
     _Particles[particleIndex].density = densitySum;
     //_Particles[particleIndex].debugVector += float3(0, 0, 1) * (densitySum / _RestDensity);
 	_Particles[particleIndex].lambda = lambda;
+    _Particles[particleIndex].debugVector = normalize(-colorField);
 }
 
 
@@ -942,7 +895,7 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
 
                     if (0.001f < dist && dist < _Radius * 2.0f)
                     {
-                        float Scorr = -0.001 * pow(Poly6Kernel(dist) / Poly6Kernel(0.03*_Radius), 4);
+                        float Scorr = -0.01 * pow(Poly6Kernel(dist) / Poly6Kernel(0.003*_Radius), 4);
                         float left = _Particles[particleIndex].lambda + _Particles[particleIndexB].lambda +Scorr;
 						float3 right = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
 
@@ -1094,7 +1047,7 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].velocity = vel * velDamping;
 	_Particles[id.x].position = positionDelta;
 	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
-    _Particles[id.x].debugVector = ray.d;
+    //_Particles[id.x].debugVector = ray.d;
 }
 
 [numthreads(256, 1, 1)]

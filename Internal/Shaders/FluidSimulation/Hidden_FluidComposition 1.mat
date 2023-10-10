@@ -68,5 +68,5 @@ Material:
     - _DeepWaterColor: {r: 0.03087387, g: 0, b: 0.93333334, a: 1}
     - _DeepestWaterColor: {r: 0.7830189, g: 0, b: 0.7698571, a: 1}
     - _NoiseScale: {r: 42.27, g: 105.5, b: 42.75, a: 1}
-    - _ShallowWaterColor: {r: 0.28773582, g: 0.9875779, b: 1, a: 1}
+    - _ShallowWaterColor: {r: 0.14128695, g: 0.2177125, b: 0.23584908, a: 1}
   m_BuildTextureStacks: []

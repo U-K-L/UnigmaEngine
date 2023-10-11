@@ -56,7 +56,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-			sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
+			sampler2D _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity;
 			float _ScaleX, _ScaleY;
@@ -218,6 +218,9 @@ Shader "Hidden/FluidComposition"
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
                 fixed4 distortedOriginalImage = tex2D(_MainTex, distortionGrabPass);
 				fixed4 densityMap = tex2D(_DensityMap, distortionGrabPass2);
+                fixed4 particleNormalMap = tex2D(_ColorFieldNormalMap, i.uv);
+				fixed4 velocityMap = tex2D(_VelocityMap, i.uv);
+                fixed4 curlMap = tex2D(_CurlMap, i.uv);
                 
 				fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass *2);
 
@@ -458,14 +461,19 @@ Shader "Hidden/FluidComposition"
                 //return waterSpecular;
                 //return fluidsNormal;
                 //return fluidsDepth;
-                return fluids.w*waterSpecular +cleanFluidSingleColor + float4(fluids.xyz * fluids.w, fluids.w)*0.25 + edgeDepth;
+                //return fluids.w * waterSpecular + cleanFluidSingleColor + edgeDepth;// +float4((particleNormalMap.xyz * 0.5 + 0.5) * fluids.w, fluids.w) * 0.15;
               
                 //return finalImage;
                 //return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
                 //return densityMap;
-                //return float4(fluids.xyz*0.5 + 0.5, fluids.w);
+                //return float4(fluids.w*fluids.xyz*0.5 + 0.5, fluids.w);
                 //return finalImage;
                 //return NdotL;
+                // good
+                //return noisetexture;
+                //return particleNormalMap;
+                //return velocityMap;
+                return curlMap;
             }
             ENDCG
         }

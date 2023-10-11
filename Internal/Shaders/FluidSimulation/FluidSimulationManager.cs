@@ -29,6 +29,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _HashParticlesKernelId;
     int _SortParticlesKernelId;
     int _CalculateCellOffsetsKernelId;
+    int _CalculateCurlKernelId;
 
     Vector3 _updateParticlesThreadSize;
     Vector3 _computeForcesThreadSize;
@@ -39,9 +40,13 @@ public class FluidSimulationManager : MonoBehaviour
     Vector3 _hashParticlesThreadSize;
     Vector3 _sortParticlesThreadSize;
     Vector3 _calculateCellOffsetsThreadSize;
+    Vector3 _calculateCurlThreadSize;
 
     RenderTexture _rtTarget;
     RenderTexture _densityMapTexture;
+    RenderTexture _normalMapTexture;
+    RenderTexture _curlMapTexture;
+    RenderTexture _velocityMapTexture;
     RenderTexture _tempTarget;
     RenderTexture _fluidNormalBufferTexture;
     RenderTexture _fluidDepthBufferTexture;
@@ -136,13 +141,15 @@ public class FluidSimulationManager : MonoBehaviour
         public Vector3 positionDelta;
         public Vector3 debugVector;
         public Vector3 velocity;
+        public Vector3 normal;
+        public Vector3 curl;
         public float density;
         public float lambda;
         public float mass;
         public int cellID;
 
     };
-    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 6 + (sizeof(float) * 4));
+    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 8 + (sizeof(float) * 4));
 
     struct PNode
     {
@@ -188,6 +195,9 @@ public class FluidSimulationManager : MonoBehaviour
         //Create the texture for compute shader.
         _rtTarget = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _densityMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _normalMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _velocityMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _curlMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _tempTarget = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidNormalBufferTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidDepthBufferTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
@@ -203,6 +213,7 @@ public class FluidSimulationManager : MonoBehaviour
         _HashParticlesKernelId = _fluidSimulationComputeShader.FindKernel("HashParticles");
         _SortParticlesKernelId = _fluidSimulationComputeShader.FindKernel("BitonicSort");
         _CalculateCellOffsetsKernelId = _fluidSimulationComputeShader.FindKernel("CalculateCellOffsets");
+        _CalculateCurlKernelId = _fluidSimulationComputeShader.FindKernel("CalculateCurl");
         _CreateGridKernelId = _fluidSimulationComputeShader.FindKernel("CreateGrid");
         _ComputeForcesKernelId = _fluidSimulationComputeShader.FindKernel("ComputeForces");
         _ComputeDensityKernelId = _fluidSimulationComputeShader.FindKernel("ComputeDensity");
@@ -213,11 +224,20 @@ public class FluidSimulationManager : MonoBehaviour
         _rtTarget.Create();
         _densityMapTexture.enableRandomWrite = true;
         _densityMapTexture.Create();
+        _normalMapTexture.enableRandomWrite = true;
+        _normalMapTexture.Create();
+        _velocityMapTexture.enableRandomWrite = true;
+        _velocityMapTexture.Create();
+        _curlMapTexture.enableRandomWrite = true;
+        _curlMapTexture.Create();
         _fluidNormalBufferTexture.enableRandomWrite = true;
         _fluidNormalBufferTexture.Create();
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "Result", _rtTarget);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "DensityMap", _densityMapTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "NormalMap", _fluidNormalBufferTexture);
+        _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_ColorFieldNormalMap", _normalMapTexture);
+        _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_VelocityMap", _velocityMapTexture);
+        _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_CurlMap", _curlMapTexture);
 
         GetThreadSizes();
         AddObjectsToList();
@@ -240,6 +260,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CalculateCellOffsetsKernelId, out threadsX, out threadsY, out threadsZ);
         _calculateCellOffsetsThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CalculateCurlKernelId, out threadsX, out threadsY, out threadsZ);
+        _calculateCurlThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CreateGridKernelId, out threadsX, out threadsY, out threadsZ);
         _createGridThreadSize = new Vector3(threadsX, threadsY, threadsZ);
@@ -734,7 +757,8 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_Particles", _particleBuffer);
-            
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Particles", _particleBuffer);
+
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleIndices", _particleIndices);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleIndices", _particleIndices);
             _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_ParticleIndices", _particleIndices);
@@ -744,6 +768,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleIndices", _particleIndices);
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleIndices", _particleIndices);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleIndices", _particleIndices);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleIndices", _particleCellOffsets);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellIndices", _particleCellIndices);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellIndices", _particleCellIndices);
@@ -754,6 +779,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleCellIndices", _particleCellIndices);
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCellIndices", _particleCellIndices);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleCellIndices", _particleCellIndices);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleCellIndices", _particleCellIndices);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellOffsets", _particleCellOffsets);
@@ -764,6 +790,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleCellOffsets", _particleCellOffsets);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleCellOffsets", _particleCellOffsets);
 
         }
         for (int i = 0; i < NumOfParticles; i++)
@@ -789,6 +816,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.Dispatch(_UpdateParticlesKernelId, Mathf.CeilToInt(NumOfParticles / _updateParticlesThreadSize.x), 1, 1);
         }
 
+        _fluidSimulationComputeShader.Dispatch(_CalculateCurlKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCurlThreadSize.x), 1, 1);
         _fluidSimulationComputeShader.Dispatch(_UpdatePositionsKernelId, Mathf.CeilToInt(NumOfParticles / _updatePositionsThreadSize.x), 1, 1);
         //Set Particle positions to script.
         _particleBuffer.GetData(_particles);
@@ -860,6 +888,9 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimMaterialComposite.SetColor("_ShallowWaterColor", ShallowWaterColor);
         _fluidSimMaterialComposite.SetFloat("_DepthMaxDistance", DepthMaxDistance);
         _fluidSimMaterialComposite.SetTexture("_DensityMap", _densityMapTexture);
+        _fluidSimMaterialComposite.SetTexture("_ColorFieldNormalMap", _normalMapTexture);
+        _fluidSimMaterialComposite.SetTexture("_VelocityMap", _velocityMapTexture);
+        _fluidSimMaterialComposite.SetTexture("_CurlMap", _curlMapTexture);
 
 
         //uint threadsX, threadsY, threadsZ;
@@ -975,6 +1006,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         _rtTarget.Release();
         _densityMapTexture.Release();
+        _velocityMapTexture.Release();
+        _normalMapTexture.Release();
+        _curlMapTexture.Release();
         _tempTarget.Release();
         _fluidNormalBufferTexture.Release();
         _fluidDepthBufferTexture.Release();

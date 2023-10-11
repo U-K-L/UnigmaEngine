@@ -29,7 +29,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _FrontSideTexture:
-        m_Texture: {fileID: 2800000, guid: abd378192194c6048a574746b0a0972b, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -45,7 +45,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TopTexture:
-        m_Texture: {fileID: 2800000, guid: a50d8da0637a640dda5e2018b972cade, type: 3}
+        m_Texture: {fileID: 2800000, guid: d0d61feed9a5ed849a1e7f83692b40f1, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _UnderWaterTexture:
@@ -67,6 +67,6 @@ Material:
     m_Colors:
     - _DeepWaterColor: {r: 0.03087387, g: 0, b: 0.93333334, a: 1}
     - _DeepestWaterColor: {r: 0.7830189, g: 0, b: 0.7698571, a: 1}
-    - _NoiseScale: {r: 42.27, g: 105.5, b: 42.75, a: 1}
+    - _NoiseScale: {r: 42.27, g: 105.5, b: 27.12, a: 0.001}
     - _ShallowWaterColor: {r: 0.14128695, g: 0.2177125, b: 0.23584908, a: 1}
   m_BuildTextureStacks: []

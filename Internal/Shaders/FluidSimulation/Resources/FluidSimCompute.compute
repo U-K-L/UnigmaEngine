@@ -916,7 +916,6 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
 						float3 right = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
 
                         positionDelta += left * right / _RestDensity;//left * right / _RestDensity;
-
                         if (particleIndex == _ChosenParticle)
                         {
                             //Set to color red.
@@ -935,6 +934,7 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
     //vel = vel * (positionDelta - _Particles[particleIndex].position) / _TimeStep;
     //vel = min(vel, float3(9999, 9999, 9999));
     _Particles[particleIndex].positionDelta = positionDelta;
+	//a_Particles[particleIndex].curl = curl;
 	//_Particles[particleIndex].velocity = vel;
     //_Particles[id.x].debugVector = sum;
 }
@@ -1034,7 +1034,7 @@ void CalculateCurl(uint3 id : SV_DispatchThreadID)
 						float3 u = _Particles[particleIndexB].velocity - _Particles[particleIndex].velocity;
 						float3 v = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
 						float3 w = cross(u, v);
-                        curl += 1.0;
+                        curl += w;
                     }
                     neighbourIterator++;
                 }

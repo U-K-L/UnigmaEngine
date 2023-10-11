@@ -466,14 +466,14 @@ Shader "Hidden/FluidComposition"
                 //return finalImage;
                 //return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
                 //return densityMap;
-                //return float4(fluids.w*fluids.xyz*0.5 + 0.5, fluids.w);
+                return float4(fluids.w*fluids.xyz*0.5 + 0.5, fluids.w);
                 //return finalImage;
                 //return NdotL;
                 // good
                 //return noisetexture;
                 //return particleNormalMap;
                 //return velocityMap;
-                return curlMap;
+                //return curlMap;
             }
             ENDCG
         }

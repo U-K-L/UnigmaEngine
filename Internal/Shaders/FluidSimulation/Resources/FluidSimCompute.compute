@@ -8,6 +8,7 @@
 #pragma kernel BitonicSort
 #pragma kernel CalculateCellOffsets
 #pragma kernel CalculateCurl
+#pragma kernel CalculateVorticity
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -1113,12 +1114,30 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
         velDamping = -normal * _BoundsDamping;
         //positionDelta = float3(0, 0, 0);
     }
+    
+    float3 vel = ((positionDelta - _Particles[id.x].lastPosition) / _TimeStep);
+    
+    _Particles[id.x].velocity = vel * velDamping;
+	_Particles[id.x].position = positionDelta;
+	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
+    //_Particles[id.x].debugVector = ray.d;
+}
+
+[numthreads(64, 1, 1)]
+void CalculateVorticity(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+
 
     int numOfParticles = _NumOfParticles;
     uint particleIndex = _ParticleIndices[id.x];
     int3 cellIndex = GetCell(_Particles[particleIndex].predictedPosition);
     float3 nVisc = 0;
-    
+    float3 velocities = 0;
+
     for (int i = -2; i <= 2; ++i)
     {
         for (int j = -2; j <= 2; ++j)
@@ -1149,22 +1168,28 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
 
                     if (0.0001f < dist && dist < _Radius * 2.0f)
                     {
+                        float3 vij = _Particles[particleIndexB].velocity - _Particles[particleIndex].velocity;
                         //sumVelocityVorticity
-                        //nVisc += 1 / 
+                        nVisc += length(_Particles[particleIndexB].curl) * SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
+
+                        velocities += vij * Poly6Kernel(dist);
                     }
                     neighbourIterator++;
                 }
             }
         }
     }
+
+    float3 n_hat = 0;
+    if (dot(nVisc, nVisc) > epsilon)
+    {
+        n_hat = (nVisc / length(nVisc));// *_Viscosity;
+    }
+
+    float3 f_vc = _Viscosity * cross(n_hat, _Particles[particleIndex].curl);
+    float3 c = 0.001;
     
-    
-    float3 vel = ((positionDelta - _Particles[id.x].lastPosition) / _TimeStep);
-    
-    _Particles[id.x].velocity = vel * velDamping;
-	_Particles[id.x].position = positionDelta;
-	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
-    //_Particles[id.x].debugVector = ray.d;
+    _Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
 }
 
 [numthreads(256, 1, 1)]

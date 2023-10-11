@@ -30,6 +30,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _SortParticlesKernelId;
     int _CalculateCellOffsetsKernelId;
     int _CalculateCurlKernelId;
+    int _CalculateVorticityKernelId;
 
     Vector3 _updateParticlesThreadSize;
     Vector3 _computeForcesThreadSize;
@@ -41,6 +42,7 @@ public class FluidSimulationManager : MonoBehaviour
     Vector3 _sortParticlesThreadSize;
     Vector3 _calculateCellOffsetsThreadSize;
     Vector3 _calculateCurlThreadSize;
+    Vector3 _calculateVorticityThreadSize;
 
     RenderTexture _rtTarget;
     RenderTexture _densityMapTexture;
@@ -214,6 +216,7 @@ public class FluidSimulationManager : MonoBehaviour
         _SortParticlesKernelId = _fluidSimulationComputeShader.FindKernel("BitonicSort");
         _CalculateCellOffsetsKernelId = _fluidSimulationComputeShader.FindKernel("CalculateCellOffsets");
         _CalculateCurlKernelId = _fluidSimulationComputeShader.FindKernel("CalculateCurl");
+        _CalculateVorticityKernelId = _fluidSimulationComputeShader.FindKernel("CalculateVorticity");
         _CreateGridKernelId = _fluidSimulationComputeShader.FindKernel("CreateGrid");
         _ComputeForcesKernelId = _fluidSimulationComputeShader.FindKernel("ComputeForces");
         _ComputeDensityKernelId = _fluidSimulationComputeShader.FindKernel("ComputeDensity");
@@ -263,6 +266,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CalculateCurlKernelId, out threadsX, out threadsY, out threadsZ);
         _calculateCurlThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CalculateVorticityKernelId, out threadsX, out threadsY, out threadsZ);
+        _calculateVorticityThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CreateGridKernelId, out threadsX, out threadsY, out threadsZ);
         _createGridThreadSize = new Vector3(threadsX, threadsY, threadsZ);
@@ -758,6 +764,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Particles", _particleBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_Particles", _particleBuffer);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleIndices", _particleIndices);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleIndices", _particleIndices);
@@ -769,6 +776,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleIndices", _particleIndices);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleIndices", _particleIndices);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleIndices", _particleIndices);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleIndices", _particleIndices);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellIndices", _particleCellIndices);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellIndices", _particleCellIndices);
@@ -780,6 +788,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCellIndices", _particleCellIndices);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleCellIndices", _particleCellIndices);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleCellIndices", _particleCellIndices);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleCellIndices", _particleCellIndices);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellOffsets", _particleCellOffsets);
@@ -791,6 +800,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleCellOffsets", _particleCellOffsets);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleCellOffsets", _particleCellOffsets);
 
         }
         for (int i = 0; i < NumOfParticles; i++)
@@ -818,6 +828,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         _fluidSimulationComputeShader.Dispatch(_CalculateCurlKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCurlThreadSize.x), 1, 1);
         _fluidSimulationComputeShader.Dispatch(_UpdatePositionsKernelId, Mathf.CeilToInt(NumOfParticles / _updatePositionsThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_CalculateVorticityKernelId, Mathf.CeilToInt(NumOfParticles / _calculateVorticityThreadSize.x), 1, 1);
         //Set Particle positions to script.
         _particleBuffer.GetData(_particles);
 

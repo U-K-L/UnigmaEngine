@@ -37,6 +37,7 @@ int _NumOfNodes;
 int _FrustrumSize = 10;
 uint _NumOfParticles;
 uint _MaxNumOfParticles;
+const uint MaxNeighbors = 50;
 int biBlock;
 int biDim;
 int _ChosenParticle = 128;
@@ -749,7 +750,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
         //DensityMap[id.xy] = float4(particle.normal,1);
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
 		_VelocityMap[id.xy] = float4(particle.velocity, 1);
-        _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
+        _CurlMap[id.xy] = float4(_Particles[particleId].debugVector, 1);
         
     }
 }
@@ -772,6 +773,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].velocity = vel;
     _Particles[id.x].lastPosition = _Particles[id.x].position;
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
+    _Particles[id.x].debugVector = 0.25;
 }
 
 void GetDensityIterative(uint3 id)
@@ -809,7 +811,7 @@ void GetDensityGrid(uint3 id)
 				uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
-                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
+                while (neighbourIterator != 99999999 && neighbourIterator < MaxNeighbors)
                 {
 					uint particleIndexB = _ParticleIndices[neighbourIterator];
                     
@@ -834,8 +836,8 @@ void GetDensityGrid(uint3 id)
                         if (particleIndex == _ChosenParticle)
                         {
                             //Set to color red.
-                            //_Particles[particleIndex].debugVector = float3(1, 0, 0);
-                            //_Particles[particleIndexB].debugVector = float3(0, 1, 0);
+                            _Particles[particleIndex].debugVector = float3(1, 0, 0);
+                            _Particles[particleIndexB].debugVector = float3(0, 1, 0);
                         }
                     }
                     neighbourIterator++;
@@ -892,7 +894,7 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
                 uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
-                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
+                while (neighbourIterator != 99999999 && neighbourIterator < MaxNeighbors)
                 {
                     uint particleIndexB = _ParticleIndices[neighbourIterator];
 
@@ -1012,7 +1014,7 @@ void CalculateCurl(uint3 id : SV_DispatchThreadID)
                 uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
-                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
+                while (neighbourIterator != 99999999 && neighbourIterator < MaxNeighbors)
                 {
                     uint particleIndexB = _ParticleIndices[neighbourIterator];
 
@@ -1148,7 +1150,7 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
                 uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
-                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
+                while (neighbourIterator != 99999999 && neighbourIterator < MaxNeighbors)
                 {
                     uint particleIndexB = _ParticleIndices[neighbourIterator];
 
@@ -1195,7 +1197,7 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
 [numthreads(256, 1, 1)]
 void HashParticles(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _NumOfParticles)
+    if (id.x >= _MaxNumOfParticles)
     {
         return;
     }
@@ -1216,7 +1218,7 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
 [numthreads(256, 1, 1)]
 void BitonicSort(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _NumOfParticles)
+    if (id.x >= _MaxNumOfParticles)
     {
         return;
     }
@@ -1224,7 +1226,7 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
     uint i = id.x + id.y * 256 * 1024;
     uint j = i ^ biBlock;
     
-	if (j < i || i >= _NumOfParticles)
+	if (j < i || i >= _MaxNumOfParticles)
 		return;
 
     uint key_i = _ParticleIndices[i];
@@ -1246,7 +1248,7 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
 [numthreads(256, 1, 1)]
 void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _NumOfParticles)
+    if (id.x >= _MaxNumOfParticles)
     {
         return;
     }

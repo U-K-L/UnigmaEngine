@@ -93,6 +93,7 @@ public class FluidSimulationManager : MonoBehaviour
     public float BoundsDamping = 9.8f;
     public float Radius = 0.125f;
     public float RestDensity = 1.0f;
+    public int MaxNeighbors = 50;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     private List<MeshObject> _meshObjects = new List<MeshObject>();
@@ -289,13 +290,13 @@ public class FluidSimulationManager : MonoBehaviour
 
     void SortParticles()
     {
-        for (int biDim = 2; biDim <= NumOfParticles; biDim <<= 1)
+        for (int biDim = 2; biDim <= MaxNumOfParticles; biDim <<= 1)
         {
             _fluidSimulationComputeShader.SetInt("biDim", biDim);
             for (int biBlock = biDim >> 1; biBlock > 0; biBlock >>= 1)
             {
                 _fluidSimulationComputeShader.SetInt("biBlock", biBlock);
-                _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(NumOfParticles / _sortParticlesThreadSize.x), 1, 1);
+                _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
             }
         }
     }
@@ -571,6 +572,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetInt("_NumOfNodes", nodesUsed);
         _fluidSimulationComputeShader.SetInt("_NumOfParticles", NumOfParticles);
         _fluidSimulationComputeShader.SetInt("_MaxNumOfParticles", MaxNumOfParticles);
+        _fluidSimulationComputeShader.SetInt("MaxNeighbors", MaxNeighbors);
         //PrintBVH();
 
     }
@@ -739,14 +741,14 @@ public class FluidSimulationManager : MonoBehaviour
             float numOfParticlesSquaredRoot = Mathf.Sqrt(NumOfParticles);
             Vector3 boxSize = Vector3.Min(_BoxSize, Vector3.one * 50);
             //Create particles.
-            for (int i = 0; i < NumOfParticles; i++)
+            for (int i = 0; i < MaxNumOfParticles; i++)
             {
                 _ParticleIndices[i] = i;
                 _ParticleIDs[i] = i;
-                _particles[i].position = new Vector3( (i % numOfParticlesCubedRoot) / ((1/ boxSize.x)* numOfParticlesCubedRoot) - (boxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/ boxSize.y)* numOfParticlesCubedRoot) - (boxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/ boxSize.z) * numOfParticlesCubedRoot) - (boxSize.z * 0.5f));
+                _particles[i].position = new Vector3(99999, 99999, 99999);//new Vector3( (i % numOfParticlesCubedRoot) / ((1/ boxSize.x)* numOfParticlesCubedRoot) - (boxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/ boxSize.y)* numOfParticlesCubedRoot) - (boxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/ boxSize.z) * numOfParticlesCubedRoot) - (boxSize.z * 0.5f));
                 _particles[i].mass = MassOfParticle;
                 _particles[i].velocity = Vector3.zero;
-                _particles[i].force = new Vector4(0.0f, -9.8f, 0.0f);
+                _particles[i].force = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
                 _particles[i].density = 0.0f;
                 _particles[i].lambda = 0.0f;
                 _particles[i].predictedPosition = _particles[i].position;
@@ -815,9 +817,9 @@ public class FluidSimulationManager : MonoBehaviour
         }
 
         _fluidSimulationComputeShader.Dispatch(_ComputeForcesKernelId, Mathf.CeilToInt(NumOfParticles / _computeForcesThreadSize.x), 1, 1);
-        _fluidSimulationComputeShader.Dispatch(_HashParticlesKernelId, Mathf.CeilToInt(NumOfParticles / _hashParticlesThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_HashParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _hashParticlesThreadSize.x), 1, 1);
         SortParticles();
-        _fluidSimulationComputeShader.Dispatch(_CalculateCellOffsetsKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCellOffsetsThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_CalculateCellOffsetsKernelId, Mathf.CeilToInt(MaxNumOfParticles / _calculateCellOffsetsThreadSize.x), 1, 1);
 
         for (int i = 0; i < _SolveIterations; i++)
         {

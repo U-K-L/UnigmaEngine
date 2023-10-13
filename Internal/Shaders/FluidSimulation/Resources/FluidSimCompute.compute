@@ -127,6 +127,7 @@ RWStructuredBuffer<Particle> _Particles;
 RWStructuredBuffer<int> _ParticleIndices;
 RWStructuredBuffer<int> _ParticleCellIndices;
 RWStructuredBuffer<int> _ParticleCellOffsets;
+RWStructuredBuffer<int> _ParticleCount;
 StructuredBuffer<BVHNode> _BVHNodes;
 StructuredBuffer<int> _ParticleIDs;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
@@ -1204,14 +1205,18 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
     
     //_Particles[id.x].debugVector = 0.25;
     _ParticleCellOffsets[id.x] = 99999999;
-	_ParticleCellIndices[id.x] = 0;
+	_ParticleCellIndices[id.x] = -1;
     _ParticleIndices[id.x] = id.x;
+    _ParticleCount[id.x] = 0;
     
     uint particleIndex = _ParticleIndices[id.x];
     
     _ParticleCellIndices[particleIndex] = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
+    uint cellIndex = _ParticleCellIndices[particleIndex];
     
-	_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
+    InterlockedAdd(_ParticleCount[cellIndex], 1);
+
+	//_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
     
 }
 
@@ -1223,6 +1228,10 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
         return;
     }
     
+	uint cellCount = _ParticleCount[id.x];
+    _ParticleIndices[id.x] = id.x;
+    
+    /*
     uint i = id.x + id.y * 256 * 1024;
     uint j = i ^ biBlock;
     
@@ -1242,7 +1251,7 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
 		//_ParticleCellIndices[i] = value_j;
 		//_ParticleCellIndices[j] = value_i;
     }
-
+    */
 }
 
 [numthreads(256, 1, 1)]

@@ -14,8 +14,9 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _particleBuffer;
     ComputeBuffer _pNodesBuffer;
     ComputeBuffer _particleIDsBuffer;
-    ComputeBuffer _particleIndices;
-    ComputeBuffer _particleCellIndices;
+    ComputeBuffer _particleIndicesBuffer;
+    ComputeBuffer _particleCountBuffer;
+    ComputeBuffer _particleCellIndicesBuffer;
     ComputeBuffer _particleCellOffsets;
     ComputeBuffer _BVHNodesBuffer;
 
@@ -103,6 +104,7 @@ public class FluidSimulationManager : MonoBehaviour
     
     private int[] _ParticleIDs;
     private int[] _ParticleIndices;
+    private int[] _ParticleCount;
     private int[] _ParticleCellIndices;
     private int[] _ParticleCellOffsets;
     
@@ -210,6 +212,7 @@ public class FluidSimulationManager : MonoBehaviour
         _ParticleIndices = new int[MaxNumOfParticles];
         _ParticleCellIndices = new int[MaxNumOfParticles];
         _ParticleCellOffsets = new int[MaxNumOfParticles];
+        _ParticleCount = new int[MaxNumOfParticles];
         _BVHNodes = new BVHNode[MaxNumOfParticles];
 
         _UpdateParticlesKernelId = _fluidSimulationComputeShader.FindKernel("UpdateParticles");
@@ -290,6 +293,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     void SortParticles()
     {
+        /*
         for (int biDim = 2; biDim <= MaxNumOfParticles; biDim <<= 1)
         {
             _fluidSimulationComputeShader.SetInt("biDim", biDim);
@@ -298,6 +302,14 @@ public class FluidSimulationManager : MonoBehaviour
                 _fluidSimulationComputeShader.SetInt("biBlock", biBlock);
                 _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
             }
+        }
+        */
+        _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
+        _particleCountBuffer.GetData(_ParticleCount);
+
+        for (int i = 0; i < _ParticleCount.Length; i++)
+        {
+            Debug.Log("cell count: " + i + " " + _ParticleCount[i]);
         }
     }
 
@@ -732,9 +744,10 @@ public class FluidSimulationManager : MonoBehaviour
         if (_particleBuffer == null)
         {
             _particleBuffer = new ComputeBuffer(MaxNumOfParticles, _particleStride );
-            _particleIndices = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
-            _particleCellIndices = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
+            _particleIndicesBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
+            _particleCellIndicesBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCellOffsets = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
+            _particleCountBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
 
             //Cubed root num of particles:
             float numOfParticlesCubedRoot = Mathf.Pow(NumOfParticles, 1.0f / 3.0f);
@@ -754,7 +767,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _particles[i].predictedPosition = _particles[i].position;
             }
 
-            _particleIndices.SetData(_ParticleIndices);
+            _particleIndicesBuffer.SetData(_ParticleIndices);
             _particleBuffer.SetData(_particles);
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Particles", _particleBuffer);
             //Set particle buffer to shader.
@@ -768,29 +781,29 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_Particles", _particleBuffer);
 
-            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_ComputeDensityKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionDeltasKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleIndices", _particleIndices);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleIndices", _particleIndices);
+            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_ComputeDensityKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionDeltasKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleIndices", _particleIndicesBuffer);
 
-            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_ComputeDensityKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionDeltasKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleCellIndices", _particleCellIndices);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleCellIndices", _particleCellIndices);
+            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_ComputeDensityKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionDeltasKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellOffsets", _particleCellOffsets);
@@ -804,6 +817,8 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleCellOffsets", _particleCellOffsets);
 
+            _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCount", _particleCountBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleCount", _particleCountBuffer);
         }
         for (int i = 0; i < NumOfParticles; i++)
         {
@@ -1016,6 +1031,9 @@ public class FluidSimulationManager : MonoBehaviour
             _particleIDsBuffer.Release();
         if(_BVHNodesBuffer != null)
             _BVHNodesBuffer.Release();
+        if (_particleCountBuffer != null)
+            _particleCountBuffer.Release();
+        
 
         _rtTarget.Release();
         _densityMapTexture.Release();

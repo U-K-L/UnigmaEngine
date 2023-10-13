@@ -751,7 +751,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
         //DensityMap[id.xy] = float4(particle.normal,1);
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
 		_VelocityMap[id.xy] = float4(particle.velocity, 1);
-        _CurlMap[id.xy] = float4(_Particles[particleId].debugVector, 1);
+        _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
         
     }
 }
@@ -812,7 +812,7 @@ void GetDensityGrid(uint3 id)
 				uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
-                while (neighbourIterator != 99999999 && neighbourIterator < MaxNeighbors)
+                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
                 {
 					uint particleIndexB = _ParticleIndices[neighbourIterator];
                     
@@ -895,7 +895,7 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
                 uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
-                while (neighbourIterator != 99999999 && neighbourIterator < MaxNeighbors)
+                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
                 {
                     uint particleIndexB = _ParticleIndices[neighbourIterator];
 
@@ -915,7 +915,7 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
 
                     if (0.0001f < dist && dist < _Radius * 2.0f)
                     {
-                        float Scorr = -0.01 * pow(Poly6Kernel(dist) / Poly6Kernel(0.003*_Radius), 4);
+                        float Scorr = 0;//-0.01 * pow(Poly6Kernel(dist) / Poly6Kernel(0.003*_Radius), 4);
                         float left = _Particles[particleIndex].lambda + _Particles[particleIndexB].lambda +Scorr;
 						float3 right = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
 
@@ -1015,7 +1015,7 @@ void CalculateCurl(uint3 id : SV_DispatchThreadID)
                 uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
-                while (neighbourIterator != 99999999 && neighbourIterator < MaxNeighbors)
+                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
                 {
                     uint particleIndexB = _ParticleIndices[neighbourIterator];
 
@@ -1151,7 +1151,7 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
                 uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
-                while (neighbourIterator != 99999999 && neighbourIterator < MaxNeighbors)
+                while (neighbourIterator != 99999999 && neighbourIterator < _NumOfParticles)
                 {
                     uint particleIndexB = _ParticleIndices[neighbourIterator];
 
@@ -1192,13 +1192,13 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
     float3 f_vc = _Viscosity * cross(n_hat, _Particles[particleIndex].curl);
     float3 c = 0.001;
     
-    _Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
+    //_Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
 }
 
 [numthreads(256, 1, 1)]
 void HashParticles(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _MaxNumOfParticles)
+    if (id.x >= _NumOfParticles)
     {
         return;
     }
@@ -1212,9 +1212,9 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
     uint particleIndex = _ParticleIndices[id.x];
     
     _ParticleCellIndices[particleIndex] = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
-    uint cellIndex = _ParticleCellIndices[particleIndex];
+    //uint cellIndex = _ParticleCellIndices[particleIndex];
     
-    InterlockedAdd(_ParticleCount[cellIndex], 1);
+    //InterlockedAdd(_ParticleCount[cellIndex], 1);
 
 	//_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
     
@@ -1223,15 +1223,20 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
 [numthreads(256, 1, 1)]
 void BitonicSort(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _MaxNumOfParticles)
+    if (id.x >= _NumOfParticles)
     {
         return;
     }
-    
-	uint cellCount = _ParticleCount[id.x];
-    _ParticleIndices[id.x] = id.x;
-    
     /*
+	uint cellCount = _ParticleCount[id.x];
+    //_ParticleIndices[id.x] = id.x;
+
+    for (int i = 0; i < cellCount; i++)
+    {
+        _ParticleIndices[i + id.x] = id.x;
+    }
+    */
+
     uint i = id.x + id.y * 256 * 1024;
     uint j = i ^ biBlock;
     
@@ -1251,13 +1256,13 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
 		//_ParticleCellIndices[i] = value_j;
 		//_ParticleCellIndices[j] = value_i;
     }
-    */
+
 }
 
 [numthreads(256, 1, 1)]
 void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _MaxNumOfParticles)
+    if (id.x >= _NumOfParticles)
     {
         return;
     }

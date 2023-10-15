@@ -32,6 +32,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _CalculateCellOffsetsKernelId;
     int _CalculateCurlKernelId;
     int _CalculateVorticityKernelId;
+    int _PrefexSumKernelId;
 
     Vector3 _updateParticlesThreadSize;
     Vector3 _computeForcesThreadSize;
@@ -44,6 +45,7 @@ public class FluidSimulationManager : MonoBehaviour
     Vector3 _calculateCellOffsetsThreadSize;
     Vector3 _calculateCurlThreadSize;
     Vector3 _calculateVorticityThreadSize;
+    Vector3 _prefexSumThreadSize;
 
     RenderTexture _rtTarget;
     RenderTexture _densityMapTexture;
@@ -226,7 +228,9 @@ public class FluidSimulationManager : MonoBehaviour
         _ComputeDensityKernelId = _fluidSimulationComputeShader.FindKernel("ComputeDensity");
         _UpdatePositionDeltasKernelId = _fluidSimulationComputeShader.FindKernel("UpdatePositionDeltas");
         _UpdatePositionsKernelId = _fluidSimulationComputeShader.FindKernel("UpdatePositions");
-        
+        _PrefexSumKernelId = _fluidSimulationComputeShader.FindKernel("PrefixSum");
+
+
         _rtTarget.enableRandomWrite = true;
         _rtTarget.Create();
         _densityMapTexture.enableRandomWrite = true;
@@ -250,6 +254,7 @@ public class FluidSimulationManager : MonoBehaviour
         AddObjectsToList();
         CreateNonAcceleratedStructure();
         CreateFluidCommandBuffers();
+
 
     }
 
@@ -289,24 +294,29 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_UpdatePositionsKernelId, out threadsX, out threadsY, out threadsZ);
         _updatePositionsThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_PrefexSumKernelId, out threadsX, out threadsY, out threadsZ);
+        _prefexSumThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
     }
 
     void SortParticles()
     {
         
-        for (int biDim = 2; biDim <= NumOfParticles; biDim <<= 1)
+        for (int biDim = 2; biDim <= MaxNumOfParticles; biDim <<= 1)
         {
             _fluidSimulationComputeShader.SetInt("biDim", biDim);
             for (int biBlock = biDim >> 1; biBlock > 0; biBlock >>= 1)
             {
                 _fluidSimulationComputeShader.SetInt("biBlock", biBlock);
-                _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(NumOfParticles / _sortParticlesThreadSize.x), 1, 1);
+                _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
             }
         }
-        /*
-        _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
+        
+        //_fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
         _particleCountBuffer.GetData(_ParticleCount);
+        
 
+        /*
         for (int i = 0; i < _ParticleCount.Length; i++)
         {
             Debug.Log("cell count: " + i + " " + _ParticleCount[i]);
@@ -766,10 +776,17 @@ public class FluidSimulationManager : MonoBehaviour
                 _particles[i].density = 0.0f;
                 _particles[i].lambda = 0.0f;
                 _particles[i].predictedPosition = _particles[i].position;
+                _ParticleIndices[i] = MaxNumOfParticles-1;
+                _ParticleCount[i] = 0;
+                _ParticleCellIndices[i] = MaxNumOfParticles-1;
+                _ParticleCellOffsets[i] = MaxNumOfParticles-1;
             }
-
+            
             _particleIndicesBuffer.SetData(_ParticleIndices);
             _particleBuffer.SetData(_particles);
+            _particleCellIndicesBuffer.SetData(_ParticleCellIndices);
+            _particleCellOffsets.SetData(_ParticleCellOffsets);
+            _particleCountBuffer.SetData(_ParticleCount);
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Particles", _particleBuffer);
             //Set particle buffer to shader.
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Particles", _particleBuffer);
@@ -820,6 +837,7 @@ public class FluidSimulationManager : MonoBehaviour
 
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCount", _particleCountBuffer);
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleCount", _particleCountBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_PrefexSumKernelId, "_ParticleCount", _particleCountBuffer);
         }
         for (int i = 0; i < NumOfParticles; i++)
         {
@@ -833,7 +851,8 @@ public class FluidSimulationManager : MonoBehaviour
         }
 
         _fluidSimulationComputeShader.Dispatch(_ComputeForcesKernelId, Mathf.CeilToInt(NumOfParticles / _computeForcesThreadSize.x), 1, 1);
-        _fluidSimulationComputeShader.Dispatch(_HashParticlesKernelId, Mathf.CeilToInt(NumOfParticles / _hashParticlesThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_HashParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _hashParticlesThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_PrefexSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefexSumThreadSize.x), 1, 1);
         SortParticles();
         _fluidSimulationComputeShader.Dispatch(_CalculateCellOffsetsKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCellOffsetsThreadSize.x), 1, 1);
 

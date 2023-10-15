@@ -41,7 +41,7 @@ Shader "Hidden/FluidBilateralFilter"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids;
+            sampler2D _MainTex, _UnigmaFluids, _DensityMap;
             float2 _UnigmaFluids_TexelSize;
             float _BlurFallOff, _BlurRadius;
             float _ScaleX, _ScaleY;
@@ -75,9 +75,11 @@ Shader "Hidden/FluidBilateralFilter"
             {
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
+                fixed4 densityMap = tex2D(_DensityMap, i.uv);
                 //fixed4 finalCol = lerp(originalImage, fluids, fluids.w);
                 float3 filter = bilateralFilter(_MainTex, i.uv);
-                return float4(filter, filter.x);
+				float3 filterDensityMap = bilateralFilter(_DensityMap, i.uv);
+                return float4(float3(filter.x, filter.y, filterDensityMap.x), filter.x);
             }
                 
             ENDCG

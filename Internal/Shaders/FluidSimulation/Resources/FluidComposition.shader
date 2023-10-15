@@ -21,6 +21,10 @@ Shader "Hidden/FluidComposition"
         [Normal]_DisplacementTexInner("Displacement Map inside of water", 2D) = "white"{}
         _Intensity("Intensity of displacement", Range(0, 2)) = 1
         _UnderWaterTexture("UnderWater Texture", 2D) = "white" {}
+		_SpecularPower("Specular Power", Range(0, 100)) = 10.0
+		_SpecularIntensity("Specular Intensity", Range(0, 10)) = 1.0
+		_FresnelPower("Fresnel Power", Range(0, 10)) = 1.0
+		_DensityThickness("Density Thickness", Float) = 1.0
     }
     SubShader
     {
@@ -34,6 +38,9 @@ Shader "Hidden/FluidComposition"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "UnityPBSLighting.cginc"
+            #include "AutoLight.cginc"
+            #include "Lighting.cginc"
             #include "../../ShaderHelpers.hlsl"
 
             struct appdata
@@ -58,8 +65,8 @@ Shader "Hidden/FluidComposition"
 
 			sampler2D _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
-			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity;
-			float _ScaleX, _ScaleY;
+			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity, _DensityThickness;
+			float _ScaleX, _ScaleY, _SpecularPower, _SpecularIntensity, _FresnelPower;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
             float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor, _DeepestWaterColor;
 
@@ -240,7 +247,7 @@ Shader "Hidden/FluidComposition"
                 float4 noisetexture = zn;
                 noisetexture = lerp(noisetexture, xn, blendNormal.x);
                 noisetexture = lerp(noisetexture, yn, blendNormal.y);
-               
+                
 
                 //Create Lines.
                 float scaleFloor = floor(1 * 0.5);
@@ -355,10 +362,19 @@ Shader "Hidden/FluidComposition"
 
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
 
-                float4 NdotL = saturate(dot(fluidNormalsAvg.xyz, _WorldSpaceLightPos0.xyz));
+                float NdotL = saturate(dot(particleNormalMap.xyz, _WorldSpaceLightPos0.xyz)) * 0.5 + 0.5;
+                //NdotL = step(0.705, NdotL);
+                float4 diffuse = saturate(NdotL * _LightColor0);
+                float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
+                float3 specular =  _LightColor0 * pow(DotClamped(reflect(-lightDir, fluidNormalsAvg.xyz), viewDir), _SpecularPower) * _SpecularIntensity;
+                diffuse += float4(specular, 1);//float4(ShadeSH9(half4(fluidNormalsAvg.xyz, 1)), 1);
+                
+				float fresnel = saturate(dot(fluidNormalsAvg.xyz, viewDir));
+				fresnel = pow(fresnel, _FresnelPower);
+                diffuse += fresnel;
 
 
-                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, densityMap);
+                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, 13.95*densityMap);
                 float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
 				waterColor = lerp(waterColor, waterDeepness, 1.0- (densityMap) );
@@ -366,7 +382,7 @@ Shader "Hidden/FluidComposition"
                 //waterColor = lerp(waterColor, waterDeepness, 1.0 - i.uv.y);
 
 
-                float4 waterSpecular = lerp(waterColor, 1, step(0.85 + (0.05 * sin(_Time.x * 10)), NdotL));
+                float4 waterSpecular = diffuse + waterColor;//lerp(waterColor, 1, step(0.85 + (0.05 * sin(_Time.x * 10)), diffuse.x));
                 float4 result = (min(2.5 * NdotL + 0.55, 1.05) * waterColor) + edge;
                 
                 //------------------------------------------------------------
@@ -451,29 +467,36 @@ Shader "Hidden/FluidComposition"
                 
                 
 
-
+                float atteunuationDensity = min(0.155,saturate(_DensityThickness * densityMap.z) * (exp(densityMap.z * 55 * fluidsDepth.z) - 1.0));
                 float4 grabPass = lerp(distortedOriginalImage, result, 0.55);
-                fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
-				fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor* fluidsDepth.w, 0.55);
-				cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.65, fluidsDepth.w));
+                fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.r));
+                fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _ShallowWaterColor * fluidsDepth.r, (1.0 - atteunuationDensity) + 0.25);
+				cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor* fluidsDepth.r, atteunuationDensity + 0.35);
+                
+				cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.65, fluidsDepth.r));
 
+                float4 fluidColorFinal = cleanFluidSingleColor + fluids.w*waterSpecular*0.15;
+                //return fluidColorFinal;
+                //return diffuse;
+                return fluidColorFinal + edgeDepth + float4((particleNormalMap.xyz * 0.5 + 0.5) * fluids.w, fluids.w) * 0.0935;
                 //return edgeNormal;
                 //return waterSpecular;
                 //return fluidsNormal;
-                //return fluidsDepth;
-                //return fluids.w * waterSpecular + cleanFluidSingleColor + edgeDepth;// +float4((particleNormalMap.xyz * 0.5 + 0.5) * fluids.w, fluids.w) * 0.25;
+                //return float4(fluidsDepth.z, fluidsDepth.z, fluidsDepth.z,1);
+                //return cleanFluidSingleColor + edgeDepth +float4((particleNormalMap.xyz * 0.5 + 0.5) * fluids.w, fluids.w) * 0.25;
               
                 //return finalImage;
                 //return lerp(finalImage, lerp(finalImage, finalImage + CausaticFinal * fluids.w, fluids.w *0.25), step(0.5, blendNormal.y));
-                //return densityMap;
-                return float4(fluids.w*fluids.xyz*0.5 + 0.5, fluids.w);
+                //return _DensityThickness * fluidsDepth.z;
+                //return float4(fluids.w*fluids.xyz*0.5 + 0.5, fluids.w);
                 //return finalImage;
-                //return NdotL;
+                //return diffuse*fluids.w;//float4(ShadeSH9(half4(normalize(fluidNormalsAvg.xyz), 1)), 1);
                 // good
                 //return noisetexture;
                 //return particleNormalMap;
                 //return velocityMap;
                 //return fluids.w * curlMap;
+                //return float4((particleNormalMap.xyz * 0.5 + 0.5),1);
             }
             ENDCG
         }

@@ -200,7 +200,7 @@ float4x4 translate(float3 p)
 float Poly6Kernel(float distance2)
 {
     float result = 0.0;
-    float h = _Radius;
+    float h = 1;
 
     if (0.0f < distance2 && distance2 < h)
     {
@@ -216,7 +216,7 @@ float Poly6Kernel(float distance2)
 float3 Poly6GradientKernel(float distance2, float3 direction)
 {
     float3 result = 0.0;
-    float h = _Radius;
+    float h = 1;
 
     float h9 = pow(h, 9.0f);
     float constPoly6 = -945.0f / (32.0f * UNITY_PI * h9);
@@ -242,7 +242,7 @@ float SpikyKernelD2(float distance)
 float3 SpikyKernelGradient(float distance2, float3 direction)
 {
     float3 result = 0.0;
-    float h = _Radius;
+    float h = 1;
     if (0.0f  < distance2 && distance2 < h)
     {
         float m = pow(h - distance2, 2.0f);
@@ -466,7 +466,7 @@ float IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 	float3 rad = float3(radius, radius, radius);
     
     //Intersect with a box and then smoothly combine boxes together with union operation.
-    float4 tNFnorm = boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
+    float4 tNFnorm = sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
 	t1 = tNFnorm.x;
     t1 = opU(t1, hit.distance);
     return t1;
@@ -596,6 +596,7 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
     int bvhminIndex = -1;
     int nodeIndex = 0;
 	int particleIndex = -1;
+    float particlesHit = 0;
     BVHNode node = _BVHNodes[0];
     for (int i = 0; i < _NumOfNodes; i++)
     {
@@ -611,13 +612,17 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
 
                 float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
 
-                if (t1 > epsilon && t1 < hit.distance)
+                if (t1 > epsilon)
                 {
-                    float4 clipPos = UnityWorldToClipPos(position);
-                    float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
-                    hit.depth = 1.0 - depth;
-                    hit.distance = t1;
-                    particleIndex = _ParticleIDs[k];
+                    particlesHit += 1.0f;
+                    if (t1 < hit.distance)
+                    {
+                        float4 clipPos = UnityWorldToClipPos(position);
+                        float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
+                        hit.depth = 1.0 - depth;
+                        hit.distance = t1;
+                        particleIndex = _ParticleIDs[k];
+                    }
                 }
             }
 
@@ -630,7 +635,10 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
         }
 
     }
-    return float4(minDistance, minDistance, minDistance, particleIndex);
+    float kd = min(99.0f, particlesHit) * 0.0055f;
+    float e = exp(kd);
+    float hitMap = e - 1.0f;
+    return float4(minDistance, hitMap, minDistance, particleIndex);
 }
 
 
@@ -651,12 +659,13 @@ float TraceParticlesIterative(inout Ray ray, inout Hit hit)
     return minDistance;
 }
 
-float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId)
+float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float particlesHit)
 {
 
     float4 result = 99999999;
     float minDistance = 99999999;
 	particleId = -1;
+    particlesHit = 0.0f;
 
     for (int k = 0; k < numOfStructs; k++)
     {
@@ -670,6 +679,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId)
     
     result = TraceParticlesTBVH(ray, hit);
 	minDistance = result.x;
+	particlesHit = result.y;
 	particleId = result.w;
     //minDistance = TraceParticlesIterative(ray, hit);
     float3 position = ray.o + hit.distance * ray.d;
@@ -741,18 +751,21 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     Hit hit = CreateHit();
 
     int particleId = -1;
-    float4 tracedPoint = SceneTrace(ray, hit, particleId);
+	float particlesHit = 0;
+    float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
     _ColorFieldNormalMap[id.xy] = 0;
     _VelocityMap[id.xy] = 0;
     _CurlMap[id.xy] = 0;
+    DensityMap[id.xy] = particlesHit;
+    
     if (particleId >= 0)
     {
 		Particle particle = _Particles[particleId];
         //DensityMap[id.xy] = float4(particle.normal,1);
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
 		_VelocityMap[id.xy] = float4(particle.velocity, 1);
-        _CurlMap[id.xy] = float4(_Particles[particleId].debugVector, 1);
+        _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
         
     }
 }
@@ -854,7 +867,7 @@ void GetDensityGrid(uint3 id)
     _Particles[particleIndex].density = densitySum;
     //_Particles[particleIndex].debugVector += float3(0, 0, 1) * (densitySum / _RestDensity);
 	_Particles[particleIndex].lambda = lambda;
-    _Particles[particleIndex].normal = normalize(-colorField);
+    _Particles[particleIndex].normal = min(normalize(-colorField), float3(1,1,1));
 }
 
 
@@ -916,7 +929,7 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
 
                     if (0.001f < dist && dist < _Radius * 2.0f)
                     {
-                        float Scorr = 0;//-0.01 * pow(Poly6Kernel(dist) / Poly6Kernel(0.003*_Radius), 4);
+                        float Scorr = -0.01 * pow(Poly6Kernel(dist) / Poly6Kernel(0.003*_Radius), 4);
                         float left = _Particles[particleIndex].lambda + _Particles[particleIndexB].lambda +Scorr;
 						float3 right = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
 
@@ -1193,7 +1206,7 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
     float3 f_vc = _Viscosity * cross(n_hat, _Particles[particleIndex].curl);
     float3 c = 0.001;
     
-    //_Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
+    _Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
 }
 
 [numthreads(256, 1, 1)]

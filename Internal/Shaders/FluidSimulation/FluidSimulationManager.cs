@@ -775,6 +775,9 @@ public class FluidSimulationManager : MonoBehaviour
                 _particles[i].force = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
                 _particles[i].density = 0.0f;
                 _particles[i].lambda = 0.0f;
+                _particles[i].debugVector = Vector3.zero;
+                _particles[i].cellID = -1;
+                _particles[i].normal = Vector3.zero;
                 _particles[i].predictedPosition = _particles[i].position;
                 _ParticleIndices[i] = MaxNumOfParticles-1;
                 _ParticleCount[i] = 0;
@@ -935,7 +938,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimMaterialComposite.SetColor("_DeepWaterColor", DeepWaterColor);
         _fluidSimMaterialComposite.SetColor("_ShallowWaterColor", ShallowWaterColor);
         _fluidSimMaterialComposite.SetFloat("_DepthMaxDistance", DepthMaxDistance);
-        _fluidSimMaterialComposite.SetTexture("_DensityMap", _densityMapTexture);
+        //_fluidSimMaterialComposite.SetTexture("_DensityMap", _densityMapTexture);
         _fluidSimMaterialComposite.SetTexture("_ColorFieldNormalMap", _normalMapTexture);
         _fluidSimMaterialComposite.SetTexture("_VelocityMap", _velocityMapTexture);
         _fluidSimMaterialComposite.SetTexture("_CurlMap", _curlMapTexture);
@@ -964,6 +967,7 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _fluidDepthBufferTexture);
+        fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
 
         fluidCommandBuffers.SetRenderTarget(_fluidDepthBufferTexture);
 

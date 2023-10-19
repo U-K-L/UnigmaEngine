@@ -20,6 +20,18 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _CausticNoise:
+        m_Texture: {fileID: 2800000, guid: 891eade74ecd2884eb09b0f25180584f, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CausticTex:
+        m_Texture: {fileID: 2800000, guid: c7e361ce96b94c94491259ed99398c96, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CausticTile:
+        m_Texture: {fileID: 2800000, guid: 3a002342be067524fbf93d0c48f13f2f, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DisplacementTex:
         m_Texture: {fileID: 2800000, guid: f20af7466f847d046bfe243323625f5c, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -37,15 +49,15 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NoiseTex:
-        m_Texture: {fileID: 2800000, guid: ba384a3c945464600a4046641bb57ca3, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SideTexture:
-        m_Texture: {fileID: 2800000, guid: ba384a3c945464600a4046641bb57ca3, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TopTexture:
-        m_Texture: {fileID: 2800000, guid: da5172aaf8ea22a40aa62530a68c640a, type: 3}
+        m_Texture: {fileID: 2800000, guid: c7e361ce96b94c94491259ed99398c96, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _UnderWaterTexture:
@@ -57,20 +69,26 @@ Material:
     - _BlendSmooth: 2.4
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51
+    - _CausticIntensity: 1
+    - _CausticScale: 0.12
     - _DensityThickness: 6.3
     - _DepthMaxDistance: 0.00031
     - _EdgeWidth: 1.62
     - _FresnelPower: 10
     - _Intensity: 1.2
     - _NoiseScale: 35
+    - _OutlineThickness: 0.05
     - _ScaleX: 0.66
     - _ScaleY: -1.45
     - _SpecularIntensity: 2.9
     - _SpecularPower: 17
+    - _Speed: 3.86
     - _Spread: 0.18
     m_Colors:
-    - _DeepWaterColor: {r: 0, g: 0.36134467, b: 0.8113208, a: 1}
+    - _CausticColor: {r: 1, g: 1, b: 1, a: 1}
+    - _DeepWaterColor: {r: 0.003025995, g: 0.2558827, b: 0.6415094, a: 1}
     - _DeepestWaterColor: {r: 0.7830189, g: 0, b: 0.7698571, a: 1}
-    - _NoiseScale: {r: 42.27, g: 105.5, b: 27.12, a: 0.001}
-    - _ShallowWaterColor: {r: 0, g: 1, b: 0.7455473, a: 1}
+    - _NoiseScale: {r: 42.27, g: 161.5, b: 12.2, a: 0.001}
+    - _NoiseScaleCaustic: {r: 2.01, g: 0.77, b: 1, a: 0.2}
+    - _ShallowWaterColor: {r: 1, g: 0.4009434, b: 0.6783225, a: 1}
   m_BuildTextureStacks: []

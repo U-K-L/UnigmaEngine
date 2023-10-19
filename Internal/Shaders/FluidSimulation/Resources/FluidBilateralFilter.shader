@@ -41,7 +41,7 @@ Shader "Hidden/FluidBilateralFilter"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids, _DensityMap;
+            sampler2D _MainTex, _UnigmaFluids, _DensityMap, _VelocityMap;
             float2 _UnigmaFluids_TexelSize;
             float _BlurFallOff, _BlurRadius;
             float _ScaleX, _ScaleY;
@@ -71,15 +71,46 @@ Shader "Hidden/FluidBilateralFilter"
                 return sum;
             }
             
+
+			
+            
+            float bilateralFilter2(sampler2D depthSampler, float2 texcoord)
+            {
+                float blurRadiusSurface = 5.087;
+                float2 blurScaleSurface = float2(1.0, 0.65);
+                blurScaleSurface *= float2(_ScaleX, _ScaleY);
+                float4 tex1 = tex2D(depthSampler, texcoord);
+                float depth = tex1.x * tex1.w;
+                float sum = 0;
+                float wsum = 0;
+                float blurScale = 1.0 / blurRadiusSurface;
+                for (float x = -blurRadiusSurface; x <= blurRadiusSurface; x += 1.0) {
+                    float tex = tex2D(depthSampler, texcoord + _UnigmaFluids_TexelSize * x * float2(blurScaleSurface.x, blurScaleSurface.y)).y;
+                    // spatial domain
+                    float r = x * blurScale;
+                    float r2 = (tex - depth) * _BlurFallOff;
+                    float w = exp(-r * r);
+                    float g = exp(-r2 * r2);
+                    sum += tex * w * g;
+                    wsum += w * g;
+                }
+                if (wsum > 0.0) {
+                    sum /= wsum;
+                }
+                return sum;
+            }
+            
             fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
                 fixed4 densityMap = tex2D(_DensityMap, i.uv);
+				fixed4 velocityMap = tex2D(_VelocityMap, i.uv);
                 //fixed4 finalCol = lerp(originalImage, fluids, fluids.w);
                 float3 filter = bilateralFilter(_MainTex, i.uv);
 				float3 filterDensityMap = bilateralFilter(_DensityMap, i.uv);
-                return float4(float3(filter.x, filter.y, filterDensityMap.x), filter.x);
+				float3 filterVelocityMap = bilateralFilter2(_VelocityMap, i.uv);
+                return float4(float3(filter.x, filterVelocityMap.y, filterDensityMap.x), filter.x);
             }
                 
             ENDCG

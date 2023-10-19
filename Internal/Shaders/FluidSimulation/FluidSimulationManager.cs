@@ -55,6 +55,7 @@ public class FluidSimulationManager : MonoBehaviour
     RenderTexture _tempTarget;
     RenderTexture _fluidNormalBufferTexture;
     RenderTexture _fluidDepthBufferTexture;
+    List<RenderTexture> _previousPositionTextures;
 
     Shader _fluidNormalShader;
     Shader _fluidDepthShader;
@@ -940,7 +941,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimMaterialComposite.SetFloat("_DepthMaxDistance", DepthMaxDistance);
         //_fluidSimMaterialComposite.SetTexture("_DensityMap", _densityMapTexture);
         _fluidSimMaterialComposite.SetTexture("_ColorFieldNormalMap", _normalMapTexture);
-        _fluidSimMaterialComposite.SetTexture("_VelocityMap", _velocityMapTexture);
+        //_fluidSimMaterialComposite.SetTexture("_VelocityMap", _velocityMapTexture);
         _fluidSimMaterialComposite.SetTexture("_CurlMap", _curlMapTexture);
 
 
@@ -968,6 +969,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _fluidDepthBufferTexture);
         fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
+        fluidCommandBuffers.SetGlobalTexture("_VelocityMap", _velocityMapTexture);
 
         fluidCommandBuffers.SetRenderTarget(_fluidDepthBufferTexture);
 

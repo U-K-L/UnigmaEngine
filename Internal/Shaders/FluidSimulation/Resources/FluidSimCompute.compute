@@ -459,16 +459,17 @@ float IntersectParticles(inout Hit hit, in Ray ray, float radius, float3 center)
 	//center = mul(_ParentTransform, float4(center, 1)).xyz;
 
     //Get box transformation matrix.
-	float4x4 tra = translate(center);
-    float4x4 txi = tra;
-    float4x4 txx = inverse2(txi);
-    float t1 = 0;
-	float3 rad = float3(radius, radius, radius);
+	//float4x4 tra = translate(center);
+    //float4x4 txi = tra;
+    //float4x4 txx = inverse2(txi);
+    //float t1 = 0;
+	//float3 rad = float3(radius, radius, radius);
     
     //Intersect with a box and then smoothly combine boxes together with union operation.
-    float4 tNFnorm = sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
-	t1 = tNFnorm.x;
+    float4 tNFnorm = sphIntersect(rayOrig, rayDir, float4(center, radius));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);//sphIntersect(rayOrig, rayDir, float4(center, rad.x));//boxIntersection2(rayOrig, rayDir, txx, txi, rad);
+	float t1 = tNFnorm.x;
     t1 = opU(t1, hit.distance);
+    
     return t1;
 }
 
@@ -521,6 +522,7 @@ float TraceParticlesBVH(inout Ray ray, inout Hit hit)
 
                     if (t1 > epsilon && t1 < minDistance)
                     {
+                        hit.distance = t1;
                         minDistance = t1;
                     }
                     numOfTimes++;
@@ -638,7 +640,7 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
     float kd = min(99.0f, particlesHit) * 0.0055f;
     float e = exp(kd);
     float hitMap = e - 1.0f;
-    return float4(minDistance, hitMap, minDistance, particleIndex);
+    return float4(minDistance, hitMap, particlesHit, particleIndex);
 }
 
 
@@ -755,16 +757,52 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
     _ColorFieldNormalMap[id.xy] = 0;
-    _VelocityMap[id.xy] = 0;
+    //_VelocityMap[id.xy] = 0;
     _CurlMap[id.xy] = 0;
     DensityMap[id.xy] = particlesHit;
-    
+
+
+    _VelocityMap[id.xy] *= 0.255f;
     if (particleId >= 0)
     {
 		Particle particle = _Particles[particleId];
+        //Check if this particle has any particle on its sides.
+        Ray raySides = CreateCameraRay(pixel);
+        Hit hitSides = CreateHit();
+        float minDistance = 99999999;
+		float4 result = 99999999;
+		float3 freeSurface = 0;
+        raySides.o = particle.position;
+		raySides.d = float3(0.0f,1.0f,0.0f);
+        result = TraceParticlesTBVH(raySides, hitSides);
+        if (result.z < 3.00f && particle.cellID > 20)
+            freeSurface += raySides.d;
+        
+        raySides.d = float3(0.0f, 0.0f, 1.0f);
+        result = 99999999;
+        result = TraceParticlesTBVH(raySides, hitSides);
+        freeSurface *= float3(0.0f, result.y, 0.0f);
+        
+
+        raySides.d = float3(0.0f, 0.0f, -1.0f);
+        result = 99999999;
+        result = TraceParticlesTBVH(raySides, hitSides);
+        if (result.z < 3.00f)
+            freeSurface *= float3(0.0f, 0.0f, 0.0f);
+        /*
+        raySides.d = float3(1.0f, 0.0f, 0.0f);
+        result = 99999999;
+        result = TraceParticlesTBVH(raySides, hitSides);
+        freeSurface *= float3(0.0f, result.y + 0.1, 0.0f);
+
+        raySides.d = float3(-1.0f, 0.0f, 0.0f);
+        result = 99999999;
+        result = TraceParticlesTBVH(raySides, hitSides);
+        freeSurface *= float3(0.0f, result.y + 0.1, 0.0f);
+        */
         //DensityMap[id.xy] = float4(particle.normal,1);
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
-		_VelocityMap[id.xy] = float4(particle.velocity, 1);
+		_VelocityMap[id.xy] = float4(freeSurface, 1);
         _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
         
     }
@@ -789,6 +827,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].lastPosition = _Particles[id.x].position;
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
     _Particles[id.x].debugVector = 0.25;
+    _Particles[id.x].cellID = 0;
 }
 
 void GetDensityIterative(uint3 id)
@@ -841,6 +880,7 @@ void GetDensityGrid(uint3 id)
                     
                     if (0.001f < distance2 && distance2 < _Radius * 2)
                     {
+                        _Particles[particleIndex].cellID += 1;
                         //Poly6
                         densitySum += Poly6Kernel(distance2) * _Particles[particleIndex].mass;
                         //Spiky
@@ -1231,7 +1271,7 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
     
     InterlockedAdd(_ParticleCount[cellIndex], 1);
 
-	_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
+	//_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
     
 }
 

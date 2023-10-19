@@ -72,7 +72,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-			sampler2D _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
+			sampler2D _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity, _DensityThickness, _OutlineThickness;
 			float _CausticIntensity, _CausticScale, _Speed, _ScaleX, _ScaleY, _SpecularPower, _SpecularIntensity, _FresnelPower;
@@ -244,6 +244,7 @@ Shader "Hidden/FluidComposition"
 				fixed4 densityMap = tex2D(_DensityMap, distortionGrabPass2);
                 fixed4 particleNormalMap = tex2D(_ColorFieldNormalMap, i.uv);
 				fixed4 velocityMap = tex2D(_VelocityMap, i.uv);
+				fixed4 surfaceMap = tex2D(_SurfaceMap, i.uv);
                 fixed4 curlMap = tex2D(_CurlMap, i.uv);
                 
 				fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass *2);
@@ -559,6 +560,8 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerp = causaticLerpSide * 0.5 + causaticLerpTop*0.55;
                 float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.45 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 				return colorLerping;
+                // 
+                // 
                 //return edgeNormal;
                 //return waterSpecular;
                 //return fluidsNormal;
@@ -580,6 +583,7 @@ Shader "Hidden/FluidComposition"
                 //return velocityMap;
                 //return smoothstep(0.0225, 0.0295, fluidsDepth.y);
                 //return edge;
+                //return surfaceMap;
             }
             ENDCG
         }

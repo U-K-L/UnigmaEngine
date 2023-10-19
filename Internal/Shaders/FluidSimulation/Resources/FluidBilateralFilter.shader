@@ -41,7 +41,7 @@ Shader "Hidden/FluidBilateralFilter"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids, _DensityMap, _VelocityMap;
+            sampler2D _MainTex, _UnigmaFluids, _DensityMap, _SurfaceMap;
             float2 _UnigmaFluids_TexelSize;
             float _BlurFallOff, _BlurRadius;
             float _ScaleX, _ScaleY;
@@ -102,15 +102,10 @@ Shader "Hidden/FluidBilateralFilter"
             
             fixed4 frag (v2f i) : SV_Target
             {
-                fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
-                fixed4 originalImage = tex2D(_MainTex, i.uv);
-                fixed4 densityMap = tex2D(_DensityMap, i.uv);
-				fixed4 velocityMap = tex2D(_VelocityMap, i.uv);
-                //fixed4 finalCol = lerp(originalImage, fluids, fluids.w);
                 float3 filter = bilateralFilter(_MainTex, i.uv);
 				float3 filterDensityMap = bilateralFilter(_DensityMap, i.uv);
-				float3 filterVelocityMap = bilateralFilter2(_VelocityMap, i.uv);
-                return float4(float3(filter.x, filterVelocityMap.y, filterDensityMap.x), filter.x);
+				float3 filterSurfaceMap = bilateralFilter2(_SurfaceMap, i.uv);
+                return float4(float3(filter.x, filterSurfaceMap.y, filterDensityMap.x), filter.x);
             }
                 
             ENDCG

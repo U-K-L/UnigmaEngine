@@ -144,6 +144,7 @@ RWTexture2D<float4> NormalMap;
 RWTexture2D<float4> _ColorFieldNormalMap;
 RWTexture2D<float4> _VelocityMap;
 RWTexture2D<float4> _CurlMap;
+RWTexture2D<float4> _SurfaceMap;
 
 Vertex CreateVertex(inout Vertex v)
 {
@@ -757,12 +758,11 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
     _ColorFieldNormalMap[id.xy] = 0;
-    //_VelocityMap[id.xy] = 0;
     _CurlMap[id.xy] = 0;
     DensityMap[id.xy] = particlesHit;
 
 
-    _VelocityMap[id.xy] *= 0.255f;
+    _SurfaceMap[id.xy] *= 0.255f;
     if (particleId >= 0)
     {
 		Particle particle = _Particles[particleId];
@@ -802,9 +802,8 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
         */
         //DensityMap[id.xy] = float4(particle.normal,1);
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
-		_VelocityMap[id.xy] = float4(freeSurface, 1);
+        _SurfaceMap[id.xy] = float4(freeSurface, 1);
         _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
-        
     }
 }
 

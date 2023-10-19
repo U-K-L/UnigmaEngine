@@ -52,6 +52,7 @@ public class FluidSimulationManager : MonoBehaviour
     RenderTexture _normalMapTexture;
     RenderTexture _curlMapTexture;
     RenderTexture _velocityMapTexture;
+    RenderTexture _surfaceMapTexture;
     RenderTexture _tempTarget;
     RenderTexture _fluidNormalBufferTexture;
     RenderTexture _fluidDepthBufferTexture;
@@ -205,6 +206,7 @@ public class FluidSimulationManager : MonoBehaviour
         _densityMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _normalMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _velocityMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _surfaceMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _curlMapTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _tempTarget = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidNormalBufferTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
@@ -240,6 +242,8 @@ public class FluidSimulationManager : MonoBehaviour
         _normalMapTexture.Create();
         _velocityMapTexture.enableRandomWrite = true;
         _velocityMapTexture.Create();
+        _surfaceMapTexture.enableRandomWrite = true;
+        _surfaceMapTexture.Create();
         _curlMapTexture.enableRandomWrite = true;
         _curlMapTexture.Create();
         _fluidNormalBufferTexture.enableRandomWrite = true;
@@ -249,6 +253,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "NormalMap", _fluidNormalBufferTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_ColorFieldNormalMap", _normalMapTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_VelocityMap", _velocityMapTexture);
+        _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_SurfaceMap", _surfaceMapTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_CurlMap", _curlMapTexture);
 
         GetThreadSizes();
@@ -970,6 +975,7 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _fluidDepthBufferTexture);
         fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
         fluidCommandBuffers.SetGlobalTexture("_VelocityMap", _velocityMapTexture);
+        fluidCommandBuffers.SetGlobalTexture("_SurfaceMap", _surfaceMapTexture);
 
         fluidCommandBuffers.SetRenderTarget(_fluidDepthBufferTexture);
 

@@ -145,6 +145,7 @@ RWTexture2D<float4> _ColorFieldNormalMap;
 RWTexture2D<float4> _VelocityMap;
 RWTexture2D<float4> _CurlMap;
 RWTexture2D<float4> _SurfaceMap;
+RWTexture2D<float4> _VelocitySurfaceDensityDepthTexture;
 
 Vertex CreateVertex(inout Vertex v)
 {
@@ -760,13 +761,18 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     _ColorFieldNormalMap[id.xy] = 0;
     _CurlMap[id.xy] = 0;
     DensityMap[id.xy] = particlesHit;
+	_VelocityMap[id.xy] = 0;
+    _VelocitySurfaceDensityDepthTexture[id.xy] = 0;
 
 
-    _SurfaceMap[id.xy] *= 0.255f;
+    _SurfaceMap[id.xy] = 0.0f;
     if (particleId >= 0)
     {
 		Particle particle = _Particles[particleId];
         //Check if this particle has any particle on its sides.
+
+        //Calculate the surface, and fade away.
+		//TODO: do all sides of the main axis.
         Ray raySides = CreateCameraRay(pixel);
         Hit hitSides = CreateHit();
         float minDistance = 99999999;
@@ -789,22 +795,16 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
         result = TraceParticlesTBVH(raySides, hitSides);
         if (result.z < 3.00f)
             freeSurface *= float3(0.0f, 0.0f, 0.0f);
-        /*
-        raySides.d = float3(1.0f, 0.0f, 0.0f);
-        result = 99999999;
-        result = TraceParticlesTBVH(raySides, hitSides);
-        freeSurface *= float3(0.0f, result.y + 0.1, 0.0f);
 
-        raySides.d = float3(-1.0f, 0.0f, 0.0f);
-        result = 99999999;
-        result = TraceParticlesTBVH(raySides, hitSides);
-        freeSurface *= float3(0.0f, result.y + 0.1, 0.0f);
-        */
-        //DensityMap[id.xy] = float4(particle.normal,1);
+        
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
         _SurfaceMap[id.xy] = float4(freeSurface, 1);
+		_VelocityMap[id.xy] = float4(particle.velocity, length(particle.velocity) + length(_Particles[particleId].curl) * 0.055);
         _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
+        
     }
+    
+    _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, DensityMap[id.xy].x, Result[id.xy].w);
 }
 
 [numthreads(64, 1, 1)]
@@ -1245,7 +1245,7 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
     float3 f_vc = _Viscosity * cross(n_hat, _Particles[particleIndex].curl);
     float3 c = 0.001;
     
-    _Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
+    //_Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
 }
 
 [numthreads(256, 1, 1)]

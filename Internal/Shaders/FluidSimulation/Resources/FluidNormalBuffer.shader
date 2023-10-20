@@ -37,13 +37,13 @@ Shader "Hidden/FluidNormalBuffer"
                 return o;
             }
 
-            sampler2D _MainTex, _UnigmaFluids;
+            sampler2D _MainTex, _UnigmaFluids, _UnigmaFluidsDepth;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
-            float2 _MainTex_TexelSize;
+            float2 _MainTex_TexelSize, _UnigmaFluidsDepth_TexelSize;
 
             float3 getEyePos(sampler2D depthText, float2 uv)
             {
-                float depth = tex2D(depthText, uv);
+                float depth = tex2D(depthText, uv).w;
                 float4 clipSpacePos = float4(uv * 2.0 - 1.0, depth, 1.0);
                 float4 viewSpacePos = mul(_CameraInverseProjection, clipSpacePos);
                 return viewSpacePos.xyz / viewSpacePos.w;
@@ -52,18 +52,18 @@ Shader "Hidden/FluidNormalBuffer"
             
             fixed4 frag (v2f i) : SV_Target
             {
-                fixed4 fluids = tex2D(_MainTex, i.uv);
+                fixed4 fluids = tex2D(_UnigmaFluidsDepth, i.uv);
                 fixed4 colorFieldGrad = tex2D(_UnigmaFluids, i.uv);
-                float3 eyeSpacePos = getEyePos(_MainTex, i.uv);
+                float3 eyeSpacePos = getEyePos(_UnigmaFluidsDepth, i.uv);
                 // calculate differences
-                float3 ddx = getEyePos(_MainTex, i.uv + float2(_MainTex_TexelSize.x, 0)) - eyeSpacePos;
-                float3 ddx2 = eyeSpacePos - getEyePos(_MainTex, i.uv + float2(-_MainTex_TexelSize.x, 0));
+                float3 ddx = getEyePos(_UnigmaFluidsDepth, i.uv + float2(_UnigmaFluidsDepth_TexelSize.x, 0)) - eyeSpacePos;
+                float3 ddx2 = eyeSpacePos - getEyePos(_UnigmaFluidsDepth, i.uv + float2(-_UnigmaFluidsDepth_TexelSize.x, 0));
                 if (abs(ddx.z) > abs(ddx2.z)) {
                     ddx = ddx2;
                 }
 
-                float3 ddy = getEyePos(_MainTex, i.uv + float2(0, _MainTex_TexelSize.y)) - eyeSpacePos;
-                float3 ddy2 = eyeSpacePos - getEyePos(_MainTex, i.uv + float2(0, -_MainTex_TexelSize.y));
+                float3 ddy = getEyePos(_UnigmaFluidsDepth, i.uv + float2(0, _UnigmaFluidsDepth_TexelSize.y)) - eyeSpacePos;
+                float3 ddy2 = eyeSpacePos - getEyePos(_UnigmaFluidsDepth, i.uv + float2(0, -_UnigmaFluidsDepth_TexelSize.y));
                 if (abs(ddy2.z) < abs(ddy.z)) {
                     ddy = ddy2;
                 }

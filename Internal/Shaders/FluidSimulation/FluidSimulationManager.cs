@@ -56,6 +56,7 @@ public class FluidSimulationManager : MonoBehaviour
     RenderTexture _tempTarget;
     RenderTexture _fluidNormalBufferTexture;
     RenderTexture _fluidDepthBufferTexture;
+    RenderTexture _velocitySurfaceDensityDepthTexture;
     List<RenderTexture> _previousPositionTextures;
 
     Shader _fluidNormalShader;
@@ -211,6 +212,7 @@ public class FluidSimulationManager : MonoBehaviour
         _tempTarget = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidNormalBufferTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _fluidDepthBufferTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _velocitySurfaceDensityDepthTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
 
         _particles = new Particles[MaxNumOfParticles];
         _ParticleIDs = new int[MaxNumOfParticles];
@@ -238,6 +240,8 @@ public class FluidSimulationManager : MonoBehaviour
         _rtTarget.Create();
         _densityMapTexture.enableRandomWrite = true;
         _densityMapTexture.Create();
+        _velocitySurfaceDensityDepthTexture.enableRandomWrite = true;
+        _velocitySurfaceDensityDepthTexture.Create();
         _normalMapTexture.enableRandomWrite = true;
         _normalMapTexture.Create();
         _velocityMapTexture.enableRandomWrite = true;
@@ -872,9 +876,9 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.Dispatch(_UpdateParticlesKernelId, Mathf.CeilToInt(NumOfParticles / _updateParticlesThreadSize.x), 1, 1);
         }
 
-        //_fluidSimulationComputeShader.Dispatch(_CalculateCurlKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCurlThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_CalculateCurlKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCurlThreadSize.x), 1, 1);
         _fluidSimulationComputeShader.Dispatch(_UpdatePositionsKernelId, Mathf.CeilToInt(NumOfParticles / _updatePositionsThreadSize.x), 1, 1);
-        //_fluidSimulationComputeShader.Dispatch(_CalculateVorticityKernelId, Mathf.CeilToInt(NumOfParticles / _calculateVorticityThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_CalculateVorticityKernelId, Mathf.CeilToInt(NumOfParticles / _calculateVorticityThreadSize.x), 1, 1);
         //Set Particle positions to script.
         _particleBuffer.GetData(_particles);
 
@@ -970,20 +974,21 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0,0,0,0));
 
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "Result", _rtTarget);
+        fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "_VelocitySurfaceDensityDepthTexture", _velocitySurfaceDensityDepthTexture);
         fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
 
-        fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _fluidDepthBufferTexture);
+        fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _velocitySurfaceDensityDepthTexture);
         fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
         fluidCommandBuffers.SetGlobalTexture("_VelocityMap", _velocityMapTexture);
         fluidCommandBuffers.SetGlobalTexture("_SurfaceMap", _surfaceMapTexture);
 
-        fluidCommandBuffers.SetRenderTarget(_fluidDepthBufferTexture);
+        fluidCommandBuffers.SetRenderTarget(_velocitySurfaceDensityDepthTexture);
 
         //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
         
-        fluidCommandBuffers.Blit(_rtTarget, _fluidDepthBufferTexture, _fluidSimMaterialDepthHori);
-        fluidCommandBuffers.Blit(_fluidDepthBufferTexture, _tempTarget);
-        fluidCommandBuffers.Blit(_tempTarget, _fluidDepthBufferTexture, _fluidSimMaterialDepthVert);
+        fluidCommandBuffers.Blit(_velocitySurfaceDensityDepthTexture, _tempTarget, _fluidSimMaterialDepthHori);
+        //fluidCommandBuffers.Blit(_depthSurfaceVelocityDensityTexture, _tempTarget);
+        fluidCommandBuffers.Blit(_tempTarget, _velocitySurfaceDensityDepthTexture, _fluidSimMaterialDepthVert);
 
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsNormals", _fluidNormalBufferTexture);

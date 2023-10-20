@@ -358,11 +358,12 @@ Shader "Hidden/FluidComposition"
                 normal2 = tex2D(_UnigmaFluidsDepth, bottomRight + (_Intensity * 0.01) * diplacementNormals.rg).y;
                 normal3 = tex2D(_UnigmaFluidsDepth, topLeft + (_Intensity * 0.01) * diplacementNormals.rg).y;
 
+                //return normal0;
                 normalFiniteDifference0 = normal1.xyz - normal0.xyz;
                 normalFiniteDifference1 = normal3.xyz - normal2.xyz;
 
                 float edgeInner = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
-                edgeInner = smoothstep(0.079, 0.114, edgeInner)*fluids.w;//edgeInner > 0.099 - edgeInner ? 1 : 0;
+                edgeInner = smoothstep(0.00199, 0.074, edgeInner)*fluids.w;//edgeInner > 0.099 - edgeInner ? 1 : 0;
                 
 
                 float edge = max(edgeDepth, edgeInner);
@@ -541,11 +542,11 @@ Shader "Hidden/FluidComposition"
 
                 float atteunuationDensity = min(0.155,saturate(_DensityThickness * densityMap.z) * (exp(densityMap.z * 75 * fluidsDepth.z) - 1.0));
                 float4 grabPass = lerp(distortedOriginalImage, result, 0.55);
-                fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.r));
-                fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _ShallowWaterColor * fluidsDepth.r,0);
-				cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor* fluidsDepth.r, atteunuationDensity + 0.15);
+                fixed4 finalImage = lerp(originalImage, grabPass, step(0.65, fluidsDepth.w));
+                fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _ShallowWaterColor * fluidsDepth.w,0);
+				cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor* fluidsDepth.w, atteunuationDensity + 0.15);
                 
-				cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.5, fluidsDepth.r));
+				cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.5, fluidsDepth.w));
 
                 float surface = smoothstep(0.05, 0.155, fluidsDepth.y);
                 float4 fluidColorFinal = cleanFluidSingleColor + fluids.w*waterSpecular*0.12;
@@ -559,9 +560,19 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerpSide = lerp(distortedOriginalImage, causticsTex * fluids.w * step(0.000000, fluidsDepth.y), 0.25);
                 float4 causaticLerp = causaticLerpSide * 0.5 + causaticLerpTop*0.55;
                 float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.45 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
-				return colorLerping;
-                // 
-                // 
+				
+                //return surface;
+                //return colorLerping;
+                //return edgeInner;
+                //return fluidsDepth.y;
+                float curly = length(curlMap);
+                //return step(9.2, curly);
+                float foam = smoothstep(8.89, 10.0, fluidsDepth.x);
+                //return foam;
+                float4 waterWithFoam = colorLerping;
+                waterWithFoam.xyz += float3(foam, foam, foam);
+                
+                return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
                 //return edgeNormal;
                 //return waterSpecular;
                 //return fluidsNormal;
@@ -580,7 +591,7 @@ Shader "Hidden/FluidComposition"
                 //return velocityMap;
                 //return fluids.w * curlMap;
                 //return float4((particleNormalMap.xyz * 0.5 + 0.5),1);
-                //return velocityMap;
+				//return step(2.0, fluidsDepth.x);
                 //return smoothstep(0.0225, 0.0295, fluidsDepth.y);
                 //return edge;
                 //return surfaceMap;

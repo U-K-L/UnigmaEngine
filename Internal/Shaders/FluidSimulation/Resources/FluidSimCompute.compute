@@ -737,14 +737,22 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
 [numthreads(32,32,1)]
 void CreateGrid (uint3 id : SV_DispatchThreadID)
 {
-    //Create grid of spheres in 3D.
-    
-    density = 0;
+    //Resets all values.
     uint width, height;
+    int particleId = -1;
+    float particlesHit = 0;
+    density = 0;
+    _VelocityMap[id.xy] = 0;
+    _VelocitySurfaceDensityDepthTexture[id.xy] = 0;
+    _ColorFieldNormalMap[id.xy] = 0;
+    _CurlMap[id.xy] = 0;
+    _SurfaceMap[id.xy] = 0.0f;
+
+	//Gets the dimensions of the screen.
+    Result.GetDimensions(width, height);
     worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
-	_Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    Result.GetDimensions(width, height);
+
 
 
 	//This is a ray for each pixel and in the pixel's center.
@@ -754,18 +762,11 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     Ray ray = CreateCameraRay(pixel);
     Hit hit = CreateHit();
 
-    int particleId = -1;
-	float particlesHit = 0;
+    //Actually perform intersection.
     float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
-    _ColorFieldNormalMap[id.xy] = 0;
-    _CurlMap[id.xy] = 0;
     DensityMap[id.xy] = particlesHit;
-	_VelocityMap[id.xy] = 0;
-    _VelocitySurfaceDensityDepthTexture[id.xy] = 0;
 
-
-    _SurfaceMap[id.xy] = 0.0f;
     if (particleId >= 0)
     {
 		Particle particle = _Particles[particleId];

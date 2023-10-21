@@ -863,27 +863,70 @@ public class FluidSimulationManager : MonoBehaviour
             _particles[i].mass = MassOfParticle;
         }
 
-        _fluidSimulationComputeShader.Dispatch(_ComputeForcesKernelId, Mathf.CeilToInt(NumOfParticles / _computeForcesThreadSize.x), 1, 1);
-        _fluidSimulationComputeShader.Dispatch(_HashParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _hashParticlesThreadSize.x), 1, 1);
-        _fluidSimulationComputeShader.Dispatch(_PrefexSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefexSumThreadSize.x), 1, 1);
+        ComputeForces();
+        HashParticles();
         SortParticles();
-        _fluidSimulationComputeShader.Dispatch(_CalculateCellOffsetsKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCellOffsetsThreadSize.x), 1, 1);
-
+        CalculateCellOffsets();
         for (int i = 0; i < _SolveIterations; i++)
         {
-            _fluidSimulationComputeShader.Dispatch(_ComputeDensityKernelId, Mathf.CeilToInt(NumOfParticles / _computeDensityThreadSize.x), 1, 1);
-            _fluidSimulationComputeShader.Dispatch(_UpdatePositionDeltasKernelId, Mathf.CeilToInt(NumOfParticles / _updatePositionDeltasThreadSize.x), 1, 1);
-            _fluidSimulationComputeShader.Dispatch(_UpdateParticlesKernelId, Mathf.CeilToInt(NumOfParticles / _updateParticlesThreadSize.x), 1, 1);
+            ComputeDensity();
+            ComputePositionDelta();
+            UpdatePredictedPositions();
         }
 
-        _fluidSimulationComputeShader.Dispatch(_CalculateCurlKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCurlThreadSize.x), 1, 1);
-        _fluidSimulationComputeShader.Dispatch(_UpdatePositionsKernelId, Mathf.CeilToInt(NumOfParticles / _updatePositionsThreadSize.x), 1, 1);
-        _fluidSimulationComputeShader.Dispatch(_CalculateVorticityKernelId, Mathf.CeilToInt(NumOfParticles / _calculateVorticityThreadSize.x), 1, 1);
+        ComputeCurl();
+        ComputePositions();
+        ComputeVorticity();
         //Set Particle positions to script.
         _particleBuffer.GetData(_particles);
 
     }
 
+    void ComputeForces()
+    {
+        _fluidSimulationComputeShader.Dispatch(_ComputeForcesKernelId, Mathf.CeilToInt(NumOfParticles / _computeForcesThreadSize.x), 1, 1);
+
+    }
+
+    void HashParticles()
+    {
+        _fluidSimulationComputeShader.Dispatch(_HashParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _hashParticlesThreadSize.x), 1, 1);
+    }
+
+    void CalculateCellOffsets()
+    {
+        _fluidSimulationComputeShader.Dispatch(_CalculateCellOffsetsKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCellOffsetsThreadSize.x), 1, 1);
+    }
+
+    void ComputeDensity()
+    {
+        _fluidSimulationComputeShader.Dispatch(_ComputeDensityKernelId, Mathf.CeilToInt(NumOfParticles / _computeDensityThreadSize.x), 1, 1);
+    }
+
+    void ComputePositionDelta()
+    {
+        _fluidSimulationComputeShader.Dispatch(_UpdatePositionDeltasKernelId, Mathf.CeilToInt(NumOfParticles / _updatePositionDeltasThreadSize.x), 1, 1);
+    }
+
+    void UpdatePredictedPositions()
+    {
+        _fluidSimulationComputeShader.Dispatch(_UpdateParticlesKernelId, Mathf.CeilToInt(NumOfParticles / _updateParticlesThreadSize.x), 1, 1);
+    }
+
+    void ComputeCurl()
+    {
+        _fluidSimulationComputeShader.Dispatch(_CalculateCurlKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCurlThreadSize.x), 1, 1);
+    }
+
+    void ComputePositions()
+    {
+        _fluidSimulationComputeShader.Dispatch(_UpdatePositionsKernelId, Mathf.CeilToInt(NumOfParticles / _updatePositionsThreadSize.x), 1, 1);
+    }
+
+    void ComputeVorticity()
+    {
+        _fluidSimulationComputeShader.Dispatch(_CalculateVorticityKernelId, Mathf.CeilToInt(NumOfParticles / _calculateVorticityThreadSize.x), 1, 1);
+    }
     //Temporarily attach this simulation to camera!!!
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {

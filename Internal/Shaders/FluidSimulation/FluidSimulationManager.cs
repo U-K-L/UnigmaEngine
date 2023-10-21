@@ -12,6 +12,7 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _verticesObjectBuffer;
     ComputeBuffer _indicesObjectBuffer;
     ComputeBuffer _particleBuffer;
+    ComputeBuffer _particlePositionsBuffer;
     ComputeBuffer _pNodesBuffer;
     ComputeBuffer _particleIDsBuffer;
     ComputeBuffer _particleIndicesBuffer;
@@ -107,7 +108,8 @@ public class FluidSimulationManager : MonoBehaviour
     private List<Vertex> _vertices = new List<Vertex>();
     private List<int> _indices = new List<int>();
     private Particles[] _particles;
-    
+    private Vector3[] _particlesPositions;
+
     private int[] _ParticleIDs;
     private int[] _ParticleIndices;
     private int[] _ParticleCount;
@@ -189,6 +191,7 @@ public class FluidSimulationManager : MonoBehaviour
     int nodesUsed = 1;
     private void Awake()
     {
+        Debug.Log(_particleStride);
         _spawnParticles = new List<Vector3>();
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
         _renderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.height), 32);
@@ -225,6 +228,7 @@ public class FluidSimulationManager : MonoBehaviour
         _velocitySurfaceDensityDepthTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _velocitySurfaceDensityDepthTexture.name = "VelocitySurfaceDensityDepthTexture";
         _particles = new Particles[MaxNumOfParticles];
+        _particlesPositions = new Vector3[MaxNumOfParticles];
         _ParticleIDs = new int[MaxNumOfParticles];
         _ParticleIndices = new int[MaxNumOfParticles];
         _ParticleCellIndices = new int[MaxNumOfParticles];
@@ -646,7 +650,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         while (i <= n)
         {
-            if (_particles[_ParticleIDs[i]].position[axis] < splitPos)
+            if (_particlesPositions[_ParticleIDs[i]][axis] < splitPos)
             {
                 i++;
             }
@@ -767,6 +771,7 @@ public class FluidSimulationManager : MonoBehaviour
         if (_particleBuffer == null)
         {
             _particleBuffer = new ComputeBuffer(MaxNumOfParticles, _particleStride );
+            _particlePositionsBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(float) * 3);
             _particleIndicesBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCellIndicesBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCellOffsets = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
@@ -782,6 +787,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _ParticleIndices[i] = i;
                 _ParticleIDs[i] = i;
                 _particles[i].position = new Vector3(99999, 99999, 99999);//new Vector3( (i % numOfParticlesCubedRoot) / ((1/ boxSize.x)* numOfParticlesCubedRoot) - (boxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/ boxSize.y)* numOfParticlesCubedRoot) - (boxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/ boxSize.z) * numOfParticlesCubedRoot) - (boxSize.z * 0.5f));
+                _particlesPositions[i] = _particles[i].position;
                 _particles[i].mass = MassOfParticle;
                 _particles[i].velocity = Vector3.zero;
                 _particles[i].force = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -799,6 +805,7 @@ public class FluidSimulationManager : MonoBehaviour
             
             _particleIndicesBuffer.SetData(_ParticleIndices);
             _particleBuffer.SetData(_particles);
+            _particlePositionsBuffer.SetData(_particlesPositions);
             _particleCellIndicesBuffer.SetData(_ParticleCellIndices);
             _particleCellOffsets.SetData(_ParticleCellOffsets);
             _particleCountBuffer.SetData(_ParticleCount);
@@ -809,6 +816,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_ComputeDensityKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdatePositionDeltasKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Particles", _particleBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_ParticlesPositions", _particlePositionsBuffer);
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Particles", _particleBuffer);
@@ -880,7 +888,8 @@ public class FluidSimulationManager : MonoBehaviour
         ComputePositions();
         ComputeVorticity();
         //Set Particle positions to script.
-        _particleBuffer.GetData(_particles);
+        //NOT NEEDED. MOVE ENTIRE BVH TO GPU!!!!
+        //_particlePositionsBuffer.GetData(_particlesPositions, 0, 0, 1);
 
     }
 
@@ -1107,6 +1116,8 @@ public class FluidSimulationManager : MonoBehaviour
             _meshObjectBuffer.Release();
         if (_particleBuffer != null)
             _particleBuffer.Release();
+        if (_particlePositionsBuffer != null)
+            _particlePositionsBuffer.Release();
         if (_pNodesBuffer != null)
             _pNodesBuffer.Release();
         if (_particleIDsBuffer != null)

@@ -129,6 +129,7 @@ RWStructuredBuffer<int> _ParticleIndices;
 RWStructuredBuffer<int> _ParticleCellIndices;
 RWStructuredBuffer<int> _ParticleCellOffsets;
 RWStructuredBuffer<int> _ParticleCount;
+RWStructuredBuffer<float3> _ParticlesPositions;
 StructuredBuffer<BVHNode> _BVHNodes;
 StructuredBuffer<int> _ParticleIDs;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;

@@ -811,6 +811,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void ComputeForces(uint3 id : SV_DispatchThreadID)
 {
+    /*
     //Good.
 	if (id.x >= _NumOfParticles)
 	{
@@ -828,6 +829,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
     _Particles[id.x].debugVector = 0.25;
     _Particles[id.x].cellID = 0;
+    */
 }
 
 void GetDensityIterative(uint3 id)

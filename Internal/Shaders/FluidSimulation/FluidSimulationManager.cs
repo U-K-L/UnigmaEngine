@@ -328,20 +328,10 @@ public class FluidSimulationManager : MonoBehaviour
             for (int biBlock = biDim >> 1; biBlock > 0; biBlock >>= 1)
             {
                 _fluidSimulationComputeShader.SetInt("biBlock", biBlock);
-                _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
+                _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(Mathf.Sqrt(MaxNumOfParticles) / _sortParticlesThreadSize.x), Mathf.CeilToInt(Mathf.Sqrt(MaxNumOfParticles) / _sortParticlesThreadSize.y), 1);
             }
         }
         
-        //_fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
-        _particleCountBuffer.GetData(_ParticleCount);
-        
-
-        /*
-        for (int i = 0; i < _ParticleCount.Length; i++)
-        {
-            Debug.Log("cell count: " + i + " " + _ParticleCount[i]);
-        }
-        */
     }
 
     private void FixedUpdate()

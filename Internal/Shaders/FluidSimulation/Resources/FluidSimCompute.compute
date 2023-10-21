@@ -1292,16 +1292,11 @@ void PrefixSum(uint3 id : SV_DispatchThreadID)
 	}
 }
 
-[numthreads(256, 1, 1)]
+[numthreads(32, 32, 1)]
 void BitonicSort(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _MaxNumOfParticles)
-    {
-        return;
-    }
-    
     uint index = _ParticleCellIndices[id.x];
-    uint i = id.x + id.y * 256 * 1024;
+    uint i = id.x + id.y * 32;
     uint j = i ^ biBlock;
     
 	if (j < i || i >= _MaxNumOfParticles)

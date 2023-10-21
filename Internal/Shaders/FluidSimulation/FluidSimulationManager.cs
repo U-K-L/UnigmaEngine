@@ -967,6 +967,7 @@ public class FluidSimulationManager : MonoBehaviour
     void CreateFluidCommandBuffers()
     {
         CommandBuffer fluidCommandBuffers = new CommandBuffer();
+        fluidCommandBuffers.name = "Fluid Command Buffer";
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluids", _rtTarget);
 
         fluidCommandBuffers.SetRenderTarget(_rtTarget);

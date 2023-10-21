@@ -424,7 +424,6 @@ public class FluidSimulationManager : MonoBehaviour
 
         UpdateParticles();
         BuildBVH();
-        
         //if(Time.realtimeSinceStartup < 10)
 
         //Only if spacebar is pressed
@@ -891,7 +890,7 @@ public class FluidSimulationManager : MonoBehaviour
         ComputePositions();
         ComputeVorticity();
         //Set Particle positions to script.
-        //_particleBuffer.GetData(_particles);
+        _particleBuffer.GetData(_particles);
 
     }
 

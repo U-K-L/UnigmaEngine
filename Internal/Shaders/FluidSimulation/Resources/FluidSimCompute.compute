@@ -649,7 +649,7 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
 float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
-    for (int k = 0; k < numOfParticles; k++)
+    for (int k = 0; k < _NumOfParticles; k++)
     {
         float3 position = _Particles[k].position;
 
@@ -657,6 +657,10 @@ float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 
         if (t1 > epsilon && t1 < minDistance)
         {
+            float4 clipPos = UnityWorldToClipPos(position);
+            float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
+            hit.depth = 1.0 - depth;
+            hit.distance = t1;;
             minDistance = t1;
         }
     }
@@ -685,17 +689,13 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
 	minDistance = result.x;
 	particlesHit = result.y;
 	particleId = result.w;
-    //minDistance = TraceParticlesIterative(ray, hit);
     float3 position = ray.o + hit.distance * ray.d;
-    //position *= hit.distance < 1499;
-    //if(particleID == _ChosenParticle)
+
     if (_IsOrthographic)
     {
         hit.depth *= 100;
     }
     return float4(position.xyz, hit.depth);
-
-	//return float4(1,1,1, depth);
     
 }
 
@@ -737,14 +737,24 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
 [numthreads(32,32,1)]
 void CreateGrid (uint3 id : SV_DispatchThreadID)
 {
-    //Create grid of spheres in 3D.
     
-    density = 0;
+    //Resets all values.
     uint width, height;
+    int particleId = -1;
+    float particlesHit = 0;
+    density = 0;
+    _VelocityMap[id.xy] = 0;
+    _VelocitySurfaceDensityDepthTexture[id.xy] = 0;
+    _ColorFieldNormalMap[id.xy] = 0;
+    _CurlMap[id.xy] = 0;
+    _SurfaceMap[id.xy] = 0.0f;
+
+	//Gets the dimensions of the screen.
+    Result.GetDimensions(width, height);
     worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
-	_Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    Result.GetDimensions(width, height);
+    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
+
 
 
 	//This is a ray for each pixel and in the pixel's center.
@@ -754,18 +764,11 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     Ray ray = CreateCameraRay(pixel);
     Hit hit = CreateHit();
 
-    int particleId = -1;
-	float particlesHit = 0;
+    //Actually perform intersection.
     float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
-    _ColorFieldNormalMap[id.xy] = 0;
-    _CurlMap[id.xy] = 0;
     DensityMap[id.xy] = particlesHit;
-	_VelocityMap[id.xy] = 0;
-    _VelocitySurfaceDensityDepthTexture[id.xy] = 0;
 
-
-    _SurfaceMap[id.xy] = 0.0f;
     if (particleId >= 0)
     {
 		Particle particle = _Particles[particleId];
@@ -805,6 +808,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     }
     
     _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, DensityMap[id.xy].x, Result[id.xy].w);
+
 }
 
 [numthreads(64, 1, 1)]

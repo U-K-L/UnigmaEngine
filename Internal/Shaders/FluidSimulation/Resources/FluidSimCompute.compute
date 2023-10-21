@@ -649,7 +649,7 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
 float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 {
     float minDistance = 99999999;
-    for (int k = 0; k < numOfParticles; k++)
+    for (int k = 0; k < _NumOfParticles; k++)
     {
         float3 position = _Particles[k].position;
 
@@ -657,6 +657,10 @@ float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 
         if (t1 > epsilon && t1 < minDistance)
         {
+            float4 clipPos = UnityWorldToClipPos(position);
+            float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
+            hit.depth = 1.0 - depth;
+            hit.distance = t1;;
             minDistance = t1;
         }
     }
@@ -685,17 +689,13 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
 	minDistance = result.x;
 	particlesHit = result.y;
 	particleId = result.w;
-    //minDistance = TraceParticlesIterative(ray, hit);
     float3 position = ray.o + hit.distance * ray.d;
-    //position *= hit.distance < 1499;
-    //if(particleID == _ChosenParticle)
+
     if (_IsOrthographic)
     {
         hit.depth *= 100;
     }
     return float4(position.xyz, hit.depth);
-
-	//return float4(1,1,1, depth);
     
 }
 
@@ -737,6 +737,7 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
 [numthreads(32,32,1)]
 void CreateGrid (uint3 id : SV_DispatchThreadID)
 {
+    
     //Resets all values.
     uint width, height;
     int particleId = -1;
@@ -752,6 +753,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     Result.GetDimensions(width, height);
     worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
+    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
 
 
 
@@ -806,12 +808,12 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     }
     
     _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, DensityMap[id.xy].x, Result[id.xy].w);
+
 }
 
 [numthreads(64, 1, 1)]
 void ComputeForces(uint3 id : SV_DispatchThreadID)
 {
-    /*
     //Good.
 	if (id.x >= _NumOfParticles)
 	{
@@ -829,7 +831,6 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
     _Particles[id.x].debugVector = 0.25;
     _Particles[id.x].cellID = 0;
-    */
 }
 
 void GetDensityIterative(uint3 id)

@@ -20,6 +20,7 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _particleCellIndicesBuffer;
     ComputeBuffer _particleCellOffsets;
     ComputeBuffer _BVHNodesBuffer;
+    ComputeBuffer _MortonCodesBuffer;
 
     //Todo refactor some of these compute kernels out.
     int _UpdateParticlesKernelId;
@@ -33,7 +34,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _CalculateCellOffsetsKernelId;
     int _CalculateCurlKernelId;
     int _CalculateVorticityKernelId;
-    int _PrefexSumKernelId;
+    int _PrefixSumKernelId;
 
     Vector3 _updateParticlesThreadSize;
     Vector3 _computeForcesThreadSize;
@@ -46,7 +47,7 @@ public class FluidSimulationManager : MonoBehaviour
     Vector3 _calculateCellOffsetsThreadSize;
     Vector3 _calculateCurlThreadSize;
     Vector3 _calculateVorticityThreadSize;
-    Vector3 _prefexSumThreadSize;
+    Vector3 _prefixSumThreadSize;
 
     //TODO: Reduce texture overhead by combining some of these and lowering resolution for others.
     RenderTexture _rtTarget;
@@ -121,6 +122,7 @@ public class FluidSimulationManager : MonoBehaviour
     private int _renderTextureWidth, _renderTextureHeight = 0;
     private List<Vector3> _spawnParticles = default;
 
+    private uint[] _MortonCodes; 
     struct MeshObject
     {
         public Matrix4x4 localToWorld;
@@ -235,6 +237,7 @@ public class FluidSimulationManager : MonoBehaviour
         _ParticleCellOffsets = new int[MaxNumOfParticles];
         _ParticleCount = new int[MaxNumOfParticles];
         _BVHNodes = new BVHNode[MaxNumOfParticles];
+        _MortonCodes = new uint[MaxNumOfParticles];
 
         _UpdateParticlesKernelId = _fluidSimulationComputeShader.FindKernel("UpdateParticles");
         _HashParticlesKernelId = _fluidSimulationComputeShader.FindKernel("HashParticles");
@@ -247,7 +250,7 @@ public class FluidSimulationManager : MonoBehaviour
         _ComputeDensityKernelId = _fluidSimulationComputeShader.FindKernel("ComputeDensity");
         _UpdatePositionDeltasKernelId = _fluidSimulationComputeShader.FindKernel("UpdatePositionDeltas");
         _UpdatePositionsKernelId = _fluidSimulationComputeShader.FindKernel("UpdatePositions");
-        _PrefexSumKernelId = _fluidSimulationComputeShader.FindKernel("PrefixSum");
+        _PrefixSumKernelId = _fluidSimulationComputeShader.FindKernel("PrefixSum");
 
 
         _rtTarget.enableRandomWrite = true;
@@ -318,8 +321,8 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_UpdatePositionsKernelId, out threadsX, out threadsY, out threadsZ);
         _updatePositionsThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
-        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_PrefexSumKernelId, out threadsX, out threadsY, out threadsZ);
-        _prefexSumThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_PrefixSumKernelId, out threadsX, out threadsY, out threadsZ);
+        _prefixSumThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
     }
 
@@ -626,7 +629,8 @@ public class FluidSimulationManager : MonoBehaviour
         {
             int particleIndex = _ParticleIDs[i];
             Vector3 particlePos = _particles[particleIndex].position;
-            Vector3 sizeOfParticle = 1 * new Vector3(SizeOfParticle, SizeOfParticle, SizeOfParticle);
+            float sizeOfParticleSquared = SizeOfParticle / SizeOfParticle;
+            Vector3 sizeOfParticle = 1 * new Vector3(sizeOfParticleSquared, sizeOfParticleSquared, sizeOfParticleSquared);
             _BVHNodes[nodeIndex].aabbMin = Vector3.Min(_BVHNodes[nodeIndex].aabbMin, particlePos - sizeOfParticle);
             _BVHNodes[nodeIndex].aabbMax = Vector3.Max(_BVHNodes[nodeIndex].aabbMax, particlePos + sizeOfParticle);
         }
@@ -650,7 +654,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         while (i <= n)
         {
-            if (_particlesPositions[_ParticleIDs[i]][axis] < splitPos)
+            if (_particles[_ParticleIDs[i]].position[axis] < splitPos)
             {
                 i++;
             }
@@ -776,6 +780,7 @@ public class FluidSimulationManager : MonoBehaviour
             _particleCellIndicesBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCellOffsets = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCountBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
+            _MortonCodesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
 
             //Cubed root num of particles:
             float numOfParticlesCubedRoot = Mathf.Pow(NumOfParticles, 1.0f / 3.0f);
@@ -802,7 +807,8 @@ public class FluidSimulationManager : MonoBehaviour
                 _ParticleCellIndices[i] = MaxNumOfParticles-1;
                 _ParticleCellOffsets[i] = MaxNumOfParticles-1;
             }
-            
+
+            _MortonCodesBuffer.SetData(_MortonCodes);
             _particleIndicesBuffer.SetData(_ParticleIndices);
             _particleBuffer.SetData(_particles);
             _particlePositionsBuffer.SetData(_particlesPositions);
@@ -860,7 +866,10 @@ public class FluidSimulationManager : MonoBehaviour
 
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCount", _particleCountBuffer);
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_ParticleCount", _particleCountBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_PrefexSumKernelId, "_ParticleCount", _particleCountBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_PrefixSumKernelId, "_ParticleCount", _particleCountBuffer);
+
+            _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_MortonCodes", _MortonCodesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_PrefixSumKernelId, "_MortonCodes", _MortonCodesBuffer);
         }
         for (int i = 0; i < NumOfParticles; i++)
         {
@@ -875,6 +884,13 @@ public class FluidSimulationManager : MonoBehaviour
 
         ComputeForces();
         HashParticles();
+        _fluidSimulationComputeShader.Dispatch(_PrefixSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefixSumThreadSize.x), 1, 1);
+        _MortonCodesBuffer.GetData(_MortonCodes);
+        //quick morton code debug.log.
+        for (int i = 0; i < NumOfParticles; i++)
+        {
+            Debug.Log("Particle: " + i + " Morton " + _MortonCodes[i].ToString("F7"));
+        }
         SortParticles();
         CalculateCellOffsets();
         for (int i = 0; i < _SolveIterations; i++)
@@ -889,7 +905,7 @@ public class FluidSimulationManager : MonoBehaviour
         ComputeVorticity();
         //Set Particle positions to script.
         //NOT NEEDED. MOVE ENTIRE BVH TO GPU!!!!
-        //_particlePositionsBuffer.GetData(_particlesPositions, 0, 0, 1);
+        _particleBuffer.GetData(_particles);
 
     }
 
@@ -1132,6 +1148,8 @@ public class FluidSimulationManager : MonoBehaviour
             _particleCellIndicesBuffer.Release();
         if (_particleCellOffsets != null)
             _particleCellOffsets.Release();
+        if (_MortonCodesBuffer != null)
+            _MortonCodesBuffer.Release();
 
 
         _rtTarget.Release();

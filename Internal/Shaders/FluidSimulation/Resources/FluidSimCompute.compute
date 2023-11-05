@@ -1337,6 +1337,11 @@ void PrefixSum(uint3 id : SV_DispatchThreadID)
 [numthreads(32, 32, 1)]
 void BitonicSort(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    /*
     uint index = _ParticleCellIndices[id.x];
     uint i = id.x + id.y * 32;
     uint j = i ^ biBlock;
@@ -1355,6 +1360,45 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
 		_ParticleIndices[i] = key_j;
 		_ParticleIndices[j] = key_i;
     }
+    */
+    
+    //Quick even and odds test, should have evens first in same order then odds.
+    uint testNums[] = { 4,2,5,6,8,7,3,1 };
+    uint testNumsSwap[] = { 0,0,0,0,0,0,0,0 };
+    int totalZeroBits = 4; //number of 0s for LSB.
+    int zeroScannedBits = 0; //number of 0s before me.
+    
+
+
+    //_MortonCodes[id.x] = totalZeroBits + (id.x % 8);
+    int offsetSumOnes = 0;
+    int offsetSumZeroes = 0;
+    for (int i = 0; i < id.x % 8; ++i)
+    {
+
+        int indexBit = firstbitlow(testNums[i]);
+        if (indexBit == 0)
+            offsetSumOnes += 1;
+        else
+        {
+            offsetSumZeroes += 1;
+        }
+    }
+
+    int indexBit = firstbitlow(testNums[id.x % 8]);
+    if (indexBit == 0)
+    {
+        int index = offsetSumOnes + totalZeroBits;
+        //_MortonCodes[id.x] = index;//testNums[index];
+        _MortonCodes[index] = testNums[id.x % 8];
+    }
+    else {
+        int index = offsetSumZeroes;
+        //_MortonCodes[id.x] = index;//testNums[index];
+        _MortonCodes[index] = testNums[id.x % 8];
+    }
+
+    //_MortonCodes[id.x] = testNumsSwap[id.x % 8];
 }
 
 [numthreads(256, 1, 1)]

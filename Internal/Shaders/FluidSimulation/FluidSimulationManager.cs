@@ -21,6 +21,7 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _particleCellOffsets;
     ComputeBuffer _BVHNodesBuffer;
     ComputeBuffer _MortonCodesBuffer;
+    ComputeBuffer _MortonCodesTempBuffer;
 
     //Todo refactor some of these compute kernels out.
     int _UpdateParticlesKernelId;
@@ -122,7 +123,8 @@ public class FluidSimulationManager : MonoBehaviour
     private int _renderTextureWidth, _renderTextureHeight = 0;
     private List<Vector3> _spawnParticles = default;
 
-    private uint[] _MortonCodes; 
+    private uint[] _MortonCodes;
+    private uint[] _MortonCodesTemp;
     struct MeshObject
     {
         public Matrix4x4 localToWorld;
@@ -238,6 +240,7 @@ public class FluidSimulationManager : MonoBehaviour
         _ParticleCount = new int[MaxNumOfParticles];
         _BVHNodes = new BVHNode[MaxNumOfParticles];
         _MortonCodes = new uint[MaxNumOfParticles];
+        _MortonCodesTemp = new uint[MaxNumOfParticles];
 
         _UpdateParticlesKernelId = _fluidSimulationComputeShader.FindKernel("UpdateParticles");
         _HashParticlesKernelId = _fluidSimulationComputeShader.FindKernel("HashParticles");
@@ -339,8 +342,12 @@ public class FluidSimulationManager : MonoBehaviour
             }
         }
         */
-        _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(Mathf.Sqrt(MaxNumOfParticles) / _sortParticlesThreadSize.x), Mathf.CeilToInt(Mathf.Sqrt(MaxNumOfParticles) / _sortParticlesThreadSize.y), 1);
-
+        for (int i = 0; i < 32; i++)
+        {
+            _fluidSimulationComputeShader.SetInt("biBlock", i);
+            _fluidSimulationComputeShader.Dispatch(_PrefixSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefixSumThreadSize.x), 1, 1);
+            _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(Mathf.Sqrt(MaxNumOfParticles) / _sortParticlesThreadSize.x), Mathf.CeilToInt(Mathf.Sqrt(MaxNumOfParticles) / _sortParticlesThreadSize.y), 1);
+        }
     }
 
     private void FixedUpdate()
@@ -783,6 +790,7 @@ public class FluidSimulationManager : MonoBehaviour
             _particleCellOffsets = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCountBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _MortonCodesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
+            _MortonCodesTempBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
 
             //Cubed root num of particles:
             float numOfParticlesCubedRoot = Mathf.Pow(NumOfParticles, 1.0f / 3.0f);
@@ -811,6 +819,7 @@ public class FluidSimulationManager : MonoBehaviour
             }
 
             _MortonCodesBuffer.SetData(_MortonCodes);
+            _MortonCodesTempBuffer.SetData(_MortonCodes);
             _particleIndicesBuffer.SetData(_ParticleIndices);
             _particleBuffer.SetData(_particles);
             _particlePositionsBuffer.SetData(_particlesPositions);
@@ -871,8 +880,11 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_PrefixSumKernelId, "_ParticleCount", _particleCountBuffer);
 
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_MortonCodes", _MortonCodesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_MortonCodesTemp", _MortonCodesTempBuffer);
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_MortonCodes", _MortonCodesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_MortonCodesTemp", _MortonCodesTempBuffer);
             _fluidSimulationComputeShader.SetBuffer(_PrefixSumKernelId, "_MortonCodes", _MortonCodesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_PrefixSumKernelId, "_MortonCodesTemp", _MortonCodesTempBuffer);
         }
         for (int i = 0; i < NumOfParticles; i++)
         {
@@ -887,7 +899,6 @@ public class FluidSimulationManager : MonoBehaviour
 
         ComputeForces();
         HashParticles();
-        ;
         //quick morton code debug.log.
 
         SortParticles();

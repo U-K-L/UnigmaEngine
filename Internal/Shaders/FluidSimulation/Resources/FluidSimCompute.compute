@@ -131,6 +131,7 @@ RWStructuredBuffer<int> _ParticleCellOffsets;
 RWStructuredBuffer<int> _ParticleCount;
 RWStructuredBuffer<float3> _ParticlesPositions;
 RWStructuredBuffer<uint> _MortonCodes;
+RWStructuredBuffer<uint> _MortonCodesTemp;
 StructuredBuffer<BVHNode> _BVHNodes;
 StructuredBuffer<int> _ParticleIDs;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
@@ -1302,6 +1303,9 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
 
     float3 pos = (_Particles[id.x].predictedPosition + _BoxSize) /(_BoxSize*2);
     _MortonCodes[id.x] = morton3D(pos.x, pos.y, pos.z);
+    uint testNums[] = { 4,2,5,6,8,7,3,1 };
+	//_MortonCodesTemp[id.x] = _MortonCodes[id.x];
+    _MortonCodesTemp[id.x] = testNums[id.x % 8];
 	//_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
     
 }
@@ -1325,6 +1329,7 @@ void PrefixSum(uint3 id : SV_DispatchThreadID)
 	}
     */
     //Inclusive Scan
+    /*
     uint testNums[] = { 13,7,16,21,8,20,13,12 };
 
     _MortonCodes[id.x] = testNums[id.x % 8];
@@ -1332,6 +1337,8 @@ void PrefixSum(uint3 id : SV_DispatchThreadID)
     {
         _MortonCodes[id.x] += testNums[i];
     }
+    */
+    _MortonCodes[id.x] = _MortonCodesTemp[id.x];
 }
 
 [numthreads(32, 32, 1)]
@@ -1364,19 +1371,28 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
     
     //Quick even and odds test, should have evens first in same order then odds.
     uint testNums[] = { 4,2,5,6,8,7,3,1 };
-    uint testNumsSwap[] = { 0,0,0,0,0,0,0,0 };
-    int totalZeroBits = 4; //number of 0s for LSB.
+    int totalZeroBits = 0; //number of 0s for LSB
     int zeroScannedBits = 0; //number of 0s before me.
+
+    //Calculate zerobits.
+	for (int i = 0; i < 8; i++)
+	{
+		int indexBit = firstbitlow(testNums[i] >> biBlock);
+		if (indexBit != 0)
+			totalZeroBits += 1;
+	}
     
 
 
     //_MortonCodes[id.x] = totalZeroBits + (id.x % 8);
+    //Two prefix sums to find the current position of this element.
     int offsetSumOnes = 0;
     int offsetSumZeroes = 0;
-    for (int i = 0; i < id.x % 8; ++i)
+    for (int i = 0; i < id.x % 8; i++)
     {
 
-        int indexBit = firstbitlow(testNums[i]);
+        int indexBit = firstbitlow(_MortonCodes[i] >> biBlock);
+		//LSB is 1
         if (indexBit == 0)
             offsetSumOnes += 1;
         else
@@ -1385,20 +1401,23 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
         }
     }
 
-    int indexBit = firstbitlow(testNums[id.x % 8]);
+    int indexBit = firstbitlow(_MortonCodes[id.x % 8] >> biBlock);
+    //If the bit LSB is 1.
     if (indexBit == 0)
     {
+        //Place at bottom half of the list. which is after total number of zeroes.
         int index = offsetSumOnes + totalZeroBits;
         //_MortonCodes[id.x] = index;//testNums[index];
-        _MortonCodes[index] = testNums[id.x % 8];
+        _MortonCodesTemp[index] = _MortonCodes[id.x % 8];
     }
     else {
         int index = offsetSumZeroes;
         //_MortonCodes[id.x] = index;//testNums[index];
-        _MortonCodes[index] = testNums[id.x % 8];
+        _MortonCodesTemp[index] = _MortonCodes[id.x % 8];
     }
 
     //_MortonCodes[id.x] = testNumsSwap[id.x % 8];
+    //_MortonCodesTemp[id.x] = totalZeroBits;
 }
 
 [numthreads(256, 1, 1)]

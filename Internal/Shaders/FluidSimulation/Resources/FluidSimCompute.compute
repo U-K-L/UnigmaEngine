@@ -10,6 +10,7 @@
 #pragma kernel CalculateCurl
 #pragma kernel CalculateVorticity
 #pragma kernel PrefixSum
+#pragma kernel CreateBVHTree
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -121,6 +122,12 @@ struct BVHNode
     int miss;
 };
 
+struct MortonCode
+{
+    uint mortonCode;
+    int particleIndex;
+};
+
 StructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
@@ -130,13 +137,16 @@ RWStructuredBuffer<int> _ParticleCellIndices;
 RWStructuredBuffer<int> _ParticleCellOffsets;
 RWStructuredBuffer<int> _ParticleCount;
 RWStructuredBuffer<float3> _ParticlesPositions;
-RWStructuredBuffer<uint> _MortonCodes;
-RWStructuredBuffer<uint> _MortonCodesTemp;
-StructuredBuffer<BVHNode> _BVHNodes;
-StructuredBuffer<int> _ParticleIDs;
+RWStructuredBuffer<MortonCode> _MortonCodes;
+RWStructuredBuffer<MortonCode> _MortonCodesTemp;
+RWStructuredBuffer<BVHNode> _BVHNodes;
+RWStructuredBuffer<int> _ParticleIDs;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
 float density = 0.0;
 int _BoxViewDebug;
+RWStructuredBuffer<uint> _MortonPrefixSumTotalZeroes;
+RWStructuredBuffer<uint> _MortonPrefixSumOffsetZeroes;
+RWStructuredBuffer<uint> _MortonPrefixSumOffsetOnes;
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -193,6 +203,21 @@ Hit CreateHit()
     return hit;
 }
 
+BVHNode CreateBVH()
+{
+    BVHNode bvh;
+	bvh.aabbMin = float3(0, 0, 0);
+	bvh.aabbMax = float3(0, 0, 0);
+	bvh.leftChild = 0;
+	bvh.rightChild = 0;
+	bvh.parent = 0;
+	bvh.primitiveOffset = 0;
+	bvh.primitiveCount = 0;
+	bvh.index = 0;
+	bvh.hit = 0;
+	bvh.miss = 0;
+	return bvh;
+}
 
 float4x4 translate(float3 p)
 {
@@ -648,6 +673,26 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
     return float4(minDistance, hitMap, particlesHit, particleIndex);
 }
 
+float4 TraceParticlesTBVHDebug(inout Ray ray, inout Hit hit)
+{
+    float minDistance = 99999999;
+    float minBVHDistance = 99999999;
+    int bvhminIndex = -1;
+    int nodeIndex = 0;
+    int particleIndex = -1;
+    float particlesHit = 0;
+    BVHNode node = _BVHNodes[0];
+    for (int i = 0; i < _NumOfNodes; i++)
+    {
+        node = _BVHNodes[nodeIndex];
+        if (TraceBVH(ray, hit, node))
+        {
+            return 1;
+        }
+
+    }
+    return 0;
+}
 
 float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 {
@@ -688,7 +733,8 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
 
     }
     
-    result = TraceParticlesTBVH(ray, hit);
+    //result = TraceParticlesTBVH(ray, hit);
+    return TraceParticlesTBVHDebug(ray, hit);
 	minDistance = result.x;
 	particlesHit = result.y;
 	particleId = result.w;
@@ -830,7 +876,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
         _SurfaceMap[id.xy] = float4(freeSurface, 1);
 		_VelocityMap[id.xy] = float4(particle.velocity, length(particle.velocity) + length(_Particles[particleId].curl) * 0.055);
-        _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
+        _CurlMap[id.xy] = float4(_Particles[particleId].debugVector, 1);
         
     }
     
@@ -940,6 +986,26 @@ void GetDensityGrid(uint3 id)
     _Particles[particleIndex].normal = min(normalize(-colorField), float3(1,1,1));
 }
 
+[numthreads(256, 1, 1)]
+void CreateBVHTree(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+
+    BVHNode bvh = CreateBVH();
+    bvh.primitiveOffset = 0;
+    bvh.primitiveCount = _NumOfParticles;
+    bvh.aabbMin = float3(-9, -9, -9);
+    bvh.aabbMax = float3(9, 9, 9);
+    bvh.leftChild = 0;
+    bvh.rightChild = 0;
+    bvh.parent = 0;
+
+	_BVHNodes[id.x] = bvh;
+    
+}
 
 //Figure (1)
 [numthreads(64, 1, 1)]
@@ -950,6 +1016,7 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
         return;
     }
     
+    CreateBVHTree(id);
     GetDensityGrid(id);
 }
 
@@ -1302,10 +1369,12 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
     InterlockedAdd(_ParticleCount[cellIndex], 1);
 
     float3 pos = (_Particles[id.x].predictedPosition + _BoxSize) /(_BoxSize*2);
-    _MortonCodes[id.x] = morton3D(pos.x, pos.y, pos.z);
-    uint testNums[] = { 4,2,5,6,8,7,3,1 };
+    _MortonCodes[id.x].mortonCode = morton3D(pos.x, pos.y, pos.z);
+	_MortonCodes[id.x].particleIndex = id.x;
+    //uint testNums[] = { 4,2,5,6,8,7,3,1, 12,11,9,10 };
 	//_MortonCodesTemp[id.x] = _MortonCodes[id.x];
-    _MortonCodesTemp[id.x] = testNums[id.x % 8];
+    _MortonCodesTemp[id.x].mortonCode = _MortonCodes[id.x].mortonCode;
+	_MortonCodesTemp[id.x].particleIndex = _MortonCodes[id.x].particleIndex;
 	//_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
     
 }
@@ -1338,7 +1407,38 @@ void PrefixSum(uint3 id : SV_DispatchThreadID)
         _MortonCodes[id.x] += testNums[i];
     }
     */
-    _MortonCodes[id.x] = _MortonCodesTemp[id.x];
+    uint _MortonPrefixSumTotalZeroesTemp = 0;
+    uint _MortonPrefixSumOffsetZeroesTemp = 0;
+    uint _MortonPrefixSumOffsetOnesTemp = 0;
+
+    _MortonCodes[id.x].mortonCode = _MortonCodesTemp[id.x].mortonCode;
+	_MortonCodes[id.x].particleIndex = _MortonCodesTemp[id.x].particleIndex;
+
+
+    for (int i = 0; i < _NumOfParticles; i++)
+    {
+        int indexBit = firstbitlow(_MortonCodesTemp[i].mortonCode >> biBlock);
+        if (indexBit != 0)
+            _MortonPrefixSumTotalZeroesTemp += 1;
+    }
+    
+    //Two prefix sums to find the current position of this element.
+    for (int i = 0; i < id.x; i++)
+    {
+
+        int indexBit = firstbitlow(_MortonCodesTemp[i].mortonCode >> biBlock);
+		//LSB is 1
+        if (indexBit == 0)
+            _MortonPrefixSumOffsetOnesTemp += 1;
+        else
+        {
+            _MortonPrefixSumOffsetZeroesTemp += 1;
+        }
+    }
+
+	_MortonPrefixSumOffsetZeroes[id.x] = _MortonPrefixSumOffsetZeroesTemp;
+	_MortonPrefixSumOffsetOnes[id.x] = _MortonPrefixSumOffsetOnesTemp;
+	_MortonPrefixSumTotalZeroes[id.x] = _MortonPrefixSumTotalZeroesTemp;
 }
 
 [numthreads(32, 32, 1)]
@@ -1368,56 +1468,26 @@ void BitonicSort(uint3 id : SV_DispatchThreadID)
 		_ParticleIndices[j] = key_i;
     }
     */
-    
-    //Quick even and odds test, should have evens first in same order then odds.
-    uint testNums[] = { 4,2,5,6,8,7,3,1 };
-    int totalZeroBits = 0; //number of 0s for LSB
-    int zeroScannedBits = 0; //number of 0s before me.
 
-    //Calculate zerobits.
-	for (int i = 0; i < 8; i++)
-	{
-		int indexBit = firstbitlow(testNums[i] >> biBlock);
-		if (indexBit != 0)
-			totalZeroBits += 1;
-	}
-    
-
-
-    //_MortonCodes[id.x] = totalZeroBits + (id.x % 8);
-    //Two prefix sums to find the current position of this element.
-    int offsetSumOnes = 0;
-    int offsetSumZeroes = 0;
-    for (int i = 0; i < id.x % 8; i++)
-    {
-
-        int indexBit = firstbitlow(_MortonCodes[i] >> biBlock);
-		//LSB is 1
-        if (indexBit == 0)
-            offsetSumOnes += 1;
-        else
-        {
-            offsetSumZeroes += 1;
-        }
-    }
-
-    int indexBit = firstbitlow(_MortonCodes[id.x % 8] >> biBlock);
+    int indexBit = firstbitlow(_MortonCodes[id.x].mortonCode >> biBlock);
     //If the bit LSB is 1.
     if (indexBit == 0)
     {
         //Place at bottom half of the list. which is after total number of zeroes.
-        int index = offsetSumOnes + totalZeroBits;
+        int index = _MortonPrefixSumOffsetOnes[id.x] + _MortonPrefixSumTotalZeroes[0];
         //_MortonCodes[id.x] = index;//testNums[index];
-        _MortonCodesTemp[index] = _MortonCodes[id.x % 8];
+        _MortonCodesTemp[index].mortonCode = _MortonCodes[id.x].mortonCode;
+		_MortonCodesTemp[index].particleIndex = _MortonCodes[id.x].particleIndex;
     }
     else {
-        int index = offsetSumZeroes;
+        int index = _MortonPrefixSumOffsetZeroes[id.x];
         //_MortonCodes[id.x] = index;//testNums[index];
-        _MortonCodesTemp[index] = _MortonCodes[id.x % 8];
+        _MortonCodesTemp[index].mortonCode = _MortonCodes[id.x].mortonCode;
+		_MortonCodesTemp[index].particleIndex = _MortonCodes[id.x].particleIndex;
     }
 
     //_MortonCodes[id.x] = testNumsSwap[id.x % 8];
-    //_MortonCodesTemp[id.x] = totalZeroBits;
+    //_MortonCodesTemp[id.x] = _MortonPrefixSumTotalZeroes[id.x];
 }
 
 [numthreads(256, 1, 1)]
@@ -1428,6 +1498,7 @@ void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
         return;
     }
     
+    _ParticleIDs[id.x] = _MortonCodes[id.x].particleIndex;
 	uint particleIndex = _ParticleIndices[id.x];
 	uint cellIndex = _ParticleCellIndices[particleIndex];
 

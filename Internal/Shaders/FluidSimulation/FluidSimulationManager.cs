@@ -866,7 +866,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateBVHTreeKernelId, "_Particles", _particleBuffer);
 
-            _fluidSimulationComputeShader.SetBuffer(_ComputeDensityKernelId, "_BVHNodes", _BVHNodesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateBVHTreeKernelId, "_BVHNodes", _BVHNodesBuffer);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleIndices", _particleIndicesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleIndices", _particleIndicesBuffer);
@@ -950,9 +950,10 @@ public class FluidSimulationManager : MonoBehaviour
 
         _MortonCodesBuffer.GetData(_MortonCodes);
         _particleIDsBuffer.GetData(_ParticleIDs);
+        _BVHNodesBuffer.GetData(_BVHNodes);
         for (int i = 0; i < NumOfParticles; i++)
         {
-            Debug.Log("Particle: " + _MortonCodes[i].particleIndex + "Particle IDs: " + _ParticleIDs[i] + " Morton " + _MortonCodes[i].mortonCode.ToString("F7"));
+            Debug.Log("Particle: " + _MortonCodes[i].particleIndex + "Particle IDs: " + _ParticleIDs[i] + "Parent Node: " + _BVHNodes[i].parent + " Morton " + _MortonCodes[i].mortonCode.ToString("F7"));
         }
         //_fluidSimulationComputeShader.Dispatch(_PrefixSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefixSumThreadSize.x), 1, 1);
 

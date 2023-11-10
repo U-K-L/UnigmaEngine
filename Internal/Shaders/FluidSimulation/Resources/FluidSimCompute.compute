@@ -733,8 +733,8 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
 
     }
     
-    //result = TraceParticlesTBVH(ray, hit);
-    return TraceParticlesTBVHDebug(ray, hit);
+    result = TraceParticlesTBVH(ray, hit);
+    //return TraceParticlesTBVHDebug(ray, hit);
 	minDistance = result.x;
 	particlesHit = result.y;
 	particleId = result.w;
@@ -770,6 +770,45 @@ unsigned int morton3D(float x, float y, float z)
     unsigned int yy = expandBits((unsigned int)y);
     unsigned int zz = expandBits((unsigned int)z);
     return xx * 4 + yy * 2 + zz;
+}
+
+int findSplit(int first, int last)
+{
+    // Identical Morton codes => split the range in the middle.
+
+    unsigned int firstCode = _MortonCodes[first].mortonCode;
+    unsigned int lastCode = _MortonCodes[last].mortonCode;
+
+    if (firstCode == lastCode)
+        return (first + last) >> 1;
+
+    // Calculate the number of highest bits that are the same
+    // for all objects, using the count-leading-zeros intrinsic.
+
+    int commonPrefix = firstbithigh(firstCode ^ lastCode);
+
+    // Use binary search to find where the next bit differs.
+    // Specifically, we are looking for the highest object that
+    // shares more than commonPrefix bits with the first one.
+
+    int split = first; // initial guess
+    int step = last - first;
+
+    do
+    {
+        step = (step + 1) >> 1; // exponential decrease
+        int newSplit = split + step; // proposed new position
+
+        if (newSplit < last)
+        {
+            unsigned int splitCode = _MortonCodes[newSplit].mortonCode;
+            int splitPrefix = firstbithigh(firstCode ^ splitCode);
+            if (splitPrefix > commonPrefix)
+                split = newSplit; // accept proposal
+        }
+    } while (step > 1);
+
+    return split;
 }
 
 void CollisionTrace(inout Ray ray, inout Hit hit)
@@ -997,11 +1036,11 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
     BVHNode bvh = CreateBVH();
     bvh.primitiveOffset = 0;
     bvh.primitiveCount = _NumOfParticles;
-    bvh.aabbMin = float3(-9, -9, -9);
-    bvh.aabbMax = float3(9, 9, 9);
+    bvh.aabbMin = float3(-27, -27, -27);
+    bvh.aabbMax = float3(29, 29, 29);
     bvh.leftChild = 0;
     bvh.rightChild = 0;
-    bvh.parent = 0;
+    bvh.parent = findSplit(7,8);
 
 	_BVHNodes[id.x] = bvh;
     
@@ -1016,7 +1055,6 @@ void ComputeDensity(uint3 id : SV_DispatchThreadID)
         return;
     }
     
-    CreateBVHTree(id);
     GetDensityGrid(id);
 }
 

@@ -785,8 +785,9 @@ int findSplit(int first, int last)
     // Calculate the number of highest bits that are the same
     // for all objects, using the count-leading-zeros intrinsic.
 
-    int commonPrefix = firstbithigh(firstCode ^ lastCode);
-
+    int commonPrefix = clz(firstCode ^ lastCode);
+    return commonPrefix;
+    /*
     // Use binary search to find where the next bit differs.
     // Specifically, we are looking for the highest object that
     // shares more than commonPrefix bits with the first one.
@@ -802,13 +803,14 @@ int findSplit(int first, int last)
         if (newSplit < last)
         {
             unsigned int splitCode = _MortonCodes[newSplit].mortonCode;
-            int splitPrefix = firstbithigh(firstCode ^ splitCode);
+            int splitPrefix = clz(firstCode ^ splitCode);
             if (splitPrefix > commonPrefix)
                 split = newSplit; // accept proposal
         }
     } while (step > 1);
 
     return split;
+    */
 }
 
 void CollisionTrace(inout Ray ray, inout Hit hit)
@@ -1040,7 +1042,7 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
     bvh.aabbMax = float3(29, 29, 29);
     bvh.leftChild = 0;
     bvh.rightChild = 0;
-    bvh.parent = findSplit(7,8);
+    bvh.parent = findSplit(0,3)-(31-4);
 
 	_BVHNodes[id.x] = bvh;
     
@@ -1407,10 +1409,11 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
     InterlockedAdd(_ParticleCount[cellIndex], 1);
 
     float3 pos = (_Particles[id.x].predictedPosition + _BoxSize) /(_BoxSize*2);
-    _MortonCodes[id.x].mortonCode = morton3D(pos.x, pos.y, pos.z);
+    uint testNums[] = { 30, 1, 5, 19, 2, 4,  25, 24 };
+    //_MortonCodes[id.x].mortonCode = morton3D(pos.x, pos.y, pos.z);
+    _MortonCodes[id.x].mortonCode = testNums[id.x];
 	_MortonCodes[id.x].particleIndex = id.x;
-    //uint testNums[] = { 4,2,5,6,8,7,3,1, 12,11,9,10 };
-	//_MortonCodesTemp[id.x] = _MortonCodes[id.x];
+
     _MortonCodesTemp[id.x].mortonCode = _MortonCodes[id.x].mortonCode;
 	_MortonCodesTemp[id.x].particleIndex = _MortonCodes[id.x].particleIndex;
 	//_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));

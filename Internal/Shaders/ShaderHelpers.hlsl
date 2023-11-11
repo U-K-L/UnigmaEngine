@@ -73,6 +73,11 @@ float4 taylorInvSqrt(float4 r) {
     return 1.79284291400159 - 0.85373472095314 * r;
 }
 
+uint clz(uint b)
+{
+    uint len = b ? (31 - floor(log2(b))) : 32;
+	return len;
+}
 
 
 float4 grad4(float j, float4 ip)

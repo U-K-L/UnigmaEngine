@@ -1030,7 +1030,7 @@ void GetDensityGrid(uint3 id)
 [numthreads(256, 1, 1)]
 void CreateBVHTree(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= _NumOfParticles)
+    if (id.x >= _NumOfParticles-1)
     {
         return;
     }
@@ -1042,7 +1042,61 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
     bvh.aabbMax = float3(29, 29, 29);
     bvh.leftChild = 0;
     bvh.rightChild = 0;
-    bvh.parent = findSplit(0,3)-(31-4);
+    bvh.parent = findSplit(id.x,id.x+1)-(31-4);
+
+    //Direction of the range.
+    int direction = sign(findSplit(id.x, id.x + 1) - findSplit(id.x, id.x - 1));
+    int sigMin = findSplit(id.x, id.x - direction);
+    int sigMax = 2;
+    while (findSplit(id.x, id.x + sigMax * direction) > sigMin)
+    {
+		sigMax *= 2;
+    }
+	sigMax = min(sigMax, 4);
+    int sig = 0;
+	for (int t = sigMax / 2; t >= 1; t /= 2)
+	{
+		if (findSplit(id.x, id.x + (sig + t) * direction) > sigMin)
+		{
+            sig += t;
+		}
+	}
+	int j = id.x + sig * direction;
+    
+    j = max(0, j);
+    
+    int splitNode = max(findSplit(id.x, j) - (31 - 4), 0);
+    int s = 0;
+    
+	for (int t = sig / 2; t >= 1; t /= 2)
+	{
+		if (findSplit(id.x, id.x + (s + t) * direction) > splitNode)
+		{
+			s += t;
+		}
+	}
+    
+    int gamma = id.x + s * direction + min(direction, 0);
+
+	if (min(id.x, j) == gamma)
+	{
+		bvh.leftChild = gamma;
+	}
+	else
+	{
+		bvh.leftChild = j;
+	}
+    
+	if (max(id.x, j) == gamma+1)
+	{
+		bvh.rightChild = gamma + 1;
+	}
+    else
+    {
+        bvh.rightChild = j + 1;
+    }
+    
+    bvh.parent = gamma;
 
 	_BVHNodes[id.x] = bvh;
     

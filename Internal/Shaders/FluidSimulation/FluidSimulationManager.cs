@@ -953,7 +953,7 @@ public class FluidSimulationManager : MonoBehaviour
         _BVHNodesBuffer.GetData(_BVHNodes);
         for (int i = 0; i < NumOfParticles; i++)
         {
-            Debug.Log("Particle: " + _MortonCodes[i].particleIndex + "Particle IDs: " + _ParticleIDs[i] + "Parent Node: " + _BVHNodes[i].parent + " Morton " + _MortonCodes[i].mortonCode.ToString("F7"));
+            Debug.Log("Particle: " + _MortonCodes[i].particleIndex + "Particle IDs: " + _ParticleIDs[i] + " Parent Node: " + _BVHNodes[i].parent + " Right Child: " + _BVHNodes[i].rightChild + " Left Child: " + _BVHNodes[i].leftChild + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7"));
         }
         //_fluidSimulationComputeShader.Dispatch(_PrefixSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefixSumThreadSize.x), 1, 1);
 

@@ -11,6 +11,7 @@
 #pragma kernel CalculateVorticity
 #pragma kernel PrefixSum
 #pragma kernel CreateBVHTree
+#pragma kernel CreateBoundingBox
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -210,7 +211,7 @@ BVHNode CreateBVH()
 	bvh.aabbMax = float3(0, 0, 0);
 	bvh.leftChild = 0;
 	bvh.rightChild = 0;
-	bvh.parent = 0;
+	bvh.parent = -1;
 	bvh.primitiveOffset = 0;
 	bvh.primitiveCount = 0;
 	bvh.index = 0;
@@ -1076,54 +1077,6 @@ void GetDensityGrid(uint3 id)
     _Particles[particleIndex].normal = min(normalize(-colorField), float3(1,1,1));
 }
 
-[numthreads(256, 1, 1)]
-void CreateBVHTree(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x >= _NumOfParticles-1)
-    {
-        return;
-    }
-
-    BVHNode bvh = CreateBVH();
-    bvh.primitiveOffset = 0;
-    bvh.primitiveCount = _NumOfParticles;
-    bvh.aabbMin = float3(-27, -27, -27);
-    bvh.aabbMax = float3(29, 29, 29);
-    bvh.leftChild = 0;
-    bvh.rightChild = 0;
-    //bvh.parent = findSplit(id.x,id.x+1)-(31-4);
-
-
-    uint2 range = determineRange(id.x);
-    int gamma = findSplit(range.x, range.y);//id.x + s * direction + min(direction, 0);
-
-
-    bvh.leftChild = gamma;
-    bvh.primitiveOffset = min(range.x, range.y);
-
-    bvh.rightChild = gamma+1;
-    bvh.primitiveCount = max(range.x, range.y) - min(range.x, range.y);
-
-	if (min(range.x, range.y) == gamma)
-	{
-        bvh.leftChild += _NumOfParticles - 1;
-	}
-    
-	if (max(range.x, range.y) == gamma+1)
-	{
-		bvh.rightChild += _NumOfParticles - 1;
-	}
-    
-    //Is a leaf.
-    if (bvh.rightChild > _NumOfParticles - 2)
-        bvh.rightChild = -1;
-    if (bvh.leftChild > _NumOfParticles - 2)
-        bvh.leftChild = -1;
-
-	_BVHNodes[id.x] = bvh;
-    
-}
-
 //Figure (1)
 [numthreads(64, 1, 1)]
 void ComputeDensity(uint3 id : SV_DispatchThreadID)
@@ -1619,6 +1572,136 @@ void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
 	uint particleIndex = _ParticleIndices[id.x];
 	uint cellIndex = _ParticleCellIndices[particleIndex];
 
+    //Make BVH here as well.
+    BVHNode bvh = CreateBVH();
+    bvh.aabbMin = -_BoxSize;
+    bvh.aabbMax = _BoxSize;
+    _BVHNodes[id.x] = bvh;
+
 	//Sets this value at the index cellIndex. However it waits for all threads and ensures this is the minimum value at that index.
 	InterlockedMin(_ParticleCellOffsets[cellIndex], id.x);
+}
+
+
+[numthreads(256, 1, 1)]
+void CreateBVHTree(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles - 1)
+    {
+        return;
+    }
+
+    BVHNode bvh = _BVHNodes[id.x];
+    bvh.index = id.x;
+
+    uint2 range = determineRange(id.x);
+    int gamma = findSplit(range.x, range.y);//id.x + s * direction + min(direction, 0);
+
+
+    bvh.leftChild = gamma;
+    bvh.primitiveOffset = min(range.x, range.y);
+
+    bvh.rightChild = gamma + 1;
+    bvh.primitiveCount = max(range.x, range.y) - min(range.x, range.y) + 1;
+
+    if (min(range.x, range.y) == gamma)
+    {
+        bvh.leftChild = - 1;
+    }
+
+    if (max(range.x, range.y) == gamma + 1)
+    {
+        bvh.rightChild = - 1;
+    }
+
+    _BVHNodes[id.x] = bvh;
+
+}
+
+[numthreads(256, 1, 1)]
+void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
+{
+
+
+    BVHNode bvh = _BVHNodes[id.x];
+
+    if (bvh.leftChild > -1)
+    {
+        bvh.primitiveCount -= _BVHNodes[bvh.leftChild].primitiveCount;
+        _BVHNodes[bvh.leftChild].parent = id.x;
+    }
+
+    if (bvh.rightChild > -1)
+    {
+        bvh.primitiveCount -= _BVHNodes[bvh.rightChild].primitiveCount;
+        _BVHNodes[bvh.rightChild].parent = id.x;
+    }
+
+    if (bvh.leftChild > -1 && bvh.rightChild == -1)
+    {
+        bvh.primitiveOffset = bvh.leftChild+1; //it actually starts at left child.
+        bvh.primitiveCount = 1;
+    }
+
+    _BVHNodes[0].parent = -1;
+
+    _BVHNodes[id.x] = bvh;
+
+    AllMemoryBarrierWithGroupSync();
+
+    if (id.x >= _NumOfParticles - 1)
+    {
+        return;
+    }
+
+    bvh = _BVHNodes[id.x];
+
+
+    //Create hit and miss links.
+
+    //Always next node in array.
+    bvh.hit = id.x + 1;
+    bvh.miss = -1;
+
+    if (id.x == 0)
+    {
+        _BVHNodes[id.x] = bvh;
+        return;
+    }
+
+    //If final node make it terminal instead.
+    if (id.x >= _NumOfParticles - 2)
+    {
+        bvh.hit = -1;
+        bvh.miss = -1;
+        _BVHNodes[id.x] = bvh;
+        return;
+    }
+
+
+    //Get miss links based on a few rules.
+    //If a leaf
+    if (bvh.rightChild == -1)
+    {
+        bvh.miss = id.x + 1;
+        _BVHNodes[id.x] = bvh;
+
+        return;
+    }
+
+    BVHNode node = bvh;
+    while (node.parent > -1)
+    {
+
+        if (node.index == _BVHNodes[node.parent].leftChild && _BVHNodes[node.parent].rightChild != -1)
+        {
+            bvh.miss = _BVHNodes[node.parent].rightChild;
+            break;
+        }
+        node = _BVHNodes[node.parent];
+    }
+
+
+    _BVHNodes[id.x] = bvh;
+
 }

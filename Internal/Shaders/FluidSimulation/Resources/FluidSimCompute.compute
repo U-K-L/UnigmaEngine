@@ -772,10 +772,26 @@ unsigned int morton3D(float x, float y, float z)
     return xx * 4 + yy * 2 + zz;
 }
 
-int findSplit(int first, int last)
+int commonPrefixClz(int first, int last)
 {
     // Identical Morton codes => split the range in the middle.
 
+	if (first > _NumOfParticles-1 || first < 0 || last > _NumOfParticles -1|| last < 0)
+	{
+        return -1;
+	}
+    unsigned int firstCode = _MortonCodes[first].mortonCode;
+    unsigned int lastCode = _MortonCodes[last].mortonCode;
+
+    uint commonPrefix = clz(firstCode ^ lastCode);
+
+    
+    return commonPrefix;
+}
+
+int findSplit(int first, int last)
+{
+    // Identical Morton codes => split the range in the middle.
     unsigned int firstCode = _MortonCodes[first].mortonCode;
     unsigned int lastCode = _MortonCodes[last].mortonCode;
 
@@ -785,9 +801,8 @@ int findSplit(int first, int last)
     // Calculate the number of highest bits that are the same
     // for all objects, using the count-leading-zeros intrinsic.
 
-    int commonPrefix = clz(firstCode ^ lastCode);
-    return commonPrefix;
-    /*
+    uint commonPrefix = clz(firstCode ^ lastCode);
+
     // Use binary search to find where the next bit differs.
     // Specifically, we are looking for the highest object that
     // shares more than commonPrefix bits with the first one.
@@ -810,7 +825,41 @@ int findSplit(int first, int last)
     } while (step > 1);
 
     return split;
-    */
+}
+
+uint2 determineRange(int idx)
+{
+    //Get the direction towards the upper bound.
+
+    int direction = sign(commonPrefixClz(idx, idx + 1) - commonPrefixClz(idx, idx - 1));
+
+    //Subtracting that direction gives us the lower bound, ie the lowest level for this node.
+    int sigMin = commonPrefixClz(idx, idx - direction);
+
+
+
+    int sigMax = 2;
+    while (commonPrefixClz(idx, idx + sigMax * direction) > sigMin)
+    {
+        sigMax *= 2;
+    }
+
+
+    int sig = 0;
+    for (int t = sigMax / 2; t >= 1; t /= 2)
+    {
+        if (commonPrefixClz(idx, idx + (sig + t) * direction) > sigMin)
+        {
+            sig += t;
+        }
+    }
+    int j = idx + sig * direction;
+
+    uint2 range;
+    range.x = min(idx, j);
+    range.y = max(idx, j);
+
+    return range;
 }
 
 void CollisionTrace(inout Ray ray, inout Hit hit)
@@ -1042,61 +1091,34 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
     bvh.aabbMax = float3(29, 29, 29);
     bvh.leftChild = 0;
     bvh.rightChild = 0;
-    bvh.parent = findSplit(id.x,id.x+1)-(31-4);
+    //bvh.parent = findSplit(id.x,id.x+1)-(31-4);
 
-    //Direction of the range.
-    int direction = sign(findSplit(id.x, id.x + 1) - findSplit(id.x, id.x - 1));
-    int sigMin = findSplit(id.x, id.x - direction);
-    int sigMax = 2;
-    while (findSplit(id.x, id.x + sigMax * direction) > sigMin)
-    {
-		sigMax *= 2;
-    }
-	sigMax = min(sigMax, 4);
-    int sig = 0;
-	for (int t = sigMax / 2; t >= 1; t /= 2)
-	{
-		if (findSplit(id.x, id.x + (sig + t) * direction) > sigMin)
-		{
-            sig += t;
-		}
-	}
-	int j = id.x + sig * direction;
-    
-    j = max(0, j);
-    
-    int splitNode = max(findSplit(id.x, j) - (31 - 4), 0);
-    int s = 0;
-    
-	for (int t = sig / 2; t >= 1; t /= 2)
-	{
-		if (findSplit(id.x, id.x + (s + t) * direction) > splitNode)
-		{
-			s += t;
-		}
-	}
-    
-    int gamma = id.x + s * direction + min(direction, 0);
 
-	if (min(id.x, j) == gamma)
+    uint2 range = determineRange(id.x);
+    int gamma = findSplit(range.x, range.y);//id.x + s * direction + min(direction, 0);
+
+
+    bvh.leftChild = gamma;
+    bvh.primitiveOffset = min(range.x, range.y);
+
+    bvh.rightChild = gamma+1;
+    bvh.primitiveCount = max(range.x, range.y) - min(range.x, range.y);
+
+	if (min(range.x, range.y) == gamma)
 	{
-		bvh.leftChild = gamma;
-	}
-	else
-	{
-		bvh.leftChild = j;
+        bvh.leftChild += _NumOfParticles - 1;
 	}
     
-	if (max(id.x, j) == gamma+1)
+	if (max(range.x, range.y) == gamma+1)
 	{
-		bvh.rightChild = gamma + 1;
+		bvh.rightChild += _NumOfParticles - 1;
 	}
-    else
-    {
-        bvh.rightChild = j + 1;
-    }
     
-    bvh.parent = gamma;
+    //Is a leaf.
+    if (bvh.rightChild > _NumOfParticles - 2)
+        bvh.rightChild = -1;
+    if (bvh.leftChild > _NumOfParticles - 2)
+        bvh.leftChild = -1;
 
 	_BVHNodes[id.x] = bvh;
     

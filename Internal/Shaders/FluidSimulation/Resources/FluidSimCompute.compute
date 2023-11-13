@@ -1625,6 +1625,20 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
 
     BVHNode bvh = _BVHNodes[id.x];
 
+    //Create bounding box.
+    for (int i = bvh.primitiveOffset; i < bvh.primitiveCount + bvh.primitiveOffset; i++)
+    {
+        int particleIndex = _ParticleIDs[i];
+        float3 particlePos = _Particles[particleIndex].position;
+        float sizeOfParticleSquared = _SizeOfParticle / _SizeOfParticle;
+        float3 sizeOfParticle = 1 * float3(sizeOfParticleSquared, sizeOfParticleSquared, sizeOfParticleSquared);
+        bvh.aabbMin = min(bvh.aabbMin, particlePos - sizeOfParticle);
+        bvh.aabbMax = max(bvh.aabbMax, particlePos + sizeOfParticle);
+    }
+    _BVHNodes[id.x] = bvh;
+    
+    AllMemoryBarrierWithGroupSync();
+    
     if (bvh.leftChild > -1)
     {
         bvh.primitiveCount -= _BVHNodes[bvh.leftChild].primitiveCount;
@@ -1700,7 +1714,6 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
         }
         node = _BVHNodes[node.parent];
     }
-
 
     _BVHNodes[id.x] = bvh;
 

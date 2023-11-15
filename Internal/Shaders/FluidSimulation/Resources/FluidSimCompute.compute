@@ -12,6 +12,7 @@
 #pragma kernel PrefixSum
 #pragma kernel CreateBVHTree
 #pragma kernel CreateBoundingBox
+#pragma kernel RadixSort
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -639,26 +640,29 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
         node = _BVHNodes[nodeIndex];
         if (TraceBVH(ray, hit, node))
         {
-            for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
+            if (node.primitiveCount > 0)
             {
-                float3 position = _Particles[_ParticleIDs[k]].position;
 
-                float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
-                
-                if (t1 > epsilon)
+                for (int k = node.primitiveOffset; k <= node.primitiveCount + node.primitiveOffset; k++)
                 {
-                    particlesHit += 1.0f;
-                    if (t1 < hit.distance)
+                    float3 position = _Particles[_ParticleIDs[k]].position;
+
+                    float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+
+                    if (t1 > epsilon)
                     {
-                        float4 clipPos = UnityWorldToClipPos(position);
-                        float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
-                        hit.depth = 1.0 - depth;
-                        hit.distance = t1;
-                        particleIndex = _ParticleIDs[k];
+                        particlesHit += 1.0f;
+                        if (t1 < hit.distance)
+                        {
+                            float4 clipPos = UnityWorldToClipPos(position);
+                            float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
+                            hit.depth = 1.0 - depth;
+                            hit.distance = t1;
+                            particleIndex = _ParticleIDs[k];
+                        }
                     }
                 }
             }
-
             nodeIndex = node.hit;
         }
         else
@@ -734,7 +738,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
 
     }
     
-    //result = TraceParticlesTBVH(ray, hit);
+    result = TraceParticlesTBVH(ray, hit);
     //return TraceParticlesTBVHDebug(ray, hit);
 	minDistance = result.x;
 	particlesHit = result.y;
@@ -783,7 +787,7 @@ int commonPrefixClz(int first, int last)
 	}
     unsigned int firstCode = _MortonCodes[first].mortonCode;
     unsigned int lastCode = _MortonCodes[last].mortonCode;
-
+    
     uint commonPrefix = clz(firstCode ^ lastCode);
 
     
@@ -1581,35 +1585,44 @@ void PrefixSum(uint3 id : SV_DispatchThreadID)
 void BitonicSort(uint3 id : SV_DispatchThreadID)
 {
 
-    /*
+    if (id.x >= _MaxNumOfParticles)
+    {
+        return;
+    }
+
     uint index = _ParticleCellIndices[id.x];
-    uint i = id.x + id.y * 32;
+    uint i = id.x + id.y * 256 * 1024;
     uint j = i ^ biBlock;
-    
-	if (j < i || i >= _MaxNumOfParticles)
-		return;
+
+    if (j < i || i >= _MaxNumOfParticles)
+        return;
 
     uint key_i = _ParticleIndices[i];
-	uint key_j = _ParticleIndices[j];
-	float value_i = _ParticleCellIndices[key_i];
-	float value_j = _ParticleCellIndices[key_j];
-    
-	float diff = (value_i - value_j) * ((i & biDim) == 0 ? 1 : -1);
+    uint key_j = _ParticleIndices[j];
+    float value_i = _ParticleCellIndices[key_i];
+    float value_j = _ParticleCellIndices[key_j];
+
+    float diff = (value_i - value_j) * ((i & biDim) == 0 ? 1 : -1);
     if (diff > 0)
     {
-		_ParticleIndices[i] = key_j;
-		_ParticleIndices[j] = key_i;
+        _ParticleIndices[i] = key_j;
+        _ParticleIndices[j] = key_i;
     }
-    */
+
+}
+
+[numthreads(256, 1, 1)]
+void RadixSort(uint3 id : SV_DispatchThreadID)
+{
     int indexBit = firstbitlow(_MortonCodes[id.x].mortonCode >> biBlock);
     if (id.x < _NumOfParticles)
     {
-        
+
         //If the bit LSB is 1.
         if (indexBit == 0)
         {
             //Place at bottom half of the list. which is after total number of zeroes.
-            int index = _MortonPrefixSumOffsetOnes[id.x] + ((_NumOfParticles - 1 ) - _MortonPrefixSumOffsetOnes[_NumOfParticles-1]);
+            int index = _MortonPrefixSumOffsetOnes[id.x] + ((_NumOfParticles - 1) - _MortonPrefixSumOffsetOnes[_NumOfParticles - 1]);
             //_MortonCodes[id.x] = index;//testNums[index];
             _MortonCodesTemp[index].mortonCode = _MortonCodes[id.x].mortonCode;
             _MortonCodesTemp[index].particleIndex = _MortonCodes[id.x].particleIndex;
@@ -1701,8 +1714,8 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
     BVHNode bvh = _BVHNodes[id.x];
 
     //Create bounding box.
-    /*
-    for (int i = bvh.primitiveOffset; i < bvh.primitiveCount + bvh.primitiveOffset; i++)
+
+    for (int i = bvh.primitiveOffset; i <= bvh.primitiveCount + bvh.primitiveOffset; i++)
     {
         int particleIndex = _ParticleIDs[i];
         float3 particlePos = _Particles[particleIndex].position;
@@ -1711,8 +1724,7 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
         bvh.aabbMin = min(bvh.aabbMin, particlePos - sizeOfParticle);
         bvh.aabbMax = max(bvh.aabbMax, particlePos + sizeOfParticle);
     }
-    */
-    
+
     _BVHNodes[id.x] = bvh;
     
     AllMemoryBarrierWithGroupSync();
@@ -1727,12 +1739,14 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
         bvh.primitiveCount -= _BVHNodes[bvh.rightChild].primitiveCount;
     }
 
+    /*
     if (bvh.leftChild > -1 && bvh.rightChild == -1)
     {
         bvh.primitiveOffset = bvh.leftChild+1; //it actually starts at left child.
         bvh.primitiveCount = 1;
     }
-
+    */
+    
     _BVHNodes[id.x] = bvh;
 
     AllMemoryBarrierWithGroupSync();
@@ -1778,8 +1792,8 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
     }
 
     BVHNode node = bvh;
-    /*
-    while (node.parent > -1)
+    int counter = 0;
+	while (node.parent > -1 && counter < _NumOfParticles)
     {
 
         if (node.index == _BVHNodes[node.parent].leftChild && _BVHNodes[node.parent].rightChild != -1)
@@ -1788,8 +1802,8 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
             break;
         }
         node = _BVHNodes[node.parent];
+        counter++;
     }
-    */
     _BVHNodes[id.x] = bvh;
 
 }

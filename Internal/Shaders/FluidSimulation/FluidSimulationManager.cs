@@ -42,6 +42,8 @@ public class FluidSimulationManager : MonoBehaviour
     int _CalculateVorticityKernelId;
     int _PrefixSumKernelId;
     int _AssignMortonCodesKernelId;
+    int _AssignParentsKernelId;
+    int _AssignIndexKernelId;
     int _CreateBVHTreeKernelId;
     int _CreateBoundingBoxKernelId;
 
@@ -59,6 +61,8 @@ public class FluidSimulationManager : MonoBehaviour
     Vector3 _calculateVorticityThreadSize;
     Vector3 _prefixSumThreadSize;
     Vector3 _assignMortonCodesThreadSize;
+    Vector3 _assignParentsThreadSize;
+    Vector3 _assignIndexThreadSize;
     Vector3 _createBVHTreeThreadSize;
     Vector3 _createBoundingBoxThreadSize;
 
@@ -199,6 +203,7 @@ public class FluidSimulationManager : MonoBehaviour
         public int isLeaf;
         public int leftChildLeaf;
         public int rightChildLeaf;
+        public int indexedId;
     };
 
     struct MortonCode
@@ -212,7 +217,7 @@ public class FluidSimulationManager : MonoBehaviour
     private MortonCode[] _MortonCodesTemp;
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
-    int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 8 + sizeof(int)*3;
+    int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 8 + sizeof(int)*4;
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -285,6 +290,8 @@ public class FluidSimulationManager : MonoBehaviour
         _UpdatePositionsKernelId = _fluidSimulationComputeShader.FindKernel("UpdatePositions");
         _PrefixSumKernelId = _fluidSimulationComputeShader.FindKernel("PrefixSum");
         _AssignMortonCodesKernelId = _fluidSimulationComputeShader.FindKernel("AssignMortonCodes");
+        _AssignParentsKernelId = _fluidSimulationComputeShader.FindKernel("AssignParents");
+        _AssignIndexKernelId = _fluidSimulationComputeShader.FindKernel("AssignIndex");
         _CreateBVHTreeKernelId = _fluidSimulationComputeShader.FindKernel("CreateBVHTree");
         _CreateBoundingBoxKernelId = _fluidSimulationComputeShader.FindKernel("CreateBoundingBox");
 
@@ -365,6 +372,15 @@ public class FluidSimulationManager : MonoBehaviour
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_AssignMortonCodesKernelId, out threadsX, out threadsY, out threadsZ);
         _assignMortonCodesThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_AssignParentsKernelId, out threadsX, out threadsY, out threadsZ);
+        _assignParentsThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_AssignIndexKernelId, out threadsX, out threadsY, out threadsZ);
+        _assignIndexThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_AssignIndexKernelId, out threadsX, out threadsY, out threadsZ);
+        _assignIndexThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CreateBVHTreeKernelId, out threadsX, out threadsY, out threadsZ);
         _createBVHTreeThreadSize = new Vector3(threadsX, threadsY, threadsZ);
@@ -899,6 +915,8 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CreateBVHTreeKernelId, "_BVHNodes", _BVHNodesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_BVHNodes", _BVHNodesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateBoundingBoxKernelId, "_BVHNodes", _BVHNodesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_AssignIndexKernelId, "_BVHNodes", _BVHNodesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_AssignParentsKernelId, "_BVHNodes", _BVHNodesBuffer);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleIndices", _particleIndicesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleIndices", _particleIndicesBuffer);
@@ -992,8 +1010,11 @@ public class FluidSimulationManager : MonoBehaviour
             CalculateCellOffsets();
 
             _fluidSimulationComputeShader.Dispatch(_CreateBVHTreeKernelId, Mathf.CeilToInt(NumOfParticles / _createBVHTreeThreadSize.x), 1, 1);
+            _fluidSimulationComputeShader.Dispatch(_AssignParentsKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _assignParentsThreadSize.x), 1, 1);
+
             _fluidSimulationComputeShader.Dispatch(_CreateBoundingBoxKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _createBoundingBoxThreadSize.x), 1, 1);
 
+            //_fluidSimulationComputeShader.Dispatch(_AssignIndexKernelId, 1, 1, 1);
             if (Input.GetKey(KeyCode.Space))
             {
                 _MortonCodesBuffer.GetData(_MortonCodes);
@@ -1004,7 +1025,7 @@ public class FluidSimulationManager : MonoBehaviour
                 for (int i = 0; i < NumOfParticles; i++)
                 {
                     //Debug.Log(" Particle IDs: " + _MortonCodes[i].mortonCode);
-                    Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Parent Of Particle " + _particles[_ParticleIDs[i]].parent + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7") + " Morton Index " + _MortonCodes[i].index + " Position: " + _particles[_ParticleIDs[i]].position);
+                    Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Parent Of Particle " + _particles[_ParticleIDs[i]].parent + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7") + " Morton Index " + _MortonCodes[i].index + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
                 }
 
                 /*

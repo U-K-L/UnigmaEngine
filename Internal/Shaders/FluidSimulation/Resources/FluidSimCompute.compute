@@ -14,6 +14,8 @@
 #pragma kernel CreateBoundingBox
 #pragma kernel RadixSort
 #pragma kernel AssignMortonCodes
+#pragma kernel AssignParents
+#pragma kernel AssignIndex
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -126,6 +128,7 @@ struct BVHNode
     int isLeaf;
     int leftChildLeaf;
 	int rightChildLeaf;
+    int indexedId;
 };
 
 struct MortonCode
@@ -226,6 +229,7 @@ BVHNode CreateBVH()
     bvh.isLeaf = false;
 	bvh.leftChildLeaf = -1;
 	bvh.rightChildLeaf = -1;
+	bvh.indexedId = -1;
 	return bvh;
 }
 
@@ -640,12 +644,14 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
 	int particleIndex = -1;
     float particlesHit = 0;
     BVHNode node = _BVHNodes[0];
+    int skip = 0;
     for (int i = 0; i < _NumOfNodes; i++)
     {
+
+        node = _BVHNodes[nodeIndex];
         //Find next node.
-        if (nodeIndex != i)
+        if (node.indexedId != i)
             continue;
-        node = _BVHNodes[i];
         if (TraceBVH(ray, hit, node))
         {
             if(node.isLeaf > 0)
@@ -836,7 +842,7 @@ int commonPrefixClz(int first, int last)
     return commonPrefix;
 }
 
-int commonPrefixClz2(uint first, uint last)
+int commonPrefixClz2(int first, int last)
 {
     unsigned int firstCode = _MortonCodes[first].mortonCode;
     unsigned int lastCode = _MortonCodes[last].mortonCode;
@@ -857,11 +863,11 @@ int findSplit(int first, int last)
     // Identical Morton codes => split the range in the middle.
     unsigned int firstCode = _MortonCodes[first].mortonCode;
     unsigned int lastCode = _MortonCodes[last].mortonCode;
-
-    /*
+    
+    
     if (firstCode == lastCode)
         return (first + last) >> 1;
-    */
+
     // Calculate the number of highest bits that are the same
     // for all objects, using the count-leading-zeros intrinsic.
 
@@ -882,7 +888,7 @@ int findSplit(int first, int last)
         if (newSplit < last)
         {
             unsigned int splitCode = _MortonCodes[newSplit].mortonCode;
-            int splitPrefix = commonPrefixClz2(first, last);
+            int splitPrefix = commonPrefixClz2(first, newSplit);
             if (splitPrefix > commonPrefix)
                 split = newSplit; // accept proposal
         }
@@ -1663,6 +1669,7 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
 
     BVHNode bvh = _BVHNodes[id.x];
     bvh.index = id.x;
+    bvh.indexedId = -1;
 
     uint2 range = determineRange(id.x);
     int gamma = findSplit(range.x, range.y);//id.x + s * direction + min(direction, 0);
@@ -1691,8 +1698,37 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
         bvh.rightChild = -1;
     }
 
+    uint2 rangeInitial = determineRange(0);
+    int gammaInitial = findSplit(rangeInitial.x, rangeInitial.y);
+    
+	bvh.indexedId = (gammaInitial+1)-id.x;
+    if (id.x >= gammaInitial + 1)
+    {
+        bvh.indexedId = id.x;
+    }
+
+    if(id.x == 0)
+	{
+		bvh.indexedId = 0;
+	}
+    
     _BVHNodes[id.x] = bvh;
     _BVHNodes[0].parent = -1;
+
+
+    
+}
+
+[numthreads(256, 1, 1)]
+void AssignParents(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles - 1)
+    {
+        return;
+    }
+
+    BVHNode bvh = _BVHNodes[id.x];
+    
     if (bvh.leftChild > -1)
     {
         _BVHNodes[bvh.leftChild].parent = id.x;
@@ -1702,7 +1738,6 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
     {
         _BVHNodes[bvh.rightChild].parent = id.x;
     }
-
 }
 
 [numthreads(256, 1, 1)]
@@ -1734,16 +1769,28 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
     //Create hit and miss links.
 
     //Always next node in array.
-    bvh.hit = id.x + 1;
+    bvh.hit = -1;
     bvh.miss = -1;
 
+    /*
+    if (bvh.leftChild > -1)
+    {
+        bvh.hit = bvh.leftChild;
+    }
+    else if(bvh.rightChild > -1)
+    {
+        bvh.hit = bvh.rightChild;
+    }
+
+    
     if (id.x == 0)
     {
         _BVHNodes[id.x] = bvh;
         return;
     }
-
+    */
     //If final node make it terminal instead.
+    /*
     if (id.x >= _NumOfParticles - 2)
     {
         bvh.hit = -1;
@@ -1751,10 +1798,11 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
         _BVHNodes[id.x] = bvh;
         return;
     }
-
+    */
 
     //Get miss links based on a few rules.
     //If a leaf
+    /*
     if (bvh.isLeaf > 0)
     {
         bvh.miss = id.x + 1;
@@ -1762,18 +1810,62 @@ void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
 
         return;
     }
-
+    */
     BVHNode node = bvh;
-	while (node.parent > -1)
+    int counter = 0;
+    
+	while (node.parent > -1 && counter < _NumOfParticles)
     {
 
+        if (counter > _NumOfParticles - 2)
+        {
+            bvh.miss = -304;
+            break;
+        }
+        
         if (node.index == _BVHNodes[node.parent].leftChild && _BVHNodes[node.parent].rightChild != -1)
         {
             bvh.miss = _BVHNodes[node.parent].rightChild;
+            if(bvh.hit == -1)
+			{
+				//bvh.hit = _BVHNodes[node.parent].rightChild;
+			}
             break;
         }
         node = _BVHNodes[node.parent];
+        counter++;
     }
+
+    //Final fall back ;)
+    if (bvh.hit == -1)
+    {
+        bvh.hit = id.x + 1;
+    }
+    
     _BVHNodes[id.x] = bvh;
+}
+
+
+[numthreads(1, 1, 1)]
+void AssignIndex(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles - 1)
+    {
+        return;
+    }
+    int index = 0;
+    int currentNode = 0;
+	for (int i = 0; i < 63; i++)
+	{
+        currentNode = index;
+        _BVHNodes[currentNode].indexedId = i;
+		index = _BVHNodes[currentNode].hit;
+        
+		if (i == 62)
+		{
+			_BVHNodes[currentNode].hit = -1;
+            _BVHNodes[currentNode].miss = -1;
+		}
+	}
 
 }

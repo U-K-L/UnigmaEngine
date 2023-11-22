@@ -976,6 +976,8 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CreateBoundingBoxKernelId, "_MortonCodes", _MortonCodesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_PrefixSumKernelId, "_MortonCodesTemp", _MortonCodesTempBuffer);
             _fluidSimulationComputeShader.SetBuffer(_AssignMortonCodesKernelId, "_MortonCodesTemp", _MortonCodesTempBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_AssignParentsKernelId, "_MortonCodes", _MortonCodesBuffer);
+
 
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_MortonPrefixSumTotalZeroes", _MortonPrefixSumTotalZeroesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_HashParticlesKernelId, "_MortonPrefixSumOffsetOnes", _MortonPrefixSumOffsetOnesBuffer);

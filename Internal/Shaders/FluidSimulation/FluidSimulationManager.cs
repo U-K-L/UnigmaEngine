@@ -6,7 +6,13 @@ using UnityEngine.Rendering;
 
 public class FluidSimulationManager : MonoBehaviour
 {
-    
+
+    [SerializeField]
+    Material material;
+
+    [SerializeField]
+    Mesh mesh;
+
     ComputeShader _fluidSimulationComputeShader;
 
     ComputeBuffer _meshObjectBuffer;
@@ -194,6 +200,8 @@ public class FluidSimulationManager : MonoBehaviour
         public Vector3 aabbMax;
         public int leftChild;
         public int rightChild;
+        public Vector3 topChild;
+        public Vector3 bottomChild;
         public int parent;
         public int primitiveOffset;
         public int primitiveCount;
@@ -203,6 +211,8 @@ public class FluidSimulationManager : MonoBehaviour
         public int isLeaf;
         public int leftChildLeaf;
         public int rightChildLeaf;
+        public Vector3 topChildLeaf;
+        public Vector3 bottomChildLeaf;
         public int indexedId;
     };
 
@@ -217,12 +227,14 @@ public class FluidSimulationManager : MonoBehaviour
     private MortonCode[] _MortonCodesTemp;
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
-    int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 8 + sizeof(int)*4;
+    int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*12;
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
     public int _SolveIterations = 1;
     int nodesUsed = 1;
+
+    Bounds bounds;
     private void Awake()
     {
         Debug.Log(_particleStride);
@@ -320,9 +332,14 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_SurfaceMap", _surfaceMapTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_CurlMap", _curlMapTexture);
 
+        //material.SetBuffer("_Particles", _particleBuffer);
+        bounds = new Bounds(Vector3.zero, _BoxSize);
+
         GetThreadSizes();
         AddObjectsToList();
         CreateNonAcceleratedStructure();
+        UpdateNonAcceleratedRayTracer();
+        material.SetBuffer("_Particles", _particleBuffer);
         CreateFluidCommandBuffers();
 
 
@@ -397,10 +414,10 @@ public class FluidSimulationManager : MonoBehaviour
             for (int biBlock = biDim >> 1; biBlock > 0; biBlock >>= 1)
             {
                 _fluidSimulationComputeShader.SetInt("biBlock", biBlock);
-                _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(Mathf.Sqrt(MaxNumOfParticles) / _sortParticlesThreadSize.x), Mathf.CeilToInt(Mathf.Sqrt(MaxNumOfParticles) / _sortParticlesThreadSize.y), 1);
+                _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
             }
         }
-        
+        /*
         int MaxNumSteps = Mathf.CeilToInt(Mathf.Log(MaxNumOfParticles, 2));
         for (int i = 0; i < 32; i++)
         {
@@ -414,11 +431,13 @@ public class FluidSimulationManager : MonoBehaviour
 
             _fluidSimulationComputeShader.Dispatch(_RadixSortKernelId, Mathf.CeilToInt(NumOfParticles / _radixSortThreadSize.x), 1, 1);
         }
+        */
     }
 
     private void FixedUpdate()
     {
         UpdateNonAcceleratedRayTracer();
+
     }
 
     void AddObjectsToList()
@@ -850,6 +869,7 @@ public class FluidSimulationManager : MonoBehaviour
         if (_particleBuffer == null)
         {
             _particleBuffer = new ComputeBuffer(MaxNumOfParticles, _particleStride );
+            _particleBuffer.name = "ParticlesBuffer";
             _particlePositionsBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(float) * 3);
             _particleIndicesBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCellIndicesBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
@@ -1011,10 +1031,10 @@ public class FluidSimulationManager : MonoBehaviour
             SortParticles();
             CalculateCellOffsets();
 
-            _fluidSimulationComputeShader.Dispatch(_CreateBVHTreeKernelId, Mathf.CeilToInt(NumOfParticles / _createBVHTreeThreadSize.x), 1, 1);
-            _fluidSimulationComputeShader.Dispatch(_AssignParentsKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _assignParentsThreadSize.x), 1, 1);
+            //_fluidSimulationComputeShader.Dispatch(_CreateBVHTreeKernelId, Mathf.CeilToInt(NumOfParticles / _createBVHTreeThreadSize.x), 1, 1);
+            //_fluidSimulationComputeShader.Dispatch(_AssignParentsKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _assignParentsThreadSize.x), 1, 1);
 
-            _fluidSimulationComputeShader.Dispatch(_CreateBoundingBoxKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _createBoundingBoxThreadSize.x), 1, 1);
+            //_fluidSimulationComputeShader.Dispatch(_CreateBoundingBoxKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _createBoundingBoxThreadSize.x), 1, 1);
 
             //_fluidSimulationComputeShader.Dispatch(_AssignIndexKernelId, 1, 1, 1);
             if (Input.GetKey(KeyCode.Space))
@@ -1054,7 +1074,7 @@ public class FluidSimulationManager : MonoBehaviour
                 UpdatePredictedPositions();
             }
 
-            //ComputeCurl();
+            ComputeCurl();
             ComputePositions();
             ComputeVorticity();
             //Set Particle positions to script.
@@ -1179,6 +1199,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimMaterialComposite.SetTexture("_CurlMap", _curlMapTexture);
 
 
+
         //uint threadsX, threadsY, threadsZ;
         //_fluidSimulationCompute.GetKernelThreadGroupSizes(0, out threadsX, out threadsY, out threadsZ);
         //_fluidSimulationCompute.Dispatch(0, Mathf.CeilToInt(Screen.width / threadsX), Mathf.CeilToInt(Screen.width / threadsY), (int)threadsZ);
@@ -1186,7 +1207,11 @@ public class FluidSimulationManager : MonoBehaviour
         //Execute shaders on render target.
         //Graphics.Blit(_rtTarget, _fluidDepthBuffer, _fluidSimMaterialDepth);
         //Graphics.Blit(source, _rtTarget, _fluidSimMaterialDepthHori);
+
+
         Graphics.Blit(source, destination, _fluidSimMaterialComposite);
+
+
     }
     
     void CreateFluidCommandBuffers()
@@ -1201,7 +1226,8 @@ public class FluidSimulationManager : MonoBehaviour
 
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "Result", _rtTarget);
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "_VelocitySurfaceDensityDepthTexture", _velocitySurfaceDensityDepthTexture);
-        fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
+        //fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
+        
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _velocitySurfaceDensityDepthTexture);
         fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
@@ -1210,8 +1236,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         fluidCommandBuffers.SetRenderTarget(_velocitySurfaceDensityDepthTexture);
 
-        //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-        
+        fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+        fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
+
         fluidCommandBuffers.Blit(_velocitySurfaceDensityDepthTexture, _tempTarget, _fluidSimMaterialDepthHori);
         fluidCommandBuffers.Blit(_tempTarget, _velocitySurfaceDensityDepthTexture, _fluidSimMaterialDepthVert);
 

@@ -119,6 +119,8 @@ struct BVHNode
     float3 aabbMax;
     int leftChild;
     int rightChild;
+    int3 topChild;
+    int3 bottomChild;
     int parent;
     int primitiveOffset;
     int primitiveCount;
@@ -128,6 +130,8 @@ struct BVHNode
     int isLeaf;
     int leftChildLeaf;
 	int rightChildLeaf;
+    int3 topChildLeaf;
+    int3 bottomChildLeaf;
     int indexedId;
 };
 
@@ -137,8 +141,6 @@ struct MortonCode
     int particleIndex;
     uint index;
 };
-
-
 
 StructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
@@ -222,6 +224,8 @@ BVHNode CreateBVH()
 	bvh.aabbMax = float3(0, 0, 0);
 	bvh.leftChild = 0;
 	bvh.rightChild = 0;
+	bvh.topChild = int3(0, 0, 0);
+	bvh.bottomChild = int3(0, 0, 0);
 	bvh.parent = -1;
 	bvh.primitiveOffset = 0;
 	bvh.primitiveCount = 0;
@@ -231,6 +235,8 @@ BVHNode CreateBVH()
     bvh.isLeaf = false;
 	bvh.leftChildLeaf = -1;
 	bvh.rightChildLeaf = -1;
+	bvh.topChildLeaf = int3(-1, -1, -1);
+	bvh.bottomChildLeaf = int3(-1, -1, -1);
 	bvh.indexedId = -1;
 	return bvh;
 }
@@ -724,7 +730,7 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
     return float4(minDistance, hitMap, particlesHit, particleIndex);
 }
 
-groupshared int stack[STACK_SIZE];
+//groupshared int stack[STACK_SIZE];
 
 float4 TraceParticlesStack(inout Ray ray, inout Hit hit, uint3 id)
 {
@@ -736,19 +742,17 @@ float4 TraceParticlesStack(inout Ray ray, inout Hit hit, uint3 id)
     float particlesHit = 0;
 
     
-    //int stack[STACK_SIZE];
+    int stack[STACK_SIZE];
     CreateStack(stack);
     StackPush(stack, 0);
-    GroupMemoryBarrierWithGroupSync();
     int sum = 0;
     
     int counter = 0;
     while (stack[0] > -1 && counter < _NumOfParticles)
     {
-        //GroupMemoryBarrierWithGroupSync();
-        if(id.x == 0)
-            nodeIndex = StackPop(stack);
-
+        
+        nodeIndex = StackPop(stack);
+        //GroupMemoryBarrier();
         sum += nodeIndex;
 
         BVHNode node = _BVHNodes[nodeIndex];
@@ -805,25 +809,19 @@ float4 TraceParticlesStack(inout Ray ray, inout Hit hit, uint3 id)
             }
 
 
-            if (node.leftChild > -1 && id.x == 0)
+            if (node.leftChild > -1)
             {
                 StackPush(stack, node.leftChild);
             }
 
-            if (node.rightChild > -1 && id.x == 0)
+            if (node.rightChild > -1)
             {
-
                 StackPush(stack, node.rightChild);
             }
         }
         
         counter++;
     }
-
-	if (counter >= _NumOfParticles-2)
-	{
-        return 99999999;
-	}
     
     float kd = min(99.0f, particlesHit) * 0.0055f;
     float e = exp(kd);
@@ -1099,7 +1097,6 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-
 
 
 	//This is a ray for each pixel and in the pixel's center.
@@ -1685,7 +1682,7 @@ void PrefixSum(uint3 id : SV_DispatchThreadID)
     }
 }
 
-[numthreads(32, 32, 1)]
+[numthreads(256, 1, 1)]
 void BitonicSort(uint3 id : SV_DispatchThreadID)
 {
 
@@ -1786,7 +1783,6 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
     uint2 range = determineRange(id.x);
     int gamma = findSplit(range.x, range.y);//id.x + s * direction + min(direction, 0);
 
-
     bvh.leftChild = gamma;
     bvh.primitiveOffset = min(range.x, range.y);
 
@@ -1809,7 +1805,6 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
         bvh.rightChildLeaf = _ParticleIDs[gamma + 1];
         bvh.rightChild = -1;
     }
-
     /*
     uint2 rangeInitial = determineRange(0);
     int gammaInitial = findSplit(rangeInitial.x, rangeInitial.y);

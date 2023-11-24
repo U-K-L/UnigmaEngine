@@ -184,9 +184,11 @@ public class FluidSimulationManager : MonoBehaviour
         public float lambda;
         public float mass;
         public int parent;
+        public int neighborCount;
+        public float volumeDepth;
 
     };
-    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 8 + (sizeof(float) * 4));
+    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 8 + (sizeof(float) * 6));
 
     struct PNode
     {
@@ -417,7 +419,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _fluidSimulationComputeShader.Dispatch(_SortParticlesKernelId, Mathf.CeilToInt(MaxNumOfParticles / _sortParticlesThreadSize.x), 1, 1);
             }
         }
-        /*
+
         int MaxNumSteps = Mathf.CeilToInt(Mathf.Log(MaxNumOfParticles, 2));
         for (int i = 0; i < 32; i++)
         {
@@ -431,7 +433,6 @@ public class FluidSimulationManager : MonoBehaviour
 
             _fluidSimulationComputeShader.Dispatch(_RadixSortKernelId, Mathf.CeilToInt(NumOfParticles / _radixSortThreadSize.x), 1, 1);
         }
-        */
     }
 
     private void FixedUpdate()
@@ -1031,10 +1032,10 @@ public class FluidSimulationManager : MonoBehaviour
             SortParticles();
             CalculateCellOffsets();
 
-            //_fluidSimulationComputeShader.Dispatch(_CreateBVHTreeKernelId, Mathf.CeilToInt(NumOfParticles / _createBVHTreeThreadSize.x), 1, 1);
-            //_fluidSimulationComputeShader.Dispatch(_AssignParentsKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _assignParentsThreadSize.x), 1, 1);
+            _fluidSimulationComputeShader.Dispatch(_CreateBVHTreeKernelId, Mathf.CeilToInt(NumOfParticles / _createBVHTreeThreadSize.x), 1, 1);
+            _fluidSimulationComputeShader.Dispatch(_AssignParentsKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _assignParentsThreadSize.x), 1, 1);
 
-            //_fluidSimulationComputeShader.Dispatch(_CreateBoundingBoxKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _createBoundingBoxThreadSize.x), 1, 1);
+            _fluidSimulationComputeShader.Dispatch(_CreateBoundingBoxKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _createBoundingBoxThreadSize.x), 1, 1);
 
             //_fluidSimulationComputeShader.Dispatch(_AssignIndexKernelId, 1, 1, 1);
             if (Input.GetKey(KeyCode.Space))
@@ -1226,7 +1227,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "Result", _rtTarget);
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "_VelocitySurfaceDensityDepthTexture", _velocitySurfaceDensityDepthTexture);
-        //fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
+        fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
         
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _velocitySurfaceDensityDepthTexture);
@@ -1236,8 +1237,8 @@ public class FluidSimulationManager : MonoBehaviour
 
         fluidCommandBuffers.SetRenderTarget(_velocitySurfaceDensityDepthTexture);
 
-        fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-        fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
+        //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+        //fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
 
         fluidCommandBuffers.Blit(_velocitySurfaceDensityDepthTexture, _tempTarget, _fluidSimMaterialDepthHori);
         fluidCommandBuffers.Blit(_tempTarget, _velocitySurfaceDensityDepthTexture, _fluidSimMaterialDepthVert);

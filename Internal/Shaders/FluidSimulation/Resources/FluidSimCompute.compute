@@ -111,6 +111,8 @@ struct Particle
     float lambda;
     float mass;
     int parent;
+    int neighborCount;
+    float volumeDepth;
 };
 
 struct BVHNode
@@ -1125,28 +1127,31 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 		float3 freeSurface = 0;
         raySides.o = particle.position;
 		raySides.d = float3(0.0f,1.0f,0.0f);
-        /*
-        result = TraceParticlesTBVH(raySides, hitSides);
-        if (result.z < 3.00f && particle.cellID > 20)
+
+        result = TraceParticlesStack(raySides, hitSides, id);
+        if (result.z < 3.00f && particle.neighborCount > 0)
             freeSurface += raySides.d;
         
+        /*
         raySides.d = float3(0.0f, 0.0f, 1.0f);
         result = 99999999;
-        result = TraceParticlesTBVH(raySides, hitSides);
+        result = TraceParticlesStack(raySides, hitSides, id);
         freeSurface *= float3(0.0f, result.y, 0.0f);
         
 
         raySides.d = float3(0.0f, 0.0f, -1.0f);
         result = 99999999;
-        result = TraceParticlesTBVH(raySides, hitSides);
+        result = TraceParticlesStack(raySides, hitSides, id);
         if (result.z < 3.00f)
             freeSurface *= float3(0.0f, 0.0f, 0.0f);
 
+        freeSurface = 1;
         */
+        freeSurface = particle.density/ _RestDensity;
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
         _SurfaceMap[id.xy] = float4(freeSurface, 1);
 		_VelocityMap[id.xy] = float4(particle.velocity, length(particle.velocity) + length(_Particles[particleId].curl) * 0.055);
-        _CurlMap[id.xy] = float4(_Particles[particleId].debugVector, 1);
+        _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
         
     }
     
@@ -1174,6 +1179,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
     _Particles[id.x].debugVector = 0.25;
     _Particles[id.x].parent = -1;
+    _Particles[id.x].neighborCount = 0;
 }
 
 void GetDensityIterative(uint3 id)
@@ -1189,7 +1195,7 @@ void GetDensityIterative(uint3 id)
         sum += Poly6Kernel(distance2) * _Particles[i].mass;
 
     }
-    _Particles[id.x].density = sum;
+    _Particles[id.x].volumeDepth = sum;
 }
 
 void GetDensityGrid(uint3 id)
@@ -1226,6 +1232,7 @@ void GetDensityGrid(uint3 id)
                     
                     if (0.001f < distance2 && distance2 < _Radius * 2)
                     {
+                        _Particles[particleIndex].neighborCount += 1;
                         //Poly6
                         densitySum += Poly6Kernel(distance2) * _Particles[particleIndex].mass;
                         //Spiky

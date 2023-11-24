@@ -10,7 +10,7 @@
 
 #define NOISE_SIMPLEX_1_DIV_289 0.00346020761245674740484429065744f
 
-#define STACK_SIZE 64
+#define STACK_SIZE 8
 //Stack operations
 
 void StackPush(inout int stack[STACK_SIZE], int value)

@@ -563,7 +563,7 @@ Shader "Hidden/FluidComposition"
 				
                 //return densityMap;
                 //return surface;
-                //return colorLerping;
+                return colorLerping;
                 //return edgeInner;
                 //return fluidsDepth.y;
                 float curly = length(curlMap);
@@ -574,7 +574,7 @@ Shader "Hidden/FluidComposition"
                 waterWithFoam.xyz += float3(foam, foam, foam);
                 
                 //return originalImage;
-                return fluidsDepth;
+                //return fluidsDepth;
                 //return curlMap;
                 //return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
                 //return edgeNormal;

@@ -1281,6 +1281,7 @@ public class FluidSimulationManager : MonoBehaviour
             fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _depthBufferTexture);
             fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
+            fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 1, MaxNumOfParticles);
         }
 
         fluidCommandBuffers.Blit(_velocitySurfaceDensityDepthTexture, _tempTarget, _fluidSimMaterialDepthHori);

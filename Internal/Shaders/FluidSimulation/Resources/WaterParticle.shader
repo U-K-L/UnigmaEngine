@@ -107,7 +107,7 @@ Shader "Unlit/WaterParticle"
                 float density = 0;
                 float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, depth*300);
                 GRT0 = velocitySurfaceDensityDepth;
-                GRT1 = float4(0, 1,0,1);
+                //GRT1 = float4(0, 1,0,1);
                 GRT2 = float4(0, 0, 1, 0);
                 GRTDepth = depth;
             }
@@ -214,6 +214,7 @@ Shader "Unlit/WaterParticle"
                 float density = 0.025;
                 float4 velocitySurfaceDensityDepth = float4(GRT0.x, GRT0.y, density, GRT0.w);
                 GRT0 = velocitySurfaceDensityDepth;
+				GRT1 = density*4;
             }
             ENDCG
         }

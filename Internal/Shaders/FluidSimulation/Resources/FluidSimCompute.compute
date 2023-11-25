@@ -140,7 +140,6 @@ struct MortonCode
 {
     uint mortonCode;
     int particleIndex;
-    uint index;
 };
 
 StructuredBuffer<MeshObject> _MeshObjects;
@@ -1687,11 +1686,9 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
     //_MortonCodes[id.x].mortonCode = ConcatenateIndex(testNums[id.x], id.x, 4);
     //_MortonCodes[id.x].mortonCode = testNums[id.x];
 	_MortonCodes[id.x].particleIndex = id.x;
-    _MortonCodes[id.x].index = id.x;
 
     _MortonCodesTemp[id.x].mortonCode = _MortonCodes[id.x].mortonCode;
 	_MortonCodesTemp[id.x].particleIndex = _MortonCodes[id.x].particleIndex;
-	_MortonCodesTemp[id.x].index = _MortonCodes[id.x].index;
 
 }
 
@@ -1715,7 +1712,6 @@ void AssignMortonCodes(uint3 id : SV_DispatchThreadID)
 
     _MortonCodes[id.x].mortonCode = _MortonCodesTemp[id.x].mortonCode;
     _MortonCodes[id.x].particleIndex = _MortonCodesTemp[id.x].particleIndex;
-	_MortonCodes[id.x].index = id.x;
 }
 
 [numthreads(256, 1, 1)]

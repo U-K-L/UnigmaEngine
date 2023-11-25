@@ -186,7 +186,6 @@ public class FluidSimulationManager : MonoBehaviour
         public int parent;
 
     };
-    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 8 + (sizeof(float) * 4));
 
     struct PNode
     {
@@ -221,13 +220,15 @@ public class FluidSimulationManager : MonoBehaviour
     {
         public uint mortonCode;
         public int particleIndex;
-        public uint index;
     };
 
     private MortonCode[] _MortonCodes;
     private MortonCode[] _MortonCodesTemp;
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
+    int _meshObjectStride = (sizeof(float) * 4 * 4) + sizeof(float) * 5 + sizeof(int) * 3 + sizeof(float) * 3 * 4;
+    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 8 + (sizeof(float) * 4));
+    int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
 
     //Items to add to the raytracer.
@@ -248,6 +249,8 @@ public class FluidSimulationManager : MonoBehaviour
     {
         Debug.Log("Particle Stride size is: " + _particleStride);
         Debug.Log("BVH Stride size is: " + _BVHStride);
+        Debug.Log("Mesh Object Stride size is: " + _meshObjectStride);
+        Debug.Log("Morton Code Stride size is: " + _MortonCodeStride);
         _spawnParticles = new List<Vector3>();
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
         _renderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.height), 32);
@@ -505,7 +508,7 @@ public class FluidSimulationManager : MonoBehaviour
         }
         if (_meshObjects.Count > 0)
         {
-            _meshObjectBuffer = new ComputeBuffer(_meshObjects.Count, 144);
+            _meshObjectBuffer = new ComputeBuffer(_meshObjects.Count, _meshObjectStride);
             _verticesObjectBuffer = new ComputeBuffer(_vertices.Count, 32);
             _indicesObjectBuffer = new ComputeBuffer(_indices.Count, 4);
             _verticesObjectBuffer.SetData(_vertices);
@@ -887,8 +890,8 @@ public class FluidSimulationManager : MonoBehaviour
             _particleCellIndicesBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCellOffsets = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
             _particleCountBuffer = new ComputeBuffer(MaxNumOfParticles, sizeof(int));
-            _MortonCodesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint)*3);
-            _MortonCodesTempBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint)*3);
+            _MortonCodesBuffer = new ComputeBuffer(_MortonCodes.Length, _MortonCodeStride);
+            _MortonCodesTempBuffer = new ComputeBuffer(_MortonCodes.Length, _MortonCodeStride);
             _MortonPrefixSumOffsetOnesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
             _MortonPrefixSumOffsetZeroesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
             _MortonPrefixSumTotalZeroesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
@@ -1128,7 +1131,7 @@ public class FluidSimulationManager : MonoBehaviour
             for (int i = 0; i < NumOfParticles; i++)
             {
                 //Debug.Log(" Particle IDs: " + _MortonCodes[i].mortonCode);
-                Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Parent Of Particle " + _particles[_ParticleIDs[i]].parent + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7") + " Morton Index " + _MortonCodes[i].index + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
+                Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Parent Of Particle " + _particles[_ParticleIDs[i]].parent + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7")  + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
             }
 
             /*

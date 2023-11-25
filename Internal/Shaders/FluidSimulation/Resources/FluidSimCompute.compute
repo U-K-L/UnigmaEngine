@@ -111,8 +111,6 @@ struct Particle
     float lambda;
     float mass;
     int parent;
-    int neighborCount;
-    float volumeDepth;
 };
 
 struct BVHNode
@@ -135,6 +133,7 @@ struct BVHNode
     int3 topChildLeaf;
     int3 bottomChildLeaf;
     int indexedId;
+    float2 padding;
 };
 
 struct MortonCode
@@ -240,6 +239,7 @@ BVHNode CreateBVH()
 	bvh.topChildLeaf = int3(-1, -1, -1);
 	bvh.bottomChildLeaf = int3(-1, -1, -1);
 	bvh.indexedId = -1;
+	bvh.padding = float2(0, 0);
 	return bvh;
 }
 
@@ -1226,7 +1226,6 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
     _Particles[id.x].debugVector = 0.25;
     _Particles[id.x].parent = -1;
-    _Particles[id.x].neighborCount = 0;
 }
 
 void GetDensityIterative(uint3 id)
@@ -1242,7 +1241,6 @@ void GetDensityIterative(uint3 id)
         sum += Poly6Kernel(distance2) * _Particles[i].mass;
 
     }
-    _Particles[id.x].volumeDepth = sum;
 }
 
 void GetDensityGrid(uint3 id)
@@ -1279,7 +1277,6 @@ void GetDensityGrid(uint3 id)
                     
                     if (0.001f < distance2 && distance2 < _Radius * 2)
                     {
-                        _Particles[particleIndex].neighborCount += 1;
                         //Poly6
                         densitySum += Poly6Kernel(distance2) * _Particles[particleIndex].mass;
                         //Spiky

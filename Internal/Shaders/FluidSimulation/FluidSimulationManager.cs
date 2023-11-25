@@ -184,11 +184,9 @@ public class FluidSimulationManager : MonoBehaviour
         public float lambda;
         public float mass;
         public int parent;
-        public int neighborCount;
-        public float volumeDepth;
 
     };
-    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 8 + (sizeof(float) * 6));
+    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 8 + (sizeof(float) * 4));
 
     struct PNode
     {
@@ -216,6 +214,7 @@ public class FluidSimulationManager : MonoBehaviour
         public Vector3 topChildLeaf;
         public Vector3 bottomChildLeaf;
         public int indexedId;
+        public Vector2 padding;
     };
 
     struct MortonCode
@@ -229,7 +228,7 @@ public class FluidSimulationManager : MonoBehaviour
     private MortonCode[] _MortonCodesTemp;
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
-    int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*12;
+    int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -247,7 +246,8 @@ public class FluidSimulationManager : MonoBehaviour
     public RenderMethod _renderMethod = RenderMethod.Rasterization;
     private void Awake()
     {
-        Debug.Log(_particleStride);
+        Debug.Log("Particle Stride size is: " + _particleStride);
+        Debug.Log("BVH Stride size is: " + _BVHStride);
         _spawnParticles = new List<Vector3>();
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
         _renderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.height), 32);

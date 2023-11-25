@@ -237,6 +237,14 @@ public class FluidSimulationManager : MonoBehaviour
     int nodesUsed = 1;
 
     Bounds bounds;
+    public enum RenderMethod
+    {
+        Rasterization,
+        RayTracing
+        
+    }
+
+    public RenderMethod _renderMethod = RenderMethod.Rasterization;
     private void Awake()
     {
         Debug.Log(_particleStride);
@@ -420,18 +428,21 @@ public class FluidSimulationManager : MonoBehaviour
             }
         }
 
-        int MaxNumSteps = Mathf.CeilToInt(Mathf.Log(MaxNumOfParticles, 2));
-        for (int i = 0; i < 32; i++)
+        if (_renderMethod == RenderMethod.RayTracing)
         {
-            _fluidSimulationComputeShader.SetInt("biBlock", i);
-            _fluidSimulationComputeShader.Dispatch(_AssignMortonCodesKernelId, Mathf.CeilToInt(NumOfParticles / _assignMortonCodesThreadSize.x), 1, 1);
-            for (int j = 1; j <= MaxNumSteps; j++)
+            int MaxNumSteps = Mathf.CeilToInt(Mathf.Log(MaxNumOfParticles, 2));
+            for (int i = 0; i < 32; i++)
             {
-                _fluidSimulationComputeShader.SetInt("biDim", j);
-                _fluidSimulationComputeShader.Dispatch(_PrefixSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefixSumThreadSize.x), 1, 1);
-            }
+                _fluidSimulationComputeShader.SetInt("biBlock", i);
+                _fluidSimulationComputeShader.Dispatch(_AssignMortonCodesKernelId, Mathf.CeilToInt(NumOfParticles / _assignMortonCodesThreadSize.x), 1, 1);
+                for (int j = 1; j <= MaxNumSteps; j++)
+                {
+                    _fluidSimulationComputeShader.SetInt("biDim", j);
+                    _fluidSimulationComputeShader.Dispatch(_PrefixSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefixSumThreadSize.x), 1, 1);
+                }
 
-            _fluidSimulationComputeShader.Dispatch(_RadixSortKernelId, Mathf.CeilToInt(NumOfParticles / _radixSortThreadSize.x), 1, 1);
+                _fluidSimulationComputeShader.Dispatch(_RadixSortKernelId, Mathf.CeilToInt(NumOfParticles / _radixSortThreadSize.x), 1, 1);
+            }
         }
     }
 
@@ -1031,42 +1042,9 @@ public class FluidSimulationManager : MonoBehaviour
 
             SortParticles();
             CalculateCellOffsets();
-
-            _fluidSimulationComputeShader.Dispatch(_CreateBVHTreeKernelId, Mathf.CeilToInt(NumOfParticles / _createBVHTreeThreadSize.x), 1, 1);
-            _fluidSimulationComputeShader.Dispatch(_AssignParentsKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _assignParentsThreadSize.x), 1, 1);
-
-            _fluidSimulationComputeShader.Dispatch(_CreateBoundingBoxKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _createBoundingBoxThreadSize.x), 1, 1);
-
-            //_fluidSimulationComputeShader.Dispatch(_AssignIndexKernelId, 1, 1, 1);
-            if (Input.GetKey(KeyCode.Space))
-            {
-                _MortonCodesBuffer.GetData(_MortonCodes);
-                _particleIDsBuffer.GetData(_ParticleIDs);
-                _BVHNodesBuffer.GetData(_BVHNodes);
-                _particleBuffer.GetData(_particles);
-
-                for (int i = 0; i < NumOfParticles; i++)
-                {
-                    //Debug.Log(" Particle IDs: " + _MortonCodes[i].mortonCode);
-                    Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Parent Of Particle " + _particles[_ParticleIDs[i]].parent + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7") + " Morton Index " + _MortonCodes[i].index + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
-                }
-
-                /*
-                using (StreamWriter sw = new StreamWriter("Assets/Debug/FluidSim/ParticlePositions" + Time.timeAsDouble + ".txt"))
-                {
-                    for (int i = 0; i < NumOfParticles; i++)
-                    {
-                        sw.WriteLine("Particle: " + _MortonCodes[i].particleIndex + " Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7"));
-
-                        //sw.WriteLine(_particles[i].position);
-                    }
-
-                    sw.Close();
-                }
-                */
-            }
-            //_fluidSimulationComputeShader.Dispatch(_PrefixSumKernelId, Mathf.CeilToInt(NumOfParticles / _prefixSumThreadSize.x), 1, 1);
-
+            if(_renderMethod == RenderMethod.RayTracing)
+                CreateBVHTree();
+            //DebugParticlesBVH();
 
             for (int i = 0; i < _SolveIterations; i++)
             {
@@ -1129,6 +1107,44 @@ public class FluidSimulationManager : MonoBehaviour
     void ComputeVorticity()
     {
         _fluidSimulationComputeShader.Dispatch(_CalculateVorticityKernelId, Mathf.CeilToInt(NumOfParticles / _calculateVorticityThreadSize.x), 1, 1);
+    }
+
+    void CreateBVHTree()
+    {
+        _fluidSimulationComputeShader.Dispatch(_CreateBVHTreeKernelId, Mathf.CeilToInt(NumOfParticles / _createBVHTreeThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_AssignParentsKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _assignParentsThreadSize.x), 1, 1);
+        _fluidSimulationComputeShader.Dispatch(_CreateBoundingBoxKernelId, Mathf.CeilToInt((NumOfParticles - 1) / _createBoundingBoxThreadSize.x), 1, 1);
+    }
+
+    void DebugParticlesBVH()
+    {
+        if (Input.GetKey(KeyCode.Space))
+        {
+            _MortonCodesBuffer.GetData(_MortonCodes);
+            _particleIDsBuffer.GetData(_ParticleIDs);
+            _BVHNodesBuffer.GetData(_BVHNodes);
+            _particleBuffer.GetData(_particles);
+
+            for (int i = 0; i < NumOfParticles; i++)
+            {
+                //Debug.Log(" Particle IDs: " + _MortonCodes[i].mortonCode);
+                Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Parent Of Particle " + _particles[_ParticleIDs[i]].parent + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7") + " Morton Index " + _MortonCodes[i].index + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
+            }
+
+            /*
+            using (StreamWriter sw = new StreamWriter("Assets/Debug/FluidSim/ParticlePositions" + Time.timeAsDouble + ".txt"))
+            {
+                for (int i = 0; i < NumOfParticles; i++)
+                {
+                    sw.WriteLine("Particle: " + _MortonCodes[i].particleIndex + " Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7"));
+
+                    //sw.WriteLine(_particles[i].position);
+                }
+
+                sw.Close();
+            }
+            */
+        }
     }
     //Temporarily attach this simulation to camera!!!
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -1227,8 +1243,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "Result", _rtTarget);
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "_VelocitySurfaceDensityDepthTexture", _velocitySurfaceDensityDepthTexture);
-        fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
         
+        if(_renderMethod == RenderMethod.RayTracing)
+            fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _velocitySurfaceDensityDepthTexture);
         fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
@@ -1237,8 +1254,11 @@ public class FluidSimulationManager : MonoBehaviour
 
         fluidCommandBuffers.SetRenderTarget(_velocitySurfaceDensityDepthTexture);
 
-        //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-        //fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
+        if (_renderMethod == RenderMethod.Rasterization)
+        {
+            fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+            fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
+        }
 
         fluidCommandBuffers.Blit(_velocitySurfaceDensityDepthTexture, _tempTarget, _fluidSimMaterialDepthHori);
         fluidCommandBuffers.Blit(_tempTarget, _velocitySurfaceDensityDepthTexture, _fluidSimMaterialDepthVert);

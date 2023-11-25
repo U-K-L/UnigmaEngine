@@ -733,8 +733,8 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
 }
 
 
-#define STACK_SIZE 8
-#define WORK_GROUP_SIZE 1024
+#define STACK_SIZE 15
+#define WORK_GROUP_SIZE 256
 int WORK_GROUP_SIZE_SQUAREDROOT = sqrt(WORK_GROUP_SIZE);
 
 groupshared int stack[WORK_GROUP_SIZE][STACK_SIZE];
@@ -744,6 +744,7 @@ groupshared int stack[WORK_GROUP_SIZE][STACK_SIZE];
 
 void StackPush(int value, int offset)
 {
+    [unroll]
     for (int i = 0; i < STACK_SIZE; i++)
     {
         if (stack[offset][i] == -1)
@@ -757,6 +758,7 @@ void StackPush(int value, int offset)
 int StackPop(int offset)
 {
     int value = -1;
+    [unroll]
     for (int i = STACK_SIZE - 1; i >= 0; i--)
     {
         if (stack[offset][i] != -1)
@@ -771,6 +773,7 @@ int StackPop(int offset)
 
 void CreateStack(int offset)
 {
+    [unroll]
     for (int i = 0; i < STACK_SIZE; i++)
     {
         stack[offset][i] = -1;
@@ -1123,7 +1126,7 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
     
 }
 
-[numthreads(32,32,1)]
+[numthreads(16,16,1)]
 void CreateGrid (uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupThreadID)
 {
     
@@ -1153,7 +1156,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupT
     Hit hit = CreateHit();
 
     //Actually perform intersection.
-    float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit, GroupThreadID.x + GroupThreadID.y * 32);
+    float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit, GroupThreadID.x + GroupThreadID.y * 16);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
     DensityMap[id.xy] = particlesHit;
 

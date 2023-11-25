@@ -88,7 +88,7 @@ Shader "Unlit/WaterParticle"
                 //float3 position = abs(_Particles[i.instanceID].position);
                 //return float4(position, 1);//float4(i.instanceID/10, i.instanceID, position.z, 1);
                 float velocity = length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055;
-                return float4(velocity, 1, 1, 1);
+                return float4(1, 1, 1, 1);
             }
             ENDCG
         }

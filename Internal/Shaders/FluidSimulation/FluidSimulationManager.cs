@@ -83,6 +83,7 @@ public class FluidSimulationManager : MonoBehaviour
     RenderTexture _fluidNormalBufferTexture;
     RenderTexture _fluidDepthBufferTexture;
     RenderTexture _velocitySurfaceDensityDepthTexture;
+    RenderTexture _depthBufferTexture;
     List<RenderTexture> _previousPositionTextures;
 
     Shader _fluidNormalShader;
@@ -1058,7 +1059,7 @@ public class FluidSimulationManager : MonoBehaviour
 
             ComputeCurl();
             ComputePositions();
-            ComputeVorticity();
+            //ComputeVorticity();
             //Set Particle positions to script.
             //NOT NEEDED. MOVE ENTIRE BVH TO GPU!!!!
             //_particleBuffer.GetData(_particles);
@@ -1237,6 +1238,24 @@ public class FluidSimulationManager : MonoBehaviour
     void CreateFluidCommandBuffers()
     {
         CommandBuffer fluidCommandBuffers = new CommandBuffer();
+        RenderTexture[] rtGBuffers = new RenderTexture[4];
+        RenderTargetIdentifier[] rtGBuffersID = new RenderTargetIdentifier[rtGBuffers.Length];
+
+        rtGBuffers[0] = _velocitySurfaceDensityDepthTexture;
+        rtGBuffersID[0] = rtGBuffers[0];
+
+        rtGBuffers[1] = _densityMapTexture;
+        rtGBuffersID[1] = rtGBuffers[1];
+
+        rtGBuffers[2] = _velocityMapTexture;
+        rtGBuffersID[2] = rtGBuffers[2];
+
+        rtGBuffers[3] = _surfaceMapTexture;
+        rtGBuffersID[3] = rtGBuffers[3];
+
+        _depthBufferTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0);
+
+
         fluidCommandBuffers.name = "Fluid Command Buffer";
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluids", _rtTarget);
 
@@ -1259,6 +1278,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         if (_renderMethod == RenderMethod.Rasterization)
         {
+            fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _depthBufferTexture);
             fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
         }

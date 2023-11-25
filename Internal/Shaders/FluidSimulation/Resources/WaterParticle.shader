@@ -81,14 +81,35 @@ Shader "Unlit/WaterParticle"
                 return o;
             }
 
-            fixed4 frag(v2f i) : SV_Target
+            float LinearDepthToRawDepth(float linearDepth)
+            {
+                return (1.0f - (linearDepth * _ZBufferParams.y)) / (linearDepth * _ZBufferParams.x);
+            }
+            
+			//MRT output
+            void frag(v2f i,
+                out half4 GRT0:SV_Target0,
+                out half4 GRT1 : SV_Target1,
+                out half4 GRT2 : SV_Target2,
+                out float GRTDepth : SV_Depth)
             {
                 UNITY_SETUP_INSTANCE_ID(i); // necessary only if any instanced properties are going to be accessed in the fragment Shader.
-
-                //float3 position = abs(_Particles[i.instanceID].position);
+                float3 positionWS = abs(_Particles[i.instanceID].position);
+                float3 cameraPosition = _WorldSpaceCameraPos;           // Unity provided position of the camera/eye.
+                float distanceToCamera = length(positionWS - cameraPosition);
+                float linearDepth = (distanceToCamera - _ProjectionParams.y) / (_ProjectionParams.z - _ProjectionParams.y);
+                
+				float depth = LinearDepthToRawDepth(linearDepth);
+                //
                 //return float4(position, 1);//float4(i.instanceID/10, i.instanceID, position.z, 1);
                 float velocity = length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055;
-                return float4(1, 1, 1, 1);
+                float surface = 1;
+                float density = 0.01;
+                float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, depth);
+                GRT0 = velocitySurfaceDensityDepth;
+                GRT1 = float4(0, 1,0,1);
+                GRT2 = float4(0, 0, 1, 0);
+                GRTDepth = depth;
             }
             ENDCG
         }

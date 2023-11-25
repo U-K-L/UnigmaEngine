@@ -1638,9 +1638,9 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
     }
 
     float3 f_vc = _Viscosity * cross(n_hat, _Particles[particleIndex].curl);
-    float3 c = 0.001;
+    float3 c = 0.0001;
     
-    //_Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
+    _Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
 }
 
 uint ConcatenateIndex(uint mortonCode, uint index, uint indexBitCount)

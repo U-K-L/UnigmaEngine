@@ -561,6 +561,7 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerp = causaticLerpSide * 0.5 + causaticLerpTop*0.55;
                 float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.45 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 				
+                //return densityMap;
                 //return surface;
                 //return colorLerping;
                 //return edgeInner;
@@ -573,7 +574,7 @@ Shader "Hidden/FluidComposition"
                 waterWithFoam.xyz += float3(foam, foam, foam);
                 
                 //return originalImage;
-                return fluidsDepth.w;
+                return fluidsDepth;
                 //return curlMap;
                 //return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
                 //return edgeNormal;

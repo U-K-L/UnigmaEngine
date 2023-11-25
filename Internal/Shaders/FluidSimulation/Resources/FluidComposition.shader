@@ -573,7 +573,7 @@ Shader "Hidden/FluidComposition"
                 waterWithFoam.xyz += float3(foam, foam, foam);
                 
                 //return originalImage;
-                //return fluidsDepth;
+                return fluids.w;
                 //return curlMap;
                 //return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
                 //return edgeNormal;

@@ -10,43 +10,6 @@
 
 #define NOISE_SIMPLEX_1_DIV_289 0.00346020761245674740484429065744f
 
-#define STACK_SIZE 8
-//Stack operations
-
-void StackPush(inout int stack[STACK_SIZE], int value)
-{
-	for (int i = 0; i < STACK_SIZE; i++)
-	{
-		if (stack[i] == -1)
-		{
-			stack[i] = value;
-			break;
-		}
-	}
-}
-
-int StackPop(inout int stack[STACK_SIZE])
-{
-	int value = -1;
-	for (int i = STACK_SIZE-1; i >= 0; i--)
-	{
-		if (stack[i] != -1)
-		{
-			value = stack[i];
-			stack[i] = -1;
-			break;
-		}
-	}
-	return value;
-}
-
-void CreateStack(inout int stack[STACK_SIZE])
-{
-	for (int i = 0; i < STACK_SIZE; i++)
-	{
-		stack[i] = -1;
-	}
-}
 
 float mod289(float x) {
     return x - floor(x * NOISE_SIMPLEX_1_DIV_289) * 289.0;

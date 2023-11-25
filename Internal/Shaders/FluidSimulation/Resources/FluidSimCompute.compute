@@ -732,9 +732,53 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
     return float4(minDistance, hitMap, particlesHit, particleIndex);
 }
 
-//groupshared int stack[STACK_SIZE];
 
-float4 TraceParticlesStack(inout Ray ray, inout Hit hit, uint3 id)
+#define STACK_SIZE 8
+#define WORK_GROUP_SIZE 1024
+int WORK_GROUP_SIZE_SQUAREDROOT = sqrt(WORK_GROUP_SIZE);
+
+groupshared int stack[WORK_GROUP_SIZE][STACK_SIZE];
+
+
+//Stack operations
+
+void StackPush(int value, int offset)
+{
+    for (int i = 0; i < STACK_SIZE; i++)
+    {
+        if (stack[offset][i] == -1)
+        {
+            stack[offset][i] = value;
+            break;
+        }
+    }
+}
+
+int StackPop(int offset)
+{
+    int value = -1;
+    for (int i = STACK_SIZE - 1; i >= 0; i--)
+    {
+        if (stack[offset][i] != -1)
+        {
+            value = stack[offset][i];
+            stack[offset][i] = -1;
+            break;
+        }
+    }
+    return value;
+}
+
+void CreateStack(int offset)
+{
+    for (int i = 0; i < STACK_SIZE; i++)
+    {
+        stack[offset][i] = -1;
+    }
+}
+
+
+float4 TraceParticlesStack(inout Ray ray, inout Hit hit, int newIndex)
 {
     float minDistance = 99999999;
     float minBVHDistance = 99999999;
@@ -744,16 +788,16 @@ float4 TraceParticlesStack(inout Ray ray, inout Hit hit, uint3 id)
     float particlesHit = 0;
 
     
-    int stack[STACK_SIZE];
-    CreateStack(stack);
-    StackPush(stack, 0);
+    //int stack[STACK_SIZE];
+    CreateStack(newIndex);
+    StackPush(0, newIndex);
     int sum = 0;
     
     int counter = 0;
-    while (stack[0] > -1 && counter < _NumOfParticles)
+    while (stack[newIndex][0] > -1 && counter < _NumOfParticles)
     {
         
-        nodeIndex = StackPop(stack);
+        nodeIndex = StackPop(newIndex);
         //GroupMemoryBarrier();
         sum += nodeIndex;
 
@@ -813,12 +857,12 @@ float4 TraceParticlesStack(inout Ray ray, inout Hit hit, uint3 id)
 
             if (node.leftChild > -1)
             {
-                StackPush(stack, node.leftChild);
+                StackPush(node.leftChild, newIndex);
             }
 
             if (node.rightChild > -1)
             {
-                StackPush(stack, node.rightChild);
+                StackPush(node.rightChild, newIndex);
             }
         }
         
@@ -873,7 +917,7 @@ float TraceParticlesIterative(inout Ray ray, inout Hit hit)
     return minDistance;
 }
 
-float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float particlesHit, uint3 id)
+float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float particlesHit, int newIndex)
 {
 
     float4 result = 99999999;
@@ -893,7 +937,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
     
     //result = TraceParticlesIterative(ray,hit);
     //result = TraceParticlesTBVH(ray, hit);
-    result = TraceParticlesStack(ray, hit, id);
+    result = TraceParticlesStack(ray, hit, newIndex);
     //return TraceParticlesTBVHDebug(ray, hit);
 	minDistance = result.x;
 	particlesHit = result.y;
@@ -1080,7 +1124,7 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
 }
 
 [numthreads(32,32,1)]
-void CreateGrid (uint3 id : SV_DispatchThreadID)
+void CreateGrid (uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupThreadID)
 {
     
     //Resets all values.
@@ -1109,7 +1153,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     Hit hit = CreateHit();
 
     //Actually perform intersection.
-    float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit, id);
+    float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit, GroupThreadID.x + GroupThreadID.y * 32);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
     DensityMap[id.xy] = particlesHit;
 
@@ -1127,12 +1171,12 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 		float3 freeSurface = 0;
         raySides.o = particle.position;
 		raySides.d = float3(0.0f,1.0f,0.0f);
-
+        /*
         result = TraceParticlesStack(raySides, hitSides, id);
         if (result.z < 3.00f && particle.neighborCount > 0)
             freeSurface += raySides.d;
         
-        /*
+
         raySides.d = float3(0.0f, 0.0f, 1.0f);
         result = 99999999;
         result = TraceParticlesStack(raySides, hitSides, id);
@@ -1968,6 +2012,7 @@ void AssignIndex(uint3 id : SV_DispatchThreadID)
         return;
     }
     
+    /*
     int stack[STACK_SIZE];
     CreateStack(stack);
     StackPush(stack, 0);
@@ -1996,7 +2041,7 @@ void AssignIndex(uint3 id : SV_DispatchThreadID)
     }
 
     _BVHNodes[id.x].indexedId = sum;
-    
+    */
     /*
     int index = 0;
     int currentNode = 0;

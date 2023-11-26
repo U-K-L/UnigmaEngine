@@ -23,6 +23,7 @@ Shader "Unlit/WaterParticle"
             #include "AutoLight.cginc"
             #include "Lighting.cginc"
             #include "UnityCG.cginc"
+            #include "UnityShaderVariables.cginc"
 
             struct Particle
             {
@@ -54,6 +55,7 @@ Shader "Unlit/WaterParticle"
                 float4 vertex : SV_POSITION;
 				float3 worldPos : TEXCOORD0;
                 uint instanceID : SV_InstanceID;
+				float3 rayDir : TEXCOORD1;
             };
 
             UNITY_INSTANCING_BUFFER_START(Props)
@@ -67,14 +69,45 @@ Shader "Unlit/WaterParticle"
 
                 UNITY_TRANSFER_INSTANCE_ID(v, o); // necessary only if you want to access instanced properties in the fragment Shader.
                 
+
+                
+
                 float3 position = _Particles[v.instanceID].position;
                 
                 unity_ObjectToWorld = 0.0;
                 unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
                 unity_ObjectToWorld._m00_m11_m22 = 0.220875;
 
+
+
+                float3 worldSpacePivot = unity_ObjectToWorld._m03_m13_m23;
+                // offset between pivot and camera
+                float3 worldSpacePivotToCamera = _WorldSpaceCameraPos.xyz - worldSpacePivot;
+                // camera up vector
+                // used as a somewhat arbitrary starting up orientation
+                float3 up = unity_MatrixInvV._m01_m11_m21;
+                // forward vector is the normalized offset
+                // this it the direction from the pivot to the camera
+                float3 forward = normalize(worldSpacePivotToCamera);
+                // cross product gets a vector perpendicular to the input vectors
+                float3 right = normalize(cross(forward, up));
+                // another cross product ensures the up is perpendicular to both
+                up = cross(right, forward);
+                // construct the rotation matrix
+                float3x3 rotMat = float3x3(right, up, forward);
+                // the above rotate matrix is transposed, meaning the components are
+                // in the wrong order, but we can work with that by swapping the
+                // order of the matrix and vector in the mul()
+                float3 worldPos2 = mul(v.vertex.xyz, rotMat) + worldSpacePivot;
+                // ray direction
+                float3 worldRayDir = worldPos2 - _WorldSpaceCameraPos.xyz;
+                o.rayDir = mul(unity_WorldToObject, float4(worldRayDir, 0.0));
+                // clip space position output
+                o.vertex = UnityWorldToClipPos(worldPos2);
+
+
                 float3 worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
-                o.vertex = mul(UNITY_MATRIX_VP, float4(worldPos, 1));
+                //o.vertex = mul(UNITY_MATRIX_VP, float4(worldPos, 1));
                 //o.vertex = UnityObjectToClipPos(v.vertex);
                 //o.vertex = mul(unity_ObjectToWorld, v.vertex);
                 o.instanceID = v.instanceID;
@@ -104,18 +137,18 @@ Shader "Unlit/WaterParticle"
                 
 				float depth = LinearDepthToRawDepth(linearDepth);
 
-                float4 clipPos = UnityWorldToClipPos(float4(positionWS, 1));
-                float depth2 = (clipPos.z * 1.0) / (clipPos.w * 1.0);
-                depth2 = 1.0 - depth;
+                float4 clipPos = UnityWorldToClipPos(float4(i.worldPos, 1));
+                float depthN = (clipPos.z * 1.0) / (clipPos.w * 1.0);
+                depthN = 1.0 - depthN;
                 //
                 //return float4(position, 1);//float4(i.instanceID/10, i.instanceID, position.z, 1);
                 float velocity = length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055;
-                float surface = _Particles[i.instanceID].density / 28.0;
+                float surface = 1.0 - (_Particles[i.instanceID].density / 180.0);
                 float density = 0;
-                float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, depth2);
+                float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, depthN);
                 GRT0 = velocitySurfaceDensityDepth;
                 //GRT1 = float4(0, 1,0,1);
-                GRT2 = float4(i.worldPos, depth2);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
+                GRT2 = float4(i.worldPos, depthN);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
                 GRT3 = float4(_Particles[i.instanceID].normal, 1);
                 GRTDepth = depth;
             }

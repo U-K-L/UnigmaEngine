@@ -69,8 +69,8 @@ Material:
     - _BlendSmooth: 2.4
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51
-    - _CausticIntensity: 1
-    - _CausticScale: 0.12
+    - _CausticIntensity: 1.02
+    - _CausticScale: 0.11
     - _DensityThickness: 6.3
     - _DepthMaxDistance: 0.00031
     - _EdgeWidth: 1.62
@@ -82,7 +82,7 @@ Material:
     - _ScaleY: -1.45
     - _SpecularIntensity: 2.9
     - _SpecularPower: 17
-    - _Speed: 3.86
+    - _Speed: 2.61
     - _Spread: 0.18
     m_Colors:
     - _CausticColor: {r: 1, g: 1, b: 1, a: 1}

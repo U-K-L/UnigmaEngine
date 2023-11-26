@@ -1247,10 +1247,10 @@ public class FluidSimulationManager : MonoBehaviour
         rtGBuffers[1] = _densityMapTexture;
         rtGBuffersID[1] = rtGBuffers[1];
 
-        rtGBuffers[2] = _velocityMapTexture;
+        rtGBuffers[2] = _rtTarget;
         rtGBuffersID[2] = rtGBuffers[2];
 
-        rtGBuffers[3] = _surfaceMapTexture;
+        rtGBuffers[3] = _normalMapTexture;
         rtGBuffersID[3] = rtGBuffers[3];
 
         _depthBufferTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0);

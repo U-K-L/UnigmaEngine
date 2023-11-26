@@ -296,8 +296,8 @@ Shader "Hidden/FluidComposition"
                 float4 causticsTex3 = triplanar(blendNormal, xc3, yc3, zc3);
 
                 // combining
-                causticsTex *= causticsTex2+ causticsTex3;
-                causticsTex *= _CausticIntensity * _CausticColor;
+                //causticsTex *= causticsTex2+ causticsTex3;
+                //causticsTex *= _CausticIntensity * _CausticColor;
                 
 
                 //Create Lines.
@@ -561,9 +561,11 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerp = causaticLerpSide * 0.5 + causaticLerpTop*0.55;
                 float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.45 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 				
-                return densityMap;
+                return causticsTex;
+                //return fluids;
+                //return densityMap;
                 //return surface;
-                return colorLerping;
+                //return causaticLerpTop;
                 //return edgeInner;
                 //return fluidsDepth.y;
                 float curly = length(curlMap);

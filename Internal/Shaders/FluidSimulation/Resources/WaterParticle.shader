@@ -52,6 +52,7 @@ Shader "Unlit/WaterParticle"
             struct v2f
             {
                 float4 vertex : SV_POSITION;
+				float3 worldPos : TEXCOORD0;
                 uint instanceID : SV_InstanceID;
             };
 
@@ -77,6 +78,7 @@ Shader "Unlit/WaterParticle"
                 //o.vertex = UnityObjectToClipPos(v.vertex);
                 //o.vertex = mul(unity_ObjectToWorld, v.vertex);
                 o.instanceID = v.instanceID;
+                o.worldPos = worldPos;
 
                 return o;
             }
@@ -91,6 +93,7 @@ Shader "Unlit/WaterParticle"
                 out half4 GRT0:SV_Target0,
                 out half4 GRT1 : SV_Target1,
                 out half4 GRT2 : SV_Target2,
+                out half4 GRT3 : SV_Target3,
                 out float GRTDepth : SV_Depth)
             {
                 UNITY_SETUP_INSTANCE_ID(i); // necessary only if any instanced properties are going to be accessed in the fragment Shader.
@@ -100,15 +103,20 @@ Shader "Unlit/WaterParticle"
                 float linearDepth = (distanceToCamera - _ProjectionParams.y) / (_ProjectionParams.z - _ProjectionParams.y);
                 
 				float depth = LinearDepthToRawDepth(linearDepth);
+
+                float4 clipPos = UnityWorldToClipPos(float4(positionWS, 1));
+                float depth2 = (clipPos.z * 1.0) / (clipPos.w * 1.0);
+                depth2 = 1.0 - depth;
                 //
                 //return float4(position, 1);//float4(i.instanceID/10, i.instanceID, position.z, 1);
                 float velocity = length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055;
                 float surface = _Particles[i.instanceID].density / 28.0;
                 float density = 0;
-                float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, depth*300);
+                float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, depth2);
                 GRT0 = velocitySurfaceDensityDepth;
                 //GRT1 = float4(0, 1,0,1);
-                GRT2 = float4(0, 0, 1, 0);
+                GRT2 = float4(i.worldPos, depth2);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
+                GRT3 = float4(_Particles[i.instanceID].normal, 1);
                 GRTDepth = depth;
             }
             ENDCG

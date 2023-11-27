@@ -138,7 +138,6 @@ Shader "Unlit/WaterParticle"
                 v.vertex.z = 0.0;
 
                 // calculate world space position for the camera facing quad
-                quadScale = 1;
                 float3 worldPos = mul(v.vertex.xyz * quadScale, quadOrientationMatrix) + worldSpacePivotPos;
 
                 // calculate world space view ray direction and origin for perspective or orthographic
@@ -190,7 +189,7 @@ Shader "Unlit/WaterParticle"
                 float distanceToCamera = length(positionWS - cameraPosition);
                 float linearDepth = (distanceToCamera - _ProjectionParams.y) / (_ProjectionParams.z - _ProjectionParams.y);
                 
-                float t1 = sphIntersect(i.rayOrigin, normalize(i.rayDir), float4(0,0,0, 0.5));
+                float t1 = sphIntersect(i.rayOrigin, normalize(i.rayDir), float4(positionWS, 0.5));
 				float3 worldRayPos = i.rayOrigin + i.rayDir * t1;
 				float depth = LinearDepthToRawDepth(linearDepth);
 
@@ -321,6 +320,5 @@ Shader "Unlit/WaterParticle"
             }
             ENDCG
         }
-        
     }
 }

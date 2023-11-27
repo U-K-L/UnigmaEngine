@@ -233,6 +233,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &88466702
 GameObject:
   m_ObjectHideFlags: 0
@@ -383,6 +389,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &188683113
 GameObject:
   m_ObjectHideFlags: 0
@@ -415,6 +427,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!135 &188683115
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -541,6 +559,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 0.8117647, g: 0.07843137, b: 0.57700455, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 1
 --- !u!64 &224821458
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -617,12 +641,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0, g: 0.638817, b: 0.9056604, a: 1}
-  emission: 0
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &278642760
 GameObject:
   m_ObjectHideFlags: 0
@@ -733,6 +751,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &355576973
 GameObject:
   m_ObjectHideFlags: 0
@@ -781,6 +805,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 150
+  smoothness: 0
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!65 &355576976
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -856,12 +886,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 0.8270795, b: 0.44716978, a: 1}
-  emission: 550
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &364852495
 GameObject:
   m_ObjectHideFlags: 0
@@ -973,6 +997,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &386571066
 GameObject:
   m_ObjectHideFlags: 0
@@ -1083,6 +1113,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &559624615
 GameObject:
   m_ObjectHideFlags: 0
@@ -1227,6 +1263,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &646457858
 GameObject:
   m_ObjectHideFlags: 0
@@ -1275,6 +1317,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 0.8113208, g: 0.6316571, b: 0.08036668, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 1
 --- !u!64 &646457861
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1351,12 +1399,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &662669388
 GameObject:
   m_ObjectHideFlags: 0
@@ -1404,6 +1446,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 0.8113208, g: 0.6316571, b: 0.08036668, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 1
 --- !u!65 &662669391
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1575,15 +1623,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 664889848}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
+  m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 0, b: 0.60393715, a: 1}
+  color: {r: 0.07843137, g: 0.8117647, b: 0.79147154, a: 1}
   emission: 0
   smoothness: 0.05
   transparency: 1
   absorbtion: 0
-  celShaded: 0
+  celShaded: 1
 --- !u!1 &775769396
 GameObject:
   m_ObjectHideFlags: 0
@@ -1632,6 +1680,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!64 &775769399
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1708,12 +1762,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &921390867
 GameObject:
   m_ObjectHideFlags: 0
@@ -1824,6 +1872,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &1001182920
 GameObject:
   m_ObjectHideFlags: 0
@@ -1935,6 +1989,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!114 &1001182926
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1947,12 +2007,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 0, g: 0.8388258, b: 0.9056604, a: 1}
-  emission: 0
-  smoothness: 0.76
-  transparency: 0.5
-  absorbtion: 0
-  celShaded: 1
 --- !u!1 &1465810648
 GameObject:
   m_ObjectHideFlags: 0
@@ -2000,6 +2054,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa2458c52736a694d8e905a711abede4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  RandomPointsOnSphere: {fileID: 0}
+  positionsCount: 100
+  plane: {fileID: 0}
 --- !u!135 &1465810651
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -2095,6 +2152,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!64 &1548939671
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2306,6 +2369,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 0.8133542, g: 0.8584906, b: 0.23082057, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 1
 --- !u!64 &1672598744
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2382,12 +2451,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &1705150663
 GameObject:
   m_ObjectHideFlags: 0
@@ -2436,6 +2499,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!64 &1705150666
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2512,12 +2581,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &1802515038
 GameObject:
   m_ObjectHideFlags: 0
@@ -2612,20 +2675,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 1802515038}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 853e30e8be871d740b50c28e5eceb89b, type: 3}
+  m_Script: {fileID: 11500000, guid: ffc03899e4f46d84eaa288c105fb2d41, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   timeUntilNextUpdateDelta: 0.07
   taskDivisiblity: 1
   textSizeDivision: 0
-  maxBounces: 1000
+  maxBounces: 4
   minBounces: 2
-  RussianRouletteChance: 0.25
-  skyBox: {fileID: 2800000, guid: 7e9a58848d9eb4a48b4f3fa6d2a3be80, type: 3}
+  RussianRouletteChance: 0.05
+  skyBox: {fileID: 2800000, guid: b9d674fc41d5023418904f7746c460d1, type: 3}
   RayTracingLayers:
     serializedVersion: 2
-    m_Bits: 524288
-  MaxSamples: 25000
+    m_Bits: 4194103
+  MaxSamples: 10000
   SamplesEachIteration: 1
   SceneIsDynamic: 0
 --- !u!1 &1863825766
@@ -2676,6 +2739,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!64 &1863825769
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2752,12 +2821,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  color: {r: 1, g: 1, b: 1, a: 1}
-  emission: 0.25
-  smoothness: 0.05
-  transparency: 1
-  absorbtion: 0
-  celShaded: 0
 --- !u!1 &1874997814
 GameObject:
   m_ObjectHideFlags: 0
@@ -2828,6 +2891,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d54daece7aa5a6c49ad82551a9d0b153, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  UnigmaCompute: {fileID: 0}
 --- !u!1 &1909759720
 GameObject:
   m_ObjectHideFlags: 0
@@ -2939,7 +3003,6 @@ GameObject:
   - component: {fileID: 1918817523}
   - component: {fileID: 1918817522}
   - component: {fileID: 1918817521}
-  - component: {fileID: 1918817525}
   m_Layer: 19
   m_Name: Cube
   m_TagString: Untagged
@@ -2974,6 +3037,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 0.2735849, g: 0.02710039, b: 0.02710039, a: 1}
+  emission: 0
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 1
 --- !u!65 &1918817522
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3037,24 +3106,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1918817519}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!114 &1918817525
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1918817519}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 501bcb465fa404548af483b090897564, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  color: {r: 0.9622642, g: 0.6479207, b: 0.0127091, a: 1}
-  emission: 0
-  smoothness: 0.71
-  transparency: 0.65
-  absorbtion: 0.15
-  celShaded: 1
 --- !u!1 &1979437503
 GameObject:
   m_ObjectHideFlags: 0
@@ -3165,6 +3216,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0
 --- !u!1 &2082631242
 GameObject:
   m_ObjectHideFlags: 0
@@ -3369,3 +3426,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c29168750166a544891c16f9535efca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  color: {r: 1, g: 1, b: 1, a: 1}
+  emission: 0.25
+  smoothness: 0.05
+  transparency: 1
+  absorbtion: 0
+  celShaded: 0

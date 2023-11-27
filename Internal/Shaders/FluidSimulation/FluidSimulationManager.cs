@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
 public class FluidSimulationManager : MonoBehaviour
@@ -241,11 +242,17 @@ public class FluidSimulationManager : MonoBehaviour
     public enum RenderMethod
     {
         Rasterization,
-        RayTracing
-        
+        RayTracing,
+        RayTracingAccelerated
+
     }
 
+
+    
     public RenderMethod _renderMethod = RenderMethod.Rasterization;
+    private RayTracingShader _RayTracingShaderAccelerated;
+    RayTracingAccelerationStructure _AccelerationStructure;
+    
     private void Awake()
     {
         Debug.Log("Particle Stride size is: " + _particleStride);
@@ -351,12 +358,46 @@ public class FluidSimulationManager : MonoBehaviour
 
         GetThreadSizes();
         AddObjectsToList();
-        CreateNonAcceleratedStructure();
+        if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
+        {
+            CreateAcceleratedStructure();
+            CreateNonAcceleratedStructure();
+        }
+        else
+        {
+            CreateNonAcceleratedStructure();
+        }
         UpdateNonAcceleratedRayTracer();
         material.SetBuffer("_Particles", _particleBuffer);
         CreateFluidCommandBuffers();
 
 
+    }
+
+    void CreateAcceleratedStructure()
+    {
+        if (_RayTracingShaderAccelerated == null)
+            _RayTracingShaderAccelerated = Resources.Load<RayTracingShader>("AcceleratedRayTracer");
+
+        //Create GPU accelerated structure.
+        var settings = new RayTracingAccelerationStructure.RASSettings();
+        settings.layerMask = RayTracingLayers;
+        //Change this to manual after some work.
+        settings.managementMode = RayTracingAccelerationStructure.ManagementMode.Automatic;
+        settings.rayTracingModeMask = RayTracingAccelerationStructure.RayTracingModeMask.Everything;
+
+        _AccelerationStructure = new RayTracingAccelerationStructure(settings);
+    }
+
+    void DispatchAcceleratedRayTrace()
+    {
+        _RayTracingShaderAccelerated.SetTexture("_RayTracedImage", _rtTarget);
+        _RayTracingShaderAccelerated.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
+        _RayTracingShaderAccelerated.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
+        _RayTracingShaderAccelerated.SetShaderPass("MyRaytraceShaderPass");
+        _RayTracingShaderAccelerated.SetAccelerationStructure("_RaytracingAccelerationStructure", _AccelerationStructure);
+
+        _RayTracingShaderAccelerated.Dispatch("MyRaygenShader", _renderTextureWidth, _renderTextureHeight, 1);
     }
 
     void GetThreadSizes()
@@ -528,9 +569,10 @@ public class FluidSimulationManager : MonoBehaviour
     {
         //Build the BVH
         CreateMeshes();
-
         UpdateParticles();
         BuildBVH();
+        if(UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
+            _AccelerationStructure.Build();
         //if(Time.realtimeSinceStartup < 10)
 
         //Only if spacebar is pressed
@@ -1228,8 +1270,8 @@ public class FluidSimulationManager : MonoBehaviour
         //Execute shaders on render target.
         //Graphics.Blit(_rtTarget, _fluidDepthBuffer, _fluidSimMaterialDepth);
         //Graphics.Blit(source, _rtTarget, _fluidSimMaterialDepthHori);
-
-
+        if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
+            DispatchAcceleratedRayTrace();
         Graphics.Blit(source, destination, _fluidSimMaterialComposite);
 
 
@@ -1276,12 +1318,12 @@ public class FluidSimulationManager : MonoBehaviour
 
         fluidCommandBuffers.SetRenderTarget(_velocitySurfaceDensityDepthTexture);
 
-        if (_renderMethod == RenderMethod.Rasterization)
+        if (_renderMethod == RenderMethod.Rasterization || _renderMethod == RenderMethod.RayTracingAccelerated)
         {
             fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _depthBufferTexture);
             fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
-            fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 1, MaxNumOfParticles);
+            //fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 1, MaxNumOfParticles);
         }
 
         fluidCommandBuffers.Blit(_velocitySurfaceDensityDepthTexture, _tempTarget, _fluidSimMaterialDepthHori);
@@ -1385,6 +1427,8 @@ public class FluidSimulationManager : MonoBehaviour
             _MortonPrefixSumOffsetZeroesBuffer.Release();
         if (_MortonPrefixSumOffsetOnesBuffer != null)
             _MortonPrefixSumOffsetOnesBuffer.Release();
+        if (_AccelerationStructure != null)
+            _AccelerationStructure.Release();
 
 
         _rtTarget.Release();

@@ -46,7 +46,7 @@ void MyRaygenShader()
 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _RayTracedImage[id.xy] = payload.color;
+    _RayTracedImage[id.xy] += payload.color;
     
 }
 

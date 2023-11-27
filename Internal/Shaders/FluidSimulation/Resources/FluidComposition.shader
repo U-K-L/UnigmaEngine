@@ -561,7 +561,7 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerp = causaticLerpSide * 0.15 + causaticLerpTop*0.825;
                 float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.65 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 				
-                return fluids*fluids.w;
+                return fluids;
                 //return causticsTex;
                 //return fluids;
                 //return densityMap;

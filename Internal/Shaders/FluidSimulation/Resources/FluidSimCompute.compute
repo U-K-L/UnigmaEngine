@@ -10,6 +10,13 @@
 #pragma kernel CalculateCurl
 #pragma kernel CalculateVorticity
 #pragma kernel PrefixSum
+#pragma kernel CreateBVHTree
+#pragma kernel CreateBoundingBox
+#pragma kernel RadixSort
+#pragma kernel AssignMortonCodes
+#pragma kernel AssignParents
+#pragma kernel AssignIndex
+#pragma kernel CreateDistances
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -42,6 +49,8 @@ const uint MaxNeighbors = 50;
 int biBlock;
 int biDim;
 int _ChosenParticle = 128;
+float4 _initialForce = 0;
+float3 _initialPosition = 99999999;
 
 
 
@@ -67,6 +76,12 @@ struct Vertex
     float3 position;
     float3 normal;
     float2 uv;
+};
+
+struct AABB
+{
+    float3 min;
+    float3 max;
 };
 
 struct Ray
@@ -104,7 +119,7 @@ struct Particle
     float density;
     float lambda;
     float mass;
-    int cellID;
+    int parent;
 };
 
 struct BVHNode
@@ -113,12 +128,27 @@ struct BVHNode
     float3 aabbMax;
     int leftChild;
     int rightChild;
+    int3 topChild;
+    int3 bottomChild;
     int parent;
     int primitiveOffset;
     int primitiveCount;
     int index;
     int hit;
     int miss;
+    int isLeaf;
+    int leftChildLeaf;
+	int rightChildLeaf;
+    int3 topChildLeaf;
+    int3 bottomChildLeaf;
+    int indexedId;
+    float2 padding;
+};
+
+struct MortonCode
+{
+    uint mortonCode;
+    int particleIndex;
 };
 
 StructuredBuffer<MeshObject> _MeshObjects;
@@ -129,11 +159,18 @@ RWStructuredBuffer<int> _ParticleIndices;
 RWStructuredBuffer<int> _ParticleCellIndices;
 RWStructuredBuffer<int> _ParticleCellOffsets;
 RWStructuredBuffer<int> _ParticleCount;
-StructuredBuffer<BVHNode> _BVHNodes;
-StructuredBuffer<int> _ParticleIDs;
+RWStructuredBuffer<float3> _ParticlesPositions;
+RWStructuredBuffer<MortonCode> _MortonCodes;
+RWStructuredBuffer<MortonCode> _MortonCodesTemp;
+RWStructuredBuffer<BVHNode> _BVHNodes;
+RWStructuredBuffer<int> _ParticleIDs;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
 float density = 0.0;
 int _BoxViewDebug;
+RWStructuredBuffer<uint> _MortonPrefixSumTotalZeroes;
+RWStructuredBuffer<uint> _MortonPrefixSumOffsetZeroes;
+RWStructuredBuffer<uint> _MortonPrefixSumOffsetOnes;
+RWStructuredBuffer<AABB> g_AABBs;
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -146,6 +183,7 @@ RWTexture2D<float4> _VelocityMap;
 RWTexture2D<float4> _CurlMap;
 RWTexture2D<float4> _SurfaceMap;
 RWTexture2D<float4> _VelocitySurfaceDensityDepthTexture;
+RWTexture2D<float4> _DistancesMap;
 
 Vertex CreateVertex(inout Vertex v)
 {
@@ -189,6 +227,32 @@ Hit CreateHit()
     
     return hit;
 }
+
+BVHNode CreateBVH()
+{
+    BVHNode bvh;
+	bvh.aabbMin = float3(0, 0, 0);
+	bvh.aabbMax = float3(0, 0, 0);
+	bvh.leftChild = 0;
+	bvh.rightChild = 0;
+	bvh.topChild = int3(0, 0, 0);
+	bvh.bottomChild = int3(0, 0, 0);
+	bvh.parent = -1;
+	bvh.primitiveOffset = 0;
+	bvh.primitiveCount = 0;
+	bvh.index = 0;
+	bvh.hit = 0;
+	bvh.miss = 0;
+    bvh.isLeaf = false;
+	bvh.leftChildLeaf = -1;
+	bvh.rightChildLeaf = -1;
+	bvh.topChildLeaf = int3(-1, -1, -1);
+	bvh.bottomChildLeaf = int3(-1, -1, -1);
+	bvh.indexedId = -1;
+	bvh.padding = float2(0, 0);
+	return bvh;
+}
+
 
 
 float4x4 translate(float3 p)
@@ -602,34 +666,66 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
 	int particleIndex = -1;
     float particlesHit = 0;
     BVHNode node = _BVHNodes[0];
+    int skip = 0;
     for (int i = 0; i < _NumOfNodes; i++)
     {
-        //Find next node.
-        if (nodeIndex != i)
-            continue;
+
         node = _BVHNodes[nodeIndex];
+        //Find next node.
+        if (node.indexedId != i)
+            continue;
         if (TraceBVH(ray, hit, node))
         {
-            for (int k = node.primitiveOffset; k < node.primitiveCount + node.primitiveOffset; k++)
+            if(node.isLeaf > 0)
+            //for (int k = node.primitiveOffset; k <= node.primitiveOffset + node.primitiveCount; k++)
             {
-                float3 position = _Particles[_ParticleIDs[k]].position;
+                
+                float3 positionR = 9999999;
+				if (node.rightChildLeaf > -1)
+					positionR = _Particles[node.rightChildLeaf].position;
+                float3 positionL = 9999999;
+                
+                if (node.leftChildLeaf > -1)
+                    positionL = _Particles[node.leftChildLeaf].position;
 
-                float t1 = IntersectParticles(hit, ray, _SizeOfParticle, position);
+                float t1 = IntersectParticles(hit, ray, _SizeOfParticle, positionR);
+                float t2 = IntersectParticles(hit, ray, _SizeOfParticle, positionL);
+                float t3 = 999999;
 
-                if (t1 > epsilon)
+                if (t1 < 0)
+                    t1 = 9999999;
+                if (t2 < 0)
+                    t2 = 9999999;
+
+                float3 position;
+                int particleID;
+                
+				if ((t1 < t2))
+				{
+                    t3 = t1;
+					particleID = node.rightChildLeaf;
+					position = positionR;
+				}
+				else
+				{
+                    t3 = t2;
+					particleID = node.leftChildLeaf;
+					position = positionL;
+				}
+                //t3 = t1;
+                if (t3 > epsilon)
                 {
                     particlesHit += 1.0f;
-                    if (t1 < hit.distance)
+                    if (t3 < hit.distance)
                     {
                         float4 clipPos = UnityWorldToClipPos(position);
                         float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
                         hit.depth = 1.0 - depth;
-                        hit.distance = t1;
-                        particleIndex = _ParticleIDs[k];
+                        hit.distance = t3;
+                        particleIndex = particleID;
                     }
                 }
             }
-
             nodeIndex = node.hit;
         }
         else
@@ -639,12 +735,179 @@ float4 TraceParticlesTBVH(inout Ray ray, inout Hit hit)
         }
 
     }
+            
     float kd = min(99.0f, particlesHit) * 0.0055f;
     float e = exp(kd);
     float hitMap = e - 1.0f;
     return float4(minDistance, hitMap, particlesHit, particleIndex);
 }
 
+
+#define STACK_SIZE 15
+#define WORK_GROUP_SIZE 256
+int WORK_GROUP_SIZE_SQUAREDROOT = sqrt(WORK_GROUP_SIZE);
+
+groupshared int stack[WORK_GROUP_SIZE][STACK_SIZE];
+
+
+//Stack operations
+
+void StackPush(int value, int offset)
+{
+    [unroll]
+    for (int i = 0; i < STACK_SIZE; i++)
+    {
+        if (stack[offset][i] == -1)
+        {
+            stack[offset][i] = value;
+            break;
+        }
+    }
+}
+
+int StackPop(int offset)
+{
+    int value = -1;
+    [unroll]
+    for (int i = STACK_SIZE - 1; i >= 0; i--)
+    {
+        if (stack[offset][i] != -1)
+        {
+            value = stack[offset][i];
+            stack[offset][i] = -1;
+            break;
+        }
+    }
+    return value;
+}
+
+void CreateStack(int offset)
+{
+    [unroll]
+    for (int i = 0; i < STACK_SIZE; i++)
+    {
+        stack[offset][i] = -1;
+    }
+}
+
+
+float4 TraceParticlesStack(inout Ray ray, inout Hit hit, int newIndex)
+{
+    float minDistance = 99999999;
+    float minBVHDistance = 99999999;
+    int bvhminIndex = -1;
+    int nodeIndex = 0;
+    int particleIndex = -1;
+    float particlesHit = 0;
+
+    
+    //int stack[STACK_SIZE];
+    CreateStack(newIndex);
+    StackPush(0, newIndex);
+    int sum = 0;
+    
+    int counter = 0;
+    while (stack[newIndex][0] > -1 && counter < _NumOfParticles)
+    {
+        
+        nodeIndex = StackPop(newIndex);
+        //GroupMemoryBarrier();
+        sum += nodeIndex;
+
+        BVHNode node = _BVHNodes[nodeIndex];
+        if (TraceBVH(ray, hit, node))
+        {
+            if (node.isLeaf > 0)
+            {
+
+                float3 positionR = 9999999;
+                if (node.rightChildLeaf > -1)
+                    positionR = _Particles[node.rightChildLeaf].position;
+                float3 positionL = 9999999;
+
+                if (node.leftChildLeaf > -1)
+                    positionL = _Particles[node.leftChildLeaf].position;
+
+                float t1 = IntersectParticles(hit, ray, _SizeOfParticle, positionR);
+                float t2 = IntersectParticles(hit, ray, _SizeOfParticle, positionL);
+                float t3 = 999999;
+
+                if (t1 < 0)
+                    t1 = 9999999;
+                if (t2 < 0)
+                    t2 = 9999999;
+
+                float3 position;
+                int particleID;
+
+                if ((t1 < t2))
+                {
+                    t3 = t1;
+                    particleID = node.rightChildLeaf;
+                    position = positionR;
+                }
+                else
+                {
+                    t3 = t2;
+                    particleID = node.leftChildLeaf;
+                    position = positionL;
+                }
+                //t3 = t1;
+                if (t3 > epsilon)
+                {
+                    particlesHit += 1.0f;
+                    if (t3 < hit.distance)
+                    {
+                        float4 clipPos = UnityWorldToClipPos(position);
+                        float depth = (clipPos.z * _DepthScale.x) / (clipPos.w * _DepthScale.y);
+                        hit.depth = 1.0 - depth;
+                        hit.distance = t3;
+                        particleIndex = particleID;
+                    }
+                }
+            }
+
+
+            if (node.leftChild > -1)
+            {
+                StackPush(node.leftChild, newIndex);
+            }
+
+            if (node.rightChild > -1)
+            {
+                StackPush(node.rightChild, newIndex);
+            }
+        }
+        
+        counter++;
+    }
+    
+    float kd = min(99.0f, particlesHit) * 0.0055f;
+    float e = exp(kd);
+    float hitMap = e - 1.0f;
+    return float4(minDistance, hitMap, particlesHit, particleIndex);
+}
+
+float4 TraceParticlesTBVHDebug(inout Ray ray, inout Hit hit)
+{
+    float minDistance = 99999999;
+    float minBVHDistance = 99999999;
+    int bvhminIndex = -1;
+    int nodeIndex = 0;
+    int particleIndex = -1;
+    float particlesHit = 0;
+    BVHNode node = _BVHNodes[0];
+    for (int i = 0; i < _NumOfNodes; i++)
+    {
+        node = _BVHNodes[nodeIndex];
+        if (TraceBVH(ray, hit, node))
+        {
+            return 1;
+        }
+
+    }
+    return 0;
+}
 
 float TraceParticlesIterative(inout Ray ray, inout Hit hit)
 {
@@ -667,7 +930,7 @@ float TraceParticlesIterative(inout Ray ray, inout Hit hit)
     return minDistance;
 }
 
-float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float particlesHit)
+float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float particlesHit, int newIndex)
 {
 
     float4 result = 99999999;
@@ -685,7 +948,10 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
 
     }
     
-    result = TraceParticlesTBVH(ray, hit);
+    //result = TraceParticlesIterative(ray,hit);
+    //result = TraceParticlesTBVH(ray, hit);
+    result = TraceParticlesStack(ray, hit, newIndex);
+    //return TraceParticlesTBVHDebug(ray, hit);
 	minDistance = result.x;
 	particlesHit = result.y;
 	particleId = result.w;
@@ -697,6 +963,142 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
     }
     return float4(position.xyz, hit.depth);
     
+}
+
+// Expands a 10-bit integer into 30 bits
+// by inserting 2 zeros after each bit.
+unsigned int expandBits(unsigned int v)
+{
+    v = (v * 0x00010001u) & 0xFF0000FFu;
+    v = (v * 0x00000101u) & 0x0F00F00Fu;
+    v = (v * 0x00000011u) & 0xC30C30C3u;
+    v = (v * 0x00000005u) & 0x49249249u;
+    return v;
+}
+
+// Calculates a 30-bit Morton code for the
+// given 3D point located within the unit cube [0,1].
+unsigned int morton3D(float x, float y, float z)
+{
+    x = min(max(x * 1024.0f, 0.0f), 1023.0f);
+    y = min(max(y * 1024.0f, 0.0f), 1023.0f);
+    z = min(max(z * 1024.0f, 0.0f), 1023.0f);
+    unsigned int xx = expandBits((unsigned int)x);
+    unsigned int yy = expandBits((unsigned int)y);
+    unsigned int zz = expandBits((unsigned int)z);
+    return xx * 4 + yy * 2 + zz;
+}
+
+int commonPrefixClz(int first, int last)
+{
+	if (first > _NumOfParticles-1 || first < 0 || last > _NumOfParticles -1|| last < 0)
+	{
+        return -1;
+	}
+    unsigned int firstCode = _MortonCodes[first].mortonCode;
+    unsigned int lastCode = _MortonCodes[last].mortonCode;
+
+
+    
+    uint commonPrefix = clz(firstCode ^ lastCode);
+
+    if (firstCode == lastCode)
+    {
+        //Since if they're equal clz == 32 bits, we look at index as tie breaker.
+        commonPrefix += clz(first ^ last);
+    }
+    
+    return commonPrefix;
+}
+
+int commonPrefixClz2(int first, int last)
+{
+    unsigned int firstCode = _MortonCodes[first].mortonCode;
+    unsigned int lastCode = _MortonCodes[last].mortonCode;
+
+    uint commonPrefix = clz(firstCode ^ lastCode);
+
+    if (firstCode == lastCode)
+    {
+        //Since if they're equal clz == 32 bits, we look at index as tie breaker.
+        commonPrefix += clz(first ^ last);
+    }
+
+    return commonPrefix;
+}
+
+int findSplit(int first, int last)
+{
+    // Identical Morton codes => split the range in the middle.
+    unsigned int firstCode = _MortonCodes[first].mortonCode;
+    unsigned int lastCode = _MortonCodes[last].mortonCode;
+    
+    
+    //if (firstCode == lastCode)
+    //    return (first + last) >> 1;
+
+    // Calculate the number of highest bits that are the same
+    // for all objects, using the count-leading-zeros intrinsic.
+
+    uint commonPrefix = commonPrefixClz2(first, last);
+
+    // Use binary search to find where the next bit differs.
+    // Specifically, we are looking for the highest object that
+    // shares more than commonPrefix bits with the first one.
+
+    int split = first; // initial guess
+    int step = last - first;
+
+    do
+    {
+        step = (step + 1) >> 1; // exponential decrease
+        int newSplit = split + step; // proposed new position
+
+        if (newSplit < last)
+        {
+            unsigned int splitCode = _MortonCodes[newSplit].mortonCode;
+            int splitPrefix = commonPrefixClz2(first, newSplit);
+            if (splitPrefix > commonPrefix)
+                split = newSplit; // accept proposal
+        }
+    } while (step > 1);
+
+    return split;
+}
+
+uint2 determineRange(int idx)
+{
+    //Get the direction towards the upper bound.
+
+    int direction = sign(commonPrefixClz(idx, idx + 1) - commonPrefixClz(idx, idx - 1));
+
+    //Subtracting that direction gives us the lower bound, ie the lowest level for this node.
+    int sigMin = commonPrefixClz(idx, idx - direction);
+
+
+
+    int sigMax = 2;
+    while (commonPrefixClz(idx, idx + sigMax * direction) > sigMin)
+    {
+        sigMax *= 2;
+    }
+
+
+    int sig = 0;
+    for (int t = sigMax / 2; t >= 1; t /= 2)
+    {
+        if (commonPrefixClz(idx, idx + (sig + t) * direction) > sigMin)
+        {
+            sig += t;
+        }
+    }
+    int j = idx + sig * direction;
+
+    uint2 range;
+    range.x = min(idx, j);
+    range.y = max(idx, j);
+
+    return range;
 }
 
 void CollisionTrace(inout Ray ray, inout Hit hit)
@@ -734,8 +1136,8 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
     
 }
 
-[numthreads(32,32,1)]
-void CreateGrid (uint3 id : SV_DispatchThreadID)
+[numthreads(16,16,1)]
+void CreateGrid (uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupThreadID)
 {
     
     //Resets all values.
@@ -756,7 +1158,6 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
 
 
-
 	//This is a ray for each pixel and in the pixel's center.
 	//So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
 	//Then range is shifted via 2 - 1.
@@ -765,7 +1166,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
     Hit hit = CreateHit();
 
     //Actually perform intersection.
-    float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit);
+    float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit, GroupThreadID.x + GroupThreadID.y * 16);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
     DensityMap[id.xy] = particlesHit;
 
@@ -783,23 +1184,27 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 		float3 freeSurface = 0;
         raySides.o = particle.position;
 		raySides.d = float3(0.0f,1.0f,0.0f);
-        result = TraceParticlesTBVH(raySides, hitSides);
-        if (result.z < 3.00f && particle.cellID > 20)
+        /*
+        result = TraceParticlesStack(raySides, hitSides, id);
+        if (result.z < 3.00f && particle.neighborCount > 0)
             freeSurface += raySides.d;
         
+
         raySides.d = float3(0.0f, 0.0f, 1.0f);
         result = 99999999;
-        result = TraceParticlesTBVH(raySides, hitSides);
+        result = TraceParticlesStack(raySides, hitSides, id);
         freeSurface *= float3(0.0f, result.y, 0.0f);
         
 
         raySides.d = float3(0.0f, 0.0f, -1.0f);
         result = 99999999;
-        result = TraceParticlesTBVH(raySides, hitSides);
+        result = TraceParticlesStack(raySides, hitSides, id);
         if (result.z < 3.00f)
             freeSurface *= float3(0.0f, 0.0f, 0.0f);
 
-        
+        freeSurface = 1;
+        */
+        freeSurface = particle.density/ _RestDensity;
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
         _SurfaceMap[id.xy] = float4(freeSurface, 1);
 		_VelocityMap[id.xy] = float4(particle.velocity, length(particle.velocity) + length(_Particles[particleId].curl) * 0.055);
@@ -811,6 +1216,28 @@ void CreateGrid (uint3 id : SV_DispatchThreadID)
 
 }
 
+[numthreads(16, 16, 1)]
+void CreateDistances(uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupThreadID)
+{
+    //Resets all values.
+    uint width, height;
+    _DistancesMap[id.xy] = 0;
+    //Gets the dimensions of the screen.
+    _DistancesMap.GetDimensions(width, height);
+    worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+    _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
+
+    //This is a ray for each pixel and in the pixel's center.
+    //So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
+    //Then range is shifted via 2 - 1.
+    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
+    Ray ray = CreateCameraRay(pixel);
+    Hit hit = CreateHit();
+    
+    CollisionTrace(ray, hit);
+    _DistancesMap[id.xy] = hit.distance;
+}
+
 [numthreads(64, 1, 1)]
 void ComputeForces(uint3 id : SV_DispatchThreadID)
 {
@@ -820,6 +1247,12 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
+    if (_Particles[id.x].debugVector.x <= -995)
+    {
+        //_Particles[id.x].position = _initialPosition;
+        //_Particles[id.x].force = _initialForce;
+    }
+    
 	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force +constantForces;
@@ -829,8 +1262,10 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].velocity = vel;
     _Particles[id.x].lastPosition = _Particles[id.x].position;
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
-    _Particles[id.x].debugVector = 0.25;
-    _Particles[id.x].cellID = 0;
+    //_Particles[id.x].debugVector = 0.25;
+    _Particles[id.x].parent = -1;
+
+
 }
 
 void GetDensityIterative(uint3 id)
@@ -846,7 +1281,6 @@ void GetDensityIterative(uint3 id)
         sum += Poly6Kernel(distance2) * _Particles[i].mass;
 
     }
-    _Particles[id.x].density = sum;
 }
 
 void GetDensityGrid(uint3 id)
@@ -883,7 +1317,6 @@ void GetDensityGrid(uint3 id)
                     
                     if (0.001f < distance2 && distance2 < _Radius * 2)
                     {
-                        _Particles[particleIndex].cellID += 1;
                         //Poly6
                         densitySum += Poly6Kernel(distance2) * _Particles[particleIndex].mass;
                         //Spiky
@@ -894,8 +1327,8 @@ void GetDensityGrid(uint3 id)
                         if (particleIndex == _ChosenParticle)
                         {
                             //Set to color red.
-                            _Particles[particleIndex].debugVector = float3(1, 0, 0);
-                            _Particles[particleIndexB].debugVector = float3(0, 1, 0);
+                            //_Particles[particleIndex].debugVector = float3(1, 0, 0);
+                            //_Particles[particleIndexB].debugVector = float3(0, 1, 0);
                         }
                     }
                     neighbourIterator++;
@@ -912,7 +1345,6 @@ void GetDensityGrid(uint3 id)
 	_Particles[particleIndex].lambda = lambda;
     _Particles[particleIndex].normal = min(normalize(-colorField), float3(1,1,1));
 }
-
 
 //Figure (1)
 [numthreads(64, 1, 1)]
@@ -1180,6 +1612,8 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].velocity = vel * velDamping;
 	_Particles[id.x].position = positionDelta;
 	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
+    g_AABBs[id.x].min = positionDelta - float3(_SizeOfParticle, _SizeOfParticle, _SizeOfParticle);
+    g_AABBs[id.x].max = positionDelta + float3(_SizeOfParticle, _SizeOfParticle, _SizeOfParticle);
     //_Particles[id.x].debugVector = ray.d;
 }
 
@@ -1247,9 +1681,20 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
     }
 
     float3 f_vc = _Viscosity * cross(n_hat, _Particles[particleIndex].curl);
-    float3 c = 0.001;
+    float3 c = 0.0001;
     
-    //_Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
+    _Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
+}
+
+uint ConcatenateIndex(uint mortonCode, uint index, uint indexBitCount)
+{
+    // Shift the morton code to the left to make space for the index
+    uint shiftedMortonCode = mortonCode << indexBitCount;
+
+	index = index & ((1 << indexBitCount) - 1);
+
+    // Assume index fits within indexBitCount bits and combine them
+    return shiftedMortonCode | index;
 }
 
 [numthreads(256, 1, 1)]
@@ -1274,8 +1719,42 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
     
     InterlockedAdd(_ParticleCount[cellIndex], 1);
 
-	//_Particles[particleIndex].cellID = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
-    
+    float3 pos = (_Particles[id.x].position + _BoxSize) /(_BoxSize*2);
+    uint testNums[] = { 30, 1, 5, 19, 5, 4,  5, 24 };
+    //uint testNums[] = { 1, 3, 6, 2, 7, 8, 5, 4  };
+     //uint testNums[] = { 6,2,8,4,1,3,7,5  };
+     //uint testNums[] = { 8, 4, 1, 5, 6, 2, 3, 7 };
+     //uint testNums[] = { 8, 1, 2, 3, 4, 5, 6, 7 };
+    _MortonCodes[id.x].mortonCode = morton3D(pos.x, pos.y, pos.z);//ConcatenateIndex(morton3D(pos.x, pos.y, pos.z), id.x, 4);
+    //_MortonCodes[id.x].mortonCode = ConcatenateIndex(testNums[id.x], id.x, 4);
+    //_MortonCodes[id.x].mortonCode = testNums[id.x];
+	_MortonCodes[id.x].particleIndex = id.x;
+
+    _MortonCodesTemp[id.x].mortonCode = _MortonCodes[id.x].mortonCode;
+	_MortonCodesTemp[id.x].particleIndex = _MortonCodes[id.x].particleIndex;
+
+}
+
+[numthreads(256, 1, 1)]
+void AssignMortonCodes(uint3 id : SV_DispatchThreadID)
+{
+	if (id.x >= _NumOfParticles)
+	{
+		return;
+	}
+
+    _MortonPrefixSumOffsetOnes[id.x] = 0;
+
+    int indexBit = firstbitlow(_MortonCodesTemp[id.x].mortonCode >> biBlock);
+    if (indexBit == 0)
+        _MortonPrefixSumOffsetOnes[id.x] = 1;
+    else
+    {
+        _MortonPrefixSumOffsetOnes[id.x] = 0;
+    }
+
+    _MortonCodes[id.x].mortonCode = _MortonCodesTemp[id.x].mortonCode;
+    _MortonCodes[id.x].particleIndex = _MortonCodesTemp[id.x].particleIndex;
 }
 
 [numthreads(256, 1, 1)]
@@ -1286,38 +1765,70 @@ void PrefixSum(uint3 id : SV_DispatchThreadID)
         return;
     }
     
-	for (int i = 1; i < _NumOfParticles; i++)
-	{
-		//_ParticleCount[i] += _ParticleCount[i - 1];
-	}
+    int nextStep = pow(2, biDim - 1);
+    if (id.x - nextStep >= 0)
+    {
+        _MortonPrefixSumOffsetOnes[id.x] += _MortonPrefixSumOffsetOnes[id.x - nextStep];
+    }
 }
 
 [numthreads(256, 1, 1)]
 void BitonicSort(uint3 id : SV_DispatchThreadID)
 {
+
     if (id.x >= _MaxNumOfParticles)
     {
         return;
     }
-    
+
     uint index = _ParticleCellIndices[id.x];
     uint i = id.x + id.y * 256 * 1024;
     uint j = i ^ biBlock;
-    
-	if (j < i || i >= _MaxNumOfParticles)
-		return;
+
+    if (j < i || i >= _MaxNumOfParticles)
+        return;
 
     uint key_i = _ParticleIndices[i];
-	uint key_j = _ParticleIndices[j];
-	float value_i = _ParticleCellIndices[key_i];
-	float value_j = _ParticleCellIndices[key_j];
-    
-	float diff = (value_i - value_j) * ((i & biDim) == 0 ? 1 : -1);
+    uint key_j = _ParticleIndices[j];
+    float value_i = _ParticleCellIndices[key_i];
+    float value_j = _ParticleCellIndices[key_j];
+
+    float diff = (value_i - value_j) * ((i & biDim) == 0 ? 1 : -1);
     if (diff > 0)
     {
-		_ParticleIndices[i] = key_j;
-		_ParticleIndices[j] = key_i;
+        _ParticleIndices[i] = key_j;
+        _ParticleIndices[j] = key_i;
     }
+
+}
+
+[numthreads(1024, 1, 1)]
+void RadixSort(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
+    int indexBit = firstbitlow(_MortonCodes[id.x].mortonCode >> biBlock);
+
+    //If the bit LSB is 1.
+    if (indexBit == 0)
+    {
+        //Place at bottom half of the list. which is after total number of zeroes.
+        int index = _MortonPrefixSumOffsetOnes[id.x] + ((_NumOfParticles - 1) - _MortonPrefixSumOffsetOnes[_NumOfParticles - 1]);
+        //_MortonCodes[id.x] = index;//testNums[index];
+        _MortonCodesTemp[index].mortonCode = _MortonCodes[id.x].mortonCode;
+        _MortonCodesTemp[index].particleIndex = _MortonCodes[id.x].particleIndex;
+    }
+    else {
+        int index = id.x - _MortonPrefixSumOffsetOnes[id.x];
+        //_MortonCodes[id.x] = index;//testNums[index];
+        _MortonCodesTemp[index].mortonCode = _MortonCodes[id.x].mortonCode;
+        _MortonCodesTemp[index].particleIndex = _MortonCodes[id.x].particleIndex;
+    }
+    //_MortonCodes[id.x] = testNumsSwap[id.x % 8];
+    //_MortonCodesTemp[id.x].mortonCode = _MortonPrefixSumOffsetOnes[id.x];
 }
 
 [numthreads(256, 1, 1)]
@@ -1327,10 +1838,265 @@ void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
+
+    //_MortonCodes[id.x].mortonCode = _MortonCodesTemp[id.x].mortonCode;
+    //_MortonCodes[id.x].particleIndex = _MortonCodesTemp[id.x].particleIndex;
     
+    _ParticleIDs[id.x] = _MortonCodes[id.x].particleIndex;
+    //_MortonCodes[id.x].particleIndex = id.x;
 	uint particleIndex = _ParticleIndices[id.x];
 	uint cellIndex = _ParticleCellIndices[particleIndex];
 
+    //Make BVH here as well.
+    BVHNode bvh = CreateBVH();
+    bvh.aabbMin = _BoxSize;
+    bvh.aabbMax = -_BoxSize;
+    _BVHNodes[id.x] = bvh;
+
 	//Sets this value at the index cellIndex. However it waits for all threads and ensures this is the minimum value at that index.
 	InterlockedMin(_ParticleCellOffsets[cellIndex], id.x);
+}
+
+
+[numthreads(256, 1, 1)]
+void CreateBVHTree(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles - 1)
+    {
+        return;
+    }
+
+    BVHNode bvh = _BVHNodes[id.x];
+    bvh.index = id.x;
+    bvh.indexedId = -1;
+
+    uint2 range = determineRange(id.x);
+    int gamma = findSplit(range.x, range.y);//id.x + s * direction + min(direction, 0);
+
+    bvh.leftChild = gamma;
+    bvh.primitiveOffset = min(range.x, range.y);
+
+    bvh.rightChild = gamma + 1;
+    bvh.primitiveCount = max(range.x, range.y) - min(range.x, range.y);
+    bvh.isLeaf = false;
+
+    if (min(range.x, range.y) == gamma)
+    {
+        _Particles[_ParticleIDs[gamma]].parent = id.x;
+        bvh.isLeaf = true;
+        bvh.leftChildLeaf = _ParticleIDs[gamma];
+        bvh.leftChild = -1;
+    }
+
+    if (max(range.x, range.y) == gamma + 1)
+    {
+        _Particles[_ParticleIDs[gamma+1]].parent = id.x;
+        bvh.isLeaf = true;
+        bvh.rightChildLeaf = _ParticleIDs[gamma + 1];
+        bvh.rightChild = -1;
+    }
+    /*
+    uint2 rangeInitial = determineRange(0);
+    int gammaInitial = findSplit(rangeInitial.x, rangeInitial.y);
+    
+	bvh.indexedId = (gammaInitial+1)-id.x;
+    if (id.x >= gammaInitial + 1)
+    {
+        bvh.indexedId = id.x;
+    }
+
+    if(id.x == 0)
+	{
+		bvh.indexedId = 0;
+	}
+    */
+    _BVHNodes[id.x] = bvh;
+    _BVHNodes[0].parent = -1;
+
+
+    
+}
+
+[numthreads(256, 1, 1)]
+void AssignParents(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles - 1)
+    {
+        return;
+    }
+
+    BVHNode bvh = _BVHNodes[id.x];
+    
+    if (bvh.leftChild > -1)
+    {
+        _BVHNodes[bvh.leftChild].parent = id.x;
+    }
+
+    if (bvh.rightChild > -1)
+    {
+        _BVHNodes[bvh.rightChild].parent = id.x;
+    }
+}
+
+[numthreads(256, 1, 1)]
+void CreateBoundingBox(uint3 id : SV_DispatchThreadID)
+{
+
+    if (id.x >= _NumOfParticles - 1)
+    {
+        return;
+    }
+    
+    BVHNode bvh = _BVHNodes[id.x];
+
+    //Create bounding box.
+	bvh.aabbMin = _BoxSize;
+	bvh.aabbMax = -_BoxSize;
+
+
+    for (int i = bvh.primitiveOffset; i <= bvh.primitiveCount + bvh.primitiveOffset; i++)
+    {
+        int particleIndex = _ParticleIDs[i];
+        float3 particlePos = _Particles[particleIndex].position;
+        float sizeOfParticleSquared = _SizeOfParticle+ _SizeOfParticle+ _SizeOfParticle*10;
+        float3 sizeOfParticle = 1 * float3(sizeOfParticleSquared, sizeOfParticleSquared, sizeOfParticleSquared);
+        bvh.aabbMin = min(bvh.aabbMin, particlePos - sizeOfParticle);
+        bvh.aabbMax = max(bvh.aabbMax, particlePos + sizeOfParticle);
+    }
+
+    //Create hit and miss links.
+
+    //Always next node in array.
+    bvh.hit = -1;
+    bvh.miss = -1;
+
+    if (bvh.leftChild > -1)
+    {
+        bvh.hit = bvh.leftChild;
+    }
+    else if(bvh.rightChild > -1)
+    {
+        bvh.hit = bvh.rightChild;
+    }
+
+    
+    if (id.x == 0)
+    {
+        _BVHNodes[id.x] = bvh;
+        return;
+    }
+
+    //If final node make it terminal instead.
+    /*
+    if (id.x >= _NumOfParticles - 2)
+    {
+        bvh.hit = -1;
+        bvh.miss = -1;
+        _BVHNodes[id.x] = bvh;
+        return;
+    }
+    */
+
+    //Get miss links based on a few rules.
+    //If a leaf
+    /*
+    if (bvh.isLeaf > 0)
+    {
+        bvh.miss = id.x + 1;
+        _BVHNodes[id.x] = bvh;
+
+        return;
+    }
+    */
+    BVHNode node = bvh;
+    int counter = 0;
+    
+	while (node.parent > -1 && counter < _NumOfParticles)
+    {
+
+        if (counter > _NumOfParticles - 2)
+        {
+            bvh.miss = -304;
+            break;
+        }
+        
+        if (node.index == _BVHNodes[node.parent].leftChild && _BVHNodes[node.parent].rightChild != -1)
+        {
+            bvh.miss = _BVHNodes[node.parent].rightChild;
+            if(bvh.hit == -1)
+			{
+				bvh.hit = _BVHNodes[node.parent].rightChild;
+			}
+            break;
+        }
+        node = _BVHNodes[node.parent];
+        counter++;
+    }
+
+    //Final fall back ;)
+    if (bvh.hit == -1)
+    {
+        bvh.hit = id.x + 1;
+    }
+    
+    _BVHNodes[id.x] = bvh;
+}
+
+
+[numthreads(1, 1, 1)]
+void AssignIndex(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles - 1)
+    {
+        return;
+    }
+    
+    /*
+    int stack[STACK_SIZE];
+    CreateStack(stack);
+    StackPush(stack, 0);
+    int sum = 0;
+	int nodeIndex = 0;
+    
+    int counter = 0;
+	while (stack[0] > -1 && counter < _NumOfParticles)
+    {
+		nodeIndex = StackPop(stack);
+        
+        sum += nodeIndex;
+        
+        BVHNode node = _BVHNodes[nodeIndex];
+        
+        if(node.leftChild > -1)
+		{
+			StackPush(stack, node.leftChild);
+		}
+        
+		if (node.rightChild > -1)
+		{
+			StackPush(stack, node.rightChild);
+		}
+        counter++;
+    }
+
+    _BVHNodes[id.x].indexedId = sum;
+    */
+    /*
+    int index = 0;
+    int currentNode = 0;
+    int numOfP = _NumOfParticles - 1;
+    int numOfP2 = _NumOfParticles - 2;
+	for (int i = 0; i < numOfP; i++)
+	{
+        currentNode = index;
+        _BVHNodes[currentNode].indexedId = i;
+		index = _BVHNodes[currentNode].hit;
+        
+		if (i == numOfP2)
+		{
+			_BVHNodes[currentNode].hit = -1;
+            _BVHNodes[currentNode].miss = -1;
+		}
+	}
+    */
 }

@@ -8,13 +8,15 @@ struct Vertex
 struct Payload
 {
     float4 color;
+    float distance;
     
 };
 
 struct AttributeData
 {
     float2 barycentrics;
-    float2 texcoord;
+    float distance;
+    float3 position;
 };
 
 float2 GetUVs(AttributeData attributes)
@@ -51,4 +53,16 @@ float3 GetNormals(AttributeData attributes)
     float3 barycentrics = float3(1.0 - attributes.barycentrics.x - attributes.barycentrics.y, attributes.barycentrics.x, attributes.barycentrics.y);
 
     return v0.normal * barycentrics.x + v1.normal * barycentrics.y + v2.normal * barycentrics.z;
+}
+
+//Intersectors -- https://iquilezles.org/articles/intersectors/
+float sphIntersect(float3 ro, float3 rd, float4 sph)
+{
+    float3 oc = ro - sph.xyz;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - sph.w * sph.w;
+    float h = b * b - c;
+    if (h < 0.0) return -1.0;
+    h = sqrt(h);
+    return -b - h;
 }

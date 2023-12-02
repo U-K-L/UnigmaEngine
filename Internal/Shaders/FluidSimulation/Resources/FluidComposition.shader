@@ -72,7 +72,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-			sampler2D _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
+			sampler2D _DistancesMap, _DepthBufferTexture, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity, _DensityThickness, _OutlineThickness;
 			float _CausticIntensity, _CausticScale, _Speed, _ScaleX, _ScaleY, _SpecularPower, _SpecularIntensity, _FresnelPower;
@@ -246,6 +246,7 @@ Shader "Hidden/FluidComposition"
 				fixed4 velocityMap = tex2D(_VelocityMap, i.uv);
 				fixed4 surfaceMap = tex2D(_SurfaceMap, i.uv);
                 fixed4 curlMap = tex2D(_CurlMap, i.uv);
+				fixed4 distanceMap = tex2D(_DistancesMap, i.uv);
                 
 				fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass *2);
 
@@ -558,13 +559,19 @@ Shader "Hidden/FluidComposition"
                 //return causaticPattern;
                 float4 causaticLerpTop = lerp(distortedOriginalImage, causticsTex * fluids.w* step(0.0000001, fluidsDepth.y), 0.55);
                 float4 causaticLerpSide = lerp(distortedOriginalImage, causticsTex * fluids.w * step(0.000000, fluidsDepth.y), 0.25);
-                float4 causaticLerp = causaticLerpSide * 0.5 + causaticLerpTop*0.55;
-                float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.45 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
+                float4 causaticLerp = causaticLerpSide * 0.15 + causaticLerpTop*0.825;
+                float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.65 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 				
+                //return distanceMap*0.025f;
+				//return tex2D(_DepthBufferTexture, i.uv);
+                //return fluidsDepth.w;
+                //return causticsTex;
+                //return float4(fluids.xyz, 1);
+                //return densityMap;
                 //return surface;
-                //return colorLerping;
+                return colorLerping;
                 //return edgeInner;
-                //return fluidsDepth.y;
+                //return fluidsDepth;
                 float curly = length(curlMap);
                 //return step(9.2, curly);
                 float foam = smoothstep(8.89, 10.0, fluidsDepth.x);
@@ -572,7 +579,10 @@ Shader "Hidden/FluidComposition"
                 float4 waterWithFoam = colorLerping;
                 waterWithFoam.xyz += float3(foam, foam, foam);
                 
-                return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
+                //return originalImage;
+                //return fluidsDepth;
+                //return curlMap;
+                //return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
                 //return edgeNormal;
                 //return waterSpecular;
                 //return fluidsNormal;

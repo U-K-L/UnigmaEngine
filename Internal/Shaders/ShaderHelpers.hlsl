@@ -9,6 +9,8 @@
 #define IDENTITY_MATRIX float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 
 #define NOISE_SIMPLEX_1_DIV_289 0.00346020761245674740484429065744f
+
+
 float mod289(float x) {
     return x - floor(x * NOISE_SIMPLEX_1_DIV_289) * 289.0;
 }
@@ -73,6 +75,11 @@ float4 taylorInvSqrt(float4 r) {
     return 1.79284291400159 - 0.85373472095314 * r;
 }
 
+uint clz(uint b)
+{
+    uint len = b ? (31 - floor(log2(b))) : 32;
+	return len;
+}
 
 
 float4 grad4(float j, float4 ip)
@@ -214,6 +221,24 @@ float sphIntersect(float3 ro, float3 rd, float4 sph)
     return -b - h;
 }
 
+float sphIntersectExtruded(float3 ro, float3 rd, float4 sph)
+{
+    float3 oc = ro - sph.xyz; //Position with center added.
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - (sph.w * sph.w);
+    float h = b * b - c;
+    if (h < 0.0) return -1.0;
+    h = sqrt(h);
+    float t1 = -b - h;
+	float3 p2 = ro + rd * t1;
+	float3 p = p2 - sph.xyz;
+    c = dot(oc, oc) - (sph.w * sph.w)*p.y*15.0f*sin(_Time.x*25.0);
+	h = b * b - c;
+	if (h < 0.0) return -1.0;
+	h = sqrt(h);
+    return -b - h;
+}
+
 // axis aligned box centered at the origin, with size boxSize
 float2 boxIntersection(in float3 ro, in float3 rd, in float3 boxSize, in float4x4 txx, out float3 outNormal)
 {
@@ -288,6 +313,31 @@ bool IntersectBox(in float3 roo, in float3 rdd, float3 boxmin, float3 boxmax, ou
     else
         hit = true;
     return hit;
+}
+
+float opSmoothUnion2(float d1, float d2, float k)
+{
+    float h = max(k - abs(d1 - d2), 0.0);
+    return min(d1, d2) - h * h * 0.25 / k;
+}
+
+float opSmoothSubtraction(float d1, float d2, float k)
+{
+    return -opSmoothUnion2(d1, -d2, k);
+}
+
+float opSmoothIntersection(float d1, float d2, float k)
+{
+    return -opSmoothUnion2(-d1, -d2, k);
+}
+
+float Droplets(float sphereSDF, float dropletSDF)
+{
+    float finalValue = 0.0;
+    float resultSphere = opSmoothIntersection(sphereSDF, dropletSDF, 0.51);
+
+    finalValue = resultSphere;//smoothstep(0.2, 0.22, resultSphere);
+    return finalValue;
 }
 
 float3 depthWorldPosition(float2 uv, float z, float4x4 InvVP)

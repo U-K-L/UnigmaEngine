@@ -8,14 +8,15 @@ struct Vertex
 struct Payload
 {
     float4 color;
+    float distance;
     
 };
 
 struct AttributeData
 {
     float2 barycentrics;
-    float2 texcoord;
-    float3 normalOS;
+    float distance;
+    float3 position;
 };
 
 float2 GetUVs(AttributeData attributes)

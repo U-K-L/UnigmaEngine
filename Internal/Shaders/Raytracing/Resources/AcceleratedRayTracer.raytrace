@@ -1,19 +1,49 @@
 #include "HLSLSupport.cginc"
 #include "UnityRaytracingMeshUtils.cginc"
 #include "UnityShaderVariables.cginc"
+#include "../../RayTraceHelpersUnigma.hlsl"
+#include "UnityCG.cginc"
 
 RWTexture2D<float4> _RayTracedImage;
+RWTexture2D<float4> _DensityMap;
+RWTexture2D<float4> _ColorFieldNormalMap;
+RWTexture2D<float4> _VelocityMap;
+RWTexture2D<float4> _CurlMap;
+RWTexture2D<float4> _SurfaceMap;
+RWTexture2D<float4> _VelocitySurfaceDensityDepthTexture;
+RWTexture2D<float4> _DistancesMap;
+
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
 
-RaytracingAccelerationStructure _RaytracingAccelerationStructure : register(t0);
+RaytracingAccelerationStructure _RaytracingAccelerationStructure;// : register(t0);
+RaytracingAccelerationStructure g_SceneAccelStruct;
+float4x4                        g_InvViewMatrix;
+float4x4                        g_ViewMatrix;
+float                           g_Zoom;
 
 #pragma max_recursion_depth 1
 
-struct Payload
+
+struct Particle
 {
-	float4 color;
+    float4 force;
+    float3 position;
+    float3 lastPosition;
+    float3 predictedPosition;
+    float3 positionDelta;
+    float3 debugVector;
+    float3 velocity;
+    float3 normal;
+    float3 curl;
+    float density;
+    float lambda;
+    float mass;
+    int parent;
 };
+
+StructuredBuffer<Particle> _Particles;
+
 
 [shader("raygeneration")]
 void MyRaygenShader()
@@ -25,12 +55,12 @@ void MyRaygenShader()
     float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
     
     //Convert to camera space.
-    float4 viewPos = mul(_CameraInverseProjection, float4(pixel.x, pixel.y, 1, 1));
+    float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
     //Perspective divide.
     viewPos /= viewPos.w;
     
     //Convert to world space.
-    float3 worldPos = mul(_CameraToWorld, viewPos).xyz;
+    float3 worldPos = mul(unity_MatrixInvV, viewPos).xyz;
     float3 worldDirection = normalize(worldPos - _WorldSpaceCameraPos);
 
     //Creating RayDesc.
@@ -42,16 +72,76 @@ void MyRaygenShader()
 
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
+    payload.distance = 9999999999;
+    _VelocitySurfaceDensityDepthTexture[id.xy] = 0;
+    _CurlMap[id.xy] = 0;
+    _VelocityMap[id.xy] = 0;
+    _SurfaceMap[id.xy] = 0;
+    _ColorFieldNormalMap[id.xy] = 0;
+    _RayTracedImage[id.xy] = 0;//float4(position, depth);
 
+    TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    float minDist = payload.distance;
 
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    
+    float3 position = ray.Origin + ray.Direction * payload.distance;
+    float4 clipPos = UnityWorldToClipPos(position);
+    float depth = (clipPos.z) / (clipPos.w);
+    depth = 1.0 - depth;
 
-    _RayTracedImage[id.xy] += payload.color;
+    int particleId = payload.color.w;
+    int hits = 1;
+    
+    if(minDist > _DistancesMap[id.xy].x)
+	{
+		_RayTracedImage[id.xy] = 0;//_DistancesMap[id.xy];
+        return;
+	}
+    
+    for(int i = 0; i < 20; i++)
+    {
+        
+        if(payload.distance > 0)
+        {
+            ray.Origin = ray.Origin + ray.Direction * (payload.distance + 0.001f);
+			ray.TMax = 10000;
+			payload.distance = -1;
+            
+			TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+            hits += 1;
+        }else
+        {
+			break;
+		}
+    }
+    float kd = min(99.0f, hits) * 0.0055f;
+    float e = exp(kd);
+    float hitMap = e - 1.0f;
+    _DensityMap[id.xy] = hitMap;
+
+    
+    if(particleId >= 0)
+    {
+        Particle particle = _Particles[particleId];
+        float3 freeSurface = 1;
+        freeSurface = particle.density/ 28.0f;
+        _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
+        _SurfaceMap[id.xy] = float4(freeSurface, 1);
+		_VelocityMap[id.xy] = float4(particle.velocity, length(particle.velocity) + length(_Particles[particleId].curl) * 0.055);
+        _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
+        _RayTracedImage[id.xy] = float4(position, depth);
+    }
+    
+    _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, _DensityMap[id.xy].x, _RayTracedImage[id.xy].w);
     
 }
+
+
 
 [shader("miss")]
 void MyMissShader(inout Payload payload : SV_RayPayload)
 {
     payload.color = 0;
+    payload.distance = 9999999999;
+    
 }

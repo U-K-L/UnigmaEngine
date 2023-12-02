@@ -9,12 +9,17 @@ public class FluidSimulationManager : MonoBehaviour
 {
 
     [SerializeField]
-    Material material;
+    Material rasterMaterial;
+    [SerializeField]
+    Material rayTracingMaterial;
 
     [SerializeField]
-    Mesh mesh;
+    Mesh rasterMesh;
+    Mesh rayTracingMesh;
 
     ComputeShader _fluidSimulationComputeShader;
+    GraphicsBuffer aabbList = null;
+    AABB[] aabbs;
 
     ComputeBuffer _meshObjectBuffer;
     ComputeBuffer _verticesObjectBuffer;
@@ -39,6 +44,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _ComputeForcesKernelId;
     int _ComputeDensityKernelId;
     int _CreateGridKernelId;
+    int _CreateDistancesKernelId;
     int _UpdatePositionDeltasKernelId;
     int _UpdatePositionsKernelId;
     int _HashParticlesKernelId;
@@ -58,6 +64,7 @@ public class FluidSimulationManager : MonoBehaviour
     Vector3 _computeForcesThreadSize;
     Vector3 _computeDensityThreadSize;
     Vector3 _createGridThreadSize;
+    Vector3 _createDistancesThreadSize;
     Vector3 _updatePositionDeltasThreadSize;
     Vector3 _updatePositionsThreadSize;
     Vector3 _hashParticlesThreadSize;
@@ -85,6 +92,7 @@ public class FluidSimulationManager : MonoBehaviour
     RenderTexture _fluidDepthBufferTexture;
     RenderTexture _velocitySurfaceDensityDepthTexture;
     RenderTexture _depthBufferTexture;
+    RenderTexture _distancesMapTexture;
     List<RenderTexture> _previousPositionTextures;
 
     Shader _fluidNormalShader;
@@ -100,6 +108,7 @@ public class FluidSimulationManager : MonoBehaviour
     //public Transform _LightSouce;
     //public Transform _LightScale;
     public Material _fluidSimMaterialComposite;
+    public Material _fluidObjectsMaterial;
 
     public Vector2 BlurScale;
     public Vector3 _BoxSize = Vector3.one;
@@ -146,6 +155,8 @@ public class FluidSimulationManager : MonoBehaviour
     private BVHNode[] _BVHNodes;
     private int _renderTextureWidth, _renderTextureHeight = 0;
     private List<Vector3> _spawnParticles = default;
+    private Vector4 _initialForce;
+    private Vector3 _initialPosition;
 
     struct MeshObject
     {
@@ -195,6 +206,12 @@ public class FluidSimulationManager : MonoBehaviour
         public int[] children;
     };
 
+    struct AABB
+    {
+        public Vector3 min;
+        public Vector3 max;
+    }
+
     struct BVHNode
     {
         public Vector3 aabbMin;
@@ -237,8 +254,11 @@ public class FluidSimulationManager : MonoBehaviour
     public LayerMask RayTracingLayers;
     public int _SolveIterations = 1;
     int nodesUsed = 1;
-
+    
     Bounds bounds;
+
+    public int RayTracinghandle;
+    
     public enum RenderMethod
     {
         Rasterization,
@@ -252,13 +272,15 @@ public class FluidSimulationManager : MonoBehaviour
     public RenderMethod _renderMethod = RenderMethod.Rasterization;
     private RayTracingShader _RayTracingShaderAccelerated;
     RayTracingAccelerationStructure _AccelerationStructure;
-    
+    RayTracingAccelerationStructure _MeshAccelerationStructure;
+    private MaterialPropertyBlock properties = null;
     private void Awake()
     {
         Debug.Log("Particle Stride size is: " + _particleStride);
         Debug.Log("BVH Stride size is: " + _BVHStride);
         Debug.Log("Mesh Object Stride size is: " + _meshObjectStride);
         Debug.Log("Morton Code Stride size is: " + _MortonCodeStride);
+        aabbs = new AABB[MaxNumOfParticles];
         _spawnParticles = new List<Vector3>();
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
         _renderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.height), 32);
@@ -278,6 +300,8 @@ public class FluidSimulationManager : MonoBehaviour
         _rtTarget.name = "FinalMainScreenTexture";
         _densityMapTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _densityMapTexture.name = "DensityTexture";
+        _distancesMapTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _distancesMapTexture.name = "DistancesTexture";
         _normalMapTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _normalMapTexture.name = "NormalTexture";
         _velocityMapTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
@@ -317,6 +341,7 @@ public class FluidSimulationManager : MonoBehaviour
         _CalculateCurlKernelId = _fluidSimulationComputeShader.FindKernel("CalculateCurl");
         _CalculateVorticityKernelId = _fluidSimulationComputeShader.FindKernel("CalculateVorticity");
         _CreateGridKernelId = _fluidSimulationComputeShader.FindKernel("CreateGrid");
+        _CreateDistancesKernelId = _fluidSimulationComputeShader.FindKernel("CreateDistances");
         _ComputeForcesKernelId = _fluidSimulationComputeShader.FindKernel("ComputeForces");
         _ComputeDensityKernelId = _fluidSimulationComputeShader.FindKernel("ComputeDensity");
         _UpdatePositionDeltasKernelId = _fluidSimulationComputeShader.FindKernel("UpdatePositionDeltas");
@@ -345,6 +370,8 @@ public class FluidSimulationManager : MonoBehaviour
         _curlMapTexture.Create();
         _fluidNormalBufferTexture.enableRandomWrite = true;
         _fluidNormalBufferTexture.Create();
+        _distancesMapTexture.enableRandomWrite = true;
+        _distancesMapTexture.Create();
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "Result", _rtTarget);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "DensityMap", _densityMapTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "NormalMap", _fluidNormalBufferTexture);
@@ -352,10 +379,11 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_VelocityMap", _velocityMapTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_SurfaceMap", _surfaceMapTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "_CurlMap", _curlMapTexture);
+        _fluidSimulationComputeShader.SetTexture(_CreateDistancesKernelId, "_DistancesMap", _distancesMapTexture);
 
         //material.SetBuffer("_Particles", _particleBuffer);
         bounds = new Bounds(Vector3.zero, _BoxSize);
-
+        
         GetThreadSizes();
         AddObjectsToList();
         if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
@@ -368,7 +396,7 @@ public class FluidSimulationManager : MonoBehaviour
             CreateNonAcceleratedStructure();
         }
         UpdateNonAcceleratedRayTracer();
-        material.SetBuffer("_Particles", _particleBuffer);
+        rasterMaterial.SetBuffer("_Particles", _particleBuffer);
         CreateFluidCommandBuffers();
 
 
@@ -383,10 +411,11 @@ public class FluidSimulationManager : MonoBehaviour
         var settings = new RayTracingAccelerationStructure.RASSettings();
         settings.layerMask = RayTracingLayers;
         //Change this to manual after some work.
-        settings.managementMode = RayTracingAccelerationStructure.ManagementMode.Automatic;
+        settings.managementMode = RayTracingAccelerationStructure.ManagementMode.Manual;
         settings.rayTracingModeMask = RayTracingAccelerationStructure.RayTracingModeMask.Everything;
 
         _AccelerationStructure = new RayTracingAccelerationStructure(settings);
+        _MeshAccelerationStructure = new RayTracingAccelerationStructure(settings);
     }
 
     void DispatchAcceleratedRayTrace()
@@ -426,6 +455,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CreateGridKernelId, out threadsX, out threadsY, out threadsZ);
         _createGridThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CreateDistancesKernelId, out threadsX, out threadsY, out threadsZ);
+        _createDistancesThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_ComputeForcesKernelId, out threadsX, out threadsY, out threadsZ);
         _computeForcesThreadSize = new Vector3(threadsX, threadsY, threadsZ);
@@ -555,10 +587,12 @@ public class FluidSimulationManager : MonoBehaviour
             _indicesObjectBuffer = new ComputeBuffer(_indices.Count, 4);
             _verticesObjectBuffer.SetData(_vertices);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Vertices", _verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Vertices", _verticesObjectBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Vertices", _verticesObjectBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Vertices", _verticesObjectBuffer);
             _indicesObjectBuffer.SetData(_indices);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Indices", _indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Indices", _indicesObjectBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Indices", _indicesObjectBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Indices", _indicesObjectBuffer);
         }
@@ -571,8 +605,6 @@ public class FluidSimulationManager : MonoBehaviour
         CreateMeshes();
         UpdateParticles();
         BuildBVH();
-        if(UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
-            _AccelerationStructure.Build();
         //if(Time.realtimeSinceStartup < 10)
 
         //Only if spacebar is pressed
@@ -610,12 +642,14 @@ public class FluidSimulationManager : MonoBehaviour
         {
             _meshObjectBuffer.SetData(_meshObjects);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_MeshObjects", _meshObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_MeshObjects", _meshObjectBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_MeshObjects", _meshObjectBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_MeshObjects", _meshObjectBuffer);
         }
 
         _meshObjectBuffer.SetData(_meshObjects);
         _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_MeshObjects", _meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_MeshObjects", _meshObjectBuffer);
         _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_MeshObjects", _meshObjectBuffer);
         _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_MeshObjects", _meshObjectBuffer);
 
@@ -639,28 +673,17 @@ public class FluidSimulationManager : MonoBehaviour
                 break;
         }
 
-        //Create particles.
-        //SpawnParticlesInBox();
-        /*
-        for (int i = NumOfParticles; i < NumOfParticles + sizeOfNewParticlesAdded; i++)
-        {
-            _ParticleIndices[i] = i;
-            _ParticleIDs[i] = i;
-
-            Vector3 randomPos = Random.insideUnitSphere + initialSpawnPosition;
-            _particles[i].position = randomPos;
-            _particles[i].mass = MassOfParticle;
-            _particles[i].velocity = Vector3.zero;
-            _particles[i].force = force;
-            _particles[i].density = 0.0f;
-            _particles[i].pressure = 0.0f;
-            _particles[i].predictedPosition = _particles[i].position;
-        }
-        */
+        _particleBuffer.SetData(_particles, NumOfParticles, NumOfParticles, sizeOfNewParticlesAdded);
         NumOfParticles += sizeOfNewParticlesAdded;
-        _particleBuffer.SetData(_particles);
-    }
 
+        if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
+        {
+
+            _AccelerationStructure.RemoveInstance(RayTracinghandle);
+            RayTracinghandle = _AccelerationStructure.AddInstance(aabbList, (uint)NumOfParticles, true, Matrix4x4.identity, rayTracingMaterial, true, properties);
+
+        }
+    }
     public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force)
     {
         if (NumOfParticles >= MaxNumOfParticles)
@@ -687,8 +710,17 @@ public class FluidSimulationManager : MonoBehaviour
             _particles[i].lambda = 0.0f;
             _particles[i].predictedPosition = _particles[i].position;
         }
+        _particleBuffer.SetData(_particles, NumOfParticles, NumOfParticles, sizeOfNewParticlesAdded);
         NumOfParticles += sizeOfNewParticlesAdded;
-        _particleBuffer.SetData(_particles);
+
+
+        if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
+        {
+
+            _AccelerationStructure.RemoveInstance(RayTracinghandle);
+            RayTracinghandle = _AccelerationStructure.AddInstance(aabbList, (uint)NumOfParticles, true, Matrix4x4.identity, rayTracingMaterial, true, properties);
+
+        }
     }
 
     void SpawnInCube(int numberOfParticlesCubed, Vector3 containerSize, Vector3 initialSpawnPosition)
@@ -938,7 +970,7 @@ public class FluidSimulationManager : MonoBehaviour
             _MortonPrefixSumOffsetOnesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
             _MortonPrefixSumOffsetZeroesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
             _MortonPrefixSumTotalZeroesBuffer = new ComputeBuffer(_MortonCodes.Length, sizeof(uint));
-
+            aabbList = new GraphicsBuffer(GraphicsBuffer.Target.Structured, MaxNumOfParticles, 6 * sizeof(float));
 
             //Cubed root num of particles:
             float numOfParticlesCubedRoot = Mathf.Pow(NumOfParticles, 1.0f / 3.0f);
@@ -956,7 +988,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _particles[i].force = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
                 _particles[i].density = 0.0f;
                 _particles[i].lambda = 0.0f;
-                _particles[i].debugVector = Vector3.zero;
+                _particles[i].debugVector = new Vector3(-999, -999, -999);
                 _particles[i].parent = -1;
                 _particles[i].normal = Vector3.zero;
                 _particles[i].predictedPosition = _particles[i].position;
@@ -964,8 +996,25 @@ public class FluidSimulationManager : MonoBehaviour
                 _ParticleCount[i] = 0;
                 _ParticleCellIndices[i] = MaxNumOfParticles-1;
                 _ParticleCellOffsets[i] = MaxNumOfParticles-1;
+                AABB aabb = new AABB();
+                //aabb.min = -new Vector3(SizeOfParticle, SizeOfParticle, SizeOfParticle);
+                //aabb.max = new Vector3(SizeOfParticle, SizeOfParticle, SizeOfParticle);
+
+                Vector3 center = _particles[i].position*0;
+                Vector3 size = new Vector3(SizeOfParticle, SizeOfParticle, SizeOfParticle)*10;
+
+                aabb.min = center - size;
+                aabb.max = center + size;
+
+                aabbs[i] = aabb;
             }
 
+            if (properties == null)
+            {
+                properties = new MaterialPropertyBlock();
+            }
+            
+            aabbList.SetData(aabbs);
             _MortonCodesBuffer.SetData(_MortonCodes);
             _MortonCodesTempBuffer.SetData(_MortonCodesTemp);
             _particleIndicesBuffer.SetData(_ParticleIndices);
@@ -974,7 +1023,10 @@ public class FluidSimulationManager : MonoBehaviour
             _particleCellIndicesBuffer.SetData(_ParticleCellIndices);
             _particleCellOffsets.SetData(_ParticleCellOffsets);
             _particleCountBuffer.SetData(_ParticleCount);
+            properties.SetBuffer("_Particles", _particleBuffer);
+            
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Particles", _particleBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "g_AABBs", aabbList);
             //Set particle buffer to shader.
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_Particles", _particleBuffer);
@@ -1223,7 +1275,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetFloat("_Smoothness", Smoothness);
         //_fluidSimulationComputeShader.SetVector("_LightSource", _LightSouce.position);
         //_fluidSimulationComputeShader.SetVector("_LightScale", _LightScale.position);
-        _fluidSimulationComputeShader.SetFloat("_SizeOfParticle", SizeOfParticle);
+        //_fluidSimulationComputeShader.SetFloat("_SizeOfParticle", SizeOfParticle);
         _fluidSimulationComputeShader.SetFloat("_Radius", Radius);
         _fluidSimulationComputeShader.SetFloat("_GasConstant", GasConstant);
         _fluidSimulationComputeShader.SetFloat("_Viscosity", Viscosity);
@@ -1233,6 +1285,12 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetVector("_BoxSize", _BoxSize);
         _fluidSimulationComputeShader.SetInt("_ChosenParticle", ChosenParticle);
         _fluidSimulationComputeShader.SetBool("_IsOrthographic", _cam.orthographic);
+        _fluidSimulationComputeShader.SetVector("_initialPosition", _initialPosition);
+        _fluidSimulationComputeShader.SetVector("_initialForce", _initialForce);
+        
+        properties.SetBuffer("g_AABBs", aabbList);
+        Shader.SetGlobalFloat("_SizeOfParticle", SizeOfParticle);
+
 
 
 
@@ -1261,8 +1319,8 @@ public class FluidSimulationManager : MonoBehaviour
         //_fluidSimMaterialComposite.SetTexture("_VelocityMap", _velocityMapTexture);
         _fluidSimMaterialComposite.SetTexture("_CurlMap", _curlMapTexture);
 
-
-
+        //aabbList.GetData(aabbs);
+        //aabbList.SetData(aabbs);
         //uint threadsX, threadsY, threadsZ;
         //_fluidSimulationCompute.GetKernelThreadGroupSizes(0, out threadsX, out threadsY, out threadsZ);
         //_fluidSimulationCompute.Dispatch(0, Mathf.CeilToInt(Screen.width / threadsX), Mathf.CeilToInt(Screen.width / threadsY), (int)threadsZ);
@@ -1270,13 +1328,13 @@ public class FluidSimulationManager : MonoBehaviour
         //Execute shaders on render target.
         //Graphics.Blit(_rtTarget, _fluidDepthBuffer, _fluidSimMaterialDepth);
         //Graphics.Blit(source, _rtTarget, _fluidSimMaterialDepthHori);
-        if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
-            DispatchAcceleratedRayTrace();
+        //if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
+        //    DispatchAcceleratedRayTrace();
         Graphics.Blit(source, destination, _fluidSimMaterialComposite);
 
 
     }
-    
+
     void CreateFluidCommandBuffers()
     {
         CommandBuffer fluidCommandBuffers = new CommandBuffer();
@@ -1310,20 +1368,49 @@ public class FluidSimulationManager : MonoBehaviour
         
         if(_renderMethod == RenderMethod.RayTracing)
             fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
-
+        else
+            fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateDistancesKernelId, Mathf.CeilToInt(_renderTextureWidth / _createDistancesThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createDistancesThreadSize.y), (int)_createDistancesThreadSize.z);
+        
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _velocitySurfaceDensityDepthTexture);
         fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
         fluidCommandBuffers.SetGlobalTexture("_VelocityMap", _velocityMapTexture);
         fluidCommandBuffers.SetGlobalTexture("_SurfaceMap", _surfaceMapTexture);
+        fluidCommandBuffers.SetGlobalTexture("_CurlMap", _curlMapTexture);
+        fluidCommandBuffers.SetGlobalTexture("_ColorFieldNormalMap", _normalMapTexture);
+        fluidCommandBuffers.SetGlobalTexture("_DistancesMap", _distancesMapTexture);
+
+
 
         fluidCommandBuffers.SetRenderTarget(_velocitySurfaceDensityDepthTexture);
 
-        if (_renderMethod == RenderMethod.Rasterization || _renderMethod == RenderMethod.RayTracingAccelerated)
+        if (_renderMethod == RenderMethod.Rasterization)
         {
-            fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _depthBufferTexture);
+            fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _rtTarget.depthBuffer);
             fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-            fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 0, MaxNumOfParticles);
-            //fluidCommandBuffers.DrawMeshInstancedProcedural(mesh, 0, material, 1, MaxNumOfParticles);
+            fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 0, MaxNumOfParticles);
+            fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 1, MaxNumOfParticles);
+
+        }
+
+        if (_renderMethod == RenderMethod.RayTracingAccelerated)
+        {
+            foreach (Renderer r in _rayTracedObjects)
+            {
+                _MeshAccelerationStructure.AddInstance(r);
+            }
+            //_AccelerationStructure.UpdateInstanceTransform(handle, 
+            fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+            fluidCommandBuffers.SetRayTracingTextureParam(_RayTracingShaderAccelerated, "_RayTracedImage", _rtTarget);
+            fluidCommandBuffers.SetRayTracingTextureParam(_RayTracingShaderAccelerated, "_VelocitySurfaceDensityDepthTexture", _velocitySurfaceDensityDepthTexture);
+            fluidCommandBuffers.SetRayTracingBufferParam(_RayTracingShaderAccelerated, "_Particles", _particleBuffer);
+            fluidCommandBuffers.BuildRayTracingAccelerationStructure(_AccelerationStructure);
+            fluidCommandBuffers.BuildRayTracingAccelerationStructure(_MeshAccelerationStructure);
+            fluidCommandBuffers.SetRayTracingShaderPass(_RayTracingShaderAccelerated, "MyRaytraceShaderPass");
+            fluidCommandBuffers.SetRayTracingAccelerationStructure(_RayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _MeshAccelerationStructure);
+            fluidCommandBuffers.SetRayTracingAccelerationStructure(_RayTracingShaderAccelerated, Shader.PropertyToID("g_SceneAccelStruct"), _AccelerationStructure);
+            fluidCommandBuffers.DispatchRays(_RayTracingShaderAccelerated, "MyRaygenShader", (uint)_renderTextureWidth, (uint)_renderTextureHeight, 1);
+
+
         }
 
         fluidCommandBuffers.Blit(_velocitySurfaceDensityDepthTexture, _tempTarget, _fluidSimMaterialDepthHori);
@@ -1339,6 +1426,7 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.Blit(_fluidDepthBufferTexture, _fluidNormalBufferTexture, _fluidSimMaterialNormal);
 
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, fluidCommandBuffers);
+        //UnityEditor.SceneView.GetAllSceneCameras()[0].AddCommandBuffer(CameraEvent.AfterForwardOpaque, fluidCommandBuffers);
 
     }
     int HashVec(Vector3 p)
@@ -1429,6 +1517,12 @@ public class FluidSimulationManager : MonoBehaviour
             _MortonPrefixSumOffsetOnesBuffer.Release();
         if (_AccelerationStructure != null)
             _AccelerationStructure.Release();
+        if (_MeshAccelerationStructure != null)
+            _MeshAccelerationStructure.Release();
+        if (_distancesMapTexture != null)
+            _distancesMapTexture.Release();
+        if (aabbList != null)
+            aabbList.Release();
 
 
         _rtTarget.Release();

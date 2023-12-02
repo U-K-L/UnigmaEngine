@@ -16,6 +16,7 @@
 #pragma kernel AssignMortonCodes
 #pragma kernel AssignParents
 #pragma kernel AssignIndex
+#pragma kernel CreateDistances
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -48,6 +49,8 @@ const uint MaxNeighbors = 50;
 int biBlock;
 int biDim;
 int _ChosenParticle = 128;
+float4 _initialForce = 0;
+float3 _initialPosition = 99999999;
 
 
 
@@ -73,6 +76,12 @@ struct Vertex
     float3 position;
     float3 normal;
     float2 uv;
+};
+
+struct AABB
+{
+    float3 min;
+    float3 max;
 };
 
 struct Ray
@@ -161,6 +170,7 @@ int _BoxViewDebug;
 RWStructuredBuffer<uint> _MortonPrefixSumTotalZeroes;
 RWStructuredBuffer<uint> _MortonPrefixSumOffsetZeroes;
 RWStructuredBuffer<uint> _MortonPrefixSumOffsetOnes;
+RWStructuredBuffer<AABB> g_AABBs;
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -173,6 +183,7 @@ RWTexture2D<float4> _VelocityMap;
 RWTexture2D<float4> _CurlMap;
 RWTexture2D<float4> _SurfaceMap;
 RWTexture2D<float4> _VelocitySurfaceDensityDepthTexture;
+RWTexture2D<float4> _DistancesMap;
 
 Vertex CreateVertex(inout Vertex v)
 {
@@ -1205,6 +1216,28 @@ void CreateGrid (uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupT
 
 }
 
+[numthreads(16, 16, 1)]
+void CreateDistances(uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupThreadID)
+{
+    //Resets all values.
+    uint width, height;
+    _DistancesMap[id.xy] = 0;
+    //Gets the dimensions of the screen.
+    _DistancesMap.GetDimensions(width, height);
+    worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+    _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
+
+    //This is a ray for each pixel and in the pixel's center.
+    //So id.xy is this pixel, then offsetted to center, then divided by the width and height to get said center.
+    //Then range is shifted via 2 - 1.
+    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1; //Note in HLSL this vector v - scalar is applied to each element in v.
+    Ray ray = CreateCameraRay(pixel);
+    Hit hit = CreateHit();
+    
+    CollisionTrace(ray, hit);
+    _DistancesMap[id.xy] = hit.distance;
+}
+
 [numthreads(64, 1, 1)]
 void ComputeForces(uint3 id : SV_DispatchThreadID)
 {
@@ -1214,6 +1247,12 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
+    if (_Particles[id.x].debugVector.x <= -995)
+    {
+        //_Particles[id.x].position = _initialPosition;
+        //_Particles[id.x].force = _initialForce;
+    }
+    
 	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force +constantForces;
@@ -1223,8 +1262,10 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].velocity = vel;
     _Particles[id.x].lastPosition = _Particles[id.x].position;
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
-    _Particles[id.x].debugVector = 0.25;
+    //_Particles[id.x].debugVector = 0.25;
     _Particles[id.x].parent = -1;
+
+
 }
 
 void GetDensityIterative(uint3 id)
@@ -1286,8 +1327,8 @@ void GetDensityGrid(uint3 id)
                         if (particleIndex == _ChosenParticle)
                         {
                             //Set to color red.
-                            _Particles[particleIndex].debugVector = float3(1, 0, 0);
-                            _Particles[particleIndexB].debugVector = float3(0, 1, 0);
+                            //_Particles[particleIndex].debugVector = float3(1, 0, 0);
+                            //_Particles[particleIndexB].debugVector = float3(0, 1, 0);
                         }
                     }
                     neighbourIterator++;
@@ -1571,6 +1612,8 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].velocity = vel * velDamping;
 	_Particles[id.x].position = positionDelta;
 	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
+    g_AABBs[id.x].min = positionDelta - float3(_SizeOfParticle, _SizeOfParticle, _SizeOfParticle);
+    g_AABBs[id.x].max = positionDelta + float3(_SizeOfParticle, _SizeOfParticle, _SizeOfParticle);
     //_Particles[id.x].debugVector = ray.d;
 }
 

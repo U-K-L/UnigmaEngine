@@ -1,3 +1,5 @@
+// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
 Shader "Unlit/WaterParticle"
 {
     Properties
@@ -44,6 +46,7 @@ Shader "Unlit/WaterParticle"
             };
     
             StructuredBuffer<Particle> _Particles;
+            sampler2D _DistancesMap;
                 
             struct appdata
             {
@@ -58,6 +61,7 @@ Shader "Unlit/WaterParticle"
                 uint instanceID : SV_InstanceID;
 				float3 rayDir : TEXCOORD1;
 				float3 rayOrigin : TEXCOORD2;
+				float2 uv : TEXCOORD3;
             };
 
             UNITY_INSTANCING_BUFFER_START(Props)
@@ -78,9 +82,9 @@ Shader "Unlit/WaterParticle"
                 
                 unity_ObjectToWorld = 0.0;
                 unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
-                unity_ObjectToWorld._m00_m11_m22 = 0.220875;
+                unity_ObjectToWorld._m00_m11_m22 = 1.220875;
 
-
+                /*
                 // check if the current projection is orthographic or not from the current projection matrix
                 bool isOrtho = UNITY_MATRIX_P._m33 == 1.0;
 
@@ -113,7 +117,7 @@ Shader "Unlit/WaterParticle"
 
                 // use the max scale to figure out how big the quad needs to be to cover the entire sphere
                 // we're using a hardcoded object space radius of 0.5 in the fragment shader
-                float maxRadius = maxScale * 0.5;
+                float maxRadius = maxScale * 2.5;
 
                 // find the radius of a cone that contains the sphere with the point at the camera and the base at the pivot of the sphere
                 // this means the quad is always scaled to perfectly cover only the area the sphere is visible within
@@ -137,10 +141,31 @@ Shader "Unlit/WaterParticle"
                 // flatten mesh, in case it's a cube or sloped quad mesh
                 v.vertex.z = 0.0;
 
-                // calculate world space position for the camera facing quad
-                float3 worldPos = mul(v.vertex.xyz * quadScale, quadOrientationMatrix) + worldSpacePivotPos;
+
+                // offset towards the camera for use with conservative depth
+#if defined(USE_CONSERVATIVE_DEPTH)
+                worldPos += worldSpaceRayDir / dot(normalize(worldSpacePivotToView), worldSpaceRayDir) * maxRadius;
+#endif
+
+*/
+// check if the current projection is orthographic or not from the current projection matrix
+                bool isOrtho = UNITY_MATRIX_P._m33 == 1.0;
+
+                // viewer position, equivalent to _WorldSpaceCAmeraPos.xyz, but for the current view
+                float3 worldSpaceViewerPos = UNITY_MATRIX_I_V._m03_m13_m23;
+
+                // view forward
+                float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+
+                // pivot position
+                float3 worldSpacePivotPos = unity_ObjectToWorld._m03_m13_m23;
+
+                // offset between pivot and camera
+                float3 worldSpacePivotToView = worldSpaceViewerPos - worldSpacePivotPos;
 
                 // calculate world space view ray direction and origin for perspective or orthographic
+                float3 worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
+
                 float3 worldSpaceRayOrigin = worldSpaceViewerPos;
                 float3 worldSpaceRayDir = worldPos - worldSpaceRayOrigin;
                 if (isOrtho)
@@ -152,17 +177,13 @@ Shader "Unlit/WaterParticle"
                 // output object space ray direction and origin
                 o.rayDir = mul(unity_WorldToObject, float4(worldSpaceRayDir, 0.0));
                 o.rayOrigin = mul(unity_WorldToObject, float4(worldSpaceRayOrigin, 1.0));
-
-                // offset towards the camera for use with conservative depth
-#if defined(USE_CONSERVATIVE_DEPTH)
-                worldPos += worldSpaceRayDir / dot(normalize(worldSpacePivotToView), worldSpaceRayDir) * maxRadius;
-#endif
-
-
-
-                //float3 worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
-                //o.vertex = mul(UNITY_MATRIX_VP, float4(worldPos, 1));
-                o.vertex = UnityObjectToClipPos(worldPos);
+                float4 vert = UnityObjectToClipPos(v.vertex);
+                float4 uvs = ComputeScreenPos(vert);
+                uvs.xy /= uvs.w;
+                o.uv = uvs.xy;
+                
+                o.vertex = mul(UNITY_MATRIX_VP, float4(worldPos, 1));
+                //o.vertex = UnityObjectToClipPos(worldPos);
                 //o.vertex = mul(unity_ObjectToWorld, v.vertex);
                 o.instanceID = v.instanceID;
                 o.worldPos = worldPos;
@@ -189,11 +210,13 @@ Shader "Unlit/WaterParticle"
                 float distanceToCamera = length(positionWS - cameraPosition);
                 float linearDepth = (distanceToCamera - _ProjectionParams.y) / (_ProjectionParams.z - _ProjectionParams.y);
                 
-                float t1 = sphIntersect(i.rayOrigin, normalize(i.rayDir), float4(positionWS, 0.5));
+                
+                float t1 = sphIntersect(i.rayOrigin, normalize(i.rayDir), float4(positionWS, 1));
 				float3 worldRayPos = i.rayOrigin + i.rayDir * t1;
 				float depth = LinearDepthToRawDepth(linearDepth);
 
-                float4 clipPos = UnityWorldToClipPos(float4(worldRayPos, 1));
+                float4 clipPos = UnityWorldToClipPos(float4(positionWS, 1));
+                float4 distances = tex2D(_DistancesMap, i.uv);//
                 float depthN = (clipPos.z * 1.0) / (clipPos.w * 1.0);
                 depthN = 1.0 - depthN;
                 //
@@ -202,16 +225,21 @@ Shader "Unlit/WaterParticle"
                 float surface = 1.0 - (_Particles[i.instanceID].density / 180.0);
                 float density = 0;
                 float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, depthN);
-                GRT0 = velocitySurfaceDensityDepth;
-                //GRT1 = float4(0, 1,0,1);
-                if (t1 < epsilon)
+                if (t1 > distances.x)
                 {
-                    //depthN = 0;
-                    
+                    GRT0 = 0;
+                    GRT2 = 0;//float4(positionWS, depthN);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
+                    GRT3 = 0;
                 }
-                GRT2 = float4(worldRayPos, t1);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
-                GRT3 = float4(_Particles[i.instanceID].normal, 1);
-                GRTDepth = depth;
+                else
+                {
+                    GRT0 = velocitySurfaceDensityDepth;
+                    GRT2 = float4(positionWS, depthN);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
+                    GRT3 = float4(_Particles[i.instanceID].normal, 1);
+                }
+
+                //GRTDepth = 1;
+                
             }
             ENDCG
         }
@@ -251,7 +279,8 @@ Shader "Unlit/WaterParticle"
             };
 
             StructuredBuffer<Particle> _Particles;
-
+            sampler2D _DistancesMap;
+            
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -262,6 +291,7 @@ Shader "Unlit/WaterParticle"
             {
                 float4 vertex : SV_POSITION;
                 uint instanceID : SV_InstanceID;
+				float2 uv : TEXCOORD0;
             };
 
             UNITY_INSTANCING_BUFFER_START(Props)
@@ -281,6 +311,10 @@ Shader "Unlit/WaterParticle"
                 unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
                 unity_ObjectToWorld._m00_m11_m22 = 0.220875;
 
+                float4 vert = UnityObjectToClipPos(v.vertex);
+                float4 uvs = ComputeScreenPos(vert);
+                uvs.xy /= uvs.w;
+                o.uv = uvs.xy;
                 float3 worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
                 o.vertex = mul(UNITY_MATRIX_VP, float4(worldPos, 1));
                 //o.vertex = UnityObjectToClipPos(v.vertex);
@@ -314,9 +348,15 @@ Shader "Unlit/WaterParticle"
                 float velocity = length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055;
                 float surface = _Particles[i.instanceID].density / 28.0;
                 float density = 0.025;
+
+                float4 clipPos = UnityWorldToClipPos(float4(positionWS, 1));
+                float4 distances = tex2D(_DistancesMap, i.uv);//
+                float depthN = (clipPos.z * 1.0) / (clipPos.w * 1.0);
+                depthN = 1.0 - depthN;
+
                 float4 velocitySurfaceDensityDepth = float4(GRT0.x, GRT0.y, density, GRT0.w);
                 GRT0 = velocitySurfaceDensityDepth;
-				GRT1 = density*4;
+                GRT1 = density * 4;
             }
             ENDCG
         }

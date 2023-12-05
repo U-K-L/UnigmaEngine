@@ -38,6 +38,7 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _MortonPrefixSumTotalZeroesBuffer;
     ComputeBuffer _MortonPrefixSumOffsetZeroesBuffer;
     ComputeBuffer _MortonPrefixSumOffsetOnesBuffer;
+    ComputeBuffer _particleNeighbors;
 
     //Todo refactor some of these compute kernels out.
     int _UpdateParticlesKernelId;
@@ -59,6 +60,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _AssignIndexKernelId;
     int _CreateBVHTreeKernelId;
     int _CreateBoundingBoxKernelId;
+    int _StoreParticleNeighborsKernelId;
 
     Vector3 _updateParticlesThreadSize;
     Vector3 _computeForcesThreadSize;
@@ -79,6 +81,7 @@ public class FluidSimulationManager : MonoBehaviour
     Vector3 _assignIndexThreadSize;
     Vector3 _createBVHTreeThreadSize;
     Vector3 _createBoundingBoxThreadSize;
+    Vector3 _storeParticleNeighborsThreadSize;
 
     //TODO: Reduce texture overhead by combining some of these and lowering resolution for others.
     RenderTexture _rtTarget;
@@ -199,7 +202,7 @@ public class FluidSimulationManager : MonoBehaviour
         public int parent;
 
     };
-
+    
     struct PNode
     {
         public int index;
@@ -332,6 +335,7 @@ public class FluidSimulationManager : MonoBehaviour
         _MortonCodesTemp = new MortonCode[MaxNumOfParticles];
 
         _BVHNodesBuffer = new ComputeBuffer(_BVHNodes.Length, _BVHStride);
+        _particleNeighbors = new ComputeBuffer(MaxNumOfParticles*27, 4);
 
         _UpdateParticlesKernelId = _fluidSimulationComputeShader.FindKernel("UpdateParticles");
         _HashParticlesKernelId = _fluidSimulationComputeShader.FindKernel("HashParticles");
@@ -352,6 +356,7 @@ public class FluidSimulationManager : MonoBehaviour
         _AssignIndexKernelId = _fluidSimulationComputeShader.FindKernel("AssignIndex");
         _CreateBVHTreeKernelId = _fluidSimulationComputeShader.FindKernel("CreateBVHTree");
         _CreateBoundingBoxKernelId = _fluidSimulationComputeShader.FindKernel("CreateBoundingBox");
+        _StoreParticleNeighborsKernelId = _fluidSimulationComputeShader.FindKernel("StoreParticleNeighbors");
 
 
         _rtTarget.enableRandomWrite = true;
@@ -491,6 +496,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_CreateBoundingBoxKernelId, out threadsX, out threadsY, out threadsZ);
         _createBoundingBoxThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+        _fluidSimulationComputeShader.GetKernelThreadGroupSizes(_StoreParticleNeighborsKernelId, out threadsX, out threadsY, out threadsZ);
+        _storeParticleNeighborsThreadSize = new Vector3(threadsX, threadsY, threadsZ);
     }
 
     void SortParticles()
@@ -940,6 +948,25 @@ public class FluidSimulationManager : MonoBehaviour
         }
     }
 
+    void PrintNeighborData()
+    {
+        uint[] neighbors = new uint[MaxNumOfParticles * 27];
+        _particleNeighbors.GetData(neighbors);
+        for (int i = 0; i < NumOfParticles; i++)
+        {
+            string log = "Particle ID: " + i + " ParticleNeighbors: ";
+
+            for (int j = 0; j < 27; j++)
+            {
+                log += "{ ";
+                log += neighbors[i * 27 + j];
+                log += " }";
+            }
+
+            Debug.Log(log);
+        }
+    }
+
     void PrintBVH()
     {
         for (int i = 0; i < nodesUsed; i++)
@@ -1027,6 +1054,13 @@ public class FluidSimulationManager : MonoBehaviour
             
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "g_AABBs", aabbList);
+            _fluidSimulationComputeShader.SetBuffer(_StoreParticleNeighborsKernelId, "_particleNeighbors", _particleNeighbors);
+            _fluidSimulationComputeShader.SetBuffer(_ComputeDensityKernelId, "_particleNeighbors", _particleNeighbors);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionDeltasKernelId, "_particleNeighbors", _particleNeighbors);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_particleNeighbors", _particleNeighbors);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_particleNeighbors", _particleNeighbors);
+            //_fluidSimulationComputeShader.SetBuffer(_ComputeDensityKernelId, "_particleNeighbors", _particleNeighbors);
+
             //Set particle buffer to shader.
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_Particles", _particleBuffer);
@@ -1041,6 +1075,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateBVHTreeKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateBoundingBoxKernelId, "_Particles", _particleBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_StoreParticleNeighborsKernelId, "_Particles", _particleBuffer);
 
             _fluidSimulationComputeShader.SetBuffer(_CreateBVHTreeKernelId, "_BVHNodes", _BVHNodesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_BVHNodes", _BVHNodesBuffer);
@@ -1060,7 +1095,9 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleIndices", _particleIndicesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleIndices", _particleIndicesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleIndices", _particleIndicesBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_StoreParticleNeighborsKernelId, "_ParticleIndices", _particleIndicesBuffer);
 
+            _fluidSimulationComputeShader.SetBuffer(_StoreParticleNeighborsKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
             _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_ParticleCellIndices", _particleCellIndicesBuffer);
@@ -1076,6 +1113,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleIDs", _particleIDsBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateBoundingBoxKernelId, "_ParticleIDs", _particleIDsBuffer);
             _fluidSimulationComputeShader.SetBuffer(_CreateBVHTreeKernelId, "_ParticleIDs", _particleIDsBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_StoreParticleNeighborsKernelId, "_ParticleIDs", _particleIDsBuffer);
 
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_ParticleCellOffsets", _particleCellOffsets);
@@ -1089,6 +1127,7 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidSimulationComputeShader.SetBuffer(_CalculateCellOffsetsKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_ParticleCellOffsets", _particleCellOffsets);
             _fluidSimulationComputeShader.SetBuffer(_CalculateVorticityKernelId, "_ParticleCellOffsets", _particleCellOffsets);
+            _fluidSimulationComputeShader.SetBuffer(_StoreParticleNeighborsKernelId, "_ParticleCellOffsets", _particleCellOffsets);
 
             _fluidSimulationComputeShader.SetBuffer(_SortParticlesKernelId, "_ParticleCount", _particleCountBuffer);
             _fluidSimulationComputeShader.SetBuffer(_RadixSortKernelId, "_ParticleCount", _particleCountBuffer);
@@ -1140,9 +1179,10 @@ public class FluidSimulationManager : MonoBehaviour
 
             SortParticles();
             CalculateCellOffsets();
+            StoreParticleNeighbors();
             if(_renderMethod == RenderMethod.RayTracing)
                 CreateBVHTree();
-            //DebugParticlesBVH();
+            
 
             for (int i = 0; i < _SolveIterations; i++)
             {
@@ -1151,8 +1191,9 @@ public class FluidSimulationManager : MonoBehaviour
                 UpdatePredictedPositions();
             }
 
-            ComputeCurl();
+            //ComputeCurl();
             ComputePositions();
+            //DebugParticlesBVH();
             //ComputeVorticity();
             //Set Particle positions to script.
             //NOT NEEDED. MOVE ENTIRE BVH TO GPU!!!!
@@ -1175,6 +1216,11 @@ public class FluidSimulationManager : MonoBehaviour
     void CalculateCellOffsets()
     {
         _fluidSimulationComputeShader.Dispatch(_CalculateCellOffsetsKernelId, Mathf.CeilToInt(NumOfParticles / _calculateCellOffsetsThreadSize.x), 1, 1);
+    }
+
+    void StoreParticleNeighbors()
+    {
+        _fluidSimulationComputeShader.Dispatch(_StoreParticleNeighborsKernelId, Mathf.CeilToInt((NumOfParticles*27) / _storeParticleNeighborsThreadSize.x), 1, 1);
     }
 
     void ComputeDensity()
@@ -1228,6 +1274,8 @@ public class FluidSimulationManager : MonoBehaviour
                 //Debug.Log(" Particle IDs: " + _MortonCodes[i].mortonCode);
                 Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Parent Of Particle " + _particles[_ParticleIDs[i]].parent + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7")  + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
             }
+
+            PrintNeighborData();
 
             /*
             using (StreamWriter sw = new StreamWriter("Assets/Debug/FluidSim/ParticlePositions" + Time.timeAsDouble + ".txt"))
@@ -1523,6 +1571,8 @@ public class FluidSimulationManager : MonoBehaviour
             _distancesMapTexture.Release();
         if (aabbList != null)
             aabbList.Release();
+        if (_particleNeighbors != null)
+            _particleNeighbors.Release();
 
 
         _rtTarget.Release();

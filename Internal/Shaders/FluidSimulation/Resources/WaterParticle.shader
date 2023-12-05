@@ -234,7 +234,7 @@ Shader "Unlit/WaterParticle"
                 else
                 {
                     GRT0 = velocitySurfaceDensityDepth;
-                    GRT2 = float4(positionWS, depthN);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
+                    GRT2 = float4(_Particles[i.instanceID].position, 1);//float4(positionWS, depthN);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
                     GRT3 = float4(_Particles[i.instanceID].normal, 1);
                 }
 

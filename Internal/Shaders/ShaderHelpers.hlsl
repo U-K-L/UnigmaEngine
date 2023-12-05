@@ -81,6 +81,19 @@ uint clz(uint b)
 	return len;
 }
 
+uint setBit(uint input, uint index)
+{
+    uint mask = 1 << index;
+    input = input | mask;
+    return input;
+}
+
+uint clearBit(uint input, uint index)
+{
+    uint mask = 1 << index;
+    input = input & ~mask;
+    return input;
+}
 
 float4 grad4(float j, float4 ip)
 {

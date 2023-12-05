@@ -586,7 +586,7 @@ Shader "Hidden/FluidComposition"
                 //return edgeNormal;
                 //return waterSpecular;
                 //return fluidsNormal;
-                //return float4(fluidsDepth.z, fluidsDepth.z, fluidsDepth.z,1);
+                //return float4(fluidsDepth.z, fluidsDepth.z, fluidsDepth.z, 1);
                 //return cleanFluidSingleColor + edgeDepth +float4((particleNormalMap.xyz * 0.5 + 0.5) * fluids.w, fluids.w) * 0.25;
               
                 //return finalImage;

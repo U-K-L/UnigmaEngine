@@ -1182,7 +1182,8 @@ public class FluidSimulationManager : MonoBehaviour
             StoreParticleNeighbors();
             if(_renderMethod == RenderMethod.RayTracing)
                 CreateBVHTree();
-            
+
+            //DebugParticlesBVH();
 
             for (int i = 0; i < _SolveIterations; i++)
             {

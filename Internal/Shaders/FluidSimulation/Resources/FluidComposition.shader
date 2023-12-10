@@ -237,6 +237,7 @@ Shader "Hidden/FluidComposition"
                 float2 distortionGrabPass2 = duv + ((_Intensity * 0.035) * diplacementNormalsInner.rg);
                 
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
+                fluids.w = (1.0 - fluids.w) * step(0, fluids.w);
 			    fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, distortionBlob);
 			    fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, distortionBlob);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
@@ -249,9 +250,10 @@ Shader "Hidden/FluidComposition"
 				fixed4 distanceMap = tex2D(_DistancesMap, i.uv);
                 float4 camDepthTex = tex2D(_CameraDepthTexture, i.uv);
                 
+                //return densityMap;
 				fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass *2);
 
-                float3 fluidNormalsAvg = ModalFilter(_UnigmaFluidsNormals, i.uv);
+                float3 fluidNormalsAvg = fluidsNormal;//ModalFilter(_UnigmaFluidsNormals, i.uv);
 				//velocityMap.xyz = ModalFilter(_VelocityMap, i.uv);
                 
                 //Triplanar
@@ -365,7 +367,7 @@ Shader "Hidden/FluidComposition"
                 normalFiniteDifference1 = normal3.xyz - normal2.xyz;
 
                 float edgeInner = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
-                edgeInner = smoothstep(0.00199, 0.074, edgeInner)*fluids.w;//edgeInner > 0.099 - edgeInner ? 1 : 0;
+                edgeInner = 0;//smoothstep(0.0604, 0.0624, edgeInner)*fluids.w;//edgeInner > 0.099 - edgeInner ? 1 : 0;
                 
 
                 float edge = max(edgeDepth, edgeInner);
@@ -437,7 +439,7 @@ Shader "Hidden/FluidComposition"
 
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
 
-                float NdotL = saturate(dot(particleNormalMap.xyz, _WorldSpaceLightPos0.xyz)) * 0.5 + 0.5;
+                float NdotL = saturate(dot(fluidsNormal.xyz, _WorldSpaceLightPos0.xyz)) * 0.5 + 0.5;
                 //NdotL = step(0.705, NdotL);
                 float4 diffuse = saturate(NdotL * _LightColor0);
                 float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
@@ -563,6 +565,9 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerp = causaticLerpSide * 0.15 + causaticLerpTop*0.825;
                 float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.65 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 				
+                //return diffuse;
+                //return fluids.w;
+                return colorLerping;
                 //return distanceMap*0.025f;
 				//return tex2D(_DepthBufferTexture, i.uv);
                 //return fluidsDepth.w;
@@ -587,10 +592,11 @@ Shader "Hidden/FluidComposition"
                 //return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
                 //return edgeNormal;
                 //return waterSpecular;
-                return fluidsNormal;
-                return camDepthTex;
-                return distanceMap;
-                return fluidsNormal;
+                //return fluidsNormal;
+                //return fluidsDepth.w;
+                //return camDepthTex;
+                //return distanceMap;
+                //return fluidsNormal;
                 //return float4(fluidsDepth.z, fluidsDepth.z, fluidsDepth.z, 1);
                 //return cleanFluidSingleColor + edgeDepth +float4((particleNormalMap.xyz * 0.5 + 0.5) * fluids.w, fluids.w) * 0.25;
               

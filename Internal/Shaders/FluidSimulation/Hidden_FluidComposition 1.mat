@@ -80,7 +80,7 @@ Material:
     - _FresnelPower: 10
     - _Intensity: 1.2
     - _NoiseScale: 35
-    - _OutlineThickness: 0.027
+    - _OutlineThickness: 0.0003
     - _ScaleX: 0.66
     - _ScaleY: -1.45
     - _SpecularIntensity: 2.9

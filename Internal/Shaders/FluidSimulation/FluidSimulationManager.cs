@@ -280,6 +280,7 @@ public class FluidSimulationManager : MonoBehaviour
     private MaterialPropertyBlock properties = null;
     private void Awake()
     {
+        //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
         Debug.Log("Particle Stride size is: " + _particleStride);
         Debug.Log("BVH Stride size is: " + _BVHStride);

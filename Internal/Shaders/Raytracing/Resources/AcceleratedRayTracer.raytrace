@@ -87,27 +87,28 @@ void MyRaygenShader()
     float3 position = ray.Origin + ray.Direction * payload.distance;
     float4 clipPos = UnityWorldToClipPos(position);
     float depth = (clipPos.z) / (clipPos.w);
-    depth = 1.0 - depth;
+    //depth = 1.0 - depth;
 
     int particleId = payload.color.w;
-    int hits = 1;
+    int hits = 0;
     
+    /*
     if(minDist > _DistancesMap[id.xy].x)
 	{
 		_RayTracedImage[id.xy] = 0;//_DistancesMap[id.xy];
         return;
 	}
-    
-    for(int i = 0; i < 20; i++)
+    */
+    for(int i = 0; i < 1; i++)
     {
-        
-        if(payload.distance > 0)
+                    
+		TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+        if(payload.distance < 9999999999)
         {
             ray.Origin = ray.Origin + ray.Direction * (payload.distance + 0.001f);
 			ray.TMax = 10000;
-			payload.distance = -1;
-            
-			TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+			payload.distance = 9999999999;
+
             hits += 1;
         }else
         {
@@ -132,7 +133,7 @@ void MyRaygenShader()
         _RayTracedImage[id.xy] = float4(position, depth);
     }
     
-    _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, _DensityMap[id.xy].x, _RayTracedImage[id.xy].w);
+    _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, _DensityMap[id.xy].x, depth);
     
 }
 

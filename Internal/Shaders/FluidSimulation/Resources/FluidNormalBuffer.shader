@@ -61,7 +61,7 @@ Shader "Hidden/FluidNormalBuffer"
                 return mul(InvMatrix, position_s * _ProjectionParams.z);
             }
 
-            float getRawDepth(float2 uv) { return tex2D(_DistancesMap, uv); }
+            float getRawDepth(float2 uv) { return tex2D(_UnigmaFluidsDepth, uv).w; }
 
 
             float3 viewSpacePosAtPixelPosition(v2f i, float2 pos)

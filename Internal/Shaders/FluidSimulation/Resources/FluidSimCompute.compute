@@ -1357,8 +1357,8 @@ void GetDensityGrid(uint3 id)
             Particle neighbour = _Particles[particleIndexB];
             float distance2 = distance(_Particles[particleIndex].predictedPosition, _Particles[particleIndexB].predictedPosition);
             float3 pressureGradDir = _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition;
-            if (0.001f < distance2 && distance2 < _Radius * 2)
-            {
+            //if (0.001f < distance2 && distance2 < _Radius * 2)
+            //{
                 //Poly6
                 densitySum += Poly6Kernel(distance2) * _Particles[particleIndex].mass;
                 //Spiky
@@ -1366,7 +1366,7 @@ void GetDensityGrid(uint3 id)
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
                 colorField += _Particles[particleIndexB].mass * (1 / _Particles[particleIndexB].density) * Poly6GradientKernel(distance2, pressureGradDir);
-            }
+            //}
 
             cell = clearBit(cell, index);
 
@@ -1376,7 +1376,7 @@ void GetDensityGrid(uint3 id)
     //densitySum *= 0.8250;
     float constraint = (densitySum / _RestDensity) - 1;
 	dNorm += dot(spiky_i, spiky_i);
-    float lambda = -constraint / (dNorm + 1450.0f);
+    float lambda = -constraint / (dNorm + 1000.0f);
     _Particles[particleIndex].density = densitySum;
     //_Particles[particleIndex].debugVector += float3(0, 0, 1) * (densitySum / _RestDensity);
 	_Particles[particleIndex].lambda = lambda;
@@ -1409,7 +1409,8 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
     
     int numOfParticles = _NumOfParticles;
     uint particleIndex = _ParticleIndices[id.x];
-    int3 cellIndex = GetCell(_Particles[particleIndex].predictedPosition);
+    Particle particleCurrent = _Particles[particleIndex];
+    int3 cellIndex = GetCell(particleCurrent.predictedPosition);
 
     float3 positionDelta = 0;
     
@@ -1481,16 +1482,16 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
             uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex] + index;
             uint particleIndexB = _ParticleIndices[neighbourIterator];
 
-            Particle neighbour = _Particles[particleIndexB];
-            float dist = distance(_Particles[particleIndex].predictedPosition, _Particles[particleIndexB].predictedPosition);
-            if (0.001f < dist && dist < _Radius * 2)
-            {
+            Particle neighbor = _Particles[particleIndexB];
+            float dist = distance(particleCurrent.predictedPosition, neighbor.predictedPosition);
+            //if (0.001f < dist && dist < _Radius * 2)
+            //{
                 float Scorr = -0.001 * pow(Poly6Kernel(dist) / Poly6Kernel(0.0003 * _Radius), 4);
-                float left = _Particles[particleIndex].lambda + _Particles[particleIndexB].lambda + Scorr;
-                float3 right = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
+                float left = particleCurrent.lambda + neighbor.lambda + Scorr;
+                float3 right = SpikyKernelGradient(dist, particleCurrent.predictedPosition - neighbor.predictedPosition);
 
                 positionDelta += left * right / _RestDensity;//left * right / _RestDensity;
-            }
+            //}
             cell = clearBit(cell, index);
 
         }

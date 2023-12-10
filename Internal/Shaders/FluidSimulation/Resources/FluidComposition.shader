@@ -587,6 +587,7 @@ Shader "Hidden/FluidComposition"
                 //return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
                 //return edgeNormal;
                 //return waterSpecular;
+                return fluidsNormal;
                 return camDepthTex;
                 return distanceMap;
                 return fluidsNormal;

@@ -218,7 +218,7 @@ Shader "Unlit/WaterParticle"
                 float4 clipPos = UnityWorldToClipPos(float4(positionWS, 1));
                 float4 distances = tex2D(_DistancesMap, i.uv);//
                 float depthN = (clipPos.z * 1.0) / (clipPos.w * 1.0);
-                depthN = 1.0 - depthN;
+                depthN = 1.0 - depth;//1.0 - depthN;
                 //
                 //return float4(position, 1);//float4(i.instanceID/10, i.instanceID, position.z, 1);
                 float velocity = length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055;
@@ -360,5 +360,80 @@ Shader "Unlit/WaterParticle"
             }
             ENDCG
         }
+
+        // ------------------------------------------------------------------
+//  Shadow rendering pass
+        Pass{
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+
+            ZWrite On ZTest LEqual
+
+            CGPROGRAM
+            #pragma target 2.0
+
+            #pragma vertex vertShadowCaster2
+            #pragma fragment fragShadowCaster2
+
+            // We have to do these dances of outputting SV_POSITION separately from the vertex shader,
+            // and inputting VPOS in the pixel shader, since they both map to "POSITION" semantic on
+            // some platforms, and then things don't go well.
+#include "UnityCG.cginc"
+#include "UnityShaderVariables.cginc"
+#include "UnityStandardConfig.cginc"
+#include "UnityStandardUtils.cginc"
+
+
+    struct VertexOutputShadowCaster
+{
+    V2F_SHADOW_CASTER_NOPOS
+    #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
+        float2 tex : TEXCOORD1;
+
+        #if defined(_PARALLAXMAP)
+            half3 viewDirForParallax : TEXCOORD2;
+        #endif
+    #endif
+};
+
+
+half4       _Color;
+half        _Cutoff;
+sampler2D   _MainTex;
+float4      _MainTex_ST;
+
+
+// SHADOW_ONEMINUSREFLECTIVITY(): workaround to get one minus reflectivity based on UNITY_SETUP_BRDF_INPUT
+#define SHADOW_JOIN2(a, b) a##b
+#define SHADOW_JOIN(a, b) SHADOW_JOIN2(a,b)
+#define SHADOW_ONEMINUSREFLECTIVITY SHADOW_JOIN(UNITY_SETUP_BRDF_INPUT, _ShadowGetOneMinusReflectivity)
+
+struct VertexInput
+{
+    float4 vertex   : POSITION;
+    float3 normal   : NORMAL;
+    float2 uv0      : TEXCOORD0;
+};
+
+#define TRANSFER_SHADOW_CASTER_NOPOS2(o,opos) o.vec = mul(unity_ObjectToWorld, v.vertex).xyz - _LightPositionRange.xyz; opos = UnityObjectToClipPos(v.vertex);
+struct VertexOutputStereoShadowCaster
+{
+    UNITY_VERTEX_OUTPUT_STEREO
+};
+
+void vertShadowCaster2(VertexInput v, out float4 opos : SV_POSITION, out VertexOutputShadowCaster o)
+{
+    opos = UnityObjectToClipPos(v.vertex);
+    opos.z /= opos.w;
+}
+
+half4 fragShadowCaster2(UNITY_POSITION(vpos)) : SV_Target
+{
+    return 0;
+}
+
+    ENDCG
+        }
+
     }
 }

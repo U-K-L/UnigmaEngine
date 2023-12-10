@@ -55,6 +55,13 @@ Shader "Hidden/FluidNormalBuffer"
                 fixed4 fluids = tex2D(_UnigmaFluidsDepth, i.uv);
                 fixed4 colorFieldGrad = tex2D(_UnigmaFluids, i.uv);
                 float3 eyeSpacePos = getEyePos(_UnigmaFluidsDepth, i.uv);
+
+                float width = 1920;
+                float height = 1080;
+                float offset = 0.5 / width;
+
+                float2 uv = float2(i.uv.x + offset, i.uv.y);
+                float2 uv2 = float2(i.uv.x - offset, i.uv.y);
                 // calculate differences
                 float3 ddx = getEyePos(_UnigmaFluidsDepth, i.uv + float2(_UnigmaFluidsDepth_TexelSize.x, 0)) - eyeSpacePos;
                 float3 ddx2 = eyeSpacePos - getEyePos(_UnigmaFluidsDepth, i.uv + float2(-_UnigmaFluidsDepth_TexelSize.x, 0));
@@ -76,7 +83,7 @@ Shader "Hidden/FluidNormalBuffer"
                 hardNormals += float3(0, 0, 1) * step(0.31, normal.z);
 
 				float4 finalImage = lerp(float4(hardNormals, 1.0), float4(normal, 1.0), 0.65);
-                return float4(finalImage.xyz, 1);
+                return float4(normal.xyz, 1);
             }
             ENDCG
         }

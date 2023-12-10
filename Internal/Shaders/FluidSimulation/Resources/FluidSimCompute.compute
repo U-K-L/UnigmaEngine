@@ -1231,7 +1231,9 @@ void CreateDistances(uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_Gr
     Hit hit = CreateHit();
     
     CollisionTrace(ray, hit);
-    _DistancesMap[id.xy] = hit.distance;
+    float4 clipPos = UnityWorldToClipPos(hit.position);
+    float depth = clipPos.z / clipPos.w;
+    _DistancesMap[id.xy] = depth;
 }
 
 [numthreads(64, 1, 1)]

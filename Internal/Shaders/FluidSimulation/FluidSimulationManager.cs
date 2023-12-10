@@ -120,6 +120,7 @@ public class FluidSimulationManager : MonoBehaviour
     public Color ShallowWaterColor = Color.white;
 
     public int ResolutionDivider = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
+    public int DistanceResolutionDivider = 0;
     public int NumOfParticles;
     public int MaxNumOfParticles;
 
@@ -156,7 +157,7 @@ public class FluidSimulationManager : MonoBehaviour
     
     private List<PNode> _pNodes;
     private BVHNode[] _BVHNodes;
-    private int _renderTextureWidth, _renderTextureHeight = 0;
+    private int _renderTextureWidth, _renderTextureHeight, _distanceTextureWidth, _distanceTextureHeight = 0;
     private List<Vector3> _spawnParticles = default;
     private Vector4 _initialForce;
     private Vector3 _initialPosition;
@@ -279,6 +280,7 @@ public class FluidSimulationManager : MonoBehaviour
     private MaterialPropertyBlock properties = null;
     private void Awake()
     {
+        Camera.main.depthTextureMode = DepthTextureMode.Depth;
         Debug.Log("Particle Stride size is: " + _particleStride);
         Debug.Log("BVH Stride size is: " + _BVHStride);
         Debug.Log("Mesh Object Stride size is: " + _meshObjectStride);
@@ -287,6 +289,9 @@ public class FluidSimulationManager : MonoBehaviour
         _spawnParticles = new List<Vector3>();
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
         _renderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.height), 32);
+
+        _distanceTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(DistanceResolutionDivider)))), Screen.width), 32);
+        _distanceTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(DistanceResolutionDivider)))), Screen.height), 32);
         _fluidSimulationComputeShader = Resources.Load<ComputeShader>("FluidSimCompute");
         
         _fluidNormalShader = Resources.Load<Shader>("FluidNormalBuffer");
@@ -303,7 +308,7 @@ public class FluidSimulationManager : MonoBehaviour
         _rtTarget.name = "FinalMainScreenTexture";
         _densityMapTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _densityMapTexture.name = "DensityTexture";
-        _distancesMapTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _distancesMapTexture = RenderTexture.GetTemporary(_distanceTextureWidth, _distanceTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _distancesMapTexture.name = "DistancesTexture";
         _normalMapTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _normalMapTexture.name = "NormalTexture";
@@ -1418,7 +1423,7 @@ public class FluidSimulationManager : MonoBehaviour
         if(_renderMethod == RenderMethod.RayTracing)
             fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
         else
-            fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateDistancesKernelId, Mathf.CeilToInt(_renderTextureWidth / _createDistancesThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createDistancesThreadSize.y), (int)_createDistancesThreadSize.z);
+            fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateDistancesKernelId, Mathf.CeilToInt(_distanceTextureWidth / _createDistancesThreadSize.x), Mathf.CeilToInt(_distanceTextureHeight / _createDistancesThreadSize.y), (int)_createDistancesThreadSize.z);
         
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _velocitySurfaceDensityDepthTexture);
         fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
@@ -1438,7 +1443,7 @@ public class FluidSimulationManager : MonoBehaviour
             fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 0, MaxNumOfParticles);
             fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 1, MaxNumOfParticles);
-
+            fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 2, MaxNumOfParticles);
         }
 
         if (_renderMethod == RenderMethod.RayTracingAccelerated)

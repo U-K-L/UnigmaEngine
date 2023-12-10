@@ -72,7 +72,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-			sampler2D _DistancesMap, _DepthBufferTexture, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
+			sampler2D _CameraDepthTexture, _DistancesMap, _DepthBufferTexture, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity, _DensityThickness, _OutlineThickness;
 			float _CausticIntensity, _CausticScale, _Speed, _ScaleX, _ScaleY, _SpecularPower, _SpecularIntensity, _FresnelPower;
@@ -247,6 +247,7 @@ Shader "Hidden/FluidComposition"
 				fixed4 surfaceMap = tex2D(_SurfaceMap, i.uv);
                 fixed4 curlMap = tex2D(_CurlMap, i.uv);
 				fixed4 distanceMap = tex2D(_DistancesMap, i.uv);
+                float4 camDepthTex = tex2D(_CameraDepthTexture, i.uv);
                 
 				fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass *2);
 
@@ -569,7 +570,7 @@ Shader "Hidden/FluidComposition"
                 //return float4(fluids.xyz, 1);
                 //return densityMap;
                 //return surface;
-                return colorLerping;
+                //return colorLerping;
                 //return edgeInner;
                 //return fluidsDepth;
                 float curly = length(curlMap);
@@ -579,13 +580,16 @@ Shader "Hidden/FluidComposition"
                 float4 waterWithFoam = colorLerping;
                 waterWithFoam.xyz += float3(foam, foam, foam);
                 
+                //return cleanFluidSingleColor;
                 //return originalImage;
-                //return fluidsDepth;
+                //return fluidsDepth.w;
                 //return curlMap;
                 //return waterWithFoam;//lerp(colorLerping, float4(1,1,1,1), foam);
                 //return edgeNormal;
                 //return waterSpecular;
-                //return fluidsNormal;
+                return camDepthTex;
+                return distanceMap;
+                return fluidsNormal;
                 //return float4(fluidsDepth.z, fluidsDepth.z, fluidsDepth.z, 1);
                 //return cleanFluidSingleColor + edgeDepth +float4((particleNormalMap.xyz * 0.5 + 0.5) * fluids.w, fluids.w) * 0.25;
               

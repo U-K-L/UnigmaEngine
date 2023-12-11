@@ -40,6 +40,7 @@ Shader "Unlit/WriteOutDepth"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float4x4 _Perspective_Matrix_VP;
 
             v2f vert (appdata v)
             {
@@ -50,11 +51,30 @@ Shader "Unlit/WriteOutDepth"
                 o.rawVert.z *= -1;
                 o.worldPos = worldPos;
                 //o.depth = -mul(UNITY_MATRIX_MV, v.vertex).z * _ProjectionParams.w;
-                o.depth = UnityObjectToClipPos(v.vertex);
-                o.depth.z /= o.depth.w;
+                //o.depth = UnityObjectToClipPos(v.vertex);
+                //o.depth.z /= o.depth.w;
+
+                if (unity_OrthoParams.w > 0)
+                {
+                    //isOrthographic.
+                    //But....actually we do something neat here. We use a perspective camera and take its viewing projection into the orthographic Camera.
+                    float4 clipPos = mul(_Perspective_Matrix_VP, float4(worldPos, 1));//UnityWorldToClipPos(position);
+                    o.depth = clipPos; //clipPos.w is always 1 in this case. Ignore.
+                    o.depth.z /= o.depth.w;
+                    //We get back raw depth, so now interpolate with the near and far plane.
+                    //depth = lerp(_ProjectionParams.y, _ProjectionParams.z*0.01, clipPos.z);
+                }
+                else
+                {
+                    //Perspective.
+                    float4 clipPos = UnityWorldToClipPos(worldPos);// mul(_Perspective_Matrix_VP, float4(position,1));
+                    o.depth = clipPos;
+                    o.depth.z /= o.depth.w;
+                }
+
                 o.vertex = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0)));//UnityObjectToClipPos(v.vertex);
-                o.vertex = UnityApplyLinearShadowBias(o.vertex);
-                o.vertex.z /= o.vertex.w;
+                //o.vertex = UnityApplyLinearShadowBias(o.vertex);
+                //o.vertex.z /= o.vertex.w;
                 o.screen = ComputeScreenPos(o.vertex);
                 o.screen.z /= o.screen.w;
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
@@ -89,11 +109,8 @@ Shader "Unlit/WriteOutDepth"
                 fixed4 clipPosV = UnityWorldToClipPos(i.rawVert);
                 fixed4 sccreen = ComputeScreenPos(i.rawVert);
 
-                fixed4 depthnn = i.vertex.z;
-                depthnn.z /= depthnn.w;//pow(depthnn.w, 1);
-                //depthnn = i.depth;
-                //depthN = 1.0-depth;//1.0 - depthN;
-                return depthnn;//fixed4(depthnn.z, depthnn.z, depthnn.w/10, 0);// -0.07059;//-0.04;//depthnn.z;
+
+                return i.depth;//fixed4(depthnn.z, depthnn.z, depthnn.w/10, 0);// -0.07059;//-0.04;//depthnn.z;
             }
             ENDCG
         }

@@ -11,7 +11,7 @@ RWTexture2D<float4> _VelocityMap;
 RWTexture2D<float4> _CurlMap;
 RWTexture2D<float4> _SurfaceMap;
 RWTexture2D<float4> _VelocitySurfaceDensityDepthTexture;
-RWTexture2D<float4> _DistancesMap;
+Texture2D<float4> _UnigmaDepthMapRayTrace;
 
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
@@ -129,12 +129,14 @@ void MyRaygenShader()
     else
     {
         //Perspective.
-        float4 clipPos = mul(_Perspective_Matrix_VP, float4(position,1));//UnityWorldToClipPos(position);
+        float4 clipPos = UnityWorldToClipPos(position);// mul(_Perspective_Matrix_VP, float4(position,1));
         depth = (clipPos.z) / (clipPos.w);
     }
 
     int particleId = payload.color.w;
     int hits = 0;
+    depth = lerp(depth, 0, step(depth, _UnigmaDepthMapRayTrace[id.xy].z));
+
     
     /*
     if(minDist > _DistancesMap[id.xy].x)
@@ -179,7 +181,7 @@ void MyRaygenShader()
         //depth = 1;
     }
     
-    _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, _DensityMap[id.xy].x, depth);
+    _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, _DensityMap[id.xy].x, _RayTracedImage[id.xy].w);
     
 }
 

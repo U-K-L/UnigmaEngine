@@ -72,7 +72,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-			sampler2D _CameraDepthTexture, _DistancesMap, _DepthBufferTexture, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
+			sampler2D _UnigmaDepthMap, _DistancesMap, _DepthBufferTexture, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity, _DensityThickness, _OutlineThickness;
 			float _CausticIntensity, _CausticScale, _Speed, _ScaleX, _ScaleY, _SpecularPower, _SpecularIntensity, _FresnelPower;
@@ -106,8 +106,7 @@ Shader "Hidden/FluidComposition"
                 float2 distortionGrabPass2 = duv + ((_Intensity * 0.035) * diplacementNormalsInner.rg);
 
                 fixed4 fluids = tex2D(_UnigmaFluids, i.uv);
-                //return fluids.w;
-                fluids.w = (1.0 - fluids.w) * step(0, fluids.w);
+                
                 fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, distortionBlob);
                 fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, distortionBlob);
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
@@ -118,9 +117,13 @@ Shader "Hidden/FluidComposition"
                 fixed4 surfaceMap = tex2D(_SurfaceMap, i.uv);
                 fixed4 curlMap = tex2D(_CurlMap, i.uv);
                 fixed4 distanceMap = tex2D(_DistancesMap, i.uv);
-                float4 camDepthTex = tex2D(_CameraDepthTexture, i.uv);
+                fixed4 unigmaDepth = tex2D(_UnigmaDepthMap, i.uv);
 
+                //return fluids.w*100;
+                //return lerp(fluids.w, unigmaDepth.z, step(fluids.w, unigmaDepth.z))*10;
                 //return densityMap;
+                float fluidsSceneDepth = fluids.w;
+                fluids.w = (1.0 - fluids.w) * step(0, fluids.w);
                 fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass * 2);
 
                 float3 fluidNormalsAvg = fluidsNormal;
@@ -246,6 +249,8 @@ Shader "Hidden/FluidComposition"
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - fluids.xyz);
 
                 float NdotL = saturate(dot(fluidsNormal.xyz, _WorldSpaceLightPos0.xyz)) * 0.5 + 0.5;
+
+
                 //NdotL = step(0.705, NdotL);
                 float4 diffuse = saturate(NdotL * _LightColor0);
                 float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
@@ -273,9 +278,9 @@ Shader "Hidden/FluidComposition"
                 //return fluids.w;
                 //return atteunuationDensity;
 
-                cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.5, fluidsDepth.w));
+                cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.01, fluidsDepth.w));
 
-                
+                //return cleanFluidSingleColor;
 
                 float surface = smoothstep(0.05, 0.155, fluidsDepth.y);
                 float4 fluidColorFinal = cleanFluidSingleColor + fluids.w * waterSpecular * 0.12;
@@ -290,7 +295,10 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerp = causaticLerpSide * 0.15 + causaticLerpTop * 0.825;
                 float4 colorLerping = lerp(colorSurfaceFluid, causaticLerp * step(0.00001, fluids.w), 0.65 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 
-                return colorLerping;
+                //return colorLerping;
+
+                float4 occulusion = lerp(colorLerping, originalImage, step(fluidsSceneDepth, unigmaDepth.z));
+                return occulusion;
             }
 
             ENDCG

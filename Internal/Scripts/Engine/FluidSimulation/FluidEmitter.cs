@@ -16,7 +16,7 @@ public class FluidEmitter : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKey(KeyCode.Space))
+        if (Input.GetKey(KeyCode.Z))
         {
             _fluidSimManager.ShootParticles(transform.position, numOfParticlesSpawned, force);
         }

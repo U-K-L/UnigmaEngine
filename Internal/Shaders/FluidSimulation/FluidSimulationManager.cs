@@ -193,15 +193,11 @@ public class FluidSimulationManager : MonoBehaviour
         public Vector3 lastPosition;
         public Vector3 predictedPosition;
         public Vector3 positionDelta;
-        public Vector3 debugVector;
         public Vector3 velocity;
         public Vector3 normal;
         public Vector3 curl;
         public float density;
         public float lambda;
-        public float mass;
-        public int parent;
-
     };
     
     struct PNode
@@ -250,7 +246,7 @@ public class FluidSimulationManager : MonoBehaviour
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
     int _meshObjectStride = (sizeof(float) * 4 * 4) + sizeof(float) * 5 + sizeof(int) * 3 + sizeof(float) * 3 * 4;
-    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 8 + (sizeof(float) * 4));
+    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) + sizeof(float) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 2));
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
 
@@ -278,10 +274,13 @@ public class FluidSimulationManager : MonoBehaviour
     RayTracingAccelerationStructure _AccelerationStructure;
     RayTracingAccelerationStructure _MeshAccelerationStructure;
     private MaterialPropertyBlock properties = null;
+    public Camera secondCam;
     private void Awake()
     {
         //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
+        Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * secondCam.worldToCameraMatrix;
+        Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
         Debug.Log("Particle Stride size is: " + _particleStride);
         Debug.Log("BVH Stride size is: " + _BVHStride);
         Debug.Log("Mesh Object Stride size is: " + _meshObjectStride);
@@ -717,7 +716,6 @@ public class FluidSimulationManager : MonoBehaviour
 
             Vector3 randomPos = Random.insideUnitSphere + initialSpawnPosition;
             _particles[i].position = randomPos;
-            _particles[i].mass = MassOfParticle;
             _particles[i].velocity = Vector3.zero;
             _particles[i].force = force;
             _particles[i].density = 0.0f;
@@ -756,7 +754,6 @@ public class FluidSimulationManager : MonoBehaviour
                     _ParticleIDs[particleIndex] = particleIndex;
                     Vector3 randomPos = new Vector3(i * particleSpacing - halfContainerSize, j * particleSpacing - halfContainerSize, k * particleSpacing - halfContainerSize);
                     _particles[particleIndex].position = initialSpawnPosition + randomPos;
-                    _particles[particleIndex].mass = MassOfParticle;
                     _particles[particleIndex].velocity = Vector3.zero;
                     _particles[particleIndex].force = Vector3.zero;
                     _particles[particleIndex].density = 0.0f;
@@ -949,7 +946,7 @@ public class FluidSimulationManager : MonoBehaviour
         for (int i = 0; i < NumOfParticles; i++)
         {
             //Debug each particle struct.
-            string log = "Particle ID: " + i + " Position: " + _particles[i].position + "Predicted Position: " + _particles[i].predictedPosition + " Velocity: " + _particles[i].velocity + " Force: " + _particles[i].force + " Mass: " + _particles[i].mass + " Density: " + _particles[i].density.ToString("F6") + " Lambda: " + _particles[i].lambda.ToString("F6") + " Debug Vector: " + _particles[i].debugVector.ToString("F6") + "Cell ID: " + _particles[i].parent;
+            string log = "Particle ID: " + i + " Position: " + _particles[i].position + "Predicted Position: " + _particles[i].predictedPosition + " Velocity: " + _particles[i].velocity + " Force: " + _particles[i].force  + " Density: " + _particles[i].density.ToString("F6") + " Lambda: " + _particles[i].lambda.ToString("F6");
             Debug.Log(log);
         }
     }
@@ -1016,13 +1013,10 @@ public class FluidSimulationManager : MonoBehaviour
                 _ParticleIDs[i] = i;
                 _particles[i].position = new Vector3(99999, 99999, 99999);//new Vector3( (i % numOfParticlesCubedRoot) / ((1/ boxSize.x)* numOfParticlesCubedRoot) - (boxSize.x*0.5f), ((i / numOfParticlesCubedRoot) % numOfParticlesCubedRoot) / ( (1/ boxSize.y)* numOfParticlesCubedRoot) - (boxSize.y * 0.5f), ((i / numOfParticlesSquaredRoot) % numOfParticlesCubedRoot) / ((1/ boxSize.z) * numOfParticlesCubedRoot) - (boxSize.z * 0.5f));
                 _particlesPositions[i] = _particles[i].position;
-                _particles[i].mass = MassOfParticle;
                 _particles[i].velocity = Vector3.zero;
                 _particles[i].force = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
                 _particles[i].density = 0.0f;
                 _particles[i].lambda = 0.0f;
-                _particles[i].debugVector = new Vector3(-999, -999, -999);
-                _particles[i].parent = -1;
                 _particles[i].normal = Vector3.zero;
                 _particles[i].predictedPosition = _particles[i].position;
                 _ParticleIndices[i] = MaxNumOfParticles-1;
@@ -1174,7 +1168,6 @@ public class FluidSimulationManager : MonoBehaviour
             _BVHNodes[i].parent = -1;
             _BVHNodes[i].leftChild = -1;
             _BVHNodes[i].rightChild = -1;
-            _particles[i].mass = MassOfParticle;
         }
 
         if (NumOfParticles > 0)
@@ -1279,7 +1272,7 @@ public class FluidSimulationManager : MonoBehaviour
             for (int i = 0; i < NumOfParticles; i++)
             {
                 //Debug.Log(" Particle IDs: " + _MortonCodes[i].mortonCode);
-                Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " Parent Of Particle " + _particles[_ParticleIDs[i]].parent + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7")  + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
+                Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7")  + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
             }
 
             PrintNeighborData();
@@ -1332,6 +1325,7 @@ public class FluidSimulationManager : MonoBehaviour
         //_fluidSimulationComputeShader.SetVector("_LightScale", _LightScale.position);
         //_fluidSimulationComputeShader.SetFloat("_SizeOfParticle", SizeOfParticle);
         _fluidSimulationComputeShader.SetFloat("_Radius", Radius);
+        _fluidSimulationComputeShader.SetFloat("_Mass", MassOfParticle);
         _fluidSimulationComputeShader.SetFloat("_GasConstant", GasConstant);
         _fluidSimulationComputeShader.SetFloat("_Viscosity", Viscosity);
         _fluidSimulationComputeShader.SetFloat("_TimeStep", TimeStep);

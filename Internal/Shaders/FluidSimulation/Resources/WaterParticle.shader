@@ -35,14 +35,11 @@ Shader "Unlit/WaterParticle"
                 float3 lastPosition;
                 float3 predictedPosition;
                 float3 positionDelta;
-                float3 debugVector;
                 float3 velocity;
                 float3 normal;
                 float3 curl;
                 float density;
                 float lambda;
-                float mass;
-                int parent;
             };
     
             StructuredBuffer<Particle> _Particles;

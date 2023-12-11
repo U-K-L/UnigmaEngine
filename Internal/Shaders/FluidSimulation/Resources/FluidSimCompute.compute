@@ -26,6 +26,7 @@ float4x4 _ParentTransform;
 float4x4 _CameraWorldToLocal;
 float4x4 _ParentTransformToLocal;
 
+float _Mass = 0.5;
 float epsilon = 0.00001;
 float _SizeOfParticle;
 float _Smoothness;
@@ -113,14 +114,11 @@ struct Particle
     float3 lastPosition;
     float3 predictedPosition;
     float3 positionDelta;
-    float3 debugVector;
     float3 velocity;
     float3 normal;
     float3 curl;
     float density;
     float lambda;
-    float mass;
-    int parent;
 };
 
 struct BVHNode
@@ -1254,8 +1252,6 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].velocity = vel;
     _Particles[id.x].lastPosition = _Particles[id.x].position;
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
-    _Particles[id.x].parent = -1;
-    _Particles[id.x].debugVector = 0.125;
 
 
 }
@@ -1270,7 +1266,7 @@ void GetDensityIterative(uint3 id)
     for (int i = 0; i < numOfParticles; i++)
     {
         float distance2 = distance(oPos, _Particles[i].position);//dot(oPos -_Particles[i].position , oPos - _Particles[i].position );
-        sum += Poly6Kernel(distance2) * _Particles[i].mass;
+        sum += Poly6Kernel(distance2) * _Mass;
 
     }
 }
@@ -1360,12 +1356,12 @@ void GetDensityGrid(uint3 id)
             //if (0.001f < distance2 && distance2 < _Radius * 2)
             //{
                 //Poly6
-                densitySum += Poly6Kernel(distance2) * _Particles[particleIndex].mass;
+                densitySum += Poly6Kernel(distance2) * _Mass;
                 //Spiky
                 float3 spiky = SpikyKernelGradient(distance2, pressureGradDir) / _RestDensity;
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
-                colorField += _Particles[particleIndexB].mass * (1 / _Particles[particleIndexB].density) * Poly6GradientKernel(distance2, pressureGradDir);
+                colorField += _Mass * (1 / _Particles[particleIndexB].density) * Poly6GradientKernel(distance2, pressureGradDir);
             //}
 
             cell = clearBit(cell, index);
@@ -2025,7 +2021,7 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
 
     if (min(range.x, range.y) == gamma)
     {
-        _Particles[_ParticleIDs[gamma]].parent = id.x;
+        //_Particles[_ParticleIDs[gamma]].parent = id.x;
         bvh.isLeaf = true;
         bvh.leftChildLeaf = _ParticleIDs[gamma];
         bvh.leftChild = -1;
@@ -2033,7 +2029,7 @@ void CreateBVHTree(uint3 id : SV_DispatchThreadID)
 
     if (max(range.x, range.y) == gamma + 1)
     {
-        _Particles[_ParticleIDs[gamma+1]].parent = id.x;
+        //_Particles[_ParticleIDs[gamma+1]].parent = id.x;
         bvh.isLeaf = true;
         bvh.rightChildLeaf = _ParticleIDs[gamma + 1];
         bvh.rightChild = -1;
@@ -2244,9 +2240,13 @@ void AssignIndex(uint3 id : SV_DispatchThreadID)
     */
 }
 
-[numthreads(256, 1,1)]
+[numthreads(1024, 1,1)]
 void StoreParticleNeighbors(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= _NumOfParticles * 27)
+    {
+        return;
+    }
     int numOfParticles = _NumOfParticles;
     int indexFloored = floor(id.x / 27);
     uint indexMod = id.x % 27;
@@ -2288,6 +2288,7 @@ void StoreParticleNeighbors(uint3 id : SV_DispatchThreadID)
 
         if (0.001f < dist && dist < _Radius * 2.0f)
         {
+
             _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k] = setBit(_particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k], index);
         }
     }

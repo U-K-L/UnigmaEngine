@@ -33,14 +33,11 @@ Shader "Custom/StandardRayTraceTest"
             float3 lastPosition;
             float3 predictedPosition;
             float3 positionDelta;
-            float3 debugVector;
             float3 velocity;
             float3 normal;
             float3 curl;
             float density;
             float lambda;
-            float mass;
-            int parent;
         };
         
             StructuredBuffer<AABB> g_AABBs;
@@ -98,12 +95,12 @@ Shader "Custom/StandardRayTraceTest"
                 float3 pos = _Particles[PrimitiveIndex()].position;
 				float4 sphere = float4(pos, _SizeOfParticle);
                 float t1 = sphIntersect(ro, rd, sphere);
-                if (t1 > 0)
-                {
+                //if (t1 > 0)
+                //{
                     attr.distance = t1;
 					attr.position = ro + rd * t1;
                     ReportHit(t1, 0, attr);
-                }
+                //}
             }
 
             bool RayBoxIntersectionTest(in float3 rayWorldOrigin, in float3 rayWorldDirection, in float3 boxPosWorld, in float3 boxHalfSize,

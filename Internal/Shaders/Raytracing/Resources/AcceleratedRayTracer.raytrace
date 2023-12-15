@@ -135,7 +135,9 @@ void MyRaygenShader()
 
     int particleId = payload.color.w;
     int hits = 0;
-    depth = lerp(depth, 0, step(depth, _UnigmaDepthMapRayTrace[id.xy].z));
+    float4 cclipPos = UnityWorldToClipPos(position);
+    float comparatorDepth = cclipPos.z / cclipPos.w; //Depth used for comparison should always remain the same projection as main camera.
+    depth = lerp(depth, 0, step(comparatorDepth, _UnigmaDepthMapRayTrace[id.xy].x)); //x component is the comparison depth.
 
     
     /*

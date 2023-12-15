@@ -76,8 +76,13 @@ Shader "Unigma/UnigmaToonStylized"
                 
 				float4 finalColor = max(midTones, shadows);
 				finalColor = max(finalColor, highlights);
-                
-                return finalColor;
+
+
+                float4 xzCol = _Shadow*step(_Thresholds.x, abs(normals).r);
+                float4 zxCol = _Midtone*step(_Thresholds.z, abs(normals).b);
+                float4 zyCol = _Highlight* step(_Thresholds.z, abs(normals).g);
+
+                return zyCol+ xzCol + zxCol;
                 
             }
             ENDCG

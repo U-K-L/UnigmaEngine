@@ -72,6 +72,8 @@ Shader "Unlit/WriteOutDepth"
                     o.depth.z /= o.depth.w;
                 }
 
+                float4 cclipos = UnityWorldToClipPos(worldPos); //depth to use as a comparison alway same projection.
+                o.depth.x = cclipos.z / cclipos.w;
                 o.vertex = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0)));//UnityObjectToClipPos(v.vertex);
                 //o.vertex = UnityApplyLinearShadowBias(o.vertex);
                 //o.vertex.z /= o.vertex.w;

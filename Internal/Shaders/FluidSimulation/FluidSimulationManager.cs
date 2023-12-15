@@ -279,8 +279,6 @@ public class FluidSimulationManager : MonoBehaviour
     {
         //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
-        Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * secondCam.worldToCameraMatrix;
-        Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
         Debug.Log("Particle Stride size is: " + _particleStride);
         Debug.Log("BVH Stride size is: " + _BVHStride);
         Debug.Log("Mesh Object Stride size is: " + _meshObjectStride);
@@ -540,6 +538,12 @@ public class FluidSimulationManager : MonoBehaviour
     {
         UpdateNonAcceleratedRayTracer();
 
+    }
+
+    private void Update()
+    {
+        Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
+        Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
     }
 
     void AddObjectsToList()

@@ -51,7 +51,7 @@ Shader "Unigma/OutlineColors"
 				float4 texcol = tex2D(_ThicknessTexture, i.uv);
 				float thickness = dot(texcol, texcol) / 3.0;
                 float4 finalOutput = float4(_OutlineColor.xyz, thickness);
-				return finalOutput;
+				return finalOutput* thickness;
             }
             ENDCG
         }

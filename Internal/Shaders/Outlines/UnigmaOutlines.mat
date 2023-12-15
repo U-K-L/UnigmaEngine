@@ -24,7 +24,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _LineBreak:
-        m_Texture: {fileID: 2800000, guid: e80c3c84ea861404d8a427db8b7abf04, type: 3}
+        m_Texture: {fileID: 2800000, guid: 7a632f967e8ad42f5bd275898151ab6a, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -38,10 +38,13 @@ Material:
     - _NormalThreshold: 0.39
     - _PosThreshold: 0.41
     - _Scale: 2.4
-    - _ScaleInner: 1
-    - _ScaleOuter: 0.5
+    - _ScaleInner: 3
+    - _ScaleOuter: 1.6
+    - _ScaleShadow: 5.8
+    - _ScaleWhiteOutline: 5.2
     m_Colors:
     - _InnerLines: {r: 0, g: 0.71653557, b: 1, a: 1}
     - _OuterLines: {r: 0.25, g: 0.4642856, b: 1, a: 1}
+    - _ShadowOutlineColor: {r: 0.70433694, g: 0.41509432, b: 1, a: 1}
     - _SurfaceNoiseScroll: {r: 0.002, g: 0.0045, b: 0.01, a: 1}
   m_BuildTextureStacks: []

@@ -88,5 +88,41 @@ Shader "Unigma/UnigmaToonStylized"
             ENDCG
         }
         UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
+
+        Pass
+        {
+            Name "DepthShadowsRaytracingShaderPass"
+
+            HLSLPROGRAM
+            #pragma raytracing MyRaytraceShaderPass
+            #include "HLSLSupport.cginc"
+            #include "UnityRaytracingMeshUtils.cginc"
+            #include "../RayTraceHelpersUnigma.hlsl"
+
+            Texture2D<float4> _MainTex;
+            SamplerState sampler_MainTex;
+
+            [shader("closesthit")]
+            void MyHitShader(inout Payload payload : SV_RayPayload,
+                AttributeData attributes : SV_IntersectionAttributes)
+            {
+                float2 uvs = GetUVs(attributes);
+                float3 normals = GetNormals(attributes);
+                //float3 worldNormal = mul((float4x4)unity_ObjectToWorld, float4(normals, 0)).xyz;
+
+
+                float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);
+                float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
+
+                payload.distance = RayTCurrent();
+                if(InstanceID() == payload.color.w)
+                    payload.color = float4(0,0,0, InstanceID());
+                else
+                    payload.color = float4(1,1,1, InstanceID());
+                //payload.color = 1;
+            }
+
+            ENDHLSL
+        }
     }
 }

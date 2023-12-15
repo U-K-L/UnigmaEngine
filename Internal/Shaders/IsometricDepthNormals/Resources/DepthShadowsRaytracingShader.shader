@@ -36,8 +36,6 @@ Shader "Unlit/DepthShadowsRaytracingShader"
                 //payload.distance = attributes.distance;
                 //payload.color = float4(attributes.position, PrimitiveIndex());
                 payload.color = 1;
-
-
             }
 
             ENDHLSL

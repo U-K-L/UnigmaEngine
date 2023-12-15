@@ -4,10 +4,13 @@ Shader "Unigma/UnigmaOutlines"
     {
         _MainTex ("Texture", 2D) = "white" {}
         _ScaleOuter("Scale Outer Lines", Range(0,100)) = 1
-		_ScaleInner("Scale Inner Lines", Range(0,100)) = 1
+        _ScaleInner("Scale Inner Lines", Range(0,100)) = 1
+        _ScaleShadow("Scale Shadow Lines", Range(0,100)) = 1
+        _ScaleWhiteOutline("Scale of white outline", Range(0, 100)) = 1
         _DepthThreshold("Depth Threshold", Range(0,2)) = 1
-		_PosThreshold("Position Threshold", Range(0,2)) = 1
+        _PosThreshold("Position Threshold", Range(0,2)) = 1
         _NormalThreshold("Normal Threshold", Range(0,2)) = 1
+        _ShadowOutlineColor("Shadow Outline Color", Color) = (0,0,0,1)
         
 		_InnerLines("Inner lines color", Color) = (0,0,0,1)
 		_OuterLines("Outer lines color", Color) = (0,0,0,1)
@@ -49,9 +52,9 @@ Shader "Unigma/UnigmaOutlines"
             }
 
             sampler2D _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap;
-            float4 _MainTex_TexelSize, _OuterLines, _InnerLines;
+            float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
-            float _ScaleOuter, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
+            float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
 			float4 _SurfaceNoiseScroll;
 
             fixed4 frag(v2f i) : SV_Target
@@ -121,17 +124,71 @@ Shader "Unigma/UnigmaOutlines"
                 float edgeNormal = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
                 edgeNormal = edgeNormal > _NormalThreshold ? 1 : 0;
 
+
+                //Get shadow outlines.
+                
+                scaleFloor = floor(_ScaleShadow * 0.5);
+                scaleCeil = ceil(_ScaleShadow * 0.5);
+
+                bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
+                topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
+                bottomRight = i.uv + float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
+                topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
+
+                float4 shadow0 = tex2D(_UnigmaDepthShadowsMap, bottomLeft);
+                float4 shadow1 = tex2D(_UnigmaDepthShadowsMap, topRight);
+                float4 shadow2 = tex2D(_UnigmaDepthShadowsMap, bottomRight);
+                float4 shadow3 = tex2D(_UnigmaDepthShadowsMap, topLeft);
+
+
+                float shadowFiniteDifference3 = shadow1.b - shadow0.b;
+                float shadowFiniteDifference4 = shadow3.b - shadow2.b;
+                float edgeShadow = sqrt(pow(shadowFiniteDifference3, 2) + pow(shadowFiniteDifference4, 2)) * 100;
+                float depthThresholdShadow = _DepthThreshold * shadow0;
+                edgeShadow = edgeShadow > depthThresholdShadow ? 1 : 0;
+
+                //UnigmaDepth. For scene vs background.
+                scaleFloor = floor(_ScaleWhiteOutline * 0.5);
+                scaleCeil = ceil(_ScaleWhiteOutline * 0.5);
+
+                bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
+                topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
+                bottomRight = i.uv + float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
+                topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
+
+                shadow0 = tex2D(_UnigmaDepthShadowsMap, bottomLeft);
+                shadow1 = tex2D(_UnigmaDepthShadowsMap, topRight);
+                shadow2 = tex2D(_UnigmaDepthShadowsMap, bottomRight);
+                shadow3 = tex2D(_UnigmaDepthShadowsMap, topLeft);
+
+
+                shadowFiniteDifference3 = shadow1.r - shadow0.r;
+                shadowFiniteDifference4 = shadow3.r - shadow2.r;
+                float edgeUnigmaDepth = sqrt(pow(shadowFiniteDifference3, 2) + pow(shadowFiniteDifference4, 2)) * 100;
+                depthThresholdShadow = _DepthThreshold * shadow0;
+                edgeUnigmaDepth = edgeUnigmaDepth > 0.999 ? 1 : 0;
                 
                 float edge = max(edgeDepth, edgePos);
                 
-                float4 FinalColor = lerp(0, InnerLineColors, edgeNormal);
+                //Delete where edge is present.
+                edgeUnigmaDepth = edgeUnigmaDepth * step(edge, 0.01);
+                float4 FinalColor;
+
+                //Order matters here.
+                //First place the shadow line as it has the least priority.
+                FinalColor = lerp(0, float4(_ShadowOutlineColor.xyz, 1), edgeShadow);
+                FinalColor = lerp(FinalColor, InnerLineColors, edgeNormal);
                 FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
-                FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz,1), edge);
+                FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz, 1), edge);
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
+                
+                float shadows = _UnigmaDepthShadows.b;
+                float3 shadowStrength = 0.115 * step(0.001,shadows) * float3(0.55,1, 0.55);
                 //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
-                return _UnigmaDepthShadows;//FinalColor;
+                return float4(FinalColor.xyz -  shadowStrength, FinalColor.w) + edgeUnigmaDepth;
             }
             ENDCG
         }
+
     }
 }

@@ -24,6 +24,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public LayerMask RayTracingLayers;
     RenderTexture _DepthShadowsTexture;
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
+    public Camera secondCam;
     // Start is called before the first frame update
     void Start()
     {
@@ -59,6 +60,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
     // Update is called once per frame
     void LateUpdate()
     {
+        Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
+        Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
+
+        foreach (Renderer r in _rayTracedObjects)
+        {
+            _AccelerationStructure.UpdateInstanceTransform(r);
+        }
+
         if (BuffersReady == false)
         {
             BuffersReady = true;
@@ -94,15 +103,19 @@ public class UnigmaCommandBuffers : MonoBehaviour
             if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
             {
                 _rayTracedObjects.Add(obj);
+                //Debug.Log(obj.name);
             }
         }
     }
 
     void AddObjectsToAccerleration()
     {
+        uint index = 0;
         foreach (Renderer r in _rayTracedObjects)
         {
-            _AccelerationStructure.AddInstance(r);
+            _AccelerationStructure.AddInstance(r, id:index);
+            _AccelerationStructure.UpdateInstanceTransform(r); 
+            index++;
         }
     }
 
@@ -115,6 +128,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.ClearRenderTarget(true, true, new Vector4(0,0,0,0));
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RayTracingShaderAccelerated, "_UnigmaDepthShadowsMap", _DepthShadowsTexture);
         depthShadowsCommandBuffer.BuildRayTracingAccelerationStructure(_AccelerationStructure);
+        depthShadowsCommandBuffer.SetRayTracingShaderPass(_RayTracingShaderAccelerated, "DepthShadowsRaytracingShaderPass");
+        depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
         depthShadowsCommandBuffer.DispatchRays(_RayTracingShaderAccelerated, "DepthShadowsRaygenShader", (uint)Screen.width, (uint)Screen.height, 1);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, depthShadowsCommandBuffer);
 

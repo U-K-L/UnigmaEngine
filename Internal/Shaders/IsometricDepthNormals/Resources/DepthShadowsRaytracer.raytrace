@@ -37,6 +37,7 @@ void DepthShadowsRaygenShader()
         
         chosenCameraPosition = worldPosPixel; //No need to get direction from camera's origin.
         chosenDirection = normalize(worldSpaceViewForward);
+
     }
     else
     {
@@ -57,6 +58,10 @@ void DepthShadowsRaygenShader()
         chosenDirection = worldDirection;
     }
 
+    float depth = 0;
+    float3 position;
+
+
     //Creating RayDesc.
     RayDesc ray;
     ray.Origin = chosenCameraPosition; 
@@ -67,6 +72,50 @@ void DepthShadowsRaygenShader()
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
     payload.distance = 9999999999;
+
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+    position = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+    
+    if (unity_OrthoParams.w > 0)
+    {
+        //isOrthographic.
+        //But....actually we do something neat here. We use a perspective camera and take its viewing projection into the orthographic Camera.
+        float4 clipPos = mul(_Perspective_Matrix_VP, float4(position,1));//UnityWorldToClipPos(position);
+        depth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
+
+        //We get back raw depth, so now interpolate with the near and far plane.
+        //depth = lerp(_ProjectionParams.y, _ProjectionParams.z*0.01, clipPos.z);
+    }
+    else
+    {
+        //Perspective.
+        float4 clipPos = UnityWorldToClipPos(position);// mul(_Perspective_Matrix_VP, float4(position,1));
+        depth = (clipPos.z) / (clipPos.w);
+    }
    
-    _UnigmaDepthShadowsMap[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 1.0);
+    if(payload.distance > ray.TMax -1)
+    {
+        depth = 0;
+    }
+
+    //Find the shadow.
+
+    //Set new position and direction.
+    //Get direction to light.
+    float3 toLightDir = normalize(_WorldSpaceLightPos0-position);
+
+    ray.Origin = position; 
+    ray.Direction = toLightDir; 
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+    _UnigmaDepthShadowsMap[id.xy] = float4(depth, 0, payload.color.r, 1);
+}
+
+[shader("miss")]
+void MyMissShader(inout Payload payload : SV_RayPayload)
+{
+    payload.color = 0;
+    payload.distance = 9999999999;
+    
 }

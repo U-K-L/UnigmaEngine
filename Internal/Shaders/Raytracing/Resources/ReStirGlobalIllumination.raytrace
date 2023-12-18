@@ -4,15 +4,22 @@
 #include "../../RayTraceHelpersUnigma.hlsl"
 #include "UnityCG.cginc"
 
-RWTexture2D<float4> _UnigmaDepthShadowsMap;
 
-#pragma max_recursion_depth 1
+RWTexture2D<float4> _UnigmaGlobalIllumination;
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
-float4x4                        _Perspective_Matrix_VP;
-[shader("raygeneration")]
-void DepthShadowsRaygenShader()
+#pragma max_recursion_depth 1
+
+void InitializeRay(inout float3 orig, inout float3 dir)
 {
+
+}
+
+[shader("raygeneration")]
+void RestirGlobalIllumantionRayGen()
+{
+    uint2 dispatchIdx = DispatchRaysIndex().xy;
+   
     uint3 id = DispatchRaysIndex();
     uint3 dim = DispatchRaysDimensions();
 
@@ -58,7 +65,6 @@ void DepthShadowsRaygenShader()
         chosenDirection = worldDirection;
     }
 
-    float depth = 0;
     float3 position;
 
 
@@ -72,50 +78,24 @@ void DepthShadowsRaygenShader()
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
     payload.distance = 9999999999;
+    payload.direction = chosenDirection;
 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
-
     position = ray.Origin + ray.Direction * (payload.distance - 0.0001);
-    
-    if (unity_OrthoParams.w > 0)
-    {
-        //isOrthographic.
-        //But....actually we do something neat here. We use a perspective camera and take its viewing projection into the orthographic Camera.
-        float4 clipPos = mul(_Perspective_Matrix_VP, float4(position,1));//UnityWorldToClipPos(position);
-        depth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
-
-        //We get back raw depth, so now interpolate with the near and far plane.
-        //depth = lerp(_ProjectionParams.y, _ProjectionParams.z*0.01, clipPos.z);
-    }
-    else
-    {
-        //Perspective.
-        float4 clipPos = UnityWorldToClipPos(position);// mul(_Perspective_Matrix_VP, float4(position,1));
-        depth = (clipPos.z) / (clipPos.w);
-    }
-   
-    if(payload.distance > ray.TMax -1)
-    {
-        depth = 0;
-    }
-
-    //Find the shadow.
-
-    //Set new position and direction.
-    //Get direction to light.
-    float3 toLightDir = normalize(_WorldSpaceLightPos0);
-
-    ray.Origin = position; 
-    ray.Direction = toLightDir; 
+    //specular.
+    ray.Origin = position;
+    ray.Direction = payload.direction;
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _UnigmaDepthShadowsMap[id.xy] = float4(depth, payload.color.r, payload.color.g, 1);
+
+    _UnigmaGlobalIllumination[dispatchIdx] = payload.color;
 }
 
 [shader("miss")]
 void MyMissShader(inout Payload payload : SV_RayPayload)
 {
     payload.color = 0;
+    payload.direction = 0;
     payload.distance = 9999999999;
     
 }

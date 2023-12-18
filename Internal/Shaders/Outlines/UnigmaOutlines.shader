@@ -3,6 +3,7 @@ Shader "Unigma/UnigmaOutlines"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        _BackgroundTexture("Background Texture", 2D) = "white" {}
         _ScaleOuter("Scale Outer Lines", Range(0,100)) = 1
         _ScaleInner("Scale Inner Lines", Range(0,100)) = 1
         _ScaleShadow("Scale Shadow Lines", Range(0,100)) = 1
@@ -51,7 +52,7 @@ Shader "Unigma/UnigmaOutlines"
                 return o;
             }
 
-            sampler2D _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap;
+            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
@@ -59,6 +60,8 @@ Shader "Unigma/UnigmaOutlines"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                fixed4 GlobalIllumination = tex2D(_UnigmaGlobalIllumination, i.uv);
+                fixed4 BackgroundTexture = tex2D(_BackgroundTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
 				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
@@ -141,9 +144,9 @@ Shader "Unigma/UnigmaOutlines"
                 float4 shadow3 = tex2D(_UnigmaDepthShadowsMap, topLeft);
 
 
-                float shadowFiniteDifference3 = shadow1.b - shadow0.b;
-                float shadowFiniteDifference4 = shadow3.b - shadow2.b;
-                float edgeShadow = sqrt(pow(shadowFiniteDifference3, 2) + pow(shadowFiniteDifference4, 2)) * 100;
+                float2 shadowFiniteDifference3 = shadow1.yz - shadow0.yz;
+                float2 shadowFiniteDifference4 = shadow3.yz - shadow2.yz;
+                float edgeShadow = sqrt(dot(shadowFiniteDifference3, shadowFiniteDifference3) + dot(shadowFiniteDifference4, shadowFiniteDifference4));
                 float depthThresholdShadow = _DepthThreshold * shadow0;
                 edgeShadow = edgeShadow > depthThresholdShadow ? 1 : 0;
 
@@ -172,20 +175,26 @@ Shader "Unigma/UnigmaOutlines"
                 
                 //Delete where edge is present.
                 edgeUnigmaDepth = edgeUnigmaDepth * step(edge, 0.01);
-                float4 FinalColor;
+                float4 FinalColor = mainTex;
 
                 //Order matters here.
                 //First place the shadow line as it has the least priority.
-                FinalColor = lerp(0, float4(_ShadowOutlineColor.xyz, 1), edgeShadow);
+                FinalColor = lerp(FinalColor, float4(_ShadowOutlineColor.xyz, 1), edgeShadow * _ShadowOutlineColor.w);
                 FinalColor = lerp(FinalColor, InnerLineColors, edgeNormal);
                 FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
+
+                //And make it optional!
+                //FinalColor = lerp(FinalColor, BackgroundTexture, step(_UnigmaDepthShadows.r, 0.01));
                 FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz, 1), edge);
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 
-                float shadows = _UnigmaDepthShadows.b;
+                float shadows = _UnigmaDepthShadows.y;
                 float3 shadowStrength = 0.115 * step(0.001,shadows) * float3(0.55,1, 0.55);
                 //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
-                return float4(FinalColor.xyz -  shadowStrength, FinalColor.w) + edgeUnigmaDepth;
+                FinalColor = float4(FinalColor.xyz - shadowStrength, FinalColor.w) + edgeUnigmaDepth;
+
+
+                return lerp(FinalColor, FinalColor + GlobalIllumination*0.1, min(1, GlobalIllumination.w));
             }
             ENDCG
         }

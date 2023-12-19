@@ -31,6 +31,7 @@ Shader "Unigma/UnigmaOutlines"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "../ShaderHelpers.hlsl"
 
             struct appdata
             {
@@ -100,10 +101,10 @@ Shader "Unigma/UnigmaOutlines"
                 float4 pos3 = tex2D(_IsometricPositions, topLeft);
 
 
-                float posFiniteDifference3 = length(pos1 - pos0);
-                float posFiniteDifference4 = length(pos3 - pos2);
+                float posFiniteDifference3 = abs(pos1.a - pos0.a);//length(pos1 - pos0);
+                float posFiniteDifference4 = abs(pos3.a - pos2.a);//length(pos3 - pos2);
                 float edgePos = sqrt(pow(posFiniteDifference3, 2) + pow(posFiniteDifference4, 2)) * 100;
-                float posThreshold = _PosThreshold * pos0.a;
+                float posThreshold = _PosThreshold;
                 edgePos = edgePos > posThreshold ? 1 : 0;
                 //float edgeMask = length(depthnormal0 + depthnormal1 + depthnormal2 + depthnormal3) > 0.01 ? 1 : 0;
                 

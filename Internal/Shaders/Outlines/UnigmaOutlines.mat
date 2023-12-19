@@ -40,7 +40,7 @@ Material:
     - _DepthThreshold: 0.37
     - _LineBreakage: 0.526
     - _NormalThreshold: 0.39
-    - _PosThreshold: 0.41
+    - _PosThreshold: 0
     - _Scale: 2.4
     - _ScaleInner: 3
     - _ScaleOuter: 0

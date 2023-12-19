@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
 public class UnigmaCommandBuffers : MonoBehaviour
@@ -13,6 +14,19 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private Material _nullMaterial = default;
 
     private bool BuffersReady = false;
+
+    [SerializeField]
+    Material rayTracingDepthShadowMaterial;
+
+    private RayTracingShader _DepthShadowsRayTracingShaderAccelerated;
+    private RayTracingShader _RestirGlobalIllumRayTracingShaderAccelerated;
+    RayTracingAccelerationStructure _AccelerationStructure;
+
+    public LayerMask RayTracingLayers;
+    RenderTexture _DepthShadowsTexture;
+    RenderTexture _UnigmaGlobalIllumination;
+    private List<Renderer> _rayTracedObjects = new List<Renderer>();
+    public Camera secondCam;
     // Start is called before the first frame update
     void Start()
     {
@@ -21,11 +35,49 @@ public class UnigmaCommandBuffers : MonoBehaviour
         Camera cam = GetComponent<Camera>();
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.Depth;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.DepthNormals;
+
+
+        _DepthShadowsTexture = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _DepthShadowsTexture.enableRandomWrite = true;
+        _DepthShadowsTexture.Create();
+
+        _UnigmaGlobalIllumination = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaGlobalIllumination.enableRandomWrite = true;
+        _UnigmaGlobalIllumination.Create();
+
+        CreateAcceleratedStructure();
+    }
+
+    void CreateAcceleratedStructure()
+    {
+        if (_DepthShadowsRayTracingShaderAccelerated == null)
+            _DepthShadowsRayTracingShaderAccelerated = Resources.Load<RayTracingShader>("DepthShadowsRaytracer");
+
+        if (_RestirGlobalIllumRayTracingShaderAccelerated == null)
+            _RestirGlobalIllumRayTracingShaderAccelerated = Resources.Load<RayTracingShader>("ReStirGlobalIllumination");
+
+        //Create GPU accelerated structure.
+        var settings = new RayTracingAccelerationStructure.RASSettings();
+        //settings.layerMask = RayTracingLayers;
+        //Change this to manual after some work.
+        settings.managementMode = RayTracingAccelerationStructure.ManagementMode.Manual;
+        settings.rayTracingModeMask = RayTracingAccelerationStructure.RayTracingModeMask.Everything;
+
+        _AccelerationStructure = new RayTracingAccelerationStructure(settings);
+
     }
 
     // Update is called once per frame
     void LateUpdate()
     {
+        Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
+        Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
+
+        foreach (Renderer r in _rayTracedObjects)
+        {
+            _AccelerationStructure.UpdateInstanceTransform(r);
+        }
+
         if (BuffersReady == false)
         {
             BuffersReady = true;
@@ -37,6 +89,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
             _OutlineRenderObjects = new List<UnigmaPostProcessingObjects>();
             _OutlineNullObjects = new List<Renderer>();
             FindObjects("IsometricDepthNormalObject");
+            AddObjectsToList();
+            AddObjectsToAccerleration();
+            CreateDepthShadowBuffers();
             CreateDepthNormalBuffers();
             buffersAdded += 1;
         }
@@ -49,9 +104,64 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     }
 
+
+    void AddObjectsToList()
+    {
+        foreach (var obj in FindObjectsOfType<Renderer>())
+        {
+            //Check if object in the RaytracingLayers.
+            if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
+            {
+                _rayTracedObjects.Add(obj);
+                //Debug.Log(obj.name);
+            }
+        }
+    }
+
+    void AddObjectsToAccerleration()
+    {
+        uint index = 0;
+        foreach (Renderer r in _rayTracedObjects)
+        {
+            _AccelerationStructure.AddInstance(r, id:index);
+            _AccelerationStructure.UpdateInstanceTransform(r); 
+            index++;
+        }
+    }
+
+    void CreateDepthShadowBuffers()
+    {
+        CommandBuffer depthShadowsCommandBuffer = new CommandBuffer();
+        depthShadowsCommandBuffer.name = "DepthShadowsBuffer";
+        depthShadowsCommandBuffer.BuildRayTracingAccelerationStructure(_AccelerationStructure);
+
+        depthShadowsCommandBuffer.SetGlobalTexture("_UnigmaDepthShadowsMap", _DepthShadowsTexture);
+        depthShadowsCommandBuffer.SetRenderTarget(_DepthShadowsTexture);
+        depthShadowsCommandBuffer.ClearRenderTarget(true, true, new Vector4(0,0,0,0));
+        depthShadowsCommandBuffer.SetRayTracingTextureParam(_DepthShadowsRayTracingShaderAccelerated, "_UnigmaDepthShadowsMap", _DepthShadowsTexture);
+
+
+        depthShadowsCommandBuffer.SetRayTracingShaderPass(_DepthShadowsRayTracingShaderAccelerated, "DepthShadowsRaytracingShaderPass");
+        depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_DepthShadowsRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
+        depthShadowsCommandBuffer.DispatchRays(_DepthShadowsRayTracingShaderAccelerated, "DepthShadowsRaygenShader", (uint)Screen.width, (uint)Screen.height, 1);
+
+        depthShadowsCommandBuffer.SetGlobalTexture("_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
+        depthShadowsCommandBuffer.SetRenderTarget(_UnigmaGlobalIllumination);
+        depthShadowsCommandBuffer.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+        depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
+
+        depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirGlobalIllumRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
+        depthShadowsCommandBuffer.SetRayTracingShaderPass(_RestirGlobalIllumRayTracingShaderAccelerated, "GlobalIlluminationRaytracingShaderPass");
+        depthShadowsCommandBuffer.DispatchRays(_RestirGlobalIllumRayTracingShaderAccelerated, "RestirGlobalIllumantionRayGen", (uint)Screen.width, (uint)Screen.height, 1);
+
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, depthShadowsCommandBuffer);
+
+    }
+
     void CreateDepthNormalBuffers()
     {
         CommandBuffer outlineDepthBuffer = new CommandBuffer();
+        outlineDepthBuffer.name = "OutlineDepthBuffer";
         RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         RenderTexture posRT = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         outlineDepthBuffer.SetGlobalTexture("_IsometricDepthNormal", rt);
@@ -73,6 +183,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     void CreateOutlineColorBuffers()
     {
         CommandBuffer outlineColorBuffer = new CommandBuffer();
+        outlineColorBuffer.name = "OutlineColorBuffer";
         RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         RenderTexture innerRT = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
         RenderTexture tempRt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
@@ -149,5 +260,28 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 _OutlineRenderObjects.Add(sceneRenderers[i].gameObject.GetComponent(component) as UnigmaPostProcessingObjects);
             else
                 _OutlineNullObjects.Add(sceneRenderers[i]);
+    }
+
+    //Release all buffers and memory
+    void ReleaseBuffers()
+    {
+        Debug.Log("Buffers Released");
+    }
+
+    void OnDisable()
+    {
+        ReleaseBuffers();
+    }
+
+    //On application quit
+    void OnApplicationQuit()
+    {
+        ReleaseBuffers();
+    }
+
+    //On playtest end
+    void OnDestroy()
+    {
+        ReleaseBuffers();
     }
 }

@@ -11,7 +11,7 @@ RWTexture2D<float4> _VelocityMap;
 RWTexture2D<float4> _CurlMap;
 RWTexture2D<float4> _SurfaceMap;
 RWTexture2D<float4> _VelocitySurfaceDensityDepthTexture;
-RWTexture2D<float4> _DistancesMap;
+Texture2D<float4> _UnigmaDepthMapRayTrace;
 
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
@@ -20,6 +20,7 @@ RaytracingAccelerationStructure _RaytracingAccelerationStructure;// : register(t
 RaytracingAccelerationStructure g_SceneAccelStruct;
 float4x4                        g_InvViewMatrix;
 float4x4                        g_ViewMatrix;
+float4x4                        _Perspective_Matrix_VP;
 float                           g_Zoom;
 
 #pragma max_recursion_depth 1
@@ -32,14 +33,11 @@ struct Particle
     float3 lastPosition;
     float3 predictedPosition;
     float3 positionDelta;
-    float3 debugVector;
     float3 velocity;
     float3 normal;
     float3 curl;
     float density;
     float lambda;
-    float mass;
-    int parent;
 };
 
 StructuredBuffer<Particle> _Particles;
@@ -54,19 +52,48 @@ void MyRaygenShader()
     //Convert to 0 - 1.
     float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
     
-    //Convert to camera space.
-    float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
-    //Perspective divide.
-    viewPos /= viewPos.w;
+    float3 chosenCameraPosition;
+    float3 chosenDirection;
+
+    //Is it orthographic?
+    if (unity_OrthoParams.w > 0)
+    {
+        //Camera is orthographic.
+        //Convert to camera space.
+        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, -1, 1));
+        //Perspective divide.
+        viewPos /= viewPos.w;
     
-    //Convert to world space.
-    float3 worldPos = mul(unity_MatrixInvV, viewPos).xyz;
-    float3 worldDirection = normalize(worldPos - _WorldSpaceCameraPos);
+        //Convert to world space.
+        float3 worldPosPixel = mul(unity_MatrixInvV, viewPos).xyz;
+        float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+        
+        chosenCameraPosition = worldPosPixel; //No need to get direction from camera's origin.
+        chosenDirection = normalize(worldSpaceViewForward);
+    }
+    else
+    {
+        //Camera is Perspective.
+        //Convert to camera space.
+        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
+        //Perspective divide.
+        viewPos /= viewPos.w; //This takes into account field of view, how the frustrum of the view plane is.
+    
+        //Convert to world space.
+        float3 worldPosPixel = mul(unity_MatrixInvV, viewPos).xyz;
+
+        //Take the pixel and get the direction from the origin to create perspective.
+        float3 worldDirection = normalize(worldPosPixel - _WorldSpaceCameraPos);
+        float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+
+        chosenCameraPosition = _WorldSpaceCameraPos;
+        chosenDirection = worldDirection;
+    }
 
     //Creating RayDesc.
     RayDesc ray;
-    ray.Origin = _WorldSpaceCameraPos; 
-    ray.Direction = worldDirection; 
+    ray.Origin = chosenCameraPosition; 
+    ray.Direction = chosenDirection; 
     ray.TMin = 0;
     ray.TMax = 10000;
 
@@ -80,34 +107,56 @@ void MyRaygenShader()
     _ColorFieldNormalMap[id.xy] = 0;
     _RayTracedImage[id.xy] = 0;//float4(position, depth);
 
+
     TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
     float minDist = payload.distance;
 
     
     float3 position = ray.Origin + ray.Direction * payload.distance;
-    float4 clipPos = UnityWorldToClipPos(position);
-    float depth = (clipPos.z) / (clipPos.w);
-    depth = 1.0 - depth;
+
+    float depth;
+    
+    if (unity_OrthoParams.w > 0)
+    {
+        //isOrthographic.
+        //But....actually we do something neat here. We use a perspective camera and take its viewing projection into the orthographic Camera.
+        float4 clipPos = mul(_Perspective_Matrix_VP, float4(position,1));//UnityWorldToClipPos(position);
+        depth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
+
+        //We get back raw depth, so now interpolate with the near and far plane.
+        //depth = lerp(_ProjectionParams.y, _ProjectionParams.z*0.01, clipPos.z);
+    }
+    else
+    {
+        //Perspective.
+        float4 clipPos = UnityWorldToClipPos(position);// mul(_Perspective_Matrix_VP, float4(position,1));
+        depth = (clipPos.z) / (clipPos.w);
+    }
 
     int particleId = payload.color.w;
-    int hits = 1;
+    int hits = 0;
+    float4 cclipPos = UnityWorldToClipPos(position);
+    float comparatorDepth = cclipPos.z / cclipPos.w; //Depth used for comparison should always remain the same projection as main camera.
+    depth = lerp(depth, 0, step(comparatorDepth, _UnigmaDepthMapRayTrace[id.xy].x)); //x component is the comparison depth.
+
     
+    /*
     if(minDist > _DistancesMap[id.xy].x)
 	{
 		_RayTracedImage[id.xy] = 0;//_DistancesMap[id.xy];
         return;
 	}
-    
-    for(int i = 0; i < 20; i++)
+    */
+    for(int i = 0; i < 10; i++)
     {
-        
-        if(payload.distance > 0)
+                    
+		TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+        if(payload.distance < 9999999999)
         {
             ray.Origin = ray.Origin + ray.Direction * (payload.distance + 0.001f);
 			ray.TMax = 10000;
-			payload.distance = -1;
-            
-			TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+			payload.distance = 9999999999;
+
             hits += 1;
         }else
         {
@@ -122,6 +171,7 @@ void MyRaygenShader()
     
     if(particleId >= 0)
     {
+
         Particle particle = _Particles[particleId];
         float3 freeSurface = 1;
         freeSurface = particle.density/ 28.0f;
@@ -130,6 +180,7 @@ void MyRaygenShader()
 		_VelocityMap[id.xy] = float4(particle.velocity, length(particle.velocity) + length(_Particles[particleId].curl) * 0.055);
         _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
         _RayTracedImage[id.xy] = float4(position, depth);
+        //depth = 1;
     }
     
     _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, _DensityMap[id.xy].x, _RayTracedImage[id.xy].w);

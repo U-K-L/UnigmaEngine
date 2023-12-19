@@ -8,6 +8,7 @@ struct Vertex
 struct Payload
 {
     float4 color;
+    float3 direction;
     float distance;
     
 };

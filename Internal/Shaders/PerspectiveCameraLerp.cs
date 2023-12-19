@@ -38,7 +38,7 @@ public class PerspectiveCameraLerp : MonoBehaviour
     // Update is called once per frame
     void LateUpdate()
     {
-        SynchronizeCams();
+        //SynchronizeCams();
         if (Input.GetKeyDown(KeyCode.A))
         {
             BeginTransition(durspeed);
@@ -71,7 +71,7 @@ public class PerspectiveCameraLerp : MonoBehaviour
         p.m32 += 0.05f * Mathf.Cos(Time.time * 1.5F) * 0.0125F;
         p.m33 += 0.005f * Mathf.Cos(Time.time * 1.5F) * 0.0125F;
         cam.projectionMatrix = p;
-        cam.transform.localPosition = perspectiveOffsets;
+        //cam.transform.localPosition = perspectiveOffsets;
     }
 
     void updateProjectionWarpStatic()

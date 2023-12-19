@@ -35,18 +35,15 @@ Shader "Unlit/WaterParticle"
                 float3 lastPosition;
                 float3 predictedPosition;
                 float3 positionDelta;
-                float3 debugVector;
                 float3 velocity;
                 float3 normal;
                 float3 curl;
                 float density;
                 float lambda;
-                float mass;
-                int parent;
             };
     
             StructuredBuffer<Particle> _Particles;
-            sampler2D _DistancesMap;
+            sampler2D _UnigmaDepthMap;
                 
             struct appdata
             {
@@ -62,6 +59,7 @@ Shader "Unlit/WaterParticle"
 				float3 rayDir : TEXCOORD1;
 				float3 rayOrigin : TEXCOORD2;
 				float2 uv : TEXCOORD3;
+                float4 depth : TEXCOORD4;
             };
 
             UNITY_INSTANCING_BUFFER_START(Props)
@@ -181,8 +179,11 @@ Shader "Unlit/WaterParticle"
                 float4 uvs = ComputeScreenPos(vert);
                 uvs.xy /= uvs.w;
                 o.uv = uvs.xy;
-                
+
+                o.depth = UnityObjectToClipPos(v.vertex);
+                o.depth.z /= o.depth.w;
                 o.vertex = mul(UNITY_MATRIX_VP, float4(worldPos, 1));
+
                 //o.vertex = UnityObjectToClipPos(worldPos);
                 //o.vertex = mul(unity_ObjectToWorld, v.vertex);
                 o.instanceID = v.instanceID;
@@ -205,38 +206,17 @@ Shader "Unlit/WaterParticle"
                 out float GRTDepth : SV_Depth)
             {
                 UNITY_SETUP_INSTANCE_ID(i); // necessary only if any instanced properties are going to be accessed in the fragment Shader.
-                float3 positionWS = _Particles[i.instanceID].position;
-                float3 cameraPosition = _WorldSpaceCameraPos;           // Unity provided position of the camera/eye.
-                float distanceToCamera = length(positionWS - cameraPosition);
-                float linearDepth = (distanceToCamera - _ProjectionParams.y) / (_ProjectionParams.z - _ProjectionParams.y);
-                
-                
-                float t1 = sphIntersect(i.rayOrigin, normalize(i.rayDir), float4(positionWS, 1));
-				float3 worldRayPos = i.rayOrigin + i.rayDir * t1;
-				float depth = LinearDepthToRawDepth(linearDepth);
 
-                float4 clipPos = UnityWorldToClipPos(float4(positionWS, 1));
-                float4 distances = tex2D(_DistancesMap, i.uv);//
-                float depthN = (clipPos.z * 1.0) / (clipPos.w * 1.0);
-                depthN = 1.0 - depthN;
-                //
-                //return float4(position, 1);//float4(i.instanceID/10, i.instanceID, position.z, 1);
                 float velocity = length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055;
                 float surface = 1.0 - (_Particles[i.instanceID].density / 180.0);
                 float density = 0;
-                float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, depthN);
-                if (t1 > distances.x)
-                {
-                    GRT0 = 0;
-                    GRT2 = 0;//float4(positionWS, depthN);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
-                    GRT3 = 0;
-                }
-                else
-                {
-                    GRT0 = velocitySurfaceDensityDepth;
-                    GRT2 = float4(positionWS, depthN);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
-                    GRT3 = float4(_Particles[i.instanceID].normal, 1);
-                }
+                fixed4 unigmaDepth = tex2D(_UnigmaDepthMap, i.uv);
+                float Rdepth = lerp(i.depth.z, 0, step(i.depth.z, unigmaDepth.z));
+
+                float4 velocitySurfaceDensityDepth = float4(velocity, surface, density, Rdepth);
+                GRT0 = velocitySurfaceDensityDepth;
+                GRT2 = float4(_Particles[i.instanceID].position, Rdepth);//float4(positionWS, depthN);//float4(_Particles[i.instanceID].velocity, length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055);
+                GRT3 = float4(_Particles[i.instanceID].normal, 1);
 
                 //GRTDepth = 1;
                 
@@ -360,5 +340,6 @@ Shader "Unlit/WaterParticle"
             }
             ENDCG
         }
+
     }
 }

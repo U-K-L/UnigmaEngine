@@ -1,0 +1,101 @@
+#include "HLSLSupport.cginc"
+#include "UnityRaytracingMeshUtils.cginc"
+#include "UnityShaderVariables.cginc"
+#include "../../RayTraceHelpersUnigma.hlsl"
+#include "UnityCG.cginc"
+
+
+RWTexture2D<float4> _UnigmaGlobalIllumination;
+
+RaytracingAccelerationStructure _RaytracingAccelerationStructure;
+#pragma max_recursion_depth 1
+
+void InitializeRay(inout float3 orig, inout float3 dir)
+{
+
+}
+
+[shader("raygeneration")]
+void RestirGlobalIllumantionRayGen()
+{
+    uint2 dispatchIdx = DispatchRaysIndex().xy;
+   
+    uint3 id = DispatchRaysIndex();
+    uint3 dim = DispatchRaysDimensions();
+
+    //Convert to 0 - 1.
+    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+    
+    float3 chosenCameraPosition;
+    float3 chosenDirection;
+
+    //Is it orthographic?
+    if (unity_OrthoParams.w > 0)
+    {
+        //Camera is orthographic.
+        //Convert to camera space.
+        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, -1, 1));
+        //Perspective divide.
+        viewPos /= viewPos.w;
+    
+        //Convert to world space.
+        float3 worldPosPixel = mul(unity_MatrixInvV, viewPos).xyz;
+        float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+        
+        chosenCameraPosition = worldPosPixel; //No need to get direction from camera's origin.
+        chosenDirection = normalize(worldSpaceViewForward);
+
+    }
+    else
+    {
+        //Camera is Perspective.
+        //Convert to camera space.
+        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
+        //Perspective divide.
+        viewPos /= viewPos.w; //This takes into account field of view, how the frustrum of the view plane is.
+    
+        //Convert to world space.
+        float3 worldPosPixel = mul(unity_MatrixInvV, viewPos).xyz;
+
+        //Take the pixel and get the direction from the origin to create perspective.
+        float3 worldDirection = normalize(worldPosPixel - _WorldSpaceCameraPos);
+        float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+
+        chosenCameraPosition = _WorldSpaceCameraPos;
+        chosenDirection = worldDirection;
+    }
+
+    float3 position;
+
+
+    //Creating RayDesc.
+    RayDesc ray;
+    ray.Origin = chosenCameraPosition; 
+    ray.Direction = chosenDirection; 
+    ray.TMin = 0;
+    ray.TMax = 10000;
+
+    Payload payload;
+    payload.color = float4(0, 0, 0, 0);
+    payload.distance = 9999999999;
+    payload.direction = chosenDirection;
+
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    position = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+    //specular.
+    ray.Origin = position;
+    ray.Direction = payload.direction;
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+
+    _UnigmaGlobalIllumination[dispatchIdx] = payload.color;
+}
+
+[shader("miss")]
+void MyMissShader(inout Payload payload : SV_RayPayload)
+{
+    payload.color = 0;
+    payload.direction = 0;
+    payload.distance = 9999999999;
+    
+}

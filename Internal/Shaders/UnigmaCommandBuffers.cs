@@ -207,7 +207,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         //Now set inner colors.
         outlineColorBuffer.SetRenderTarget(innerRT);
-        outlineColorBuffer.ClearRenderTarget(true, true, Color.black);
+        outlineColorBuffer.ClearRenderTarget(true, true, Vector4.zero);
         DrawIsometricOutlineColor(outlineColorBuffer, 1);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineColorBuffer);
     }

@@ -169,12 +169,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         outlineDepthBuffer.SetRenderTarget(rt);
 
-        outlineDepthBuffer.ClearRenderTarget(true, true, Color.black);
+        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
         DrawIsometricDepthNormals(outlineDepthBuffer, 0);
 
         //Second pass
         outlineDepthBuffer.SetRenderTarget(posRT);
-        outlineDepthBuffer.ClearRenderTarget(true, true, Color.black);
+        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
         DrawIsometricDepthNormals(outlineDepthBuffer, 1);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
 
@@ -218,7 +218,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
             if (iso != null)
-                if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true)
+                if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
                     outlineDepthBuffer.DrawRenderer(r.renderer, r.materials["IsometricDepthNormals"], 0, pass);
         }
 

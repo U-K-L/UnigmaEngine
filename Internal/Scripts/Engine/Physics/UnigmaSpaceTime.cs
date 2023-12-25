@@ -7,7 +7,8 @@ public class UnigmaSpaceTime : MonoBehaviour
     public struct VectorPoint
     {
         public Vector3 position;
-        public Vector4 direction;
+        public Vector3 direction;
+        public Vector3 previousDirection;
     }
 
     public Vector3 SpaceTimeSize;
@@ -23,11 +24,22 @@ public class UnigmaSpaceTime : MonoBehaviour
 
         for (int i = 0; i < VectorField.Length; i++)
         {
-            VectorField[i].direction = Vector4.zero;
+            VectorField[i].direction = Vector3.zero;
             VectorField[i].position = Vector3.zero;
+            VectorField[i].previousDirection = Vector3.zero;
         }
 
         ShapeSpaceTime();
+    }
+
+    private void FixedUpdate()
+    {
+        for (int i = 0; i < VectorField.Length; i++)
+        {
+            VectorField[i].previousDirection = VectorField[i].direction;
+            VectorField[i].direction = Vector3.zero;
+            
+        }
     }
 
     void ShapeSpaceTime()
@@ -47,7 +59,7 @@ public class UnigmaSpaceTime : MonoBehaviour
                     int index = i * ySize * zSize + j * zSize + k;
 
                     VectorField[index].position = new Vector3(i * spacing - halfContainerSize, j * spacing - halfContainerSize, k * spacing - halfContainerSize);
-                    VectorField[index].direction = new Vector4(0, -9.8f, 0, 1.0f);
+                    VectorField[index].direction = Vector3.zero;
                 }
             }
         }
@@ -65,8 +77,9 @@ public class UnigmaSpaceTime : MonoBehaviour
             float spacing = (SpaceTimeSize.x / (SpaceTimeResolution - 1)) *0.5f;
             foreach (VectorPoint vp in VectorField)
             {
-                Ray ray = new Ray(vp.position, new Vector3(vp.direction.x, vp.direction.y, vp.direction.z) * spacing);
-                Gizmos.color = new Vector4(0.0f + vp.direction.w, 0.6f, 1.0f, 1.0f);
+                Ray ray = new Ray(vp.position, vp.previousDirection * spacing);
+                Vector3 normalizedDir = Vector3.Normalize(vp.previousDirection)*0.5f + Vector3.one*0.5f;
+                Gizmos.color = new Vector4(normalizedDir.x * vp.previousDirection.magnitude*10.0f, normalizedDir.y, normalizedDir.z, 1.0f);
                 Gizmos.DrawRay(ray);
                 //Gizmos.DrawSphere(vp.position, 0.025f);
             }

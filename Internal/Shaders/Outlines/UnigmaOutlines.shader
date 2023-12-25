@@ -188,6 +188,7 @@ Shader "Unigma/UnigmaOutlines"
                 //And make it optional!
                 //FinalColor = lerp(FinalColor, BackgroundTexture, step(_UnigmaDepthShadows.r, 0.01));
                 FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz, 1), edge * step(0.001, OutterLineColors.w));
+
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 
                 float shadows = _UnigmaDepthShadows.y;
@@ -195,7 +196,8 @@ Shader "Unigma/UnigmaOutlines"
                 //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
                 //White outline added.
                 FinalColor = float4(FinalColor.xyz - shadowStrength, FinalColor.w) + edgeUnigmaDepth;
-
+                //return shadow0 * 10;
+                //return edgeUnigmaDepth;//pos0*10;//pos0;// *step(0.001, OutterLineColors.w);
                 return lerp(FinalColor, FinalColor + GlobalIllumination*0.1, min(1, GlobalIllumination.w));
             }
             ENDCG

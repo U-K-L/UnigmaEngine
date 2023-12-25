@@ -8,6 +8,7 @@ public class IsometricDepthNormalObject : UnigmaPostProcessingObjects
     public float _fadeThreshold = 100000;
     public float _normalAmp = 1;
     public float _depthAmp = 1;
+    public bool _writeToTexture = true;
 
     [HideInInspector]
     public Material material = default;

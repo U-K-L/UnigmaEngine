@@ -45,7 +45,7 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
             if (minDist > distance && maxDist > distance)
             {
-                finalforce = new Vector3(vp.direction.x, vp.direction.y, vp.direction.z) * vp.direction.w;
+                finalforce = vp.direction;
                 minDist = distance;
             }
 
@@ -56,7 +56,7 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
     void UpdatePosition()
     {
-        transform.position = Vector3.Lerp(transform.position, transform.position + velocity * Time.fixedDeltaTime, Time.fixedDeltaTime);
+        transform.position = transform.position + velocity * Time.fixedDeltaTime;//Vector3.Lerp(transform.position, transform.position + velocity * Time.fixedDeltaTime, Time.fixedDeltaTime);
     }
 
     public virtual void HandleMovementCollision()

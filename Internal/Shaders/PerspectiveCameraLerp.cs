@@ -65,11 +65,11 @@ public class PerspectiveCameraLerp : MonoBehaviour
     void updateProjectionWarp()
     {
         Matrix4x4 p = cam.projectionMatrix;
-        p.m01 += Mathf.Sin(Time.time * 1.2F) * 0.125F;
+        p.m01 += Mathf.Sin(Time.time * 3.2F) * 0.0125F;
         p.m10 += Mathf.Abs(Mathf.Cos(Time.time * 1.5F)) * 0.0125F;
-        p.m00 += 0.05f * Mathf.Abs(Mathf.Sin(Time.time * 1.5F)) * 0.0125F;
-        p.m32 += 0.05f * Mathf.Cos(Time.time * 1.5F) * 0.0125F;
-        p.m33 += 0.005f * Mathf.Cos(Time.time * 1.5F) * 0.0125F;
+        p.m00 +=  Mathf.Abs(Mathf.Sin(Time.time * 2.5F)) * 0.295F;
+        p.m32 +=  Mathf.Cos(Time.time * 2.5F) * 0.0225F;
+        p.m33 +=  Mathf.Cos(Time.time * 1.5F) * 0.0125F;
         cam.projectionMatrix = p;
         //cam.transform.localPosition = perspectiveOffsets;
     }
@@ -83,7 +83,7 @@ public class PerspectiveCameraLerp : MonoBehaviour
         p.m32 += 0.005f * Mathf.Cos(Time.time * 1.5F) * 0.0125F;
         p.m33 += 0.005f *Mathf.Cos(Time.time * 1.5F) * 0.0125F;
         cam.projectionMatrix = p;
-        cam.transform.localPosition = perspectiveOffsets;
+        //cam.transform.localPosition = perspectiveOffsets;
     }
 
     static Matrix4x4 MatrixLerp(Matrix4x4 from, Matrix4x4 to, float time)

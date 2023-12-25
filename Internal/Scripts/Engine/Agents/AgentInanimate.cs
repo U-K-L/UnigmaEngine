@@ -26,7 +26,7 @@ public class AgentInanimate : UnigmaPhysicsObject
 
     void PushObjectOut(Collision collision)
     {
-        velocity *= 0.01f;
+        velocity *= 0.5f;
 
         float magnitude = velocity.magnitude;
         for (int i = 0; i < collision.contactCount; i++)

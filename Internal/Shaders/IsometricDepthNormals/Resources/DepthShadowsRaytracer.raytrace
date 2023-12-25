@@ -90,8 +90,8 @@ void DepthShadowsRaygenShader()
     else
     {
         //Perspective.
-        float4 clipPos = UnityWorldToClipPos(position);// mul(_Perspective_Matrix_VP, float4(position,1));
-        depth = (clipPos.z) / (clipPos.w);
+        float4 clipPos = mul(_Perspective_Matrix_VP, float4(position,1));//UnityWorldToClipPos(position);
+        depth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
     }
    
     if(payload.distance > ray.TMax -1)

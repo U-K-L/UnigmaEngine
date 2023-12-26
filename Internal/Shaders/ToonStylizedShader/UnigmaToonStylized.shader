@@ -152,11 +152,24 @@ Shader "Unigma/UnigmaToonStylized"
             {
                 float2 uvs = GetUVs(attributes);
                 float3 normals = GetNormals(attributes);
-                //float3 worldNormal = mul((float4x4)unity_ObjectToWorld, float4(normals, 0)).xyz;
+                float3 tangent = GetTangent(attributes);
+                float3 bitangent = normalize(cross(normals, tangent));
+
+                float3x3 tangentMatrix = transpose(float3x3(tangent, bitangent, normals));
+
+                
+                float3 worldNormal = mul(ObjectToWorld3x4(), float4(normals, 0)).xyz;
 
 
                 float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);
                 float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
+
+                //Project position into tangent, basically uv space.
+
+                float3 localPosition = mul(WorldToObject3x4(), float4(position, 1.0)).xyz;
+                float3 tangentSpace = mul(localPosition, tangentMatrix);
+
+                float2 tangentUVs = float2(tangentSpace.x + 0.5, -tangentSpace.y + 0.5);
 
                 float distSquared = min(1, 1 / (RayTCurrent() * RayTCurrent()) ) ;
                 payload.distance = RayTCurrent();
@@ -183,8 +196,10 @@ Shader "Unigma/UnigmaToonStylized"
 
                 float4 objectColor = zyCol + xzCol + zxCol;
 
-                payload.color = objectColor* distSquared;//_Midtone* distSquared;//float4(normals, 1);
-                //payload.color = 1;
+                //payload.color = objectColor* distSquared;//_Midtone* distSquared;//float4(normals, 1);
+                //payload.color = float4(float3(uvs.x, uvs.y, 1) *0.5 + 0.5, 1);
+                payload.color = float4(uvs.x, uvs.y, 1, 1);
+                payload.color = float4(tangentUVs.x, tangentUVs.y, 1, 1);
             }
 
             ENDHLSL

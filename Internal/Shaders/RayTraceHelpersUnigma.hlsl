@@ -56,6 +56,24 @@ float3 GetNormals(AttributeData attributes)
     return v0.normal * barycentrics.x + v1.normal * barycentrics.y + v2.normal * barycentrics.z;
 }
 
+float3 GetTangent(AttributeData attributes)
+{
+    //Gets the triangle in question. First by getting its index then the order the vertices are in.
+    uint primitiveIndex = PrimitiveIndex();
+    uint3 triangleIndicies = UnityRayTracingFetchTriangleIndices(primitiveIndex);
+    Vertex v0, v1, v2;
+
+    //Get the attributes of this vertex.
+    v0.normal = UnityRayTracingFetchVertexAttribute3(triangleIndicies.x, kVertexAttributeTangent); //tangent.
+    v1.normal = UnityRayTracingFetchVertexAttribute3(triangleIndicies.y, kVertexAttributeTangent);
+    v2.normal = UnityRayTracingFetchVertexAttribute3(triangleIndicies.z, kVertexAttributeTangent);
+
+    //Interpolate the normal via the barycentric coordinate system.
+    float3 barycentrics = float3(1.0 - attributes.barycentrics.x - attributes.barycentrics.y, attributes.barycentrics.x, attributes.barycentrics.y);
+
+    return v0.normal * barycentrics.x + v1.normal * barycentrics.y + v2.normal * barycentrics.z;
+}
+
 //Intersectors -- https://iquilezles.org/articles/intersectors/
 float sphIntersect(float3 ro, float3 rd, float4 sph)
 {
@@ -67,3 +85,12 @@ float sphIntersect(float3 ro, float3 rd, float4 sph)
     h = sqrt(h);
     return -b - h;
 }
+
+void GetTriangleNormalAndTSMatrix(float3 a, float3 b, float3 c, out float3 normal, out float3x3 tangentTransform) {
+
+    float3 tangent = normalize(b - a);
+    normal = normalize(cross(tangent, c - a));
+    float3 bitangent = normalize(cross(tangent, normal));
+    tangentTransform = transpose(float3x3(tangent, bitangent, normal));
+}
+

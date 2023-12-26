@@ -81,6 +81,10 @@ void RestirGlobalIllumantionRayGen()
     payload.direction = chosenDirection;
 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+    //Remove.
+    _UnigmaGlobalIllumination[dispatchIdx] = payload.color;
+
     position = ray.Origin + ray.Direction * (payload.distance - 0.0001);
     //specular.
     ray.Origin = position;
@@ -88,7 +92,7 @@ void RestirGlobalIllumantionRayGen()
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
 
-    _UnigmaGlobalIllumination[dispatchIdx] = payload.color;
+    //_UnigmaGlobalIllumination[dispatchIdx] = payload.color;
 }
 
 [shader("miss")]

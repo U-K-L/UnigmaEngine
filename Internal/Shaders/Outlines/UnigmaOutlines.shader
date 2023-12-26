@@ -198,6 +198,7 @@ Shader "Unigma/UnigmaOutlines"
                 FinalColor = float4(FinalColor.xyz - shadowStrength, FinalColor.w) + edgeUnigmaDepth;
                 //return shadow0 * 10;
                 //return edgeUnigmaDepth;//pos0*10;//pos0;// *step(0.001, OutterLineColors.w);
+                return GlobalIllumination;
                 return lerp(FinalColor, FinalColor + GlobalIllumination*0.1, min(1, GlobalIllumination.w));
             }
             ENDCG

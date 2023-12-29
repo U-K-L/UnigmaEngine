@@ -141,6 +141,9 @@ void RestirGlobalIllumantionRayGen()
     //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
     if(_UnigmaFrameCount < (int)frameCount)
         _UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, 1)*inverseFrameSamples;//payload.color;
+
+    //Add direct shadows.
+
 }
 
 [shader("miss")]

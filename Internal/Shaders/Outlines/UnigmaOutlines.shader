@@ -61,6 +61,7 @@ Shader "Unigma/UnigmaOutlines"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                fixed4 originalImage = tex2D(_MainTex, i.uv);
                 fixed4 GlobalIllumination = tex2D(_UnigmaGlobalIllumination, i.uv);
                 fixed4 BackgroundTexture = tex2D(_BackgroundTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
@@ -197,9 +198,10 @@ Shader "Unigma/UnigmaOutlines"
                 //White outline added.
                 FinalColor = float4(FinalColor.xyz - shadowStrength, FinalColor.w) + edgeUnigmaDepth;
                 //return shadow0 * 10;
-                //return edgeUnigmaDepth;//pos0*10;//pos0;// *step(0.001, OutterLineColors.w);
-                return GlobalIllumination;
-                return lerp(FinalColor, FinalColor + GlobalIllumination*0.1, min(1, GlobalIllumination.w));
+                return _UnigmaDepthShadows;//edgeUnigmaDepth;//pos0*10;//pos0;// *step(0.001, OutterLineColors.w);
+                //return GlobalIllumination;
+                //return originalImage;
+                return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }
             ENDCG
         }

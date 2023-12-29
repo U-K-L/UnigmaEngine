@@ -109,7 +109,7 @@ void DepthShadowsRaygenShader()
     ray.Direction = toLightDir; 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _UnigmaDepthShadowsMap[id.xy] = float4(depth, payload.color.r, payload.color.g, 1);
+    _UnigmaDepthShadowsMap[id.xy] += float4(depth, payload.color.r, payload.color.g, 1);
 }
 
 [shader("miss")]

@@ -30,6 +30,7 @@ Shader "Unigma/UnigmaToonStylized"
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
 				float3 normal : NORMAL;
+
             };
 
             struct v2f
@@ -39,8 +40,10 @@ Shader "Unigma/UnigmaToonStylized"
                 float4 vertex : SV_POSITION;
 				float3 normal : TEXCOORD1;
                 float3 worldPos : TEXCOORD2;
+                float4 screenSpace : TEXCOORD3;
             };
 
+            sampler2D _UnigmaGlobalIllumination;
             sampler2D _MainTex;
             float4 _MainTex_ST;
 			float4 _Midtone;
@@ -53,6 +56,9 @@ Shader "Unigma/UnigmaToonStylized"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
+
+                o.screenSpace = ComputeScreenPos(o.vertex);
+
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.normal = UnityObjectToWorldNormal(v.normal);
                 UNITY_TRANSFER_FOG(o,o.vertex);
@@ -64,6 +70,10 @@ Shader "Unigma/UnigmaToonStylized"
                 //Three colors shadow, midtone, highlight.
                 //Each of this colors are on different normals of a percieved box ...
                 //The normals are NOT interpolated and it is a flat shading.
+                float2 screenPos = i.screenSpace.xy / i.screenSpace.w;
+                //screenPos = screenPos * 0.5 + 0.5;
+                screenPos *= _ScreenParams.y / _ScreenParams.x;
+                float4 globalIllum = tex2D(_UnigmaGlobalIllumination, screenPos);
                 float4 normals = float4(i.normal, 1);
                 float3 lightDirAbsolute = normalize(_WorldSpaceLightPos0.xyz);
                 float3 lightDir = normalize(lightDirAbsolute);
@@ -77,6 +87,7 @@ Shader "Unigma/UnigmaToonStylized"
 				float4 finalColor = max(midTones, shadows);
 				finalColor = max(finalColor, highlights);
 
+                //return globalIllum;
                 return finalColor;
 
                 float4 xzCol = _Shadow*step(_Thresholds.x, abs(normals).r);

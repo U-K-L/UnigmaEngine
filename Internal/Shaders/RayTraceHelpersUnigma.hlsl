@@ -1,3 +1,5 @@
+#define RUNITY_PI 3.14159265359
+
 struct Vertex
 {
 	float3 position;
@@ -94,3 +96,87 @@ void GetTriangleNormalAndTSMatrix(float3 a, float3 b, float3 c, out float3 norma
     tangentTransform = transpose(float3x3(tangent, bitangent, normal));
 }
 
+
+float rand(float val)
+{
+    float3 co = float3(val, val, val);
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+}
+
+
+float rand(float2 co)
+{
+    return frac(sin(dot(co.xy, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+float rand(float3 co)
+{
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+}
+
+// Returns a pseudorandom number. By Ronja Böhringer
+float rand(float4 value) {
+    float4 smallValue = sin(value);
+    float random = dot(smallValue, float4(12.9898, 78.233, 37.719, 09.151));
+    random = frac(sin(random) * 143758.5453);
+    return random;
+}
+
+float rand(float3 pos, float offset) {
+    return rand(float4(pos, offset));
+
+}
+
+
+//Box–Muller transform: https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-37-efficient-random-number-generation-and-application
+float2 randGaussian(float3 pos, float offset) {
+    float u1 = rand(pos, offset);
+    float u2 = rand(pos, offset + 1);
+    float theta = 2 * RUNITY_PI * u1;
+    float rho = 0.164955 * sqrt(-2 * log(abs(u2) + 0.01));
+    float z0 = rho * cos(theta) + 0.5;
+    float z1 = rho * sin(theta) + 0.5;
+    z0 = max(z0, 0);
+    z0 = min(z0, 1);
+    z1 = max(z1, 0);
+    z1 = min(z1, 1);
+    return float2(z0, z1);
+}
+
+float3 PointTangentToNormal(float3 p, float3 normal) {
+
+    float3 helper = float3(1, 0, 0);
+    if (abs(normal.x) > 0.99f)
+        helper = float3(0, 0, 1);
+    float3 tangent = normalize(cross(normal, helper));
+    float3 binormal = normalize(cross(normal, tangent));
+    return mul(p, float3x3(tangent, binormal, normal));
+}
+
+//Need to supply normal so that hemisphere is oriented with the normal.
+//Let's use the cosine weighted sampling.
+//We map a square onto a disk then project that disk onto a hemisphere.
+float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float2 seed, float radius = 1.0, float power = 1.0)
+{
+    float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
+    float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
+    float3 uv = float3(xy, xz.x);
+
+    float theta = acos(pow(1 - uv.x, 1.0 / (power + 1.0)));
+    float phi = 2 * RUNITY_PI * uv.y;
+
+    float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+
+    //Quick Guass test
+    //float3 gaussianDistrib = float3(uv.x, uv.y, uv.z); //Range -1, 1.
+    //float3 prandom =  normalize(gaussianDistrib) * radius;
+
+    //Transform this direction to be on the hemisphere with the provided normal.
+    float3 transformedDir = PointTangentToNormal(dir, normal);
+    return transformedDir;
+}
+
+float sdot(float3 x, float3 y, float f = 1.0f)
+{
+    return saturate(dot(x, y) * f);
+}

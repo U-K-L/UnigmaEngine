@@ -196,10 +196,12 @@ Shader "Unigma/UnigmaToonStylized"
 
                 float4 objectColor = zyCol + xzCol + zxCol;
 
+                payload.direction = worldNormal;
+                payload.color = finalColor;
                 //payload.color = objectColor* distSquared;//_Midtone* distSquared;//float4(normals, 1);
                 //payload.color = float4(float3(uvs.x, uvs.y, 1) *0.5 + 0.5, 1);
-                payload.color = float4(uvs.x, uvs.y, 1, 1);
-                payload.color = float4(tangentUVs.x, tangentUVs.y, 1, 1);
+                //payload.color = float4(uvs.x, uvs.y, 1, 1);
+                //payload.color = float4(tangentUVs.x, tangentUVs.y, 1, 1);
             }
 
             ENDHLSL

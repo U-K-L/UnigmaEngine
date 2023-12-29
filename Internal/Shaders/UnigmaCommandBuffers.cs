@@ -15,6 +15,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     private bool BuffersReady = false;
 
+    public static int _UnigmaFrameCount;
+
     [SerializeField]
     Material rayTracingDepthShadowMaterial;
 
@@ -72,6 +74,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
         Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
+        Shader.SetGlobalInt("_UnigmaFrameCount", _UnigmaFrameCount);
 
         foreach (Renderer r in _rayTracedObjects)
         {
@@ -102,6 +105,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
             buffersAdded += 1;
         }
 
+        _UnigmaFrameCount++;
+        if (_UnigmaFrameCount > int.MaxValue)
+            _UnigmaFrameCount = 0;
+        Debug.Log(_UnigmaFrameCount);
     }
 
 
@@ -147,7 +154,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         depthShadowsCommandBuffer.SetGlobalTexture("_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
         depthShadowsCommandBuffer.SetRenderTarget(_UnigmaGlobalIllumination);
-        depthShadowsCommandBuffer.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+        //depthShadowsCommandBuffer.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
 
         depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirGlobalIllumRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);

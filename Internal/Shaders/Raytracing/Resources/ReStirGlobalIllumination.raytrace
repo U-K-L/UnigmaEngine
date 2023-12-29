@@ -7,6 +7,8 @@
 
 RWTexture2D<float4> _UnigmaGlobalIllumination;
 
+int _UnigmaFrameCount;
+
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 #pragma max_recursion_depth 1
 
@@ -77,29 +79,75 @@ void RestirGlobalIllumantionRayGen()
 
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
-    payload.distance = 9999999999;
+    payload.distance = 99999;
     payload.direction = chosenDirection;
 
+    //Samples Amount
+    int samples = 20;
+    int maxBounces = 3;
+
+    float3 radiance = 0;
+    float3 emittance = 0;
+    float3 BRDF = 0;
+    for(int i = 0; i < samples; i++)
+    { 
+        emittance = 0;
+        BRDF = 0;
+        ray.Origin = chosenCameraPosition; 
+        ray.Direction = chosenDirection;
+        payload.color = float4(0, 0, 0, 0);
+        payload.distance = 99999;
+        payload.direction = chosenDirection;
+        for(int j = 0; j < maxBounces; j++)
+        {
+            TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+            //If it hit a point, divide by the amount of samples to get full energy.
+
+            float3 randomDirection = RandomPointOnHemisphere(pixel, payload.direction,float2(i, j) + _Time.xy+pixel);
+
+            if(payload.distance > 9999)
+            {
+                emittance += (float3(0.75,0.95,1)*3);
+                break;
+            }
+
+             float cos_theta = sdot(randomDirection, payload.direction);
+             BRDF += cos_theta*payload.color;
+
+             
+             ray.Origin = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+             ray.Direction = randomDirection;
+        }
+        radiance += (BRDF + emittance)/(samples*maxBounces);
+    }
+
+    /*
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
+
     //Remove.
-    _UnigmaGlobalIllumination[dispatchIdx] = payload.color;
+    //_UnigmaGlobalIllumination[dispatchIdx] = payload.color;
 
     position = ray.Origin + ray.Direction * (payload.distance - 0.0001);
     //specular.
     ray.Origin = position;
     ray.Direction = payload.direction;
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
-
-
-    //_UnigmaGlobalIllumination[dispatchIdx] = payload.color;
+    */
+    
+    float frameCount = 100;
+    float inverseFrameSamples = 1.0f / frameCount;
+    //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
+    if(_UnigmaFrameCount < (int)frameCount)
+        _UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, 1)*inverseFrameSamples;//payload.color;
 }
 
 [shader("miss")]
 void MyMissShader(inout Payload payload : SV_RayPayload)
 {
-    payload.color = 0;
+    payload.color = 1;
     payload.direction = 0;
-    payload.distance = 9999999999;
+    payload.distance = 99999;
     
 }

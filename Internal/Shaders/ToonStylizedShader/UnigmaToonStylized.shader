@@ -7,6 +7,9 @@ Shader "Unigma/UnigmaToonStylized"
 		_Shadow("Shadow", Color) = (1,1,1,1)
 		_Highlight("Highlight", Color) = (1,1,1,1)
 		_Thresholds("Light thresholds", Vector) = (0.2, 0.4, 0.6, 0.8)
+        _Smoothness("Smoothness", Range(0,1)) = 0
+        _LightAbsorbtion("Light Absorbtion", Range(0,1)) = 0
+        _Emmittance("Light Emittance", Range(0,100)) = 0
         
     }
     SubShader
@@ -74,11 +77,13 @@ Shader "Unigma/UnigmaToonStylized"
                 //screenPos = screenPos * 0.5 + 0.5;
                 screenPos *= _ScreenParams.y / _ScreenParams.x;
                 float4 globalIllum = tex2D(_UnigmaGlobalIllumination, screenPos);
-                float4 normals = float4(i.normal, 1);
+                float4 normals = normalize(float4(i.normal, 1));
                 float3 lightDirAbsolute = normalize(_WorldSpaceLightPos0.xyz);
                 float3 lightDir = normalize(lightDirAbsolute);
+
+                //float3 normals = UnityObjectToWorldNormal(i.normal);
                 
-				float NdotL = dot(i.normal, lightDir);
+				float NdotL = dot(normals, lightDir);
                 
 				float4 midTones = _Midtone * step(_Thresholds.x, NdotL);
 				float4 shadows = _Shadow * step(NdotL, _Thresholds.y);
@@ -156,6 +161,7 @@ Shader "Unigma/UnigmaToonStylized"
             float4 _Shadow;
             float4 _Highlight;
             float4 _Thresholds;
+            float _Smoothness, _LightAbsorbtion, _Emmittance;
 
             [shader("closesthit")]
             void MyHitShader(inout Payload payload : SV_RayPayload,
@@ -169,7 +175,7 @@ Shader "Unigma/UnigmaToonStylized"
                 float3x3 tangentMatrix = transpose(float3x3(tangent, bitangent, normals));
 
                 
-                float3 worldNormal = mul(ObjectToWorld3x4(), float4(normals, 0)).xyz;
+                float3 worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz);
 
 
                 float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);
@@ -207,8 +213,22 @@ Shader "Unigma/UnigmaToonStylized"
 
                 float4 objectColor = zyCol + xzCol + zxCol;
 
-                payload.direction = worldNormal;
-                payload.color = finalColor;
+                payload.normal = float4(worldNormal, 1);
+
+
+                float2 rxy = randGaussian(float3(payload.pixel.xyy), rand(payload.pixel.x));
+                float2 rxz = randGaussian(float3(payload.pixel.xy + 2452, payload.pixel.x), rand(payload.pixel.y));
+                float3 ruv = float3(rxy, rxz.x);
+                float3 diffuse = RandomPointOnHemisphere(payload.pixel, worldNormal,payload.pixel);
+                float3 specular = reflect(WorldRayDirection(), worldNormal);
+
+                float lightAbsorbed = _LightAbsorbtion < ruv.x;
+
+                payload.direction = lerp(diffuse, specular, _Smoothness* lightAbsorbed);
+
+                //payload.direction = diffuse;
+
+                payload.color *= 2.85 * _Midtone;
                 //payload.color = objectColor* distSquared;//_Midtone* distSquared;//float4(normals, 1);
                 //payload.color = float4(float3(uvs.x, uvs.y, 1) *0.5 + 0.5, 1);
                 //payload.color = float4(uvs.x, uvs.y, 1, 1);

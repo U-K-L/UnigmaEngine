@@ -931,6 +931,16 @@ float3 Barycentric(float3 a, float3 b, float3 c, float3 p)
 	return bary;
 }
 
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
 //Need the plane aka triangle as input.
 float3 PathAlongTangent(float3 a, float3 b, float3 c,float3 target)
 {
@@ -1021,6 +1031,7 @@ void Add(uint3 id, int _Cols, StructuredBuffer<float> A, StructuredBuffer<float>
 		return;
 	result[currentIndex] = A[currentIndex] + B[currentIndex];
 }
+
 
 
 #endif

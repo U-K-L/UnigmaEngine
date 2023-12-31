@@ -12,6 +12,8 @@ struct Payload
     float4 color;
     float3 direction;
     float distance;
+    float4 normal;
+    float2 pixel;
     
 };
 
@@ -179,4 +181,39 @@ float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float2 seed, float r
 float sdot(float3 x, float3 y, float f = 1.0f)
 {
     return saturate(dot(x, y) * f);
+}
+
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+float3 LinearToSRGB(float3 x)
+{
+    return (x < 0.0031308f) ?
+                x * 12.92f :
+                pow(x, 1.0f/2.4f) * 1.055f - 0.055f;
+}
+
+float3 HDRToOutput(float3 hdr, float exposure)
+{
+    // Exposure (tune the value to set the overall brightness;
+    // positive makes it brighter, while negative makes it darker)
+    hdr *= exp2(exposure);
+
+    // Limit saturation to 99% - maps pure colors like (1, 0, 0) to (1, 0.01, 0.01)
+    float3 maxComp = max(hdr.b,max(hdr.r, hdr.g));
+    hdr = max(hdr, 0.01 * maxComp);
+
+    // Apply tonemapping curve
+    float3 ldrLinear = ACESFilm(hdr);
+
+    // Convert to sRGB
+    float3 ldrSRGB = LinearToSRGB(hdr);
+    return ldrSRGB;
 }

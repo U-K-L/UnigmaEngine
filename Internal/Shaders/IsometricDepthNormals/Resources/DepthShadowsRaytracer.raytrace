@@ -71,7 +71,7 @@ void DepthShadowsRaygenShader()
 
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
-    payload.distance = 9999999999;
+    payload.distance = 99999;
 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
@@ -116,6 +116,6 @@ void DepthShadowsRaygenShader()
 void MyMissShader(inout Payload payload : SV_RayPayload)
 {
     payload.color = 0;
-    payload.distance = 9999999999;
+    payload.distance = 99999;
     
 }

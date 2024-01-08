@@ -1,5 +1,20 @@
 #define RUNITY_PI 3.14159265359
 
+
+//Struct definitions.
+struct Sample
+{
+    float3 x0;
+    float3 x1;
+    float3 x2;
+    float weight;
+};
+
+struct UnigmaLight
+{
+    float3 position;
+};
+
 struct Vertex
 {
 	float3 position;
@@ -217,3 +232,4 @@ float3 HDRToOutput(float3 hdr, float exposure)
     float3 ldrSRGB = LinearToSRGB(hdr);
     return ldrSRGB;
 }
+

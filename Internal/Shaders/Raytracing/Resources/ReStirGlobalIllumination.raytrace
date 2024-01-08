@@ -7,13 +7,109 @@
 
 RWTexture2D<float4> _UnigmaGlobalIllumination;
 
+RWStructuredBuffer<UnigmaLight> _unigmaLights;
+RWStructuredBuffer<Sample> _samples;
+
 int _UnigmaFrameCount;
+int _NumberOfLights;
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 #pragma max_recursion_depth 1
 
 void InitializeRay(inout float3 orig, inout float3 dir)
 {
+
+}
+
+float3 ComputeBRDF(inout Payload payload, in RayDesc ray, int bounce)
+{
+    float3 BRDF = 0;
+    float bounceStrength = (1.0 / ((float)2*bounce+1.0f));
+
+    float3 emittance = payload.color.xyz * payload.color.w *bounceStrength;
+
+    float cos_theta = sdot(payload.direction, payload.normal);
+
+    //BRDF(x) * Le(x) * G(x) * V(x1 <-> x2)
+    BRDF = cos_theta*emittance*payload.color.xyz;
+   
+    return BRDF;
+}
+
+float4 areaSampleLights(inout Payload payload, RayDesc ray, inout Sample s)
+{
+    //Initialize the payload and bounces.
+    int maxBounces = 2;
+    payload.color = float4(1,1,1,0);
+    payload.distance = 99999;
+    payload.direction = ray.Direction;
+
+    float3 BRDF = 0;
+    s.x0 = ray.Origin;
+
+    payload.pixel += _Time.xy;
+        
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+    //Ray has finished tracing the scene do something with the results.
+    BRDF += ComputeBRDF(payload, ray, 0);
+
+          
+
+    ray.Origin = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+    ray.Direction = payload.direction;
+
+    s.x1 = ray.Origin;
+
+    payload.pixel += float2(rand(_Time.x+1), rand( _Time.y + 2)) + _Time.xy;
+        
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+    //Ray has finished tracing the scene do something with the results.
+    BRDF += ComputeBRDF(payload, ray, 1);
+
+          
+
+    ray.Origin = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+    ray.Direction = payload.direction;
+
+    s.x2 = ray.Origin;
+
+    s.weight = 1.0 / 2.0; //Only two lights, need to create buffer.
+    /*
+    //Bounce it n times, for direct lighting this is only once.
+    for(int j = 0; j < maxBounces; j++)
+    {
+        payload.pixel += float2(j*j, j) + _Time.xy;
+        
+        TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+        //Ray has finished tracing the scene do something with the results.
+        BRDF += ComputeBRDF(payload, ray, j);
+
+          
+
+        ray.Origin = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+        ray.Direction = payload.direction;
+
+        s.path[j+1] = ray.Origin;
+        s.weight = 1.0 / 2.0; //Only two lights, need to create buffer.
+        
+    }
+    */
+
+    return float4(BRDF, 1.0);
+}
+
+float4 ShadePixel(inout Payload payload, inout RayDesc ray)
+{
+    float4 pixelColor = 0;
+
+    Sample s;
+
+    pixelColor = areaSampleLights(payload, ray, s);
+
+    return pixelColor * s.weight;
 
 }
 
@@ -31,6 +127,9 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
+    float frameCount = 1000;
+    if(_UnigmaFrameCount > (int)frameCount)
+        return;
     //Is it orthographic?
     if (unity_OrthoParams.w > 0)
     {
@@ -81,7 +180,11 @@ void RestirGlobalIllumantionRayGen()
     payload.color = 1;
     payload.distance = 99999;
     payload.direction = chosenDirection;
+    payload.pixel = pixel;
 
+
+
+    /*
     //Samples Amount
     int samples = 30;
     int maxBounces = 8;
@@ -97,7 +200,7 @@ void RestirGlobalIllumantionRayGen()
         BRDF = 0;
         ray.Origin = chosenCameraPosition; 
         ray.Direction = chosenDirection;
-        payload.color = 1;
+        payload.color = float4(1,1,1,0);
         payload.distance = 99999;
         payload.direction = chosenDirection;
         for(int j = 0; j < maxBounces; j++)
@@ -116,15 +219,16 @@ void RestirGlobalIllumantionRayGen()
             {
                 float3 toLightDir = normalize(_WorldSpaceLightPos0);
                 float cos_theta_light = sdot(toLightDir, directionCache) + 0.25;
-                emittance += float3(1,1,1)*2*bounceStrength;
+                emittance += float3(1,1,1)*2.75*bounceStrength;
 
-                BRDF += float3(1,1,1)*bounceStrength*0.55; // sky.
+                BRDF += float3(0.95,0.98,1)*bounceStrength*0.57; // sky.
                 break;
             }
             hitObject = 1.0f;
 
             float cos_theta = sdot(rayDirection, payload.normal);
-            BRDF += cos_theta*payload.color*bounceStrength;
+            BRDF += cos_theta*payload.color.xyz*bounceStrength;
+            emittance += payload.color.xyz * payload.color.w *bounceStrength*0.0001;
 
              
             ray.Origin = ray.Origin + ray.Direction * (payload.distance - 0.0001);
@@ -132,9 +236,9 @@ void RestirGlobalIllumantionRayGen()
 
             directionCache = rayDirection;
         }
-        radiance += (BRDF*emittance)/(samples);
+        radiance += (BRDF*(emittance))/(samples);
     }
-
+    */
     /*
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
@@ -149,11 +253,12 @@ void RestirGlobalIllumantionRayGen()
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
     */
     
-    float frameCount = 100;
+    
     float inverseFrameSamples = 1.0f / frameCount;
+    _UnigmaGlobalIllumination[dispatchIdx] += ShadePixel(payload, ray) * inverseFrameSamples;
     //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
-    if(_UnigmaFrameCount < (int)frameCount)
-        _UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;
+    
+    //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;
 
     //Add direct shadows.
 
@@ -162,7 +267,7 @@ void RestirGlobalIllumantionRayGen()
 [shader("miss")]
 void MyMissShader(inout Payload payload : SV_RayPayload)
 {
-    payload.color = 1;
+    payload.color = float4(1,1,1,0);
     payload.direction = 0;
     payload.distance = 99999;
     payload.pixel = -1;

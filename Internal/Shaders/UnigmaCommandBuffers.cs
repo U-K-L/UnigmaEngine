@@ -10,6 +10,29 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
     private List<Renderer> _OutlineNullObjects = default; //Objects not part of this render.
 
+
+    struct Sample
+    {
+        public Vector3 x0;
+        public Vector3 x1;
+        public Vector3 x2;
+        public float weight;
+    };
+
+    struct UnigmaLight
+    {
+        public Vector3 position;
+    }
+
+    int _lightStride = sizeof(float) * 3;
+    int _sampleStride = (sizeof(float) * 3) * 3 + sizeof(float);
+
+    ComputeBuffer samplesBuffer;
+    ComputeBuffer lightsBuffer;
+
+    private List<Sample> samplesList;
+    private List<UnigmaLight> lightList;
+
     private ComputeShader computeOutlineColors;
     private Material _nullMaterial = default;
 
@@ -32,6 +55,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        samplesList = new List<Sample>();
+        lightList = new List<UnigmaLight>();
         _nullMaterial = new Material(Shader.Find("Unigma/IsometricNull"));
         computeOutlineColors = Resources.Load("OutlineColorsBoxBlur") as ComputeShader;
         Camera cam = GetComponent<Camera>();
@@ -47,11 +72,27 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaGlobalIllumination.enableRandomWrite = true;
         _UnigmaGlobalIllumination.Create();
 
+        
+
         CreateAcceleratedStructure();
     }
 
     void CreateAcceleratedStructure()
     {
+        int amountOfSamples = Screen.width * Screen.height;
+
+        for(int i = 0; i < amountOfSamples; i++)
+        {
+            Sample s = new Sample();
+            s.x0 = Vector3.zero;
+            s.x1 = Vector3.zero;
+            s.x2 = Vector3.zero;
+            s.weight = 0;
+        }
+
+        samplesBuffer = new ComputeBuffer(amountOfSamples, _sampleStride);
+        samplesBuffer.SetData(samplesList);
+
         if (_DepthShadowsRayTracingShaderAccelerated == null)
             _DepthShadowsRayTracingShaderAccelerated = Resources.Load<RayTracingShader>("DepthShadowsRaytracer");
 
@@ -93,7 +134,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
             _OutlineNullObjects = new List<Renderer>();
             FindObjects("IsometricDepthNormalObject");
             AddObjectsToList();
+            AddLightsToList();
             AddObjectsToAccerleration();
+
+            lightsBuffer = new ComputeBuffer(lightList.Count, _lightStride);
+            lightsBuffer.SetData(lightList);
+
             CreateDepthShadowBuffers();
             CreateDepthNormalBuffers();
             buffersAdded += 1;
@@ -125,6 +171,25 @@ public class UnigmaCommandBuffers : MonoBehaviour
         }
     }
 
+    void AddLightsToList()
+    {
+        foreach (Renderer obj in FindObjectsOfType<Renderer>())
+        {
+            //Check if object in the RaytracingLayers.
+            if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
+            {
+                if (!obj.material.HasFloat("_Emmittance"))
+                    continue;
+                if (obj.material.GetFloat("_Emmittance") > 0.0001)
+                {
+                    UnigmaLight ulight = new UnigmaLight();
+                    ulight.position = obj.transform.position;
+                    lightList.Add(ulight);
+                }
+            }
+        }
+    }
+
     void AddObjectsToAccerleration()
     {
         uint index = 0;
@@ -149,12 +214,16 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
 
         depthShadowsCommandBuffer.SetRayTracingShaderPass(_DepthShadowsRayTracingShaderAccelerated, "DepthShadowsRaytracingShaderPass");
+        depthShadowsCommandBuffer.SetRayTracingBufferParam(_DepthShadowsRayTracingShaderAccelerated, "_Samples", samplesBuffer);
         depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_DepthShadowsRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
         depthShadowsCommandBuffer.DispatchRays(_DepthShadowsRayTracingShaderAccelerated, "DepthShadowsRaygenShader", (uint)Screen.width, (uint)Screen.height, 1);
 
         depthShadowsCommandBuffer.SetGlobalTexture("_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
         depthShadowsCommandBuffer.SetRenderTarget(_UnigmaGlobalIllumination);
         //depthShadowsCommandBuffer.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+        depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_samples", samplesBuffer);
+        depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_unigmaLights", lightsBuffer);
+        depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_NumberOfLights", lightList.Count);
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
 
         depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirGlobalIllumRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);

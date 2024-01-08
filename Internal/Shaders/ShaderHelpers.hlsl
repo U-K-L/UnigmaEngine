@@ -864,6 +864,7 @@ float3 gsmin(in float4 a, in float4 b, in float k)
         lerp(a.yzw, b.yzw, (a.x < b.x) ? n : 1.0 - n).xy);
 }
 
+
 // Construct a rotation matrix that rotates around the provided axis, sourced from:
 // https://gist.github.com/keijiro/ee439d5e7388f3aafc5296005c8c3f33
 float3x3 AngleAxis3x3(float angle, float3 axis)
@@ -939,6 +940,31 @@ float3 ACESFilm(float3 x)
     float d = 0.59f;
     float e = 0.14f;
     return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+float3 LinearToSRGB(float3 x)
+{
+    return (x < 0.0031308f) ?
+        x * 12.92f :
+        pow(x, 1.0f / 2.4f) * 1.055f - 0.055f;
+}
+
+float3 HDRToOutput(float3 hdr, float exposure)
+{
+    // Exposure (tune the value to set the overall brightness;
+    // positive makes it brighter, while negative makes it darker)
+    hdr *= exp2(exposure);
+
+    // Limit saturation to 99% - maps pure colors like (1, 0, 0) to (1, 0.01, 0.01)
+    //float3 maxComp = max(hdr.b, max(hdr.r, hdr.g));
+    //hdr = max(hdr, 0.01 * maxComp);
+
+    // Apply tonemapping curve
+    float3 ldrLinear = ACESFilm(hdr);
+    return ldrLinear;
+    // Convert to sRGB
+    float3 ldrSRGB = LinearToSRGB(hdr);
+    return ldrSRGB;
 }
 
 //Need the plane aka triangle as input.

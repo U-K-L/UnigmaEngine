@@ -163,6 +163,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             AddLightsToList();
             AddObjectsToAccerleration();
 
+            Debug.Log("amount of lights: " + lightList.Count);
             lightsBuffer = new ComputeBuffer(lightList.Count, _lightStride);
             lightsBuffer.SetData(lightList);
 
@@ -206,11 +207,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
             {
                 if (!obj.material.HasFloat("_Emmittance"))
                     continue;
-                if (obj.material.GetFloat("_Emmittance") > 0.0001)
+                if (obj.material.GetFloat("_Emmittance") > 0.01)
                 {
                     UnigmaLight ulight = new UnigmaLight();
                     ulight.position = obj.transform.position;
                     ulight.emission = obj.material.GetFloat("_Emmittance");
+                    Debug.Log(obj.transform.name);
                     lightList.Add(ulight);
                 }
             }

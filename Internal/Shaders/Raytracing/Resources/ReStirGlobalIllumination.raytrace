@@ -22,7 +22,7 @@ void InitializeRay(inout float3 orig, inout float3 dir)
 
 }
 
-bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float randSeed)
+bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float2 randSeed)
 {
     reservoir.M += 1;
     reservoir.wSum += weight;
@@ -41,12 +41,12 @@ float3 ComputeBRDF(inout Payload payload, in RayDesc ray, int bounce)
     float3 BRDF = 0;
     float bounceStrength = (1.0 / ((float)2*bounce+1.0f));
 
-    float3 emittance = payload.color.xyz * payload.color.w *bounceStrength;
+    float3 emittance = payload.color.xyz * payload.color.w *bounceStrength*0.001;
 
     float cos_theta = sdot(payload.direction, payload.normal);
 
-    //BRDF(x) * Le(x) * G(x) * V(x1 <-> x2)
-    BRDF = cos_theta*emittance*payload.color.xyz;
+    //BRDF(x) * Le(x) * G(x);
+    BRDF = emittance + cos_theta*payload.color.xyz;
    
     return BRDF;
 }
@@ -60,7 +60,7 @@ float4 areaSampleLights(inout Payload payload, RayDesc ray, inout Reservoir rese
     payload.pixel += _Time.xy;
 
     float3 lightPosition = _unigmaLights[reservoir.Y].position;
-    float emission = _unigmaLights[reservoir.Y].emission;
+    //float emission = 0;//_unigmaLights[30].emission;
 
     
 
@@ -68,11 +68,18 @@ float4 areaSampleLights(inout Payload payload, RayDesc ray, inout Reservoir rese
 
         
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    BRDF = ComputeBRDF(payload, ray, 0);
 
+
+    //V(x1 <-> x2). Changing the distance from the hit point leads to interesting results.
+    float distanceFromPoint = 0.01;
+    ray.Origin = ray.Origin + ray.Direction * (payload.distance - distanceFromPoint);
     ray.Direction = normalize(lightPosition - ray.Origin);
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+    BRDF *= payload.color.xyz * payload.color.w *0.01;
     //Ray has finished tracing the scene do something with the results.
-    BRDF = ComputeBRDF(payload, ray, 0);
+    
     
 
     /*
@@ -108,10 +115,10 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray, inout Reservoir rese
 
     for(uint i = 0; i < _NumberOfLights; i++)
     {
-        float randSeed = payload.pixel.x + payload.pixel.y + _Time.x + i;
+        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i+i);
         uint lightIndex = uint(rand(randSeed) * (_NumberOfLights - 1));
                    
-        pHat = _unigmaLights[lightIndex].emission;
+        pHat = _unigmaLights[lightIndex].emission*0.01;
        
         float weight = pHat / pdf;
      
@@ -124,7 +131,7 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray, inout Reservoir rese
     reservoir.W = pHat > 0.0f ? 1.0f / pHat * reservoir.wSum / reservoir.M : 0.0f;
     
 
-    return pixelColor * reservoir.W;
+    return reservoir.W * pixelColor;
 
 }
 
@@ -142,7 +149,7 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 10;
+    float frameCount = 10000;
     if(_UnigmaFrameCount > (int)frameCount)
         return;
     //Is it orthographic?
@@ -200,6 +207,7 @@ void RestirGlobalIllumantionRayGen()
     _reservoirs[id.x + id.y*dim.x].Y = 0;
     _reservoirs[id.x + id.y*dim.x].M = 0;
     _reservoirs[id.x + id.y*dim.x].wSum = 0;
+    _reservoirs[id.x + id.y*dim.x].W = 0;
 
     /*
 
@@ -272,10 +280,18 @@ void RestirGlobalIllumantionRayGen()
     */
     
     
+    /*
+    frameCount = 100;
 
-
+    _UnigmaGlobalIllumination[dispatchIdx] = 0;
+    for(int i = 0; i < frameCount; i++)
+    {
+        float inverseFrameSamples = 1.0f / frameCount;
+        _UnigmaGlobalIllumination[dispatchIdx] += ShadePixel(payload, ray, _reservoirs[id.x + id.y*dim.x])*inverseFrameSamples;
+    }
+    */
     float inverseFrameSamples = 1.0f / frameCount;
-    _UnigmaGlobalIllumination[dispatchIdx] += ShadePixel(payload, ray, _reservoirs[id.x + id.y*dim.x]) * inverseFrameSamples;
+    _UnigmaGlobalIllumination[dispatchIdx] += ShadePixel(payload, ray, _reservoirs[id.x + id.y*dim.x])*inverseFrameSamples;
     //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
     
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;

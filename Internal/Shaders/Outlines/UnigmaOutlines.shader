@@ -61,6 +61,7 @@ Shader "Unigma/UnigmaOutlines"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                fixed4 originalImage = tex2D(_MainTex, i.uv);
                 fixed4 GlobalIllumination = tex2D(_UnigmaGlobalIllumination, i.uv);
                 fixed4 BackgroundTexture = tex2D(_BackgroundTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
@@ -181,21 +182,36 @@ Shader "Unigma/UnigmaOutlines"
                 //Order matters here.
                 //First place the shadow line as it has the least priority.
                 FinalColor = lerp(FinalColor, float4(_ShadowOutlineColor.xyz, 1), edgeShadow * _ShadowOutlineColor.w);
-                FinalColor = lerp(FinalColor, InnerLineColors, edgeNormal);
+                FinalColor = lerp(FinalColor, InnerLineColors, edgeNormal *step(0.001, InnerLineColors.w));
                 FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
 
+                //return InnerLineColors;
                 //And make it optional!
                 //FinalColor = lerp(FinalColor, BackgroundTexture, step(_UnigmaDepthShadows.r, 0.01));
-                FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz, 1), edge);
+                FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz, 1), edge * step(0.001, OutterLineColors.w));
+
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 
                 float shadows = _UnigmaDepthShadows.y;
                 float3 shadowStrength = 0.115 * step(0.001,shadows) * float3(0.55,1, 0.55);
                 //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
+                //White outline added.
                 FinalColor = float4(FinalColor.xyz - shadowStrength, FinalColor.w) + edgeUnigmaDepth;
 
+                //Convert direct lighting buffer.
+                //float4 directLight = step(0.05, GlobalIllumination);
+                //return directLight;
 
-                return lerp(FinalColor, FinalColor + GlobalIllumination*0.1, min(1, GlobalIllumination.w));
+                //return FinalColor;
+                //return shadow0 * 10;
+                //return edgeUnigmaDepth;//pos0*10;//pos0;// *step(0.001, OutterLineColors.w);
+                return float4(HDRToOutput(GlobalIllumination.xyz,-0.51), 1);
+                //return float4(GlobalIllumination.xyz, 1);
+                //return _UnigmaDepthShadows;
+                //return  FinalColor*0.2 + GlobalIllumination;
+                return lerp(FinalColor, FinalColor*0.75+GlobalIllumination, 0.341+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
+                //return originalImage;
+                return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }
             ENDCG
         }

@@ -49,7 +49,7 @@ Shader "Unigma/OutlineColors"
             fixed4 frag(v2f i) : SV_Target
             {
 				float4 texcol = tex2D(_ThicknessTexture, i.uv);
-				float thickness = dot(texcol, texcol) / 3.0;
+                float thickness = 1;//dot(texcol, texcol) / 3.0;
                 float4 finalOutput = float4(_OutlineColor.xyz, thickness);
 				return finalOutput* thickness;
             }

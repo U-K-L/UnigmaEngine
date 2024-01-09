@@ -71,7 +71,7 @@ void DepthShadowsRaygenShader()
 
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
-    payload.distance = 9999999999;
+    payload.distance = 99999;
 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
@@ -90,8 +90,8 @@ void DepthShadowsRaygenShader()
     else
     {
         //Perspective.
-        float4 clipPos = UnityWorldToClipPos(position);// mul(_Perspective_Matrix_VP, float4(position,1));
-        depth = (clipPos.z) / (clipPos.w);
+        float4 clipPos = mul(_Perspective_Matrix_VP, float4(position,1));//UnityWorldToClipPos(position);
+        depth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
     }
    
     if(payload.distance > ray.TMax -1)
@@ -109,13 +109,13 @@ void DepthShadowsRaygenShader()
     ray.Direction = toLightDir; 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _UnigmaDepthShadowsMap[id.xy] = float4(depth, payload.color.r, payload.color.g, 1);
+    _UnigmaDepthShadowsMap[id.xy] += float4(depth, payload.color.r, payload.color.g, 1);
 }
 
 [shader("miss")]
 void MyMissShader(inout Payload payload : SV_RayPayload)
 {
     payload.color = 0;
-    payload.distance = 9999999999;
+    payload.distance = 99999;
     
 }

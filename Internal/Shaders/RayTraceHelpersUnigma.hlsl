@@ -1,3 +1,21 @@
+#define RUNITY_PI 3.14159265359
+
+
+//Struct definitions.
+struct Sample
+{
+    float3 x0;
+    float3 x1;
+    float3 x2;
+    float weight;
+};
+
+struct UnigmaLight
+{
+    float3 position;
+    float emission;
+};
+
 struct Vertex
 {
 	float3 position;
@@ -10,6 +28,8 @@ struct Payload
     float4 color;
     float3 direction;
     float distance;
+    float4 normal;
+    float2 pixel;
     
 };
 
@@ -19,6 +39,16 @@ struct AttributeData
     float distance;
     float3 position;
 };
+
+struct Reservoir
+{
+    uint Y; //Index most important light.
+    float W; //light weight
+    float wSum; // weight summed.
+    float M; //Number of total lights for this reservoir.
+};
+
+
 
 float2 GetUVs(AttributeData attributes)
 {
@@ -56,6 +86,24 @@ float3 GetNormals(AttributeData attributes)
     return v0.normal * barycentrics.x + v1.normal * barycentrics.y + v2.normal * barycentrics.z;
 }
 
+float3 GetTangent(AttributeData attributes)
+{
+    //Gets the triangle in question. First by getting its index then the order the vertices are in.
+    uint primitiveIndex = PrimitiveIndex();
+    uint3 triangleIndicies = UnityRayTracingFetchTriangleIndices(primitiveIndex);
+    Vertex v0, v1, v2;
+
+    //Get the attributes of this vertex.
+    v0.normal = UnityRayTracingFetchVertexAttribute3(triangleIndicies.x, kVertexAttributeTangent); //tangent.
+    v1.normal = UnityRayTracingFetchVertexAttribute3(triangleIndicies.y, kVertexAttributeTangent);
+    v2.normal = UnityRayTracingFetchVertexAttribute3(triangleIndicies.z, kVertexAttributeTangent);
+
+    //Interpolate the normal via the barycentric coordinate system.
+    float3 barycentrics = float3(1.0 - attributes.barycentrics.x - attributes.barycentrics.y, attributes.barycentrics.x, attributes.barycentrics.y);
+
+    return v0.normal * barycentrics.x + v1.normal * barycentrics.y + v2.normal * barycentrics.z;
+}
+
 //Intersectors -- https://iquilezles.org/articles/intersectors/
 float sphIntersect(float3 ro, float3 rd, float4 sph)
 {
@@ -67,3 +115,132 @@ float sphIntersect(float3 ro, float3 rd, float4 sph)
     h = sqrt(h);
     return -b - h;
 }
+
+void GetTriangleNormalAndTSMatrix(float3 a, float3 b, float3 c, out float3 normal, out float3x3 tangentTransform) {
+
+    float3 tangent = normalize(b - a);
+    normal = normalize(cross(tangent, c - a));
+    float3 bitangent = normalize(cross(tangent, normal));
+    tangentTransform = transpose(float3x3(tangent, bitangent, normal));
+}
+
+
+float rand(float val)
+{
+    float3 co = float3(val, val, val);
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+}
+
+
+float rand(float2 co)
+{
+    return frac(sin(dot(co.xy, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+float rand(float3 co)
+{
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+}
+
+// Returns a pseudorandom number. By Ronja Böhringer
+float rand(float4 value) {
+    float4 smallValue = sin(value);
+    float random = dot(smallValue, float4(12.9898, 78.233, 37.719, 09.151));
+    random = frac(sin(random) * 143758.5453);
+    return random;
+}
+
+float rand(float3 pos, float offset) {
+    return rand(float4(pos, offset));
+
+}
+
+
+//Box–Muller transform: https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-37-efficient-random-number-generation-and-application
+float2 randGaussian(float3 pos, float offset) {
+    float u1 = rand(pos, offset);
+    float u2 = rand(pos, offset + 1);
+    float theta = 2 * RUNITY_PI * u1;
+    float rho = 0.164955 * sqrt(-2 * log(abs(u2) + 0.01));
+    float z0 = rho * cos(theta) + 0.5;
+    float z1 = rho * sin(theta) + 0.5;
+    z0 = max(z0, 0);
+    z0 = min(z0, 1);
+    z1 = max(z1, 0);
+    z1 = min(z1, 1);
+    return float2(z0, z1);
+}
+
+float3 PointTangentToNormal(float3 p, float3 normal) {
+
+    float3 helper = float3(1, 0, 0);
+    if (abs(normal.x) > 0.99f)
+        helper = float3(0, 0, 1);
+    float3 tangent = normalize(cross(normal, helper));
+    float3 binormal = normalize(cross(normal, tangent));
+    return mul(p, float3x3(tangent, binormal, normal));
+}
+
+//Need to supply normal so that hemisphere is oriented with the normal.
+//Let's use the cosine weighted sampling.
+//We map a square onto a disk then project that disk onto a hemisphere.
+float3 RandomPointOnHemisphere(float2 pixel, float3 normal, float2 seed, float radius = 1.0, float power = 1.0)
+{
+    float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
+    float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
+    float3 uv = float3(xy, xz.x);
+
+    float theta = acos(pow(1 - uv.x, 1.0 / (power + 1.0)));
+    float phi = 2 * RUNITY_PI * uv.y;
+
+    float3 dir = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+
+    //Quick Guass test
+    //float3 gaussianDistrib = float3(uv.x, uv.y, uv.z); //Range -1, 1.
+    //float3 prandom =  normalize(gaussianDistrib) * radius;
+
+    //Transform this direction to be on the hemisphere with the provided normal.
+    float3 transformedDir = PointTangentToNormal(dir, normal);
+    return transformedDir;
+}
+
+float sdot(float3 x, float3 y, float f = 1.0f)
+{
+    return saturate(dot(x, y) * f);
+}
+
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+float3 LinearToSRGB(float3 x)
+{
+    return (x < 0.0031308f) ?
+                x * 12.92f :
+                pow(x, 1.0f/2.4f) * 1.055f - 0.055f;
+}
+
+float3 HDRToOutput(float3 hdr, float exposure)
+{
+    // Exposure (tune the value to set the overall brightness;
+    // positive makes it brighter, while negative makes it darker)
+    hdr *= exp2(exposure);
+
+    // Limit saturation to 99% - maps pure colors like (1, 0, 0) to (1, 0.01, 0.01)
+    float3 maxComp = max(hdr.b,max(hdr.r, hdr.g));
+    hdr = max(hdr, 0.01 * maxComp);
+
+    // Apply tonemapping curve
+    float3 ldrLinear = ACESFilm(hdr);
+
+    // Convert to sRGB
+    float3 ldrSRGB = LinearToSRGB(hdr);
+    return ldrSRGB;
+}
+

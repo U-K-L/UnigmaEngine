@@ -7,11 +7,124 @@
 
 RWTexture2D<float4> _UnigmaGlobalIllumination;
 
+RWStructuredBuffer<UnigmaLight> _unigmaLights;
+RWStructuredBuffer<Sample> _samples;
+RWStructuredBuffer<Reservoir> _reservoirs;
+
+int _UnigmaFrameCount;
+int _NumberOfLights;
+
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 #pragma max_recursion_depth 1
 
 void InitializeRay(inout float3 orig, inout float3 dir)
 {
+
+}
+
+bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float randSeed)
+{
+    reservoir.M += 1;
+    reservoir.wSum += weight;
+
+    if(rand(randSeed) < weight / reservoir.wSum)
+    {
+        reservoir.Y = lightX;
+        return true;
+    }
+
+    return false;
+}
+
+float3 ComputeBRDF(inout Payload payload, in RayDesc ray, int bounce)
+{
+    float3 BRDF = 0;
+    float bounceStrength = (1.0 / ((float)2*bounce+1.0f));
+
+    float3 emittance = payload.color.xyz * payload.color.w *bounceStrength;
+
+    float cos_theta = sdot(payload.direction, payload.normal);
+
+    //BRDF(x) * Le(x) * G(x) * V(x1 <-> x2)
+    BRDF = cos_theta*emittance*payload.color.xyz;
+   
+    return BRDF;
+}
+
+float4 areaSampleLights(inout Payload payload, RayDesc ray, inout Reservoir reservoir)
+{
+    //Initialize the payload and bounces.
+    payload.color = float4(1,1,1,0);
+    payload.distance = 99999;
+    payload.direction = ray.Direction;
+    payload.pixel += _Time.xy;
+
+    float3 lightPosition = _unigmaLights[reservoir.Y].position;
+    float emission = _unigmaLights[reservoir.Y].emission;
+
+    
+
+    float3 BRDF = 0;
+
+        
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+    ray.Direction = normalize(lightPosition - ray.Origin);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    //Ray has finished tracing the scene do something with the results.
+    BRDF = ComputeBRDF(payload, ray, 0);
+    
+
+    /*
+    //Bounce it n times, for direct lighting this is only once.
+    for(int j = 0; j < maxBounces; j++)
+    {
+        payload.pixel += float2(j*j, j) + _Time.xy;
+        
+        TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+        //Ray has finished tracing the scene do something with the results.
+        BRDF += ComputeBRDF(payload, ray, j);
+
+          
+
+        ray.Origin = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+        ray.Direction = payload.direction;
+
+        s.path[j+1] = ray.Origin;
+        s.weight = 1.0 / 2.0; //Only two lights, need to create buffer.
+        
+    }
+    */
+
+    return float4(BRDF, 1.0);
+}
+
+float4 ShadePixel(inout Payload payload, inout RayDesc ray, inout Reservoir reservoir)
+{
+    float4 pixelColor = 0;
+    float pdf = 1.0 / (float)_NumberOfLights;
+    float pHat = 0;
+
+    for(uint i = 0; i < _NumberOfLights; i++)
+    {
+        float randSeed = payload.pixel.x + payload.pixel.y + _Time.x + i;
+        uint lightIndex = uint(rand(randSeed) * (_NumberOfLights - 1));
+                   
+        pHat = _unigmaLights[lightIndex].emission;
+       
+        float weight = pHat / pdf;
+     
+        addReservoirSample(reservoir, lightIndex, weight, randSeed);
+    }
+
+    pixelColor = areaSampleLights(payload, ray, reservoir);
+
+    pHat = length(pixelColor);
+    reservoir.W = pHat > 0.0f ? 1.0f / pHat * reservoir.wSum / reservoir.M : 0.0f;
+    
+
+    return pixelColor * reservoir.W;
 
 }
 
@@ -29,6 +142,9 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
+    float frameCount = 10;
+    if(_UnigmaFrameCount > (int)frameCount)
+        return;
     //Is it orthographic?
     if (unity_OrthoParams.w > 0)
     {
@@ -76,26 +192,105 @@ void RestirGlobalIllumantionRayGen()
     ray.TMax = 10000;
 
     Payload payload;
-    payload.color = float4(0, 0, 0, 0);
-    payload.distance = 9999999999;
+    payload.color = 1;
+    payload.distance = 99999;
     payload.direction = chosenDirection;
+    payload.pixel = pixel;
 
+    _reservoirs[id.x + id.y*dim.x].Y = 0;
+    _reservoirs[id.x + id.y*dim.x].M = 0;
+    _reservoirs[id.x + id.y*dim.x].wSum = 0;
+
+    /*
+
+    //Samples Amount
+    int samples = 30;
+    int maxBounces = 8;
+
+    float3 radiance = 0;
+    float3 emittance = 0;
+    float3 BRDF = 0;
+    float hitObject = 0;
+    float3 directionCache = chosenDirection;
+    for(int i = 0; i < samples; i++)
+    { 
+        emittance = 0;
+        BRDF = 0;
+        ray.Origin = chosenCameraPosition; 
+        ray.Direction = chosenDirection;
+        payload.color = float4(1,1,1,0);
+        payload.distance = 99999;
+        payload.direction = chosenDirection;
+        for(int j = 0; j < maxBounces; j++)
+        {
+            payload.pixel = float2(i, j) + _Time.xy + pixel;
+            float bounceStrength = (1.0 / ((float)2*j+1.0f));
+            TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+            float3 rayDirection = payload.direction;
+            //If it hit a point, divide by the amount of samples to get full energy.
+
+            //float3 diffuse = RandomPointOnHemisphere(pixel, payload.direction,float2(i, j) + _Time.xy+pixel);
+            //float3 specular = reflect(ray.d, hit.normal);
+
+            if(payload.distance > 9999)
+            {
+                float3 toLightDir = normalize(_WorldSpaceLightPos0);
+                float cos_theta_light = sdot(toLightDir, directionCache) + 0.25;
+                emittance += float3(1,1,1)*2.75*bounceStrength;
+
+                BRDF += float3(0.95,0.98,1)*bounceStrength*0.57; // sky.
+                break;
+            }
+            hitObject = 1.0f;
+
+            float cos_theta = sdot(rayDirection, payload.normal);
+            BRDF += cos_theta*payload.color.xyz*bounceStrength;
+            emittance += payload.color.xyz * payload.color.w *bounceStrength*0.0001*0.08;
+
+             
+            ray.Origin = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+            ray.Direction = rayDirection;
+
+            directionCache = rayDirection;
+        }
+        radiance += (BRDF*(emittance))/(samples);
+    }
+    */
+    /*
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+
+
+    //Remove.
+    //_UnigmaGlobalIllumination[dispatchIdx] = payload.color;
+
     position = ray.Origin + ray.Direction * (payload.distance - 0.0001);
     //specular.
     ray.Origin = position;
     ray.Direction = payload.direction;
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    */
+    
+    
 
 
-    _UnigmaGlobalIllumination[dispatchIdx] = payload.color;
+    float inverseFrameSamples = 1.0f / frameCount;
+    _UnigmaGlobalIllumination[dispatchIdx] += ShadePixel(payload, ray, _reservoirs[id.x + id.y*dim.x]) * inverseFrameSamples;
+    //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
+    
+    //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;
+
+    //Add direct shadows.
+
 }
 
 [shader("miss")]
 void MyMissShader(inout Payload payload : SV_RayPayload)
 {
-    payload.color = 0;
+    payload.color = float4(1,1,1,0);
     payload.direction = 0;
-    payload.distance = 9999999999;
+    payload.distance = 99999;
+    payload.pixel = -1;
+    payload.normal = 0;
     
 }

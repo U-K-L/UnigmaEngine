@@ -13,6 +13,7 @@ struct Sample
 struct UnigmaLight
 {
     float3 position;
+    float emission;
 };
 
 struct Vertex
@@ -38,6 +39,16 @@ struct AttributeData
     float distance;
     float3 position;
 };
+
+struct Reservoir
+{
+    uint Y; //Index most important light.
+    float W; //light weight
+    float wSum; // weight summed.
+    float M; //Number of total lights for this reservoir.
+};
+
+
 
 float2 GetUVs(AttributeData attributes)
 {

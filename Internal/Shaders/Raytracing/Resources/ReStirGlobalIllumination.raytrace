@@ -13,6 +13,7 @@ RWStructuredBuffer<Reservoir> _reservoirs;
 
 int _UnigmaFrameCount;
 int _NumberOfLights;
+int _TemporalReservoirsCount;
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 #pragma max_recursion_depth 1
@@ -41,12 +42,12 @@ float3 ComputeBRDF(inout Payload payload, in RayDesc ray, int bounce)
     float3 BRDF = 0;
     float bounceStrength = (1.0 / ((float)2*bounce+1.0f));
 
-    float3 emittance = payload.color.xyz * payload.color.w *bounceStrength*0.001;
+    float3 emittance = payload.color.xyz * payload.color.w *bounceStrength;
 
     float cos_theta = sdot(payload.direction, payload.normal);
 
     //BRDF(x) * Le(x) * G(x);
-    BRDF = emittance + cos_theta*payload.color.xyz;
+    BRDF = emittance * cos_theta*payload.color.xyz;// * (1.0/RUNITY_PI) / (1.0/(2*RUNITY_PI));
    
     return BRDF;
 }
@@ -66,18 +67,24 @@ float4 areaSampleLights(inout Payload payload, RayDesc ray, inout Reservoir rese
 
     float3 BRDF = 0;
 
-        
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
-    BRDF = ComputeBRDF(payload, ray, 0);
+    //BRDF += ComputeBRDF(payload, ray, 0);
 
 
     //V(x1 <-> x2). Changing the distance from the hit point leads to interesting results.
     float distanceFromPoint = 0.01;
+    float3 cachedPos = 0;
+    float4 cachedColor = payload.color;
     ray.Origin = ray.Origin + ray.Direction * (payload.distance - distanceFromPoint);
+    ray.Direction = payload.direction;
+    //ray.Direction = normalize(lightPosition - ray.Origin);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    BRDF = ComputeBRDF(payload, ray, 0)*cachedColor;
+
+    //BRDF *= cachedColor;
     ray.Direction = normalize(lightPosition - ray.Origin);
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
-
-    BRDF *= payload.color.xyz * payload.color.w *0.01;
+    BRDF *= step(0.001, payload.color.w);
     //Ray has finished tracing the scene do something with the results.
     
     
@@ -129,9 +136,8 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray, inout Reservoir rese
 
     pHat = length(pixelColor);
     reservoir.W = pHat > 0.0f ? 1.0f / pHat * reservoir.wSum / reservoir.M : 0.0f;
-    
 
-    return reservoir.W * pixelColor;
+    return reservoir.W*pixelColor;
 
 }
 
@@ -149,7 +155,7 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 10000;
+    float frameCount = 1000;
     if(_UnigmaFrameCount > (int)frameCount)
         return;
     //Is it orthographic?
@@ -204,10 +210,13 @@ void RestirGlobalIllumantionRayGen()
     payload.direction = chosenDirection;
     payload.pixel = pixel;
 
-    _reservoirs[id.x + id.y*dim.x].Y = 0;
-    _reservoirs[id.x + id.y*dim.x].M = 0;
-    _reservoirs[id.x + id.y*dim.x].wSum = 0;
-    _reservoirs[id.x + id.y*dim.x].W = 0;
+    int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
+    int reservoirIndex = id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
+
+    _reservoirs[reservoirIndex].Y = 0;
+    _reservoirs[reservoirIndex].M = 0;
+    _reservoirs[reservoirIndex].wSum = 0;
+    _reservoirs[reservoirIndex].W = 0;
 
     /*
 
@@ -291,7 +300,7 @@ void RestirGlobalIllumantionRayGen()
     }
     */
     float inverseFrameSamples = 1.0f / frameCount;
-    _UnigmaGlobalIllumination[dispatchIdx] += ShadePixel(payload, ray, _reservoirs[id.x + id.y*dim.x])*inverseFrameSamples;
+    _UnigmaGlobalIllumination[dispatchIdx] = ShadePixel(payload, ray, _reservoirs[id.x + id.y*dim.x]);
     //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
     
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;

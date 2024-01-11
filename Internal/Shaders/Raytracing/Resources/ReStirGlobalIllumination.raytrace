@@ -23,9 +23,9 @@ void InitializeRay(inout float3 orig, inout float3 dir)
 
 }
 
-bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float2 randSeed)
+bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float c, float2 randSeed)
 {
-    reservoir.M += 1;
+    reservoir.M += c;
     reservoir.wSum += weight;
 
     if(rand(randSeed) < weight / reservoir.wSum)
@@ -116,9 +116,28 @@ float4 areaSampleLights(inout Payload payload, RayDesc ray, inout Reservoir rese
 
 float4 ShadePixel(inout Payload payload, inout RayDesc ray, inout Reservoir reservoir)
 {
+    uint3 id = DispatchRaysIndex();
+    uint3 dim = DispatchRaysDimensions();
+
     float4 pixelColor = 0;
     float pdf = 1.0 / (float)_NumberOfLights;
     float pHat = 0;
+
+    float2 randSeedR = payload.pixel + _Time.xy;
+    float weightR =  pHat * reservoir.W * reservoir.M;
+    //addReservoirSample(reservoir, reservoir.Y, weightR, reservoir.M, randSeedR);
+
+    for(int i = (_UnigmaFrameCount % _TemporalReservoirsCount)-1; i >= 0; i--)
+    {
+        int currentIndex =  id.x + id.y*dim.x + i*dim.x*dim.y;
+
+        Reservoir previousReservoir = _reservoirs[currentIndex];
+
+        randSeedR = payload.pixel + _Time.xy + float2(i, i*i*i);
+        weightR =  previousReservoir.pHat * previousReservoir.W * previousReservoir.M;
+        addReservoirSample(reservoir, previousReservoir.Y, weightR, previousReservoir.M, randSeedR);
+    }
+
 
     for(uint i = 0; i < _NumberOfLights; i++)
     {
@@ -128,13 +147,18 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray, inout Reservoir rese
         pHat = _unigmaLights[lightIndex].emission*0.01;
        
         float weight = pHat / pdf;
+        //float weight =  pHat * reservoir.W * reservoir.M;
+
      
-        addReservoirSample(reservoir, lightIndex, weight, randSeed);
+        addReservoirSample(reservoir, lightIndex, weight, 1, randSeed);
     }
+
+
 
     pixelColor = areaSampleLights(payload, ray, reservoir);
 
     pHat = length(pixelColor);
+    reservoir.pHat = pHat;
     reservoir.W = pHat > 0.0f ? 1.0f / pHat * reservoir.wSum / reservoir.M : 0.0f;
 
     return reservoir.W*pixelColor;
@@ -217,6 +241,7 @@ void RestirGlobalIllumantionRayGen()
     _reservoirs[reservoirIndex].M = 0;
     _reservoirs[reservoirIndex].wSum = 0;
     _reservoirs[reservoirIndex].W = 0;
+    _reservoirs[reservoirIndex].pHat = 0;
 
     /*
 

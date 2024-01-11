@@ -25,6 +25,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public float W; //light weight
         public float wSum; // weight summed.
         public float M; //Number of total lights for this reservoir.
+        public float pHat;
     };
 
     struct UnigmaLight
@@ -33,7 +34,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public float emission;
     };
 
-    int _reservoirStride = sizeof(float) * 4;
+    int _reservoirStride = sizeof(float) * 5;
     int _lightStride = sizeof(float) * 3 + sizeof(float);
     int _sampleStride = (sizeof(float) * 3) * 3 + sizeof(float);
 
@@ -121,7 +122,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         samplesBuffer = new ComputeBuffer(amountOfSamples, _sampleStride);
         samplesBuffer.SetData(samplesList);
 
-        reservoirsBuffer = new ComputeBuffer(amountOfSamples, _reservoirStride);
+        reservoirsBuffer = new ComputeBuffer(amountOfSamples * _temporalReservoirsCount, _reservoirStride);
         reservoirsBuffer.SetData(reservoirs);
 
         if (_DepthShadowsRayTracingShaderAccelerated == null)

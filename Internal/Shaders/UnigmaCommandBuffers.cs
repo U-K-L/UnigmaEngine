@@ -206,8 +206,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void AddLightsToList()
     {
+        int index = 0;
         foreach (Renderer obj in FindObjectsOfType<Renderer>())
         {
+            
             //Check if object in the RaytracingLayers.
             if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
             {
@@ -218,10 +220,17 @@ public class UnigmaCommandBuffers : MonoBehaviour
                     UnigmaLight ulight = new UnigmaLight();
                     ulight.position = obj.transform.position;
                     ulight.emission = obj.material.GetFloat("_Emmittance");
-                    Debug.Log(obj.transform.name);
+                    Debug.Log("Light: " + index + " : " + obj.name);
+                    index += 1;
                     lightList.Add(ulight);
                 }
             }
+        }
+
+        //Debug Light List
+        for (int i = 0; i < lightList.Count; i++)
+        {
+            Debug.Log("Light: " + i + " : " + lightList[i].position);
         }
     }
 

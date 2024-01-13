@@ -89,15 +89,18 @@ float4 areaSampleLights(inout Payload payload, inout RayDesc ray, inout Reservoi
 
 float4 ShadePixel(inout Payload payload, inout RayDesc ray)
 {
+    float lightStrengthCostant = 0.1;
     payload.pixel += _Time.xy;
     //Hit the first object.
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
     float distanceFromPoint = 0.01;
     float3 materialColor = payload.color;
     float3 materialNormal = payload.direction;
-    float3 materialPosition = ray.Origin;
+
     ray.Origin = ray.Origin + ray.Direction * (payload.distance - distanceFromPoint);
     ray.Direction = payload.direction;
+
+    float3 materialPosition = ray.Origin;
 
     float3 BRDF = ComputeBRDF(payload, ray, 0);
 
@@ -119,52 +122,54 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray)
     for(uint i = 0; i < _NumberOfLights; i++)
     {
         float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i+i);
-        uint lightIndex = uint(rand(randSeed) * (_NumberOfLights - 1));
+        uint lightIndex = uint(rand(randSeed) * (_NumberOfLights));
 
         float3 lightPosition = _unigmaLights[lightIndex].position;
 
         float3 toLight = normalize(lightPosition - ray.Origin);
         
         float cosTheta = sdot(payload.direction, toLight);
-        pHat = payload.color.xyz / RUNITY_PI *  (_unigmaLights[lightIndex].emission*0.1)*cosTheta;
+        pHat = length(payload.color.xyz / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
        
-        float weight = pHat / pdf;
+        float weight = pHat;// / pdf;
         addReservoirSample(temporalReservoir, lightIndex, weight, 1, randSeed);
     }
 
 
 
 
-    //Add current sample.
+    
+    //Evaluate visibility for initial candidates
     uint lightIndex = temporalReservoir.Y;
 
     float3 lightPosition = _unigmaLights[lightIndex].position;
 
-    float3 toLight = normalize(lightPosition - ray.Origin);
+    float3 toLight = normalize(lightPosition - materialPosition);
         
     float cosTheta = sdot(payload.direction, toLight);
 
-    pHat = payload.color.xyz / RUNITY_PI *  (_unigmaLights[lightIndex].emission*0.1)*cosTheta;
-
-    temporalReservoir.W = pHat > 0.0 ? (temporalReservoir.wSum / temporalReservoir.M) / pHat : 0.0;
 
 
     
     ray.Direction = toLight;
-    //ray.Origin = materialPosition;
+    ray.Origin = materialPosition;
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
-    float visible = step(0.001, payload.color.w);
-
+    float visible = step(0.0001, payload.color.w);
 
     if(visible < 0.001)
     {
         temporalReservoir.W = 0;
     }
 
-
+ 
     //Temporal reuse.
+    //Add current sample.
     float2 randSeedR2 = payload.pixel + _Time.xy + float2(rand(payload.pixel + id.xy), rand(payload.pixel + dim.xy));
     float weightR2 =  pHat * temporalReservoir.W * temporalReservoir.M;
+    
+    pHat = length(payload.color.xyz / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
+
+    temporalReservoir.W = pHat > 0.0 ? (temporalReservoir.wSum / temporalReservoir.M) / pHat : 0.0;
     addReservoirSample(temporalReservoir, temporalReservoir.Y, weightR2, 0, randSeedR2);
     
     //Add previous samples.
@@ -173,18 +178,23 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray)
         int currentIndex =  id.x + id.y*dim.x + i*dim.x*dim.y;
 
         Reservoir previousReservoir = _reservoirs[currentIndex];
-        _reservoirs[currentIndex].M = min(25 * temporalReservoir.M, previousReservoir.M);
+        previousReservoir.M = min(15 * temporalReservoir.M, previousReservoir.M);
+
+        lightIndex = previousReservoir.Y;
+
+        lightPosition = _unigmaLights[lightIndex].position;
+
+        toLight = normalize(lightPosition - materialPosition);
+        
+        cosTheta = sdot(materialNormal, toLight);
+
+        pHat = length(materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
 
         float randSeedR = payload.pixel + _Time.xy + float2(i, i*i*i);
-        float weightR =  previousReservoir.pHat * previousReservoir.W * previousReservoir.M;
+        float weightR =  pHat * previousReservoir.W * previousReservoir.M;
         addReservoirSample(temporalReservoir, previousReservoir.Y, weightR, previousReservoir.M, randSeedR);
     }
     
-
-
-
-
-
 
     lightIndex = temporalReservoir.Y;
 
@@ -194,20 +204,67 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray)
         
     cosTheta = sdot(materialNormal, toLight);
 
-    pHat = materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*0.1)*cosTheta;
+    pHat = length(materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
+    temporalReservoir.W = pHat > 0.0 ? (temporalReservoir.wSum / temporalReservoir.M) / pHat : 0.0;
+
+    int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
+    int reservoirIndex = id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
+    _reservoirs[reservoirIndex] = temporalReservoir;
+
+    //Spatial reuse
+    int _NumberOfNeighbors = 15;
+    int _NeighborsRadius = 5;
+
+    for(int i = 0; i < _NumberOfNeighbors; i++)
+    {
+        float2 neighborIndex = 0;
+        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i*i);
+        neighborIndex.x = int(rand(randSeed) * _NeighborsRadius * 2.f) - _NeighborsRadius;
+		neighborIndex.y = int(rand(randSeed+1) * _NeighborsRadius * 2.f) - _NeighborsRadius;
+
+		neighborIndex.x = max(0, min(dim.x - 1, id.x + neighborIndex.x));
+		neighborIndex.y = max(0, min(dim.y - 1, id.y + neighborIndex.y));
+
+        int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
+        int reservoirIndex = neighborIndex.x + neighborIndex.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
+
+        Reservoir neighborReservoir = _reservoirs[reservoirIndex];
+
+        lightIndex = neighborReservoir.Y;
+
+        lightPosition = _unigmaLights[lightIndex].position;
+
+        toLight = normalize(lightPosition - materialPosition);
+        
+        cosTheta = sdot(materialNormal, toLight);
+
+        pHat = length(materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
+        float weightR =  pHat * neighborReservoir.W * neighborReservoir.M;
+        addReservoirSample(temporalReservoir, neighborReservoir.Y, weightR, neighborReservoir.M, randSeed);
+    }
+
 
     //pixelColor = areaSampleLights(payload, ray, temporalReservoir) + float4(BRDF, 1);
-    temporalReservoir.pHat = pHat;
+    lightIndex = temporalReservoir.Y;
+
+    lightPosition = _unigmaLights[lightIndex].position;
+
+    toLight = normalize(lightPosition - materialPosition);
+        
+    cosTheta = sdot(materialNormal, toLight);
+
+    pHat = length(materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
     temporalReservoir.W = pHat > 0.0 ? (temporalReservoir.wSum / temporalReservoir.M) / pHat : 0.0;
+    temporalReservoir.pHat = pHat;
+    
 
     float4 weightFinal = temporalReservoir.W;
 
     //Set this reservoir as a past frame.
-    int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
-    int reservoirIndex = id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
 
-    _reservoirs[reservoirIndex] = temporalReservoir;
-    return weightFinal;
+
+    
+    return weightFinal*pHat + float4(BRDF, 1);
 
 }
 
@@ -225,7 +282,7 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 1000;
+    float frameCount = 100;
     if(_UnigmaFrameCount > (int)frameCount)
         return;
     //Is it orthographic?
@@ -371,7 +428,7 @@ void RestirGlobalIllumantionRayGen()
     }
     */
     float inverseFrameSamples = 1.0f / frameCount;
-    _UnigmaGlobalIllumination[dispatchIdx] = ShadePixel(payload, ray);
+    _UnigmaGlobalIllumination[dispatchIdx] += ShadePixel(payload, ray)*inverseFrameSamples;
     //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
     
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;

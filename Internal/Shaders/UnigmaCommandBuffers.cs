@@ -187,7 +187,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaFrameCount++;
         if (_UnigmaFrameCount > int.MaxValue)
             _UnigmaFrameCount = 0;
-        Debug.Log(_UnigmaFrameCount);
+        //Debug.Log(_UnigmaFrameCount);
     }
 
 

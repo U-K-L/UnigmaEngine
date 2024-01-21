@@ -16,7 +16,7 @@ namespace Unigma
         // Update is called once per frame
         void Update()
         {
-            Debug.Log("Coming from QTDoughRenderer devices: " + QTDApp.GetRandomNumber());
+            Debug.Log("Coming from QTDoughRenderer devices: " + QTDApp.GetFoo());
         }
 
         void OnApplicationQuit()

@@ -178,7 +178,7 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray)
         int currentIndex =  id.x + id.y*dim.x + i*dim.x*dim.y;
 
         Reservoir previousReservoir = _reservoirs[currentIndex];
-        previousReservoir.M = min(15 * temporalReservoir.M, previousReservoir.M);
+        previousReservoir.M = min(8 * temporalReservoir.M, previousReservoir.M);
 
         lightIndex = previousReservoir.Y;
 
@@ -210,6 +210,12 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray)
     int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
     int reservoirIndex = id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
     _reservoirs[reservoirIndex] = temporalReservoir;
+
+
+    //Global illumination.
+
+
+
 
     //Spatial reuse
     int _NumberOfNeighbors = 15;
@@ -264,7 +270,7 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray)
 
 
     
-    return weightFinal*pHat + float4(BRDF, 1);
+    return (float4(materialColor, 1)*weightFinal*pHat + float4(BRDF, 1))*25;
 
 }
 
@@ -282,7 +288,7 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 100;
+    float frameCount = 1000;
     if(_UnigmaFrameCount > (int)frameCount)
         return;
     //Is it orthographic?

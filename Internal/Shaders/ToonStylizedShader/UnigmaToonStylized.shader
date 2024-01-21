@@ -231,7 +231,7 @@ Shader "Unigma/UnigmaToonStylized"
 
                 //payload.direction = diffuse;
 
-                payload.color.xyz *= 2.85 * _Midtone;
+                payload.color.xyz *= 2.86 * _Midtone;
                 payload.color.w += _Emmittance;
                 //payload.color = objectColor* distSquared;//_Midtone* distSquared;//float4(normals, 1);
                 //payload.color = float4(float3(uvs.x, uvs.y, 1) *0.5 + 0.5, 1);

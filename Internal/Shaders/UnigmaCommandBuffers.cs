@@ -9,7 +9,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private int buffersAdded = 0;
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
     private List<Renderer> _OutlineNullObjects = default; //Objects not part of this render.
-
+    public int _temporalReservoirsCount = 1;
 
     struct Sample
     {
@@ -25,6 +25,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public float W; //light weight
         public float wSum; // weight summed.
         public float M; //Number of total lights for this reservoir.
+        public float pHat;
     };
 
     struct UnigmaLight
@@ -33,7 +34,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public float emission;
     };
 
-    int _reservoirStride = sizeof(float) * 4;
+    int _reservoirStride = sizeof(float) * 5;
     int _lightStride = sizeof(float) * 3 + sizeof(float);
     int _sampleStride = (sizeof(float) * 3) * 3 + sizeof(float);
 
@@ -81,7 +82,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _DepthShadowsTexture.enableRandomWrite = true;
         _DepthShadowsTexture.Create();
 
-        _UnigmaGlobalIllumination = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaGlobalIllumination = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Linear);
         _UnigmaGlobalIllumination.enableRandomWrite = true;
         _UnigmaGlobalIllumination.Create();
 
@@ -104,6 +105,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
             samplesList.Add(s);
 
+
+        }
+
+        for (int j = 0; j < amountOfSamples * _temporalReservoirsCount; j++)
+        {
             Reservoir r = new Reservoir();
             r.W = 0;
             r.wSum = 0;
@@ -116,7 +122,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         samplesBuffer = new ComputeBuffer(amountOfSamples, _sampleStride);
         samplesBuffer.SetData(samplesList);
 
-        reservoirsBuffer = new ComputeBuffer(amountOfSamples, _reservoirStride);
+        reservoirsBuffer = new ComputeBuffer(amountOfSamples * _temporalReservoirsCount, _reservoirStride);
         reservoirsBuffer.SetData(reservoirs);
 
         if (_DepthShadowsRayTracingShaderAccelerated == null)
@@ -163,6 +169,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             AddLightsToList();
             AddObjectsToAccerleration();
 
+            Debug.Log("amount of lights: " + lightList.Count);
             lightsBuffer = new ComputeBuffer(lightList.Count, _lightStride);
             lightsBuffer.SetData(lightList);
 
@@ -180,7 +187,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaFrameCount++;
         if (_UnigmaFrameCount > int.MaxValue)
             _UnigmaFrameCount = 0;
-        Debug.Log(_UnigmaFrameCount);
+        //Debug.Log(_UnigmaFrameCount);
     }
 
 
@@ -199,21 +206,31 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void AddLightsToList()
     {
+        int index = 0;
         foreach (Renderer obj in FindObjectsOfType<Renderer>())
         {
+            
             //Check if object in the RaytracingLayers.
             if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
             {
                 if (!obj.material.HasFloat("_Emmittance"))
                     continue;
-                if (obj.material.GetFloat("_Emmittance") > 0.0001)
+                if (obj.material.GetFloat("_Emmittance") > 0.01)
                 {
                     UnigmaLight ulight = new UnigmaLight();
                     ulight.position = obj.transform.position;
                     ulight.emission = obj.material.GetFloat("_Emmittance");
+                    Debug.Log("Light: " + index + " : " + obj.name);
+                    index += 1;
                     lightList.Add(ulight);
                 }
             }
+        }
+
+        //Debug Light List
+        for (int i = 0; i < lightList.Count; i++)
+        {
+            Debug.Log("Light: " + i + " : " + lightList[i].position);
         }
     }
 
@@ -252,6 +269,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_unigmaLights", lightsBuffer);
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_reservoirs", reservoirsBuffer);
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_NumberOfLights", lightList.Count);
+        depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
 
         depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirGlobalIllumRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);

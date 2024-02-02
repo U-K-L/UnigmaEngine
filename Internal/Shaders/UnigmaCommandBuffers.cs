@@ -147,7 +147,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
         Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
-        Shader.SetGlobalInt("_UnigmaFrameCount", _UnigmaFrameCount);
+        //Shader.SetGlobalInt("_UnigmaFrameCount", _UnigmaFrameCount);
 
         foreach (Renderer r in _rayTracedObjects)
         {
@@ -183,6 +183,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
             CreateOutlineColorBuffers();
             buffersAdded += 1;
         }
+
+
 
     }
 
@@ -268,7 +270,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
 
-        depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_UnigmaFrameCount", _UnigmaFrameCount);
+        //depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_UnigmaFrameCount", _UnigmaFrameCount);
         depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirGlobalIllumRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
         depthShadowsCommandBuffer.SetRayTracingShaderPass(_RestirGlobalIllumRayTracingShaderAccelerated, "GlobalIlluminationRaytracingShaderPass");
         depthShadowsCommandBuffer.DispatchRays(_RestirGlobalIllumRayTracingShaderAccelerated, "RestirGlobalIllumantionRayGen", (uint)Screen.width, (uint)Screen.height, 1);
@@ -282,7 +284,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaFrameCount++;
         if (_UnigmaFrameCount > int.MaxValue)
             _UnigmaFrameCount = 0;
-        //Shader.SetGlobalInt("_UnigmaFrameCount", _UnigmaFrameCount);
+        Shader.SetGlobalInt("_UnigmaFrameCount", _UnigmaFrameCount);
         Debug.Log(_UnigmaFrameCount);
     }
 
@@ -400,6 +402,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
             lightsBuffer.Release();
         if (reservoirsBuffer != null)
             reservoirsBuffer.Release();
+        CommandBuffer[] buffers = Camera.main.GetCommandBuffers(CameraEvent.AfterForwardOpaque);
+        foreach (CommandBuffer buffer in buffers)
+        {
+            buffer.Release();
+        }
+
+        _UnigmaGlobalIllumination.Release();
+
     }
 
     void OnDisable()

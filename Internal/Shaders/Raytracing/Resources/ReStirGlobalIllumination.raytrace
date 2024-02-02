@@ -274,9 +274,46 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray)
 
 }
 
+void CreateSample(inout RayDesc ray, inout Payload payload, float3 chosenCameraPosition, float3 chosenDirection)
+{
+    uint3 id = DispatchRaysIndex();
+    uint3 dim = DispatchRaysDimensions();
+
+    //Convert to 0 - 1.
+    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+
+    ray.Origin = chosenCameraPosition; 
+    ray.Direction = chosenDirection; 
+    ray.TMin = 0;
+    ray.TMax = 10000;
+
+    payload.color = float4(1,1,1,0);
+    payload.distance = 99999;
+    payload.direction = chosenDirection;
+    payload.pixel = pixel;
+}
+
 float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
 {
-    return 1;
+    //distance from the hit point.
+    float distanceFromPoint = 0.01;
+
+    //Hit the first object. This is sample x0. Starts from the pixel plane, shoots direction of camera and perspective.
+    RayDesc Sx0Ray;
+    Payload Sx0Payload;
+    CreateSample(Sx0Ray, Sx0Payload,  ray.Origin, ray.Direction);
+
+    //Next we set x1 this is our object that was hit.
+    RayDesc Sx1Ray;
+    Payload Sx1Payload;
+    //initialize sample.
+    CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
+    //Overwrite sample entirely in this case with the ray.
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
+
+    //float3 x1Origin = Sx0Ray.Origin + Sx0Ray.Direction * (payload.distance - distanceFromPoint);
+
+    return Sx1Payload.color;
 }
 
 [shader("raygeneration")]
@@ -293,8 +330,8 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 1000;
-    if(_UnigmaFrameCount > (int)frameCount)
+    float frameCount = 100;
+    if(_UnigmaFrameCount > frameCount)
         return;
     //Is it orthographic?
     if (unity_OrthoParams.w > 0)
@@ -439,7 +476,7 @@ void RestirGlobalIllumantionRayGen()
     }
     */
     float inverseFrameSamples = 1.0f / frameCount;
-    _UnigmaGlobalIllumination[dispatchIdx] += float4(0.01f,0.01f,1.0f,0.01f);//inverseFrameSamples;
+    _UnigmaGlobalIllumination[dispatchIdx] += ShadePixelDI(payload, ray) * inverseFrameSamples*2;
     //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
     
 

@@ -206,10 +206,12 @@ Shader "Unigma/UnigmaOutlines"
                 //return shadow0 * 10;
                 //return edgeUnigmaDepth;//pos0*10;//pos0;// *step(0.001, OutterLineColors.w);
                 //return float4(HDRToOutput(GlobalIllumination.xyz,-0.51), 1);
-                //return float4(GlobalIllumination.xyz, 1);
+                if (GlobalIllumination.z > 100)
+                    return float4(0, 0, 1, 1);
+                return GlobalIllumination.z;//float4(GlobalIllumination.xyz, 1);
                 //return _UnigmaDepthShadows;
                 //return  FinalColor*0.2 + GlobalIllumination;
-                return lerp(FinalColor, FinalColor + GlobalIllumination*0.1025, 0.341+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
+                //return lerp(FinalColor, FinalColor + GlobalIllumination*0.1025, 0.341+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }

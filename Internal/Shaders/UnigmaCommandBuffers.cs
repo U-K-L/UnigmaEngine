@@ -82,7 +82,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _DepthShadowsTexture.enableRandomWrite = true;
         _DepthShadowsTexture.Create();
 
-        _UnigmaGlobalIllumination = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Linear);
+        _UnigmaGlobalIllumination = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaGlobalIllumination.enableRandomWrite = true;
         _UnigmaGlobalIllumination.Create();
 
@@ -184,10 +184,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
             buffersAdded += 1;
         }
 
-        _UnigmaFrameCount++;
-        if (_UnigmaFrameCount > int.MaxValue)
-            _UnigmaFrameCount = 0;
-        //Debug.Log(_UnigmaFrameCount);
     }
 
 
@@ -272,12 +268,22 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
 
+        depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_UnigmaFrameCount", _UnigmaFrameCount);
         depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirGlobalIllumRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
         depthShadowsCommandBuffer.SetRayTracingShaderPass(_RestirGlobalIllumRayTracingShaderAccelerated, "GlobalIlluminationRaytracingShaderPass");
         depthShadowsCommandBuffer.DispatchRays(_RestirGlobalIllumRayTracingShaderAccelerated, "RestirGlobalIllumantionRayGen", (uint)Screen.width, (uint)Screen.height, 1);
 
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, depthShadowsCommandBuffer);
 
+    }
+
+    private void OnPostRender()
+    {
+        _UnigmaFrameCount++;
+        if (_UnigmaFrameCount > int.MaxValue)
+            _UnigmaFrameCount = 0;
+        //Shader.SetGlobalInt("_UnigmaFrameCount", _UnigmaFrameCount);
+        Debug.Log(_UnigmaFrameCount);
     }
 
     void CreateDepthNormalBuffers()

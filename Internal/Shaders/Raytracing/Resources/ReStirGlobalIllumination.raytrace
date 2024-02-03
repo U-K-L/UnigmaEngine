@@ -30,6 +30,7 @@ void InitializeReservoir(inout Reservoir reservoir)
     reservoir.pHat = 0;
     reservoir.M = 0;
     reservoir.wSum = 0;
+    reservoir.x1 = 0;
 }
 
 bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float c, float2 randSeed)
@@ -311,6 +312,26 @@ float4 AreaLightSample(float2 seedIn, UnigmaLight lightSource)
     return lightSample;
 }
 
+float UpdateReservoirWeight(inout Reservoir reservoir, float3 origin, in Payload Sx1Payload, float2 seed)
+{
+    
+    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
+    float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
+    float3 toLight = normalize(lightSample.xyz - origin);
+    //Finally compute the brdf for this light.
+    float Gx = 1.0f / (distance(lightSample.xyz, origin));
+    float Le = _unigmaLights[lightIndex].emission;
+    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
+
+    //Target function.
+    float4 pHat = BRDF * Le * Gx;
+
+    reservoir.W = pHat > 0.0 ? (reservoir.wSum / reservoir.M) / pHat : 0.0;
+    reservoir.pHat = pHat;
+
+    return pHat;
+}
+
 //Just a basic unbiased direct lighter for one light.
 float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 {
@@ -318,6 +339,9 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //----------------Generate Sample paths X0 and X1 ------------------//
     //distance from the hit point.
     float distanceFromPoint = 0.1;
+    uint3 id = DispatchRaysIndex();
+    uint3 dim = DispatchRaysDimensions();
+
 
     //Hit the first object. This is sample x0. Starts from the pixel plane, shoots direction of camera and perspective.
     RayDesc Sx0Ray;
@@ -338,8 +362,11 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     Reservoir currentReservoir;
     InitializeReservoir(currentReservoir);
 
+    //----------------------------------
+    //------------------------------------RIS ALGORITHM------------------------------//
+
     //Algorithm 3, initial light candidates
-    //Firstly M is the number of samples we want. This is NOT the number of lights, arbitrary amount of samples.
+    //Firstly M is the number of samples we want.
     uint MareaSamples = 32;
     for(uint i = 0; i < MareaSamples; i++)
     {
@@ -361,11 +388,53 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         
         addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeed);
     }
+
+    //Get weight for currentReservoir.
     
+    //----------------------------------
+    //------------------------------------SPATIOTEMPORAL ALGORITHM------------------------------//
+
+    //Temporal
+    //Add previous samples.
+    for(int i = 0; i < _TemporalReservoirsCount; i++)
+    {
+        //Same pixel and also same time.
+        float randSeedR = payload.pixel + _Time.xy + float2(i, i*i*i);
+        int currentIndex =  id.x + id.y*dim.x + i*dim.x*dim.y;
+        Reservoir previousReservoir = _reservoirs[currentIndex];
+
+        bool reservoirValid = previousReservoir.M > 0;
+        if(reservoirValid)
+        {
+            previousReservoir.M = min(15 * currentReservoir.M, previousReservoir.M); //History length.
+
+            uint prevLightIndex = previousReservoir.Y;
+            float4 prevLightSample = AreaLightSample(randSeedR, _unigmaLights[prevLightIndex]);
+
+            float3 prevToLight = normalize(prevLightSample.xyz - previousReservoir.x1);
+
+            float pHat = UpdateReservoirWeight(previousReservoir, previousReservoir.x1, Sx1Payload, randSeedR);
+
+            addReservoirSample(currentReservoir, previousReservoir.Y, previousReservoir.W, previousReservoir.M, randSeedR);
+        }
+    }
+
+    //----------------------------------
+    //------------------------------------FINAL GATHER------------------------------//
+
     //Now that we have stored our reservoirs we look for the current light to sample.
     uint lightIndex = currentReservoir.Y; //This new light index comes from the weighted reservoir we computed.
-    float4 lightSample = AreaLightSample(payload.pixel+_Time.xy, _unigmaLights[lightIndex]);
+    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x), rand(_Time.y));
+    float4 lightSample = AreaLightSample(randSeed, _unigmaLights[lightIndex]);
     float3 x2Direction = normalize(lightSample.xyz - x2Origin);
+
+
+    float pHat = UpdateReservoirWeight(currentReservoir, x2Origin, Sx1Payload, randSeed);
+
+    float4 weightFinal = currentReservoir.W;
+
+    int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
+    int reservoirIndex = id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
 
     //Now let's create Sample X2.
     RayDesc Sx2Ray;
@@ -375,19 +444,8 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     float3 lightHitPosition = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
 
 
-    //Finally compute the brdf for this light.
-    float Gx = 1.0f / (distance(lightHitPosition, x2Origin));
-    float Le = _unigmaLights[lightIndex].emission;
-    float V = step(0.0001, Sx2Payload.color.w);
-    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, Sx1Payload.direction);
-
-    //Target function.
-    float4 pHat = BRDF * Le * Gx;
-
-    currentReservoir.W = pHat > 0.0 ? (currentReservoir.wSum / currentReservoir.M) / pHat : 0.0;
-    currentReservoir.pHat = pHat;
-
-    float4 weightFinal = currentReservoir.W;
+    currentReservoir.x1 = x2Origin;
+    _reservoirs[reservoirIndex] = currentReservoir;
 
     return pHat*weightFinal;
 }
@@ -453,7 +511,7 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 10000;
+    float frameCount = 100000;
     if(_UnigmaFrameCount > frameCount)
         return;
     //Is it orthographic?
@@ -599,7 +657,7 @@ void RestirGlobalIllumantionRayGen()
     }
     */
     float inverseFrameSamples = 1.0f / frameCount;
-    _UnigmaGlobalIllumination[dispatchIdx] = ShadePixelRestirDI(payload, ray);// * inverseFrameSamples*2;
+    _UnigmaGlobalIllumination[dispatchIdx] = ShadePixelRestirDI(payload, ray)*15;// * inverseFrameSamples*2;
     //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
     
 

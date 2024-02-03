@@ -27,6 +27,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public float wSum; // weight summed.
         public float M; //Number of total lights for this reservoir.
         public float pHat;
+        public Vector3 x1; //position of the hit point.
     };
 
     struct UnigmaLight
@@ -35,7 +36,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public float emission;
     };
 
-    int _reservoirStride = sizeof(float) * 5;
+    int _reservoirStride = sizeof(float) * 5 + sizeof(float)*3;
     int _lightStride = sizeof(float) * 3 + sizeof(float);
     int _sampleStride = (sizeof(float) * 3) * 3 + sizeof(float);
 
@@ -117,6 +118,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             r.wSum = 0;
             r.Y = 0;
             r.M = 0;
+            r.x1 = Vector3.zero;
 
             reservoirs.Add(r);
         }

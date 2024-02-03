@@ -354,10 +354,12 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         //Create the target function to approximate it.
         float Gx = 1.0f / (distance(lightSample.xyz, x2Origin));
         float Le = _unigmaLights[lightIndex].emission;
-        float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, Sx1Payload.direction);
+        float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
         float pHat = BRDF * Le * Gx;
+
+        float weight = pHat;
         
-        addReservoirSample(currentReservoir, lightIndex, pHat, 1, randSeed);
+        addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeed);
     }
     
     //Now that we have stored our reservoirs we look for the current light to sample.
@@ -380,7 +382,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, Sx1Payload.direction);
 
     //Target function.
-    float4 pHat = BRDF * Le * Gx * V;
+    float4 pHat = BRDF * Le * Gx;
 
     currentReservoir.W = pHat > 0.0 ? (currentReservoir.wSum / currentReservoir.M) / pHat : 0.0;
     currentReservoir.pHat = pHat;
@@ -451,7 +453,7 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 100;
+    float frameCount = 10000;
     if(_UnigmaFrameCount > frameCount)
         return;
     //Is it orthographic?
@@ -597,7 +599,7 @@ void RestirGlobalIllumantionRayGen()
     }
     */
     float inverseFrameSamples = 1.0f / frameCount;
-    _UnigmaGlobalIllumination[dispatchIdx] += ShadePixelDI(payload, ray) * inverseFrameSamples*2;
+    _UnigmaGlobalIllumination[dispatchIdx] = ShadePixelRestirDI(payload, ray);// * inverseFrameSamples*2;
     //_UnigmaGlobalIllumination[dispatchIdx] *= step(0.001, (_UnigmaFrameCount%frameCount)-1);
     
 

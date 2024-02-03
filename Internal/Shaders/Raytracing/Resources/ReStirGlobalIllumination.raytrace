@@ -312,10 +312,87 @@ float4 AreaLightSample(float2 seedIn, UnigmaLight lightSource)
 }
 
 //Just a basic unbiased direct lighter for one light.
-float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
+float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 {
 
+    //----------------Generate Sample paths X0 and X1 ------------------//
+    //distance from the hit point.
+    float distanceFromPoint = 0.1;
 
+    //Hit the first object. This is sample x0. Starts from the pixel plane, shoots direction of camera and perspective.
+    RayDesc Sx0Ray;
+    Payload Sx0Payload;
+    CreateSample(Sx0Ray, Sx0Payload,  ray.Origin, ray.Direction);
+
+    //Next we set x1 this is our object that was hit.
+    RayDesc Sx1Ray;
+    Payload Sx1Payload;
+    //initialize sample.
+    CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
+
+    float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
+    //----------------Begin Restir by holding X0, X1 as constants and perform integration for X2------------------//
+    
+    //Initalizing the current reservoir we will use.
+    Reservoir currentReservoir;
+    InitializeReservoir(currentReservoir);
+
+    //Algorithm 3, initial light candidates
+    //Firstly M is the number of samples we want. This is NOT the number of lights, arbitrary amount of samples.
+    uint MareaSamples = 32;
+    for(uint i = 0; i < MareaSamples; i++)
+    {
+        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i+i);
+        uint lightIndex = uint(rand(randSeed) * (_NumberOfLights)); //randomly get a light to sample from.
+
+        //Sample the area light given that light index.
+        float4 lightSample = AreaLightSample(randSeed, _unigmaLights[lightIndex]);
+
+        float3 toLight = normalize(lightSample.xyz - x2Origin);
+
+        //Create the target function to approximate it.
+        float Gx = 1.0f / (distance(lightSample.xyz, x2Origin));
+        float Le = _unigmaLights[lightIndex].emission;
+        float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, Sx1Payload.direction);
+        float pHat = BRDF * Le * Gx;
+        
+        addReservoirSample(currentReservoir, lightIndex, pHat, 1, randSeed);
+    }
+    
+    //Now that we have stored our reservoirs we look for the current light to sample.
+    uint lightIndex = currentReservoir.Y; //This new light index comes from the weighted reservoir we computed.
+    float4 lightSample = AreaLightSample(payload.pixel+_Time.xy, _unigmaLights[lightIndex]);
+    float3 x2Direction = normalize(lightSample.xyz - x2Origin);
+
+    //Now let's create Sample X2.
+    RayDesc Sx2Ray;
+    Payload Sx2Payload;
+    CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
+    float3 lightHitPosition = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
+
+
+    //Finally compute the brdf for this light.
+    float Gx = 1.0f / (distance(lightHitPosition, x2Origin));
+    float Le = _unigmaLights[lightIndex].emission;
+    float V = step(0.0001, Sx2Payload.color.w);
+    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, Sx1Payload.direction);
+
+    //Target function.
+    float4 pHat = BRDF * Le * Gx * V;
+
+    currentReservoir.W = pHat > 0.0 ? (currentReservoir.wSum / currentReservoir.M) / pHat : 0.0;
+    currentReservoir.pHat = pHat;
+
+    float4 weightFinal = currentReservoir.W;
+
+    return pHat*weightFinal;
+}
+
+//Just a basic unbiased direct lighter for one light.
+float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
+{
     uint lightIndex = 0;
     //distance from the hit point.
     float distanceFromPoint = 0.1;
@@ -374,7 +451,7 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 10000;
+    float frameCount = 100;
     if(_UnigmaFrameCount > frameCount)
         return;
     //Is it orthographic?

@@ -10,6 +10,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
     private List<Renderer> _OutlineNullObjects = default; //Objects not part of this render.
     public int _temporalReservoirsCount = 1;
+    private Camera mainCam;
 
     struct Sample
     {
@@ -74,6 +75,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _nullMaterial = new Material(Shader.Find("Unigma/IsometricNull"));
         computeOutlineColors = Resources.Load("OutlineColorsBoxBlur") as ComputeShader;
         Camera cam = GetComponent<Camera>();
+        mainCam = Camera.main;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.Depth;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.DepthNormals;
 
@@ -402,7 +404,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             lightsBuffer.Release();
         if (reservoirsBuffer != null)
             reservoirsBuffer.Release();
-        CommandBuffer[] buffers = Camera.main.GetCommandBuffers(CameraEvent.AfterForwardOpaque);
+        CommandBuffer[] buffers = mainCam.GetCommandBuffers(CameraEvent.AfterForwardOpaque);
         foreach (CommandBuffer buffer in buffers)
         {
             buffer.Release();

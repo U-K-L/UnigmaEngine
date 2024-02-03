@@ -290,13 +290,35 @@ void CreateSample(inout RayDesc ray, inout Payload payload, float3 chosenCameraP
     payload.color = float4(1,1,1,0);
     payload.distance = 99999;
     payload.direction = chosenDirection;
-    payload.pixel = pixel;
+    payload.pixel = pixel + _Time.xy + _UnigmaFrameCount;
 }
 
+float4 AreaLightSample(float2 seedIn, UnigmaLight lightSource)
+{
+    float2 pixel = seedIn;
+    float2 seed = _Time.xy + seedIn;
+
+    float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
+	float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
+	float3 uv = float3(xy, xz.x);
+
+    float3 area = float3(3.5, 0.15, 3.5);
+
+    float4 lightSample = 1.0;
+    lightSample.xyz = (uv * area) + lightSource.position;
+    lightSample.w = lightSource.emission;
+
+    return lightSample;
+}
+
+//Just a basic unbiased direct lighter for one light.
 float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
 {
+
+
+    uint lightIndex = 0;
     //distance from the hit point.
-    float distanceFromPoint = 0.01;
+    float distanceFromPoint = 0.1;
 
     //Hit the first object. This is sample x0. Starts from the pixel plane, shoots direction of camera and perspective.
     RayDesc Sx0Ray;
@@ -308,12 +330,34 @@ float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
     Payload Sx1Payload;
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
-    //Overwrite sample entirely in this case with the ray.
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
 
-    //float3 x1Origin = Sx0Ray.Origin + Sx0Ray.Direction * (payload.distance - distanceFromPoint);
+    //Getting that hit point location. Will be the origin of x2 path.
+    float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
+    //This is direct light sampling. So just path towards primary light. There is only 1 light considered in this case.
+    float4 lightSample = AreaLightSample(payload.pixel+_Time.xy, _unigmaLights[lightIndex]);
+    float3 toLight = normalize(lightSample.xyz - x2Origin);
+    float3 x2Direction = toLight;//Sx1Payload.direction;
+    
+    //Now make x2 sample, initialize it.
+    RayDesc Sx2Ray;
+    Payload Sx2Payload;
+    CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
 
-    return Sx1Payload.color;
+    float3 lightHitPosition = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
+
+
+    //Finally compute the brdf for this light.
+    float Gx = 1.0f / (distance(lightHitPosition, x2Origin));
+    float Le = _unigmaLights[lightIndex].emission;
+    float V = step(0.0001, Sx2Payload.color.w);
+    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, Sx1Payload.direction);
+
+    //Target function.
+    float4 pHat = BRDF * Le * Gx * V;
+
+    return pHat;
 }
 
 [shader("raygeneration")]
@@ -330,7 +374,7 @@ void RestirGlobalIllumantionRayGen()
     float3 chosenCameraPosition;
     float3 chosenDirection;
 
-    float frameCount = 100;
+    float frameCount = 10000;
     if(_UnigmaFrameCount > frameCount)
         return;
     //Is it orthographic?

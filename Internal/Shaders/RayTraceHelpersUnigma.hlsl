@@ -47,6 +47,7 @@ struct Reservoir
     float wSum; // weight summed.
     float M; //Number of total lights for this reservoir.
     float pHat;
+    float3 x1;
 };
 
 

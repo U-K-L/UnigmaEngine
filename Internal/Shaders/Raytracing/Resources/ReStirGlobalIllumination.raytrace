@@ -16,6 +16,7 @@ Texture2D<float4> _CameraMotionVectorsTextureReSTIR;
 int _UnigmaFrameCount;
 int _NumberOfLights;
 int _TemporalReservoirsCount;
+int _PassCount;
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 #pragma max_recursion_depth 1
@@ -360,9 +361,18 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     float distanceFromPoint = 0.1;
     uint3 id = DispatchRaysIndex();
     uint3 dim = DispatchRaysDimensions();
-    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x), rand(_Time.y));
+    float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+    float2 motionVector = _CameraMotionVectorsTextureReSTIR[id.xy];
+    float2 prevUV = UV - motionVector;
+    float2 invPrevUV = UV + motionVector;
+
+    //Inverse previous UV back to id.xy.
+
+    float2 previousFrameIndex = ((prevUV*dim.xy + dim.xy) / 2) - 0.5f;
+
+    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
     int currentReservoirTemporal = 0;//_UnigmaFrameCount % _TemporalReservoirsCount;
-    int reservoirIndex = id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
+    int reservoirIndex = previousFrameIndex.x + previousFrameIndex.y*dim.x; //id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
 
     int storageReservoirTemporal =  1;//(_UnigmaFrameCount+1) % _TemporalReservoirsCount;
     int storageReservoirIndex = id.x + id.y*dim.x + storageReservoirTemporal*dim.x*dim.y;
@@ -457,6 +467,11 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     bool reservoirValid = previousReservoir.M > 0;
     if(reservoirValid)
     {
+        if(distance(prevUV, UV) > 0.0001)
+        {
+            previousReservoir.M = 0;
+        }
+            
         //Combine previous reservoir.
         previousReservoir.M = min(MHistoryLength * currentReservoir.M, previousReservoir.M); //History length.
 

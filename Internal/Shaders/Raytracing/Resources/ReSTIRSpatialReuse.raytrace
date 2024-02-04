@@ -16,6 +16,7 @@ RWStructuredBuffer<UnigmaDispatchInfo> _UnigmaDispatchInfo;
 int _UnigmaFrameCount;
 int _NumberOfLights;
 int _TemporalReservoirsCount;
+int _PassCount;
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 #pragma max_recursion_depth 1
@@ -240,7 +241,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     Reservoir currentReservoir = _reservoirs[storageReservoirIndex];
     //Store this reservoir into the next temporal buffer for the next pass to use.
     _reservoirs[reservoirIndex] = currentReservoir;
-
+        /*
     //Spatial reuse.
     Reservoir spatialReservoir;
     InitializeReservoir(spatialReservoir);
@@ -279,7 +280,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     //Combine with spatial Reservoir
     addReservoirSample(currentReservoir, spatialReservoir.Y, spatialPDF * spatialReservoir.W * spatialReservoir.M, spatialReservoir.M, randSeed);
-
+    */
     //----------------------------------
     //------------------------------------FINAL GATHER------------------------------//
 
@@ -375,6 +376,7 @@ void RestirGlobalIllumantionRayGen()
     }
 
     _UnigmaGlobalIllumination[dispatchIdx] = targetResult;
+
 
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;
 

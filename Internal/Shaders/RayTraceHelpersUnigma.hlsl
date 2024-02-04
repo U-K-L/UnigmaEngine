@@ -50,6 +50,11 @@ struct Reservoir
     float3 x1;
 };
 
+struct UnigmaDispatchInfo
+{
+    int FrameCount;
+};
+
 
 
 float2 GetUVs(AttributeData attributes)

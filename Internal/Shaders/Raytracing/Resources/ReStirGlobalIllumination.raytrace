@@ -11,6 +11,7 @@ RWStructuredBuffer<UnigmaLight> _unigmaLights;
 RWStructuredBuffer<Sample> _samples;
 RWStructuredBuffer<Reservoir> _reservoirs;
 RWStructuredBuffer<UnigmaDispatchInfo> _UnigmaDispatchInfo;
+Texture2D<float4> _CameraMotionVectorsTextureReSTIR;
 
 int _UnigmaFrameCount;
 int _NumberOfLights;

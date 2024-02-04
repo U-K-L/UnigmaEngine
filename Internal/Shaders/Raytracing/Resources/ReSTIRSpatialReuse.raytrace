@@ -6,6 +6,7 @@
 
 
 RWTexture2D<float4> _UnigmaGlobalIllumination;
+Texture2D<float4> _CameraMotionVectorsTextureReSTIR;
 
 RWStructuredBuffer<UnigmaLight> _unigmaLights;
 RWStructuredBuffer<Sample> _samples;

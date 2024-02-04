@@ -88,6 +88,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         computeOutlineColors = Resources.Load("OutlineColorsBoxBlur") as ComputeShader;
         unigmaDispatchInfoComputeShader = Resources.Load("UnigmaDispatchInfo") as ComputeShader;
         Camera cam = GetComponent<Camera>();
+        Camera.main.depthTextureMode = DepthTextureMode.MotionVectors;
         mainCam = Camera.main;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.Depth;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.DepthNormals;
@@ -314,6 +315,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_NumberOfLights", lightList.Count);
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
+        depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_CameraMotionVectorsTextureReSTIR", Shader.GetGlobalTexture("_CameraMotionVectorsTexture"));
 
         //depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_UnigmaFrameCount", _UnigmaFrameCount);
         depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirGlobalIllumRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
@@ -328,6 +330,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirSpatialShaderAccelerated, "_NumberOfLights", lightList.Count);
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirSpatialShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirSpatialShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
+        depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirSpatialShaderAccelerated, "_CameraMotionVectorsTextureReSTIR", Shader.GetGlobalTexture("_CameraMotionVectorsTexture"));
 
         //depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_UnigmaFrameCount", _UnigmaFrameCount);
         depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirSpatialShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);

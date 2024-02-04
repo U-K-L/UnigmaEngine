@@ -28,6 +28,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public float M; //Number of total lights for this reservoir.
         public float pHat;
         public Vector3 x1; //position of the hit point.
+        public int age; //how many times used.
     };
 
     struct UnigmaLight
@@ -42,7 +43,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     }
 
     int _unigmaDispatchInfoStride = sizeof(int);
-    int _reservoirStride = sizeof(float) * 5 + sizeof(float)*3;
+    int _reservoirStride = sizeof(float) * 6 + sizeof(float)*3;
     int _lightStride = sizeof(float) * 3 + sizeof(float);
     int _sampleStride = (sizeof(float) * 3) * 3 + sizeof(float);
 
@@ -132,6 +133,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             r.Y = 0;
             r.M = 0;
             r.x1 = Vector3.zero;
+            r.age = 0;
 
             reservoirs.Add(r);
         }
@@ -337,7 +339,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.SetRayTracingShaderPass(_RestirSpatialShaderAccelerated, "GlobalIlluminationRaytracingShaderPass");
 
         //Dispatch
-        int passCount = 10;
+        int passCount = 5;
         for (int i = 0; i < passCount; i++)
         {
             depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_PassCount", i);

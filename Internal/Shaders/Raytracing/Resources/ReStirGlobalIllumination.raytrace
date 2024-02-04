@@ -34,6 +34,7 @@ void InitializeReservoir(inout Reservoir reservoir)
     reservoir.M = 0;
     reservoir.wSum = 0;
     reservoir.x1 = 0;
+    reservoir.age = 0;
 }
 
 bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float c, float2 randSeed)
@@ -366,6 +367,9 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     float2 prevUV = UV - motionVector;
     float2 invPrevUV = UV + motionVector;
 
+    if(_PassCount > 0)
+        prevUV = UV;
+
     //Inverse previous UV back to id.xy.
 
     float2 previousFrameIndex = ((prevUV*dim.xy + dim.xy) / 2) - 0.5f;
@@ -469,8 +473,11 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     {
         if(distance(prevUV, UV) > 0.0001)
         {
+            //previousReservoir.age = 0;
             previousReservoir.M = 0;
         }
+
+        previousReservoir.age += 1;
             
         //Combine previous reservoir.
         previousReservoir.M = min(MHistoryLength * currentReservoir.M, previousReservoir.M); //History length.
@@ -491,6 +498,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //Add this reservoir to final sample.
     UpdateReservoirWeight(temporalReservoir, x2Origin, Sx1Payload, randSeed);
     currentReservoir = temporalReservoir;
+    currentReservoir.age += previousReservoir.age;
 
     currentReservoir.x1 = x2Origin;
     _reservoirs[storageReservoirIndex] = currentReservoir;

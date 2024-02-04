@@ -34,6 +34,7 @@ void InitializeReservoir(inout Reservoir reservoir)
     reservoir.M = 0;
     reservoir.wSum = 0;
     reservoir.x1 = 0;
+    reservoir.age = 0;
 }
 
 bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float c, float2 randSeed)
@@ -241,7 +242,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     Reservoir currentReservoir = _reservoirs[storageReservoirIndex];
     //Store this reservoir into the next temporal buffer for the next pass to use.
     _reservoirs[reservoirIndex] = currentReservoir;
-        /*
+
     //Spatial reuse.
     Reservoir spatialReservoir;
     InitializeReservoir(spatialReservoir);
@@ -280,7 +281,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     //Combine with spatial Reservoir
     addReservoirSample(currentReservoir, spatialReservoir.Y, spatialPDF * spatialReservoir.W * spatialReservoir.M, spatialReservoir.M, randSeed);
-    */
+
     //----------------------------------
     //------------------------------------FINAL GATHER------------------------------//
 

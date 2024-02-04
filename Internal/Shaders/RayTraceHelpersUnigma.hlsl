@@ -48,6 +48,7 @@ struct Reservoir
     float M; //Number of total lights for this reservoir.
     float pHat;
     float3 x1;
+    int age;
 };
 
 struct UnigmaDispatchInfo

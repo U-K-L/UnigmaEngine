@@ -1,0 +1,17 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+struct UnigmaDispatchInfo
+{
+    int FrameCount;
+};
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+RWStructuredBuffer<UnigmaDispatchInfo> _UnigmaDispatchInfo;
+[numthreads(1,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    InterlockedAdd(_UnigmaDispatchInfo[0].FrameCount, 1);
+    //_UnigmaDispatchInfo[0].FrameCount += 1;
+}

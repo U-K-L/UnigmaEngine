@@ -52,7 +52,7 @@ Shader "Unigma/UnigmaOutlines"
                 o.uv = v.uv;
                 return o;
             }
-
+            sampler2D _CameraMotionVectorsTexture;
             sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
@@ -65,6 +65,7 @@ Shader "Unigma/UnigmaOutlines"
                 fixed4 GlobalIllumination = tex2D(_UnigmaGlobalIllumination, i.uv);
                 fixed4 BackgroundTexture = tex2D(_BackgroundTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
+                fixed4 motionVectors = tex2D(_CameraMotionVectorsTexture, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
 				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
                 

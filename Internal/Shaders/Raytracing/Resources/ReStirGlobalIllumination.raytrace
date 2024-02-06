@@ -307,7 +307,7 @@ float4 AreaLightSample(float2 seedIn, UnigmaLight lightSource)
 	float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
 	float3 uv = float3(xy, xz.x);
 
-    float3 area = float3(3.5, 0.15, 3.5);
+    float3 area = lightSource.area;
 
     float4 lightSample = 1.0;
     lightSample.xyz = (uv * area) + lightSource.position;
@@ -367,6 +367,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     float2 prevUV = UV - motionVector;
     float2 invPrevUV = UV + motionVector;
 
+        
     if(_PassCount > 0)
         prevUV = UV;
 
@@ -394,6 +395,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
+
 
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
     //----------------Begin Restir by holding X0, X1 as constants and perform integration for X2------------------//
@@ -471,7 +473,8 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     bool reservoirValid = previousReservoir.M > 0;
     if(reservoirValid)
     {
-        if(distance(prevUV, UV) > 0.0001)
+
+        if(distance(prevUV, UV) > 0.00001)
         {
             //previousReservoir.age = 0;
             previousReservoir.M = 0;
@@ -554,7 +557,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     return pHat*weightFinal*Sx1Payload.color;
     */
-    return 0;
+    return Sx1Payload.color.w*10;
 }
 
 //Just a basic unbiased direct lighter for one light.
@@ -594,14 +597,14 @@ float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
 
     //Finally compute the brdf for this light.
     float Gx = 1.0f / (distance(lightHitPosition, x2Origin));
-    float Le = _unigmaLights[lightIndex].emission;
+    float Le = _unigmaLights[lightIndex].emission*15;
     float V = step(0.0001, Sx2Payload.color.w);
-    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, Sx1Payload.direction);
+    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
 
     //Target function.
     float4 pHat = BRDF * Le * Gx * V;
 
-    return pHat;
+    return pHat*Sx1Payload.color;
 }
 
 [shader("raygeneration")]

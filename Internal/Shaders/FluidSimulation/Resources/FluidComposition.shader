@@ -120,7 +120,6 @@ Shader "Hidden/FluidComposition"
                 fixed4 unigmaDepth = tex2D(_UnigmaDepthMap, i.uv);
 
                 //return unigmaDepth.z*100;
-                return fluids.w*100;
                 //return fluids.w*100;
                 //return lerp(fluids.w, unigmaDepth.z, step(fluids.w, unigmaDepth.z))*10;
                 //return densityMap;

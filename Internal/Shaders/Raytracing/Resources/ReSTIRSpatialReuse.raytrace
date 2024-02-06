@@ -376,7 +376,7 @@ void RestirGlobalIllumantionRayGen()
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 
-    _UnigmaGlobalIllumination[dispatchIdx] = targetResult;
+    _UnigmaGlobalIllumination[dispatchIdx] += targetResult;
 
 
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;

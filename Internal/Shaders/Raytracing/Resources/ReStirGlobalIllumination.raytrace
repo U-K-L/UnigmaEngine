@@ -368,8 +368,8 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     float2 invPrevUV = UV + motionVector;
 
         
-    if(_PassCount > 0)
-        prevUV = UV;
+    //if(_PassCount > 0)
+    //    prevUV = UV;
 
     //Inverse previous UV back to id.xy.
 

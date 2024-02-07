@@ -131,16 +131,30 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     //----------------Generate Sample paths X0 and X1 ------------------//
     //distance from the hit point.
+    //distance from the hit point.
     float distanceFromPoint = 0.1;
     uint3 id = DispatchRaysIndex();
     uint3 dim = DispatchRaysDimensions();
-    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x), rand(_Time.y));
+    float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+    float2 motionVector = _CameraMotionVectorsTextureReSTIR[id.xy];
+    float2 prevUV = UV - motionVector;
+    float2 invPrevUV = UV + motionVector;
+
+        
+    //if(_PassCount > 0)
+    //    prevUV = UV;
+
+    //Inverse previous UV back to id.xy.
+
+    float2 previousFrameIndex = ((prevUV*dim.xy + dim.xy) / 2) - 0.5f;
+
+    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
     int currentReservoirTemporal = 0;//_UnigmaFrameCount % _TemporalReservoirsCount;
-    int reservoirIndex = id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
+    int reservoirIndex = id.x + id.y*dim.x; //id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
 
     int storageReservoirTemporal =  1;//(_UnigmaFrameCount+1) % _TemporalReservoirsCount;
     int storageReservoirIndex = id.x + id.y*dim.x + storageReservoirTemporal*dim.x*dim.y;
-    int MHistoryLength = 15;
+    int MHistoryLength = 25;
 
 
     //Hit the first object. This is sample x0. Starts from the pixel plane, shoots direction of camera and perspective.
@@ -246,9 +260,12 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //Spatial reuse.
     Reservoir spatialReservoir;
     InitializeReservoir(spatialReservoir);
+
+    //Combine with spatial Reservoir
+    addReservoirSample(spatialReservoir, currentReservoir.Y, currentReservoir.pHat * currentReservoir.W * currentReservoir.M, currentReservoir.M, randSeed);
+
     int _NumberOfNeighbors = 15;
     int _NeighborsRadius = 5;
-
     for(int i = 0; i < _NumberOfNeighbors; i++)
     {
         //Sample neighbors in a grid fashion to get index of what neighbor to sample from.
@@ -263,25 +280,13 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         int currentReservoirTemporal = 1;//_UnigmaFrameCount % _TemporalReservoirsCount;
         int reservoirIndex = neighborIndex.x + neighborIndex.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
         Reservoir neighborReservoir = _reservoirs[reservoirIndex];
-
-        //Begin using spatial neighbors to update the weights.
-        //Check if valid sample.
-        bool reservoirValid = (neighborReservoir.M > 0) && (neighborReservoir.W > 0);
-        if(reservoirValid)
-        {
-            uint neighborLightIndex = neighborReservoir.Y;
-            float4 neighborLightSample = AreaLightSample(randSeed, _unigmaLights[neighborLightIndex]);
-            float3 neighborToLight = normalize(neighborLightSample.xyz - neighborReservoir.x1);
-            float pHat = GetTargetFunction(neighborReservoir, neighborReservoir.x1, Sx1Payload, randSeed);
-            addReservoirSample(spatialReservoir, neighborReservoir.Y, pHat * neighborReservoir.W * neighborReservoir.M, neighborReservoir.M, randSeed);
-        }
+        addReservoirSample(spatialReservoir, neighborReservoir.Y, neighborReservoir.pHat * neighborReservoir.W * neighborReservoir.M, neighborReservoir.M, randSeed);
     }
 
     float spatialPDF = UpdateReservoirWeight(spatialReservoir, x2Origin, Sx1Payload, randSeed);
 
-    //Combine with spatial Reservoir
-    addReservoirSample(currentReservoir, spatialReservoir.Y, spatialPDF * spatialReservoir.W * spatialReservoir.M, spatialReservoir.M, randSeed);
 
+    
     //----------------------------------
     //------------------------------------FINAL GATHER------------------------------//
 
@@ -290,10 +295,10 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float pHat = GetTargetFunction(currentReservoir, x2Origin, Sx1Payload, randSeed);
 
-    float4 weightFinal = currentReservoir.W;
+    float weightFinal = spatialReservoir.W;
 
 
-    return pHat*weightFinal*Sx1Payload.color;
+    return spatialPDF*weightFinal*Sx1Payload.color;
 }
 
 

@@ -227,7 +227,7 @@ Shader "Unigma/UnigmaToonStylized"
 
                 float lightAbsorbed = _LightAbsorbtion < ruv.x;
 
-                payload.direction = diffuse;//lerp(diffuse, specular, _Smoothness* lightAbsorbed);
+                payload.direction = lerp(diffuse, specular, _Smoothness* lightAbsorbed);
 
                 //payload.direction = diffuse;
 

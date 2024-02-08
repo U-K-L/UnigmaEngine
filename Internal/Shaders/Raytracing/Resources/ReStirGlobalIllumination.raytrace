@@ -340,7 +340,7 @@ float UpdateReservoirWeight(inout Reservoir reservoir, float3 origin, in Payload
     float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
     float3 toLight = normalize(lightSample.xyz - origin);
     //Finally compute the brdf for this light.
-    float Gx = 1.0f / (distance(lightSample.xyz, origin));
+    float Gx = min(50, 1.0f / (distance(lightSample.xyz, origin)));
     float Le = _unigmaLights[lightIndex].emission;
     float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
 
@@ -359,7 +359,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     //----------------Generate Sample paths X0 and X1 ------------------//
     //distance from the hit point.
-    float distanceFromPoint = 0.1;
+    float distanceFromPoint = 0.01;
     uint3 id = DispatchRaysIndex();
     uint3 dim = DispatchRaysDimensions();
     float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
@@ -421,7 +421,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         float3 toLight = normalize(lightSample.xyz - x2Origin);
 
         //Create the target function to approximate it.
-        float Gx = 1.0f / (distance(lightSample.xyz, x2Origin));
+        float Gx = min(50, 1.0f / (distance(lightSample.xyz, x2Origin)));
         float Le = _unigmaLights[lightIndex].emission;
         float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
         float pHat = BRDF * Le * Gx;
@@ -433,7 +433,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float4 lightSample = AreaLightSample(randSeed, _unigmaLights[currentReservoir.Y]);
     float3 x2Direction = normalize(lightSample.xyz - x2Origin);
-    UpdateReservoirWeight(currentReservoir, x2Origin, Sx1Payload, randSeed);
+    float currentPhat = UpdateReservoirWeight(currentReservoir, x2Origin, Sx1Payload, randSeed);
     //Now let's create Sample X2.
     RayDesc Sx2Ray;
     Payload Sx2Payload;
@@ -474,7 +474,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     if(reservoirValid)
     {
 
-        if(distance(prevUV, UV) > 0.00001)
+        if(distance(prevUV, UV) > 0.00001 || distance(x2Origin, previousReservoir.x1) > 0.001 || (abs(previousReservoir.pHat - currentPhat) / currentPhat) > 0.2)
         {
             //previousReservoir.age = 0;
             previousReservoir.M = 0;
@@ -557,7 +557,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     return pHat*weightFinal*Sx1Payload.color;
     */
-    return Sx1Payload.color.w*10;
+    return Sx1Payload.color.w * Sx1Payload.color;
 }
 
 //Just a basic unbiased direct lighter for one light.

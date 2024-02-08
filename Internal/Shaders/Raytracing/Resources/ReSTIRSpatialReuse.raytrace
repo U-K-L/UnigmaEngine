@@ -297,8 +297,9 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float weightFinal = spatialReservoir.W;
 
+    float4 lightColor = float4(_unigmaLights[lightIndex].color, 1);
 
-    return spatialPDF*weightFinal*Sx1Payload.color;
+    return lightColor*spatialPDF*weightFinal*Sx1Payload.color;
 }
 
 

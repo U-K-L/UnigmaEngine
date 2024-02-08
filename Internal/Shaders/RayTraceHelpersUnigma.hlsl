@@ -15,6 +15,7 @@ struct UnigmaLight
     float3 position;
     float emission;
     float3 area;
+    float3 color;
 };
 
 struct Vertex

@@ -278,6 +278,23 @@ public class UnigmaCommandBuffers : MonoBehaviour
             }
         }
 
+        //Add spherical map.
+        int width = SphericalMap.width;
+        int height = SphericalMap.height;
+        for (int i = 0; i < width; i++)
+            for (int j = 0; j < height; j++)
+            {
+                float u = (float)i / (float)width;
+                float v = (float)j / (float)height;
+                UnigmaLight ulight = new UnigmaLight();
+                Vector4 color = SphericalMap.GetPixel(i, j);
+                ulight.color = new Vector3(color.x, color.y, color.z);
+                ulight.position = SphericalMapping(new Vector2(u, v), 10000);
+                ulight.emission = 0;//Vector3.Magnitude(color);
+                ulight.area = new Vector3(1, 1, 1);
+                lightList.Add(ulight);
+            }
+
         //Debug Light List
         for (int i = 0; i < lightList.Count; i++)
         {
@@ -581,6 +598,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+
         int width = SphericalMap.width;
         int height = SphericalMap.height;
         for (int i = 0; i < width; i++)
@@ -589,9 +607,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 float u = (float)i / (float)width;
                 float v = (float)j / (float)height;
                 Gizmos.color = SphericalMap.GetPixel(i, j);
-                Gizmos.DrawSphere(SphericalMapping(new Vector2(u, v), 1), 0.04f);
+                Gizmos.DrawSphere(SphericalMapping(new Vector2(u, v), 100), 1f);
             }
-        
     }
 
     void OnDisable()

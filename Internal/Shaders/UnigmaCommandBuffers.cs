@@ -12,6 +12,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public int _temporalReservoirsCount = 1;
     private Camera mainCam;
 
+    public Texture2D SphericalMap;
+
     struct Sample
     {
         public Vector3 x0;
@@ -563,6 +565,33 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         _UnigmaGlobalIllumination.Release();
 
+    }
+
+    Vector3 SphericalMapping(Vector2 uv, float radius)
+    {
+        float theta = 2 * Mathf.PI * uv.x;
+        float phi = Mathf.PI * uv.y;
+
+        float x = Mathf.Cos(theta) * Mathf.Sin(phi) * radius;
+        float y = Mathf.Sin(theta) * Mathf.Sin(phi) * radius;
+        float z = -Mathf.Cos(phi) * radius;
+
+        return new Vector3(x,y,z);
+    }
+
+    private void OnDrawGizmos()
+    {
+        int width = SphericalMap.width;
+        int height = SphericalMap.height;
+        for (int i = 0; i < width; i++)
+            for (int j = 0; j < height; j++)
+            {
+                float u = (float)i / (float)width;
+                float v = (float)j / (float)height;
+                Gizmos.color = SphericalMap.GetPixel(i, j);
+                Gizmos.DrawSphere(SphericalMapping(new Vector2(u, v), 1), 0.04f);
+            }
+        
     }
 
     void OnDisable()

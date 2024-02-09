@@ -290,7 +290,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 Vector4 color = SphericalMap.GetPixel(i, j);
                 ulight.color = new Vector3(color.x, color.y, color.z);
                 ulight.position = SphericalMapping(new Vector2(u, v), 10000);
-                ulight.emission = 0;//Vector3.Magnitude(color);
+                ulight.emission = Vector3.Magnitude(color)*10000;
                 ulight.area = new Vector3(1, 1, 1);
                 lightList.Add(ulight);
             }

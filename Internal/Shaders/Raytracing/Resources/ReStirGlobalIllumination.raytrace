@@ -323,7 +323,7 @@ float GetTargetFunction(inout Reservoir reservoir, float3 origin, in Payload Sx1
     float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
     float3 toLight = normalize(lightSample.xyz - origin);
     //Finally compute the brdf for this light.
-    float Gx = 1.0f / (distance(lightSample.xyz, origin));
+    float Gx = min(50, 1.0f / (distance(lightSample.xyz, origin)));
     float Le = _unigmaLights[lightIndex].emission;
     float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
 
@@ -439,6 +439,11 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     Payload Sx2Payload;
     CreateSample(Sx2Ray, Sx2Payload, x2Origin, x2Direction);
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
+
+    if(Sx2Payload.distance >= 99990)
+    {
+        Sx2Payload.color.w = 1;
+    }
 
     float visible = step(0.0001, Sx2Payload.color.w);
     if(visible < 0.001)

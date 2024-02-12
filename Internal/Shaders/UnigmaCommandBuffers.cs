@@ -277,7 +277,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 }
             }
         }
-
+        /*
         //Add spherical map.
         int width = SphericalMap.width;
         int height = SphericalMap.height;
@@ -289,8 +289,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 UnigmaLight ulight = new UnigmaLight();
                 Vector4 color = SphericalMap.GetPixel(i, j);
                 ulight.color = new Vector3(color.x, color.y, color.z);
-                ulight.position = SphericalMapping(new Vector2(u, v), 10000);
-                ulight.emission = Vector3.Magnitude(color)*10000;
+                ulight.position = SphericalMapping(new Vector2(u, v), 10);
+                ulight.emission = Vector3.Magnitude(color);
                 ulight.area = new Vector3(1, 1, 1);
                 lightList.Add(ulight);
             }
@@ -300,6 +300,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             Debug.Log("Light: " + i + " : " + lightList[i].position);
         }
+        */
     }
 
     void AddObjectsToAccerleration()
@@ -607,7 +608,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 float u = (float)i / (float)width;
                 float v = (float)j / (float)height;
                 Gizmos.color = SphericalMap.GetPixel(i, j);
-                Gizmos.DrawSphere(SphericalMapping(new Vector2(u, v), 100), 1f);
+                Gizmos.DrawSphere(SphericalMapping(new Vector2(u, v), 10), 1f);
             }
     }
 

@@ -412,9 +412,9 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     uint MareaSamples = 32;
     for(uint i = 0; i < MareaSamples; i++)
     {
-        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i+i);
-        uint lightIndex = uint(rand(randSeed) * (_NumberOfLights)); //randomly get a light to sample from.
-
+        float2 randSeed = payload.pixel + _Time.xx + float2(i,i);
+        float numLights = (float)_NumberOfLights;
+        uint lightIndex = uint(ceil(rand(randSeed*randSeed * rand(randSeed)) * (numLights))); //randomly get a light to sample from.
         //Sample the area light given that light index.
         float4 lightSample = AreaLightSample(randSeed, _unigmaLights[lightIndex]);
 

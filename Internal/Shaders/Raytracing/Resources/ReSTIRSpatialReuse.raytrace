@@ -263,6 +263,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     //Combine with spatial Reservoir
     addReservoirSample(spatialReservoir, currentReservoir.Y, currentReservoir.pHat * currentReservoir.W * currentReservoir.M, currentReservoir.M, randSeed);
+    //UpdateReservoirWeight(spatialReservoir, x2Origin, Sx1Payload, randSeed);
 
     int _NumberOfNeighbors = 15;
     int _NeighborsRadius = 5;
@@ -271,8 +272,8 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         //Sample neighbors in a grid fashion to get index of what neighbor to sample from.
         float2 neighborIndex = 0;
         float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i*i);
-        neighborIndex.x = int(rand(randSeed) * _NeighborsRadius * 2.f) - _NeighborsRadius;
-		neighborIndex.y = int(rand(randSeed+1) * _NeighborsRadius * 2.f) - _NeighborsRadius;
+        neighborIndex.x = int(rand(randSeed*randSeed + rand(randSeed))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+		neighborIndex.y = int(rand(randSeed*randSeed + rand(randSeed + float2(1,2)))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
 		neighborIndex.x = max(0, min(dim.x - 1, id.x + neighborIndex.x));
 		neighborIndex.y = max(0, min(dim.y - 1, id.y + neighborIndex.y));
 
@@ -285,15 +286,12 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float spatialPDF = UpdateReservoirWeight(spatialReservoir, x2Origin, Sx1Payload, randSeed);
 
-
     
     //----------------------------------
     //------------------------------------FINAL GATHER------------------------------//
 
     //Now that we have stored our reservoirs we look for the current light to sample.
-    uint lightIndex = currentReservoir.Y; //This new light index comes from the weighted reservoir we computed.
-
-    float pHat = GetTargetFunction(currentReservoir, x2Origin, Sx1Payload, randSeed);
+    uint lightIndex = spatialReservoir.Y; //This new light index comes from the weighted reservoir we computed.
 
     float weightFinal = spatialReservoir.W;
 

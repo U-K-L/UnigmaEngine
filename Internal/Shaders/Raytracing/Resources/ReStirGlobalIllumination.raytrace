@@ -323,7 +323,7 @@ float GetTargetFunction(inout Reservoir reservoir, float3 origin, in Payload Sx1
     float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
     float3 toLight = normalize(lightSample.xyz - origin);
     //Finally compute the brdf for this light.
-    float Gx = min(50, 1.0f / (distance(lightSample.xyz, origin)));
+    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
     float Le = _unigmaLights[lightIndex].emission;
     float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
 
@@ -340,7 +340,7 @@ float UpdateReservoirWeight(inout Reservoir reservoir, float3 origin, in Payload
     float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
     float3 toLight = normalize(lightSample.xyz - origin);
     //Finally compute the brdf for this light.
-    float Gx = min(50, 1.0f / (distance(lightSample.xyz, origin)));
+    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
     float Le = _unigmaLights[lightIndex].emission;
     float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
 
@@ -410,18 +410,19 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //Algorithm 3, initial light candidates
     //Firstly M is the number of samples we want.
     uint MareaSamples = 32;
-    for(uint i = 0; i < MareaSamples; i++)
+    for(uint i = 0; i < min(_NumberOfLights, MareaSamples); i++)
     {
-        float2 randSeed = payload.pixel + _Time.xx + float2(i,i);
+        //TODO: Better random.
+        float2 randSeed = payload.pixel + _Time.xy + float2(i,i);
         float numLights = (float)_NumberOfLights;
-        uint lightIndex = uint(ceil(rand(randSeed*randSeed * rand(randSeed)) * (numLights))); //randomly get a light to sample from.
+        uint lightIndex = rand(randSeed)*numLights;//uint(ceil(rand(randSeed*randSeed + rand(randSeed)) * (numLights-1))); //randomly get a light to sample from.
         //Sample the area light given that light index.
         float4 lightSample = AreaLightSample(randSeed, _unigmaLights[lightIndex]);
 
         float3 toLight = normalize(lightSample.xyz - x2Origin);
 
         //Create the target function to approximate it.
-        float Gx = min(50, 1.0f / (distance(lightSample.xyz, x2Origin)));
+        float Gx = min(500, 1.0f / (distance(lightSample.xyz, x2Origin)));
         float Le = _unigmaLights[lightIndex].emission;
         float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
         float pHat = BRDF * Le * Gx;
@@ -434,6 +435,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     float4 lightSample = AreaLightSample(randSeed, _unigmaLights[currentReservoir.Y]);
     float3 x2Direction = normalize(lightSample.xyz - x2Origin);
     float currentPhat = UpdateReservoirWeight(currentReservoir, x2Origin, Sx1Payload, randSeed);
+    //return (currentReservoir.wSum / currentReservoir.M) / currentPhat;
     //Now let's create Sample X2.
     RayDesc Sx2Ray;
     Payload Sx2Payload;
@@ -475,33 +477,26 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //Combine current reservoir.
     addReservoirSample(temporalReservoir, currentReservoir.Y, currentReservoir.pHat * currentReservoir.W * currentReservoir.M, 1, randSeedR);
 
-    bool reservoirValid = previousReservoir.M > 0;
-    if(reservoirValid)
+
+    if(distance(prevUV, UV) > 0.00001 || distance(x2Origin, previousReservoir.x1) > 0.001 || (abs(previousReservoir.pHat - currentPhat) / currentPhat) > 0.2)
     {
-
-        if(distance(prevUV, UV) > 0.00001 || distance(x2Origin, previousReservoir.x1) > 0.001 || (abs(previousReservoir.pHat - currentPhat) / currentPhat) > 0.2)
-        {
-            //previousReservoir.age = 0;
-            previousReservoir.M = 0;
-        }
-
-        previousReservoir.age += 1;
-            
-        //Combine previous reservoir.
-        previousReservoir.M = min(MHistoryLength * currentReservoir.M, previousReservoir.M); //History length.
-
-        uint prevLightIndex = previousReservoir.Y;
-        float4 prevLightSample = AreaLightSample(randSeedR, _unigmaLights[prevLightIndex]);
-
-        float3 prevToLight = normalize(prevLightSample.xyz - previousReservoir.x1);
-
-        //float pHat = GetTargetFunction(previousReservoir, previousReservoir.x1, Sx1Payload, randSeedR);
-
-        float weight = previousReservoir.pHat *previousReservoir.W*previousReservoir.M;
-
-        addReservoirSample(temporalReservoir, previousReservoir.Y, weight, previousReservoir.M, randSeedR);
+        //previousReservoir.age = 0;
+        previousReservoir.M = 0;
     }
+            
+    //Combine previous reservoir.
+    previousReservoir.M = min(MHistoryLength * currentReservoir.M, previousReservoir.M); //History length.
 
+    uint prevLightIndex = previousReservoir.Y;
+    float4 prevLightSample = AreaLightSample(randSeedR, _unigmaLights[prevLightIndex]);
+
+    float3 prevToLight = normalize(prevLightSample.xyz - previousReservoir.x1);
+
+    //float pHat = GetTargetFunction(previousReservoir, previousReservoir.x1, Sx1Payload, randSeedR);
+
+    float weight = previousReservoir.pHat *previousReservoir.W*previousReservoir.M;
+
+    addReservoirSample(temporalReservoir, previousReservoir.Y, weight, previousReservoir.M, randSeedR);
 
     //Add this reservoir to final sample.
     UpdateReservoirWeight(temporalReservoir, x2Origin, Sx1Payload, randSeed);

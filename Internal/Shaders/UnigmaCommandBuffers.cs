@@ -41,22 +41,35 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public Vector3 color;
     };
 
+    struct ReservoirPath
+    {
+        public float wSum; // weight summed.
+        public float M; //Number of total lights for this reservoir.
+        public Vector3 radiance;
+        public Vector3 position;
+        public Vector3 normal;
+
+    };
+
     struct UnigmaDispatchInfo
     {
         public int FrameCount;
-    }
+    };
 
     int _unigmaDispatchInfoStride = sizeof(int);
     int _reservoirStride = sizeof(float) * 6 + sizeof(float)*3;
+    int _reservoirPathStride = sizeof(float) * 2 + sizeof(float) * 3*3;
     int _lightStride = sizeof(float) * 3*3 + sizeof(float);
     int _sampleStride = (sizeof(float) * 3) * 3 + sizeof(float);
 
     ComputeBuffer samplesBuffer;
     ComputeBuffer lightsBuffer;
     ComputeBuffer reservoirsBuffer;
+    ComputeBuffer reservoirPathsBuffer;
     ComputeBuffer unigmaDispatchInfoBuffer;
 
     private List<Reservoir> reservoirs;
+    private List<ReservoirPath> reservoirPaths;
     private List<Sample> samplesList;
     private List<UnigmaLight> lightList;
     private List<UnigmaDispatchInfo> unigmaDispatchInfos;
@@ -88,6 +101,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         samplesList = new List<Sample>();
         lightList = new List<UnigmaLight>();
         reservoirs = new List<Reservoir>();
+        reservoirPaths = new List<ReservoirPath>();
         AddLightsToList();
         lightsBuffer = new ComputeBuffer(lightList.Count, _lightStride);
         unigmaDispatchInfos = new List<UnigmaDispatchInfo>();
@@ -142,6 +156,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
             r.age = 0;
 
             reservoirs.Add(r);
+
+            ReservoirPath rp = new ReservoirPath();
+            rp.wSum = 0;
+            rp.M = 0;
+            rp.radiance = Vector3.zero;
+            rp.normal = Vector3.zero;
+
+            reservoirPaths.Add(rp);
         }
 
         for (int i = 0; i < 1; i++)
@@ -159,6 +181,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         reservoirsBuffer = new ComputeBuffer(amountOfSamples * _temporalReservoirsCount, _reservoirStride);
         reservoirsBuffer.SetData(reservoirs);
+
+        reservoirPathsBuffer = new ComputeBuffer(amountOfSamples * _temporalReservoirsCount, _reservoirPathStride);
+        reservoirPathsBuffer.SetData(reservoirPaths);
 
         unigmaDispatchInfoBuffer = new ComputeBuffer(1, _unigmaDispatchInfoStride);
         unigmaDispatchInfoBuffer.SetData(unigmaDispatchInfos);
@@ -342,7 +367,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_samples", samplesBuffer);
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_unigmaLights", lightsBuffer);
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_reservoirs", reservoirsBuffer);
-        
+        depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_reservoirPaths", reservoirPathsBuffer);
+
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_NumberOfLights", lightList.Count);
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);
         depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
@@ -356,7 +382,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         //Reusepass
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirSpatialShaderAccelerated, "_samples", samplesBuffer);
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirSpatialShaderAccelerated, "_unigmaLights", lightsBuffer);
-        depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirSpatialShaderAccelerated, "_reservoirs", reservoirsBuffer);
+        depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirSpatialShaderAccelerated, "_reservoirPaths", reservoirPathsBuffer);
 
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirSpatialShaderAccelerated, "_NumberOfLights", lightList.Count);
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirSpatialShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);

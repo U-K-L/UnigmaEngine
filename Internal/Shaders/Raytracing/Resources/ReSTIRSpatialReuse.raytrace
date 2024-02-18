@@ -11,6 +11,7 @@ Texture2D<float4> _CameraMotionVectorsTextureReSTIR;
 RWStructuredBuffer<UnigmaLight> _unigmaLights;
 RWStructuredBuffer<Sample> _samples;
 RWStructuredBuffer<Reservoir> _reservoirs;
+RWStructuredBuffer<ReservoirPath> _reservoirPaths;
 RWStructuredBuffer<UnigmaDispatchInfo> _UnigmaDispatchInfo;
 
 int _UnigmaFrameCount;
@@ -300,6 +301,36 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     return lightColor*spatialPDF*weightFinal*Sx1Payload.color;
 }
 
+float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
+{
+    float distanceFromPoint = 0.1;
+    uint3 id = DispatchRaysIndex();
+    uint3 dim = DispatchRaysDimensions();
+    float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+    float2 motionVector = _CameraMotionVectorsTextureReSTIR[id.xy];
+    float2 prevUV = UV - motionVector;
+    float2 invPrevUV = UV + motionVector;
+
+        
+    //if(_PassCount > 0)
+    //    prevUV = UV;
+
+    //Inverse previous UV back to id.xy.
+
+    float2 previousFrameIndex = ((prevUV*dim.xy + dim.xy) / 2) - 0.5f;
+
+    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
+    int currentReservoirTemporal = 0;//_UnigmaFrameCount % _TemporalReservoirsCount;
+    int reservoirIndex = id.x + id.y*dim.x; //id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
+
+    int storageReservoirTemporal =  1;//(_UnigmaFrameCount+1) % _TemporalReservoirsCount;
+    int storageReservoirIndex = id.x + id.y*dim.x + storageReservoirTemporal*dim.x*dim.y;
+
+    ReservoirPath currentReservoirPath = _reservoirPaths[storageReservoirIndex];
+    //Store this reservoir into the next temporal buffer for the next pass to use.
+    _reservoirPaths[reservoirIndex] = currentReservoirPath;
+    return currentReservoirPath.radiance.r;
+}
 
 [shader("raygeneration")]
 void RestirGlobalIllumantionRayGen()
@@ -376,7 +407,7 @@ void RestirGlobalIllumantionRayGen()
 
     for(int i = 0; i < numSamples; i++)
     {
-        targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples;
+        targetResult += SampleIndirect(payload, ray)*inverseSamples;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 

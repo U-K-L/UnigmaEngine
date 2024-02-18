@@ -53,6 +53,16 @@ struct Reservoir
     int age;
 };
 
+struct ReservoirPath
+{
+    float wSum; // weight summed.
+    float M; //Number of total lights for this reservoir.
+    float3 radiance;
+    float3 position;
+    float3 normal;
+
+};
+
 struct UnigmaDispatchInfo
 {
     int FrameCount;
@@ -254,3 +264,29 @@ float3 HDRToOutput(float3 hdr, float exposure)
     return ldrSRGB;
 }
 
+void InitiateReservoirPath(inout ReservoirPath reservoir, float3 position, float3 normal, float3 radiance)
+{
+    reservoir.wSum = 0;
+    reservoir.M = 0;
+    reservoir.radiance = radiance;
+    reservoir.position = position;
+    reservoir.normal = normal;
+}
+
+bool addReservoirSamplePath(inout ReservoirPath reservoir, inout ReservoirPath newReservoir, float weight, float c, float2 randSeed)
+{
+    float risWeight = weight * newReservoir.wSum * newReservoir.M;
+    reservoir.M += c;
+    reservoir.wSum += risWeight;
+
+   
+    if (risWeight >= rand(randSeed) * reservoir.wSum)
+    {
+        reservoir.position = newReservoir.position;
+        reservoir.radiance = newReservoir.radiance;
+        reservoir.normal = newReservoir.normal;
+        return true;
+    }
+
+    return false;
+}

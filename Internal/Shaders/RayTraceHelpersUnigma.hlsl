@@ -266,8 +266,8 @@ float3 HDRToOutput(float3 hdr, float exposure)
 
 void InitiateReservoirPath(inout ReservoirPath reservoir, float3 position, float3 normal, float3 radiance)
 {
-    reservoir.wSum = 0;
-    reservoir.M = 0;
+    reservoir.wSum = 1.0;
+    reservoir.M = 1;
     reservoir.radiance = radiance;
     reservoir.position = position;
     reservoir.normal = normal;

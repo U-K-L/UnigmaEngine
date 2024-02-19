@@ -599,6 +599,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
             lightsBuffer.Release();
         if (reservoirsBuffer != null)
             reservoirsBuffer.Release();
+        if (reservoirPathsBuffer != null)
+            reservoirPathsBuffer.Release();
         if (unigmaDispatchInfoBuffer != null)
             unigmaDispatchInfoBuffer.Release();
         CommandBuffer[] buffers = mainCam.GetCommandBuffers(CameraEvent.AfterForwardOpaque);

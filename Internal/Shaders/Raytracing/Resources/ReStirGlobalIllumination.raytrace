@@ -588,7 +588,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float2 motionVector = _CameraMotionVectorsTextureReSTIR[id.xy];
     float2 prevUV = UV - motionVector;
     float2 invPrevUV = UV + motionVector;
-
+    int MHistoryLength = 25;
         
     //if(_PassCount > 0)
     //    prevUV = UV;
@@ -602,7 +602,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
     int storageReservoirTemporal =  1;//(_UnigmaFrameCount+1) % _TemporalReservoirsCount;
     int storageReservoirIndex = id.x + id.y*dim.x + storageReservoirTemporal*dim.x*dim.y;
-    float2 randSeed = payload.pixel+_Time.xy;
+    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
 
     //Hit the first object. This is sample x0. Starts from the pixel plane, shoots direction of camera and perspective.
     RayDesc Sx0Ray;
@@ -619,41 +619,38 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //Getting that hit point location. Will be the origin of x2 path.
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
 
-    //Direction from BSDF...
+    //Direction from BSDF... this comes from the shader.
     float3 x2Direction = Sx1Payload.direction;
     
-    //Now make x2 sample, initialize it.
+    //Now make x2 sample, this goes and hits surface from the first bounce.
     RayDesc Sx2Ray;
     Payload Sx2Payload;
-    CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction);
+    CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction); //From hit point to pdf direction.
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
 
-    //Number of bounces...
+    //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
     float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
     float3 xNDirection = Sx2Payload.direction;
     int maxBounces = 1;
     float radianceIndirect = Sx2Payload.color.w;
     RayDesc SxNRay;
     Payload SxNPayload;
+    CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
+    SxNPayload.normal = Sx2Payload.normal;
     for(int i = 0; i < maxBounces; i++)
     {
-        CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection);
         TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxNRay, SxNPayload);
         xNOrigin = SxNRay.Origin + (SxNRay.Direction * SxNPayload.distance) + (SxNPayload.normal * distanceFromPoint);
         xNDirection = SxNPayload.direction;
         radianceIndirect += SxNPayload.color.w;
+        CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
     }
 
-    ReservoirPath currentReservoirPath;
-    InitiateReservoirPath(currentReservoirPath, xNOrigin, xNDirection, radianceIndirect);
-    //(inout ReservoirPath reservoir, float3 position, float3 normal, float3 radiance)
-    //Initalizing the current reservoir we will use.
-    Reservoir currentReservoir;
-    InitializeReservoir(currentReservoir);
 
     //----------------------------------
     //------------------------------------RIS ALGORITHM------------------------------//
-
+    Reservoir currentReservoir;
+    InitializeReservoir(currentReservoir);
 
     //Algorithm 3, initial light candidates
     //Firstly M is the number of samples we want.
@@ -680,13 +677,62 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
         addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeed);
     }
 
+    //----------------------------------
+    //------------------------------------ALGORITHM 2 Initial Sampling------------------------------//
+
+    
+    ReservoirPath currentReservoirPath;
+    
+    float outgoingRadiance = GetTargetPathRadiance(currentReservoir, xNOrigin, SxNPayload.normal.xyz, randSeed);
+
+    InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, outgoingRadiance);
+
+    //----------------------------------
+    //------------------------------------ALGORITHM Temporal Sampling------------------------------//
+
+    ReservoirPath prevReservoirPath = _reservoirPaths[reservoirIndex];
+
+    prevReservoirPath.M = min(MHistoryLength * currentReservoirPath.M, prevReservoirPath.M); //History length.
+
+    float prevOutgoingRadiance = GetTargetPathRadiance(currentReservoir, prevReservoirPath.position, prevReservoirPath.normal, randSeed);
+     //combine temporal...
+    if(distance(prevUV, UV) > 0.00001)
+    {
+        //previousReservoir.age = 0;
+        prevReservoirPath.M = 0;
+    }
+    bool isSelected = addReservoirSamplePath(currentReservoirPath, prevReservoirPath, prevOutgoingRadiance, prevReservoirPath.M, randSeed);
+
+    float selectedPdf = outgoingRadiance;
+    if(isSelected)
+        selectedPdf = prevOutgoingRadiance;
+
+    float pi = selectedPdf;
+    float piSum = selectedPdf * currentReservoirPath.M;
+    float temporalPdf = GetTargetPathRadiance(currentReservoir, currentReservoirPath.position, prevReservoirPath.normal, randSeed);
+    piSum += temporalPdf * prevReservoirPath.M;
+    pi = isSelected ? temporalPdf : pi;
+
+    float targetDenom = piSum * selectedPdf;
+    float targetNumer = pi;
+    currentReservoirPath.wSum =  (targetNumer == 0.0) ? 0.0 : (currentReservoirPath.wSum * targetNumer) / targetDenom;
+
+    //(inout ReservoirPath reservoir, float3 position, float3 normal, float3 radiance)
+    //Initalizing the current reservoir we will use.
+    /*
+
     float targetPdf = GetTargetPathRadiance(currentReservoir, xNOrigin, xNDirection, randSeed);
-    currentReservoirPath.radiance = targetPdf;
 
     //combine temporal...
     ReservoirPath prevReservoirPath = _reservoirPaths[reservoirIndex];
 
     float prevTargetPdf = GetTargetPathRadiance(currentReservoir, prevReservoirPath.position, prevReservoirPath.normal, randSeed);
+
+    if(distance(prevUV, UV) > 0.00001 || (abs(prevTargetPdf - targetPdf) / targetPdf) > 0.2)
+    {
+        //previousReservoir.age = 0;
+        prevReservoirPath.M = 0;
+    }
 
     bool isSelected = addReservoirSamplePath(currentReservoirPath, prevReservoirPath, prevTargetPdf, prevReservoirPath.M, randSeed);
     //addReservoirSamplePath(inout ReservoirPath reservoir, inout ReservoirPath newReservoir, float weight, float c, float2 randSeed)
@@ -696,8 +742,13 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float selectedPdf = targetPdf;
     if(!isSelected)
         selectedPdf = prevTargetPdf;
+        */
 
-    return selectedPdf;
+    //Store reservoir.
+    _reservoirPaths[storageReservoirIndex] = currentReservoirPath;
+    
+
+    return currentReservoirPath.radiance.r * currentReservoirPath.wSum*5;
 
 }
 

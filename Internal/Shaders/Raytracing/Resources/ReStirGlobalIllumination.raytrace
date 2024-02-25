@@ -644,38 +644,9 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
         xNOrigin = SxNRay.Origin + (SxNRay.Direction * SxNPayload.distance) + (SxNPayload.normal * distanceFromPoint);
         xNDirection = SxNPayload.direction;
         radianceIndirect += SxNPayload.color.w;
-        CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
-    }
-
-
-    //----------------------------------
-    //------------------------------------RIS ALGORITHM------------------------------//
-    Reservoir currentReservoir;
-    InitializeReservoir(currentReservoir);
-
-    //Algorithm 3, initial light candidates
-    //Firstly M is the number of samples we want.
-    uint MareaSamples = 32;
-    for(uint i = 0; i < min(_NumberOfLights, MareaSamples); i++)
-    {
-        //TODO: Better random.
-        float2 randSeed = payload.pixel + _Time.xy + float2(i,i);
-        float numLights = (float)_NumberOfLights;
-        uint lightIndex = rand(randSeed)*numLights;//uint(ceil(rand(randSeed*randSeed + rand(randSeed)) * (numLights-1))); //randomly get a light to sample from.
-        //Sample the area light given that light index.
-        float4 lightSample = AreaLightSample(randSeed, _unigmaLights[lightIndex]);
-
-        float3 toLight = normalize(lightSample.xyz - x2Origin);
-
-        //Create the target function to approximate it.
-        float Gx = min(500, 1.0f / (distance(lightSample.xyz, x2Origin)));
-        float Le = _unigmaLights[lightIndex].emission;
-        float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
-        float pHat = BRDF * Le * Gx;
-
-        float weight = pHat;
-        
-        addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeed);
+        SxNRay.Origin = xNOrigin;
+        SxNRay.Direction = xNDirection;
+        //CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
     }
 
     //----------------------------------
@@ -683,7 +654,6 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
     //Create a surface based on secondary surface.
     Surface Ssurface;
-    //(inout Surface surface, float3 position, float3 normal, float3 viewDir, float3 color, float emittance)
     CreateSurface(Ssurface, xNOrigin, SxNPayload.normal, normalize(xNOrigin - x2Origin), SxNPayload.color.xyz, SxNPayload.color.w);
     
     ReservoirPath currentReservoirPath;
@@ -723,7 +693,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
         selectedPdf = prevOutgoingRadiance;
 
     float pi = selectedPdf;
-    float piSum = selectedPdf * currentReservoirPath.M;
+    float piSum = selectedPdf * Minitial;
 
     float temporalPdf = GetTargetFunctionSurface(temporalSurface, currentReservoirPath.position, currentReservoirPath.radiance);
     piSum += temporalPdf * prevReservoirPath.M;

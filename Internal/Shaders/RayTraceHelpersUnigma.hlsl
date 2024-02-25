@@ -63,6 +63,15 @@ struct ReservoirPath
 
 };
 
+struct Surface
+{
+    float3 position; //Comes from the initial trace. Sample x2.
+    float3 normal; //Sample x2.
+    float3 viewDir; //Store in sample x2.
+    float3 color; // x2 sample. x2 being secondary surface.
+    float emittance; //possible light.
+};
+
 struct UnigmaDispatchInfo
 {
     int FrameCount;
@@ -273,6 +282,15 @@ void InitiateReservoirPath(inout ReservoirPath reservoir, float3 position, float
     reservoir.normal = normal;
 }
 
+void CreateSurface(inout Surface surface, float3 position, float3 normal, float3 viewDir, float3 color, float emittance)
+{
+	surface.position = position;
+	surface.normal = normal;
+	surface.viewDir = viewDir;
+	surface.color = color;
+	surface.emittance = emittance;
+}
+
 bool addReservoirSamplePath(inout ReservoirPath reservoir, inout ReservoirPath newReservoir, float weight, float c, float2 randSeed)
 {
     float risWeight = weight * newReservoir.wSum * newReservoir.M;
@@ -289,4 +307,80 @@ bool addReservoirSamplePath(inout ReservoirPath reservoir, inout ReservoirPath n
     }
 
     return false;
+}
+
+//Use these as a helper function.
+float square(float x)
+{
+	return x * x;
+}
+
+float Schlick_Fresnel(float F0, float VdotH)
+{
+    return F0 + (1 - F0) * pow(max(1 - VdotH, 0), 5);
+}
+
+float3 Schlick_Fresnel(float3 F0, float VdotH)
+{
+    return F0 + (1 - F0) * pow(max(1 - VdotH, 0), 5);
+}
+
+float G_Smith_over_NdotV(float roughness, float NdotV, float NdotL)
+{
+    float alpha = square(roughness);
+    float g1 = NdotV * sqrt(square(alpha) + (1.0 - square(alpha)) * square(NdotL));
+    float g2 = NdotL * sqrt(square(alpha) + (1.0 - square(alpha)) * square(NdotV));
+    return 2.0 * NdotL / (g1 + g2);
+}
+
+float3 GGX_times_NdotL(float3 V, float3 L, float3 N, float roughness, float3 F0)
+{
+    float3 H = normalize(L + V);
+
+    float NoL = saturate(dot(N, L));
+    float VoH = saturate(dot(V, H));
+    float NoV = saturate(dot(N, V));
+    float NoH = saturate(dot(N, H));
+
+    if (NoL > 0)
+    {
+        float G = G_Smith_over_NdotV(roughness, NoV, NoL);
+        float alpha = square(roughness);
+        float D = square(alpha) / (RUNITY_PI * square(square(NoH) * square(alpha) + (1 - square(NoH))));
+
+        float3 F = Schlick_Fresnel(F0, VoH);
+
+        return F * (D * G / 4);
+    }
+    return 0;
+}
+
+
+
+float4 ComputeBRDFGI(Surface surface, float3 samplePosition)
+{
+    //This normal comes from the shader.
+    float3 N = surface.normal;
+    //view direction is from camera, ignore for now.
+    float3 V = surface.viewDir;
+    //obvious.
+    float3 L = normalize(samplePosition - surface.position);
+
+    float ndotL = dot(surface.normal, -L);
+
+    //remove for surface material later.
+	float3 kMinRoughness = 0.01;
+    float roughness = 10.02;
+
+    float3 specular = GGX_times_NdotL(V, L, surface.normal, max(roughness, kMinRoughness), roughness);
+
+    return float4(specular, ndotL);
+}
+
+float3 GetTargetFunctionSurface(Surface surface, float3 samplePosition, float3 sampleRadiance)
+{
+    float4 BRDF = ComputeBRDFGI(surface, samplePosition);
+    float3 reflectedRadiance = sampleRadiance * (BRDF.w * surface.color.xyz + BRDF.xyz);
+
+    return reflectedRadiance;
 }

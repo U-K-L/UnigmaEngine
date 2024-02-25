@@ -631,12 +631,13 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
     float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
     float3 xNDirection = Sx2Payload.direction;
-    int maxBounces = 1;
+    int maxBounces = 0;
     float radianceIndirect = Sx2Payload.color.w;
     RayDesc SxNRay;
     Payload SxNPayload;
     CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
     SxNPayload.normal = Sx2Payload.normal;
+    SxNPayload.color = Sx2Payload.color;
     for(int i = 0; i < maxBounces; i++)
     {
         TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxNRay, SxNPayload);
@@ -680,21 +681,35 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //----------------------------------
     //------------------------------------ALGORITHM 2 Initial Sampling------------------------------//
 
+    //Create a surface based on secondary surface.
+    Surface Ssurface;
+    //(inout Surface surface, float3 position, float3 normal, float3 viewDir, float3 color, float emittance)
+    CreateSurface(Ssurface, xNOrigin, SxNPayload.normal, normalize(xNOrigin - x2Origin), SxNPayload.color.xyz, SxNPayload.color.w);
     
     ReservoirPath currentReservoirPath;
+    InitiateReservoirPath(currentReservoirPath, Ssurface.position, Ssurface.normal.xyz, Ssurface.emittance); 
     
-    float outgoingRadiance = GetTargetPathRadiance(currentReservoir, xNOrigin, SxNPayload.normal.xyz, randSeed);
+    float3 outgoingRadiance = GetTargetFunctionSurface(Ssurface, x2Origin, currentReservoirPath.radiance);
 
-    InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, outgoingRadiance);
-
+    InitiateReservoirPath(currentReservoirPath, Ssurface.position, Ssurface.normal.xyz, outgoingRadiance);
+    
+    float Minitial = currentReservoirPath.M;
+    
+    
     //----------------------------------
     //------------------------------------ALGORITHM Temporal Sampling------------------------------//
 
     ReservoirPath prevReservoirPath = _reservoirPaths[reservoirIndex];
 
+    Surface temporalSurface;
+    //(inout Surface surface, float3 position, float3 normal, float3 viewDir, float3 color, float emittance)
+    CreateSurface(temporalSurface, prevReservoirPath.position, prevReservoirPath.normal, normalize(prevReservoirPath.position - x2Origin), prevReservoirPath.radiance.xyz, prevReservoirPath.radiance.r);
+
     prevReservoirPath.M = min(MHistoryLength * currentReservoirPath.M, prevReservoirPath.M); //History length.
 
-    float prevOutgoingRadiance = GetTargetPathRadiance(currentReservoir, prevReservoirPath.position, prevReservoirPath.normal, randSeed);
+    float3 prevOutgoingRadiance = GetTargetFunctionSurface(Ssurface, prevReservoirPath.position, prevReservoirPath.radiance);
+
+    
      //combine temporal...
     if(distance(prevUV, UV) > 0.00001)
     {
@@ -709,7 +724,8 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
     float pi = selectedPdf;
     float piSum = selectedPdf * currentReservoirPath.M;
-    float temporalPdf = GetTargetPathRadiance(currentReservoir, currentReservoirPath.position, prevReservoirPath.normal, randSeed);
+
+    float temporalPdf = GetTargetFunctionSurface(temporalSurface, currentReservoirPath.position, currentReservoirPath.radiance);
     piSum += temporalPdf * prevReservoirPath.M;
     pi = isSelected ? temporalPdf : pi;
 
@@ -747,8 +763,17 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //Store reservoir.
     _reservoirPaths[storageReservoirIndex] = currentReservoirPath;
     
+    float visibility = 1.0;
+    
+    RayDesc SxVRay;
+    Payload SxVPayload;
+    CreateSample(SxVRay, SxVPayload,  x2Origin, normalize(currentReservoirPath.position - x2Origin)); //Start at that new surface from bounce...
 
-    return currentReservoirPath.radiance.r * currentReservoirPath.wSum*5;
+    
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxVRay, SxVPayload);
+    visibility = step(0.0001, SxVPayload.color.w);
+    
+    return float4(visibility*currentReservoirPath.radiance * currentReservoirPath.wSum, 1);
 
 }
 

@@ -1,7 +1,7 @@
 #ifndef SHADER_HELPERS_INCLUDED
 #define SHADER_HELPERS_INCLUDED
 
-#define UNITY_PI 3.1415926535
+#define UNITY_PI 3.14159265359
 
 #include "UnityCG.cginc"
 #include "UnityLightingCommon.cginc"

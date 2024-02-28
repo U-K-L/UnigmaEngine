@@ -329,7 +329,118 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     ReservoirPath currentReservoirPath = _reservoirPaths[storageReservoirIndex];
     //Store this reservoir into the next temporal buffer for the next pass to use.
     _reservoirPaths[reservoirIndex] = currentReservoirPath;
-    return currentReservoirPath.radiance.r;
+    //return currentReservoirPath.radiance.r;
+    
+        //Hit the first object. This is sample x0. Starts from the pixel plane, shoots direction of camera and perspective.
+    RayDesc Sx0Ray;
+    Payload Sx0Payload;
+    CreateSample(Sx0Ray, Sx0Payload,  ray.Origin, ray.Direction);
+
+    //Next we set x1 this is our object that was hit.
+    RayDesc Sx1Ray;
+    Payload Sx1Payload;
+    //initialize sample.
+    CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
+
+    //Getting that hit point location. Will be the origin of x2 path.
+    float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
+
+    //Direction from BSDF... this comes from the shader.
+    float3 x2Direction = Sx1Payload.direction;
+    
+    //Now make x2 sample, this goes and hits surface from the first bounce.
+    RayDesc Sx2Ray;
+    Payload Sx2Payload;
+    CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction); //From hit point to pdf direction.
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
+
+    //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
+    float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
+    float3 xNDirection = Sx2Payload.direction;
+    int maxBounces = 1;
+    float radianceIndirect = Sx2Payload.color.w;
+    RayDesc SxNRay;
+    Payload SxNPayload;
+    CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
+    SxNPayload.normal = Sx2Payload.normal;
+    SxNPayload.color = Sx2Payload.color;
+    for(int i = 0; i < maxBounces; i++)
+    {
+        TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxNRay, SxNPayload);
+        xNOrigin = SxNRay.Origin + (SxNRay.Direction * SxNPayload.distance) + (SxNPayload.normal * distanceFromPoint);
+        xNDirection = SxNPayload.direction;
+        radianceIndirect += SxNPayload.color.w;
+        SxNRay.Origin = xNOrigin;
+        SxNRay.Direction = xNDirection;
+        //CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
+    }
+
+    //return SxNPayload.color * SxNPayload.color.w;
+    Surface Ssurface;
+    CreateSurface(Ssurface, xNOrigin, SxNPayload.normal, normalize(xNOrigin - x2Origin), SxNPayload.color.xyz, SxNPayload.color.w);
+    
+    ReservoirPath spatialReservoirPath;
+    InitiateReservoirPath(spatialReservoirPath, Ssurface.position, Ssurface.normal.xyz, Ssurface.emittance); 
+
+    addReservoirSamplePath(spatialReservoirPath, currentReservoirPath, currentReservoirPath.radiance, currentReservoirPath.M, randSeed);
+    bool isSelected = false;
+
+    float selectedPdf = 1;
+
+
+
+    int _NumberOfNeighbors = 15;
+    int _NeighborsRadius = 5;
+    for(int i = 0; i < _NumberOfNeighbors; i++)
+    {
+        //Sample neighbors in a grid fashion to get index of what neighbor to sample from.
+        float2 neighborIndex = 0;
+        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i*i);
+        neighborIndex.x = int(rand(randSeed*randSeed + rand(randSeed))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+		neighborIndex.y = int(rand(randSeed*randSeed + rand(randSeed + float2(1,2)))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+		neighborIndex.x = max(0, min(dim.x - 1, id.x + neighborIndex.x));
+		neighborIndex.y = max(0, min(dim.y - 1, id.y + neighborIndex.y));
+
+        //Get the reservoir of neighboring pixels.
+        int currentReservoirTemporal = 1;//_UnigmaFrameCount % _TemporalReservoirsCount;
+        int reservoirIndex = neighborIndex.x + neighborIndex.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
+
+        ReservoirPath neighborReservoirPath = _reservoirPaths[reservoirIndex];
+        
+        Surface neighborSurface;
+        //(inout Surface surface, float3 position, float3 normal, float3 viewDir, float3 color, float emittance)
+        CreateSurface(neighborSurface, neighborReservoirPath.position, neighborReservoirPath.normal, normalize(neighborReservoirPath.position - x2Origin), neighborReservoirPath.radiance.xyz, neighborReservoirPath.radiance.r);
+
+        float3 neighborOutgoingRadiance = GetTargetFunctionSurface(Ssurface, neighborReservoirPath.position, neighborReservoirPath.radiance);
+
+        isSelected = addReservoirSamplePath(spatialReservoirPath, neighborReservoirPath, neighborOutgoingRadiance, neighborReservoirPath.M, randSeed);
+
+        selectedPdf = spatialReservoirPath.radiance;
+        if(isSelected)
+        {
+            selectedPdf = neighborOutgoingRadiance;
+            break;
+        }
+    }
+
+    float pHat = selectedPdf;
+    //currentReservoirPath.wSum =  (targetNumer == 0.0) ? 0.0 : (currentReservoirPath.wSum * targetNumer) / targetDenom;
+    spatialReservoirPath.wSum = pHat == 0.f ? 0.f : spatialReservoirPath.wSum / (spatialReservoirPath.M * pHat);
+    
+        
+    float visibility = 1.0;
+    
+    RayDesc SxVRay;
+    Payload SxVPayload;
+    CreateSample(SxVRay, SxVPayload,  x2Origin, normalize(currentReservoirPath.position - x2Origin)); //Start at that new surface from bounce...
+
+    
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxVRay, SxVPayload);
+    visibility = step(0.0001, SxVPayload.color.w);
+
+
+    return float4(spatialReservoirPath.radiance * spatialReservoirPath.wSum * SxNPayload.color.xyz, 1);
 }
 
 [shader("raygeneration")]
@@ -407,11 +518,13 @@ void RestirGlobalIllumantionRayGen()
 
     for(int i = 0; i < numSamples; i++)
     {
-        targetResult += SampleIndirect(payload, ray)*inverseSamples;
+        
+        //targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples*0.5;
+        targetResult += SampleIndirect(payload, ray)*inverseSamples*0.5;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 
-    //_UnigmaGlobalIllumination[dispatchIdx] += targetResult;
+    _UnigmaGlobalIllumination[dispatchIdx] += targetResult;
 
 
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;

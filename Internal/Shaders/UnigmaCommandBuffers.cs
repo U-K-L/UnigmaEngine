@@ -383,6 +383,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirSpatialShaderAccelerated, "_samples", samplesBuffer);
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirSpatialShaderAccelerated, "_unigmaLights", lightsBuffer);
         depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirSpatialShaderAccelerated, "_reservoirPaths", reservoirPathsBuffer);
+        depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirSpatialShaderAccelerated, "_reservoirs", reservoirsBuffer);
 
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirSpatialShaderAccelerated, "_NumberOfLights", lightList.Count);
         depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirSpatialShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);

@@ -380,7 +380,7 @@ float4 ComputeBRDFGI(Surface surface, float3 samplePosition)
 float3 GetTargetFunctionSurface(Surface surface, float3 samplePosition, float3 sampleRadiance)
 {
     float4 BRDF = ComputeBRDFGI(surface, samplePosition);
-    float3 reflectedRadiance = sampleRadiance * (BRDF.w * surface.color.xyz + BRDF.xyz);
+    float3 reflectedRadiance = sampleRadiance * (surface.color.xyz + BRDF.xyz);
 
     return reflectedRadiance;
 }

@@ -588,7 +588,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float2 motionVector = _CameraMotionVectorsTextureReSTIR[id.xy];
     float2 prevUV = UV - motionVector;
     float2 invPrevUV = UV + motionVector;
-    int MHistoryLength = 0;
+    int MHistoryLength = 25;
         
     //if(_PassCount > 0)
     //    prevUV = UV;
@@ -631,7 +631,9 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
     float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
     float3 xNDirection = Sx2Payload.direction;
-    int maxBounces = 1;
+    
+    //return Sx2Payload.color;
+    int maxBounces = 0;
     float radianceIndirect = Sx2Payload.color.w;
     RayDesc SxNRay;
     Payload SxNPayload;
@@ -654,20 +656,20 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
     //Create a surface based on secondary surface.
     Surface Ssurface;
-    CreateSurface(Ssurface, xNOrigin, SxNPayload.normal, normalize(xNOrigin - x2Origin), SxNPayload.color.xyz, SxNPayload.color.w);
+    CreateSurface(Ssurface, x2Origin, Sx1Payload.normal, normalize(x2Origin - Sx0Ray.Origin), Sx1Payload.color.xyz, Sx1Payload.color.w);
     
     ReservoirPath currentReservoirPath;
-    InitiateReservoirPath(currentReservoirPath, Ssurface.position, Ssurface.normal.xyz, Ssurface.emittance); 
+    InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, Sx2Payload.color.w); 
     
-    float3 outgoingRadiance = GetTargetFunctionSurface(Ssurface, x2Origin, currentReservoirPath.radiance);
+    float3 outgoingRadiance = GetTargetFunctionSurface(Ssurface, currentReservoirPath.position, currentReservoirPath.radiance);
 
-    InitiateReservoirPath(currentReservoirPath, Ssurface.position, Ssurface.normal.xyz, outgoingRadiance);
+    InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, outgoingRadiance);
     
-    float Minitial = currentReservoirPath.M;
-
+    
+    //return float4(outgoingRadiance, 1);
     //----------------------------------
     //------------------------------------ALGORITHM Temporal Sampling------------------------------//
-
+    float Minitial = currentReservoirPath.M;
     ReservoirPath prevReservoirPath = _reservoirPaths[reservoirIndex];
 
     Surface temporalSurface;

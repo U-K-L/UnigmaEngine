@@ -358,7 +358,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
     float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
     float3 xNDirection = Sx2Payload.direction;
-    int maxBounces = 1;
+    int maxBounces = 0;
     float radianceIndirect = Sx2Payload.color.w;
     RayDesc SxNRay;
     Payload SxNPayload;
@@ -377,8 +377,11 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     }
 
     //return SxNPayload.color * SxNPayload.color.w;
+
+    //Create a surface based on secondary surface.
     Surface Ssurface;
-    CreateSurface(Ssurface, xNOrigin, SxNPayload.normal, normalize(xNOrigin - x2Origin), SxNPayload.color.xyz, SxNPayload.color.w);
+    CreateSurface(Ssurface, x2Origin, Sx1Payload.normal, normalize(x2Origin - Sx0Ray.Origin), Sx1Payload.color.xyz, Sx1Payload.color.w);
+
     
     ReservoirPath spatialReservoirPath;
     InitiateReservoirPath(spatialReservoirPath, Ssurface.position, Ssurface.normal.xyz, Ssurface.emittance); 
@@ -440,7 +443,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     visibility = step(0.0001, SxVPayload.color.w);
 
 
-    return float4(spatialReservoirPath.radiance * spatialReservoirPath.wSum * SxNPayload.color.xyz, 1);
+    return visibility*float4(spatialReservoirPath.radiance * spatialReservoirPath.wSum * SxNPayload.color.xyz, 1);
 }
 
 [shader("raygeneration")]
@@ -519,8 +522,8 @@ void RestirGlobalIllumantionRayGen()
     for(int i = 0; i < numSamples; i++)
     {
         
-        //targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples*0.5;
-        targetResult += SampleIndirect(payload, ray)*inverseSamples*0.5;
+        //targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples;
+        targetResult += SampleIndirect(payload, ray)*inverseSamples;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 

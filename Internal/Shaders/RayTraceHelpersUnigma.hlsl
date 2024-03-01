@@ -384,3 +384,4 @@ float3 GetTargetFunctionSurface(Surface surface, float3 samplePosition, float3 s
 
     return reflectedRadiance;
 }
+

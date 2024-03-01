@@ -6,6 +6,7 @@
 
 
 RWTexture2D<float4> _UnigmaGlobalIllumination;
+Texture2D<float4> _UnigmaDepthShadowsMap;
 
 RWStructuredBuffer<UnigmaLight> _unigmaLights;
 RWStructuredBuffer<Sample> _samples;
@@ -588,7 +589,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float2 motionVector = _CameraMotionVectorsTextureReSTIR[id.xy];
     float2 prevUV = UV - motionVector;
     float2 invPrevUV = UV + motionVector;
-    int MHistoryLength = 25;
+    int MHistoryLength = 20;
         
     //if(_PassCount > 0)
     //    prevUV = UV;
@@ -628,12 +629,18 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction); //From hit point to pdf direction.
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
 
+    //If it hit nothing return early.
+    if(Sx2Payload.distance > 9999)
+	{
+		return 0;//return float4(0.85,0.77,0.8,1)*0.85;
+	}
+
     //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
     float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
     float3 xNDirection = Sx2Payload.direction;
     
     //return Sx2Payload.color;
-    int maxBounces = 0;
+    int maxBounces = 1;
     float radianceIndirect = Sx2Payload.color.w;
     RayDesc SxNRay;
     Payload SxNPayload;
@@ -650,23 +657,23 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
         SxNRay.Direction = xNDirection;
         //CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
     }
-
+    //return SxNPayload.color;
     //----------------------------------
     //------------------------------------ALGORITHM 2 Initial Sampling------------------------------//
 
     //Create a surface based on secondary surface.
     Surface Ssurface;
-    CreateSurface(Ssurface, x2Origin, Sx1Payload.normal, normalize(x2Origin - Sx0Ray.Origin), Sx1Payload.color.xyz, Sx1Payload.color.w);
+    CreateSurface(Ssurface, xNOrigin, SxNPayload.normal, normalize(xNOrigin - x2Origin), SxNPayload.color.xyz, SxNPayload.color.w);
     
     ReservoirPath currentReservoirPath;
-    InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, Sx2Payload.color.w); 
+    InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, SxNPayload.color.w); 
     
     float3 outgoingRadiance = GetTargetFunctionSurface(Ssurface, currentReservoirPath.position, currentReservoirPath.radiance);
 
     InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, outgoingRadiance);
     
     
-    //return float4(outgoingRadiance, 1);
+    //return SxNPayload.color.w;
     //----------------------------------
     //------------------------------------ALGORITHM Temporal Sampling------------------------------//
     float Minitial = currentReservoirPath.M;
@@ -674,15 +681,19 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
     Surface temporalSurface;
     //(inout Surface surface, float3 position, float3 normal, float3 viewDir, float3 color, float emittance)
-    CreateSurface(temporalSurface, prevReservoirPath.position, prevReservoirPath.normal, normalize(prevReservoirPath.position - x2Origin), prevReservoirPath.radiance.xyz, prevReservoirPath.radiance.r);
+    CreateSurface(temporalSurface, prevReservoirPath.position, prevReservoirPath.normal, normalize(prevReservoirPath.position - xNOrigin), prevReservoirPath.radiance.xyz, prevReservoirPath.radiance.r);
 
     prevReservoirPath.M = min(MHistoryLength * currentReservoirPath.M, prevReservoirPath.M); //History length.
 
     float3 prevOutgoingRadiance = GetTargetFunctionSurface(Ssurface, prevReservoirPath.position, prevReservoirPath.radiance);
 
     
-     //combine temporal...
-    if(distance(prevUV, UV) > 0.00001)
+    //combine temporal...
+    float3 currentNormalDepth = currentReservoirPath.normal;
+    float3 temporalNormalDepth = prevReservoirPath.normal;
+    float _GeometricSimilarityThreshold = 1.5;
+    
+    if(distance(prevUV, UV) > 0.00001 || distance(currentNormalDepth, temporalNormalDepth) > _GeometricSimilarityThreshold)
     {
         //previousReservoir.age = 0;
         prevReservoirPath.M = 0;
@@ -735,16 +746,6 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
     //Store reservoir.
     _reservoirPaths[storageReservoirIndex] = currentReservoirPath;
-    
-    float visibility = 1.0;
-    
-    RayDesc SxVRay;
-    Payload SxVPayload;
-    CreateSample(SxVRay, SxVPayload,  x2Origin, normalize(currentReservoirPath.position - x2Origin)); //Start at that new surface from bounce...
-
-    
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxVRay, SxVPayload);
-    visibility = step(0.0001, SxVPayload.color.w);
     
     return 0;//float4(visibility*currentReservoirPath.radiance * currentReservoirPath.wSum, 1);
 

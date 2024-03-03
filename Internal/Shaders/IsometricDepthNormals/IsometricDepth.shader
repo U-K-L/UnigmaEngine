@@ -112,7 +112,7 @@ Shader "Unlit/IsometricDepthNormals"
             {
                 float4 worldPos = mul(unity_ObjectToWorld, float4(0,0,0,1)); //Get the last column.
                 float uniqueID = rand(worldPos.xyz);
-                float4 finalColor = normalize(worldPos * uniqueID * _ProjectionParams.y);
+                float4 finalColor = normalize(worldPos * (1.5)*(uniqueID+0.5) * _ProjectionParams.y);
                 finalColor.a = uniqueID;//pow(i.depthGen, _DepthAmount);
                 return finalColor;
             }

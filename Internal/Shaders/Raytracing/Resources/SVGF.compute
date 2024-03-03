@@ -1,0 +1,42 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel SVGFKernel
+#pragma kernel StoreToPreviousBuffer
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+Texture2D<float4> _CameraMotionVectorsTexture;
+RWTexture2D<float4> _UnigmaDenoisedGlobalIllumination;
+RWTexture2D<float4> _UnigmaAlbedo;
+RWTexture2D<float4> _UnigmaNormal;
+RWTexture2D<float4> _UnigmaMotionID;
+
+//Temporal buffers.
+RWTexture2D<float4> _UnigmaAlbedoTemporal;
+RWTexture2D<float4> _UnigmaNormalTemporal;
+RWTexture2D<float4> _UnigmaMotionIDTemporal;
+
+[numthreads(8,8,1)]
+void SVGFKernel(uint3 id : SV_DispatchThreadID)
+{
+	uint dimensionsWidth, dimensionsHeight;
+	_CameraMotionVectorsTexture.GetDimensions(dimensionsWidth, dimensionsHeight);
+	uint2 dim = uint2(dimensionsWidth, dimensionsHeight);
+	//Get current sample.
+	float4 currentSample = _UnigmaAlbedo[id.xy];
+
+	//Get motion vectors
+	float4 motionVectors = _CameraMotionVectorsTexture[id.xy];
+	float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+	float2 invPrevUV = UV + motionVector;
+	float2 previousFrameIndex = ((prevUV * dim.xy + dim.xy) / 2) - 0.5f;
+	
+    _UnigmaDenoisedGlobalIllumination[id.xy] = motionVectors;
+}
+
+[numthreads(8, 8, 1)]
+void StoreToPreviousBuffer(uint3 id : SV_DispatchThreadID)
+{
+    _UnigmaAlbedoTemporal[id.xy] = _UnigmaAlbedo[id.xy];
+	_UnigmaNormalTemporal[id.xy] = _UnigmaNormal[id.xy];
+	_UnigmaMotionIDTemporal[id.xy] = _UnigmaMotionID[id.xy];
+}

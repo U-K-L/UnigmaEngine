@@ -62,12 +62,12 @@ Shader "Unigma/UnigmaOutlines"
             fixed4 frag(v2f i) : SV_Target
             {
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
-                fixed4 GlobalIllumination = tex2D(_UnigmaGlobalIllumination, i.uv);
+                fixed4 GlobalIllumination = tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
                 fixed4 BackgroundTexture = tex2D(_BackgroundTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
                 fixed4 motionVectors = tex2D(_CameraMotionVectorsTexture, i.uv);
 
-				return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
+				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
 				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
                 
@@ -209,10 +209,10 @@ Shader "Unigma/UnigmaOutlines"
                 //return shadow0 * 10;
                 //return edgeUnigmaDepth;//pos0*10;//pos0;// *step(0.001, OutterLineColors.w);
                 //return float4(HDRToOutput(GlobalIllumination.xyz,-0.51), 1);
-                return float4(GlobalIllumination.xyz, 1);
+                //return float4(GlobalIllumination.xyz, 1);
                 //return _UnigmaDepthShadows;
                 //return  FinalColor*0.2 + GlobalIllumination;
-                return lerp(FinalColor, FinalColor*0.4 + GlobalIllumination*0.6, 0.641+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
+                return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination*0.5, 0.641+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }

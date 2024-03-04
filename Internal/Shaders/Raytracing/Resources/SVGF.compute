@@ -5,7 +5,7 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 Texture2D<float4> _CameraMotionVectorsTexture;
-Texture2D<float4> _UnigmaCameraDepthTexture;
+Texture2D<float4> _UnigmaGlobalIllumination;
 
 RWTexture2D<float4> _UnigmaDenoisedGlobalIllumination;
 RWTexture2D<float4> _UnigmaAlbedo;
@@ -13,10 +13,18 @@ RWTexture2D<float4> _UnigmaNormal;
 RWTexture2D<float4> _UnigmaMotionID;
 
 //Temporal buffers.
+RWTexture2D<float4> _UnigmaDenoisedGlobalIlluminationTemporal;
 RWTexture2D<float4> _UnigmaAlbedoTemporal;
 RWTexture2D<float4> _UnigmaNormalTemporal;
 RWTexture2D<float4> _UnigmaMotionIDTemporal;
-RWTexture2D<float4> _UnigmaDepthTemporal;
+
+struct SVGF
+{
+	float history;
+};
+
+RWStructuredBuffer<SVGF> _SVGFBuffer;
+
 
 float _PLANE_DISTANCE_THRESHOLD = 0.01;
 float _NORMAL_DISTANCE_THRESHOLD = 0.01;
@@ -66,22 +74,34 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 		return;
 
 	//Get current sample.
-	float4 currentSample = _UnigmaAlbedo[id.xy];
+	float4 currentSample = _UnigmaGlobalIllumination[id.xy];
 
 	//Get motion vectors
 	float4 motionVector = _CameraMotionVectorsTexture[id.xy];
 	float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
 	float2 invPrevUV = UV + motionVector;
+	
 	float2 previousFrameIndex = ((invPrevUV * dim.xy + dim.xy) / 2) - 0.5f;
+	int previousFrameIndedFlatten = previousFrameIndex.x + previousFrameIndex.y * dim.x;
 	
 	float4 output = currentSample;
-
-	if (CheckReprojection(id.xy, previousFrameIndex))
-	{
-		output = 1;
-	}
 	
-	_UnigmaDenoisedGlobalIllumination[id.xy] = output;
+	float historyLength = 1.0f;
+
+	if (!CheckReprojection(id.xy, previousFrameIndex))
+	{
+		float4 prevSample = _UnigmaDenoisedGlobalIlluminationTemporal[previousFrameIndex];
+		historyLength = _SVGFBuffer[previousFrameIndedFlatten].history += 1;
+
+		float alpha = 1.0f / historyLength;
+
+		output = lerp(prevSample, currentSample, alpha);
+	}
+
+	int flattenIndex = id.x + id.y * dim.x;
+
+	_UnigmaDenoisedGlobalIllumination[id.xy] = output;//_UnigmaGlobalIllumination[id.xy];// + _UnigmaDenoisedGlobalIlluminationTemporal[id.xy] *0.5;
+	_SVGFBuffer[flattenIndex].history = historyLength;
 }
 
 [numthreads(8, 8, 1)]
@@ -90,4 +110,5 @@ void StoreToPreviousBuffer(uint3 id : SV_DispatchThreadID)
     _UnigmaAlbedoTemporal[id.xy] = _UnigmaAlbedo[id.xy];
 	_UnigmaNormalTemporal[id.xy] = _UnigmaNormal[id.xy];
 	_UnigmaMotionIDTemporal[id.xy] = _UnigmaMotionID[id.xy];
+	_UnigmaDenoisedGlobalIlluminationTemporal[id.xy] = _UnigmaDenoisedGlobalIllumination[id.xy];
 }

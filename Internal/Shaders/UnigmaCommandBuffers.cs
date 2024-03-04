@@ -61,23 +61,31 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public int FrameCount;
     };
 
+    struct SVGF
+    {
+        public float history;
+    };
+
     int _unigmaDispatchInfoStride = sizeof(int);
     int _reservoirStride = sizeof(float) * 6 + sizeof(float)*3;
     int _reservoirPathStride = sizeof(float) * 2 + sizeof(float) * 3*3;
     int _lightStride = sizeof(float) * 3*3 + sizeof(float);
     int _sampleStride = (sizeof(float) * 3) * 3 + sizeof(float);
+    int _svgfStride = sizeof(float);
 
     ComputeBuffer samplesBuffer;
     ComputeBuffer lightsBuffer;
     ComputeBuffer reservoirsBuffer;
     ComputeBuffer reservoirPathsBuffer;
     ComputeBuffer unigmaDispatchInfoBuffer;
+    ComputeBuffer svgfBuffer;
 
     private List<Reservoir> reservoirs;
     private List<ReservoirPath> reservoirPaths;
     private List<Sample> samplesList;
     private List<UnigmaLight> lightList;
     private List<UnigmaDispatchInfo> unigmaDispatchInfos;
+    private List<SVGF> svgfList;
 
     private ComputeShader computeOutlineColors;
     private ComputeShader unigmaDispatchInfoComputeShader;
@@ -109,6 +117,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaNormalTemporal;
     public RenderTexture _UnigmaMotionIDTemporal;
     public RenderTexture _UnigmaDenoisedGlobalIllumination;
+    public RenderTexture _UnigmaDenoisedGlobalIlluminationTemporal;
     public RenderTexture _UnigmaDepthTemporal;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
@@ -123,6 +132,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         AddLightsToList();
         lightsBuffer = new ComputeBuffer(lightList.Count, _lightStride);
         unigmaDispatchInfos = new List<UnigmaDispatchInfo>();
+        svgfList = new List<SVGF>();
         _nullMaterial = new Material(Shader.Find("Unigma/IsometricNull"));
         computeOutlineColors = Resources.Load("OutlineColorsBoxBlur") as ComputeShader;
         unigmaDispatchInfoComputeShader = Resources.Load("UnigmaDispatchInfo") as ComputeShader;
@@ -152,6 +162,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
             samplesList.Add(s);
 
+            SVGF svgf = new SVGF();
+            svgf.history = 0;
+
+            svgfList.Add(svgf);
 
         }
 
@@ -185,6 +199,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
 
         }
+        
 
         samplesBuffer = new ComputeBuffer(amountOfSamples, _sampleStride);
         samplesBuffer.SetData(samplesList);
@@ -197,6 +212,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         unigmaDispatchInfoBuffer = new ComputeBuffer(1, _unigmaDispatchInfoStride);
         unigmaDispatchInfoBuffer.SetData(unigmaDispatchInfos);
+
+        svgfBuffer = new ComputeBuffer(amountOfSamples, _svgfStride);
+        svgfBuffer.SetData(svgfList);
 
         if (_DepthShadowsRayTracingShaderAccelerated == null)
             _DepthShadowsRayTracingShaderAccelerated = Resources.Load<RayTracingShader>("DepthShadowsRaytracer");
@@ -324,6 +342,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaDenoisedGlobalIllumination.enableRandomWrite = true;
         _UnigmaDenoisedGlobalIllumination.Create();
 
+        _UnigmaDenoisedGlobalIlluminationTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaDenoisedGlobalIlluminationTemporal.enableRandomWrite = true;
+        _UnigmaDenoisedGlobalIlluminationTemporal.Create();
+
         _UnigmaAlbedoTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaAlbedoTemporal.enableRandomWrite = true;
         _UnigmaAlbedoTemporal.Create();
@@ -381,6 +403,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             _UnigmaDenoisedGlobalIllumination.Release();
             _UnigmaDenoisedGlobalIllumination = null;
+        }
+        if (_UnigmaDenoisedGlobalIlluminationTemporal != null)
+        {
+            _UnigmaDenoisedGlobalIlluminationTemporal.Release();
+            _UnigmaDenoisedGlobalIlluminationTemporal = null;
         }
         if (_UnigmaAlbedoTemporal != null)
         {
@@ -635,13 +662,15 @@ public class UnigmaCommandBuffers : MonoBehaviour
         CommandBuffer svgfUnigma = new CommandBuffer();
         svgfUnigma.name = "SVGFBuffer";
         svgfUnigma.SetGlobalTexture("_UnigmaDenoisedGlobalIllumination", _UnigmaDenoisedGlobalIllumination);
-
+        svgfUnigma.SetGlobalTexture("_UnigmaDenoisedGlobalIlluminationTemporal", _UnigmaDenoisedGlobalIlluminationTemporal);
+        
         uint threadsX, threadsY, threadsZ;
         svgfComputeShader.GetKernelThreadGroupSizes(0, out threadsX, out threadsY, out threadsZ);
         Vector3 threads = new Vector3(threadsX, threadsY, threadsZ);
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_CameraMotionVectorsTexture", Shader.GetGlobalTexture("_CameraMotionVectorsTexture"));
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_UnigmaCameraDepthTexture", Shader.GetGlobalTexture("_CameraDepthTexture"));
+        svgfUnigma.SetComputeBufferParam(svgfComputeShader, 0, "_SVGFBuffer", svgfBuffer);
         svgfUnigma.DispatchCompute(svgfComputeShader, 0, Mathf.CeilToInt((float)_renderTextureWidth / (float)threads.x), Mathf.CeilToInt((float)_renderTextureHeight / (float)threads.y), 1);
 
         //Store the current frame's global illumination for temporal reprojection
@@ -790,6 +819,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
             reservoirPathsBuffer.Release();
         if (unigmaDispatchInfoBuffer != null)
             unigmaDispatchInfoBuffer.Release();
+        if (svgfBuffer != null)
+            svgfBuffer.Release();
         CommandBuffer[] buffers = mainCam.GetCommandBuffers(CameraEvent.AfterForwardOpaque);
         foreach (CommandBuffer buffer in buffers)
         {

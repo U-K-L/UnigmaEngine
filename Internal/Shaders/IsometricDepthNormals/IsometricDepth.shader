@@ -57,7 +57,7 @@ Shader "Unlit/IsometricDepthNormals"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                return float4(pow(i.normal, _NormalAmount), pow(i.depthGen, _DepthAmount));
+                return float4(i.normal, 1.0);
             }
             ENDCG
         }

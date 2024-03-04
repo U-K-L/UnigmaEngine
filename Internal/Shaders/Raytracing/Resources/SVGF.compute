@@ -23,7 +23,7 @@ float _NORMAL_DISTANCE_THRESHOLD = 0.01;
 
 bool CheckNormalSimilarity(float3 currentNormal, float3 prevNormal)
 {
-	if (pow(abs(dot(currentNormal, prevNormal)), 2) > 100000000)
+	if (pow(abs(dot(currentNormal, prevNormal)), 2) > 0.1)
 		return false;
 	else
 		return true;
@@ -44,7 +44,7 @@ bool CheckReprojection(float2 UV, float2 prevUV)
 	
 	bool normalCheck = CheckNormalSimilarity(_UnigmaNormal[UV].xyz, _UnigmaNormalTemporal[prevUV].xyz);
 	
-	return normalCheck;// || planeCheck;
+	return normalCheck && planeCheck;
 }
 
 bool IsNaN(float x)
@@ -81,12 +81,7 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 		output = 1;
 	}
 	
-	float3 toCurrent = _UnigmaMotionID[id.xy].xyz - _UnigmaMotionIDTemporal[previousFrameIndex].xyz;
-	float threshold = step(0.01, distance(_UnigmaMotionID[id.xy].xyz, _UnigmaMotionIDTemporal[previousFrameIndex].xyz));
-	float distToPlane = abs(dot(toCurrent, _UnigmaNormal[id.xy].xyz));
-	
-	float dotProduct = _UnigmaNormal[id.xy].r *_UnigmaNormal[id.xy].r;
-	_UnigmaDenoisedGlobalIllumination[id.xy] = IsNaN(_UnigmaNormal[id.xy].r);
+	_UnigmaDenoisedGlobalIllumination[id.xy] = output;
 }
 
 [numthreads(8, 8, 1)]

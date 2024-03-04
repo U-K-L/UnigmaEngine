@@ -21,6 +21,7 @@ RWTexture2D<float4> _UnigmaMotionIDTemporal;
 struct SVGF
 {
 	float history;
+	float2 moments;
 };
 
 RWStructuredBuffer<SVGF> _SVGFBuffer;
@@ -29,9 +30,14 @@ RWStructuredBuffer<SVGF> _SVGFBuffer;
 float _PLANE_DISTANCE_THRESHOLD = 0.01;
 float _NORMAL_DISTANCE_THRESHOLD = 0.01;
 
+float luminance(float3 color)
+{
+	return (color.r * 0.3) + (color.g * 0.59) + (color.b * 0.11);
+}
+
 bool CheckNormalSimilarity(float3 currentNormal, float3 prevNormal)
 {
-	if (pow(abs(dot(currentNormal, prevNormal)), 2) > 0.1)
+	if (pow(abs(dot(currentNormal, prevNormal)), 2) > 0.9999999)
 		return false;
 	else
 		return true;
@@ -42,7 +48,7 @@ bool CheckPlane(float3 currentPos, float3 prevPos, float3 currentNormal)
 	float3 toCurrent = currentPos - prevPos;
 	float distToPlane = abs(dot(toCurrent, currentNormal));
 
-	return distToPlane >= 0.0001;
+	return distToPlane >= -0.0000000001;
 	
 }
 
@@ -52,7 +58,7 @@ bool CheckReprojection(float2 UV, float2 prevUV)
 	
 	bool normalCheck = CheckNormalSimilarity(_UnigmaNormal[UV].xyz, _UnigmaNormalTemporal[prevUV].xyz);
 	
-	return normalCheck && planeCheck;
+	return normalCheck || planeCheck;
 }
 
 bool IsNaN(float x)
@@ -79,7 +85,7 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 	//Get motion vectors
 	float4 motionVector = _CameraMotionVectorsTexture[id.xy];
 	float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
-	float2 invPrevUV = UV + motionVector;
+	float2 invPrevUV = UV - motionVector;
 	
 	float2 previousFrameIndex = ((invPrevUV * dim.xy + dim.xy) / 2) - 0.5f;
 	int previousFrameIndedFlatten = previousFrameIndex.x + previousFrameIndex.y * dim.x;
@@ -88,17 +94,29 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 	
 	float historyLength = 1.0f;
 
-	if (!CheckReprojection(id.xy, previousFrameIndex))
+	if (CheckReprojection(id.xy, previousFrameIndex))
 	{
 		float4 prevSample = _UnigmaDenoisedGlobalIlluminationTemporal[previousFrameIndex];
 		historyLength = _SVGFBuffer[previousFrameIndedFlatten].history += 1;
 
 		float alpha = 1.0f / historyLength;
 
-		output = lerp(prevSample, currentSample, alpha);
+		float2 moments = 0;
+		moments.r = luminance(currentSample.xyz);
+		moments.g = moments.r * moments.r;
+
+		float2 historyMoment = _SVGFBuffer[previousFrameIndedFlatten].moments;
+		
+		
+		moments = lerp(historyMoment, moments, alpha);
+		float variance = max(0.0f, moments.g - moments.r * moments.r);
+		
+		output = variance;//lerp(prevSample, currentSample, alpha);
 	}
 
 	int flattenIndex = id.x + id.y * dim.x;
+
+
 
 	_UnigmaDenoisedGlobalIllumination[id.xy] = output;//_UnigmaGlobalIllumination[id.xy];// + _UnigmaDenoisedGlobalIlluminationTemporal[id.xy] *0.5;
 	_SVGFBuffer[flattenIndex].history = historyLength;

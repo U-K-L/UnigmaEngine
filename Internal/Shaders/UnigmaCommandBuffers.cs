@@ -64,6 +64,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     struct SVGF
     {
         public float history;
+        public Vector2 moments;
     };
 
     int _unigmaDispatchInfoStride = sizeof(int);
@@ -71,7 +72,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     int _reservoirPathStride = sizeof(float) * 2 + sizeof(float) * 3*3;
     int _lightStride = sizeof(float) * 3*3 + sizeof(float);
     int _sampleStride = (sizeof(float) * 3) * 3 + sizeof(float);
-    int _svgfStride = sizeof(float);
+    int _svgfStride = sizeof(float) + sizeof(float) * 2;
 
     ComputeBuffer samplesBuffer;
     ComputeBuffer lightsBuffer;
@@ -164,6 +165,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
             SVGF svgf = new SVGF();
             svgf.history = 0;
+            svgf.moments = Vector2.zero;
 
             svgfList.Add(svgf);
 

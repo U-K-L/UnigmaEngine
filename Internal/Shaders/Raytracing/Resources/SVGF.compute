@@ -5,6 +5,8 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 Texture2D<float4> _CameraMotionVectorsTexture;
+Texture2D<float4> _UnigmaCameraDepthTexture;
+
 RWTexture2D<float4> _UnigmaDenoisedGlobalIllumination;
 RWTexture2D<float4> _UnigmaAlbedo;
 RWTexture2D<float4> _UnigmaNormal;
@@ -14,23 +16,77 @@ RWTexture2D<float4> _UnigmaMotionID;
 RWTexture2D<float4> _UnigmaAlbedoTemporal;
 RWTexture2D<float4> _UnigmaNormalTemporal;
 RWTexture2D<float4> _UnigmaMotionIDTemporal;
+RWTexture2D<float4> _UnigmaDepthTemporal;
+
+float _PLANE_DISTANCE_THRESHOLD = 0.01;
+float _NORMAL_DISTANCE_THRESHOLD = 0.01;
+
+bool CheckNormalSimilarity(float3 currentNormal, float3 prevNormal)
+{
+	if (pow(abs(dot(currentNormal, prevNormal)), 2) > 100000000)
+		return false;
+	else
+		return true;
+}
+
+bool CheckPlane(float3 currentPos, float3 prevPos, float3 currentNormal)
+{
+	float3 toCurrent = currentPos - prevPos;
+	float distToPlane = abs(dot(toCurrent, currentNormal));
+
+	return distToPlane >= 0.0001;
+	
+}
+
+bool CheckReprojection(float2 UV, float2 prevUV)
+{
+	bool planeCheck = CheckPlane(_UnigmaMotionID[UV].xyz, _UnigmaMotionIDTemporal[prevUV].xyz, _UnigmaNormal[UV].xyz);
+	
+	bool normalCheck = CheckNormalSimilarity(_UnigmaNormal[UV].xyz, _UnigmaNormalTemporal[prevUV].xyz);
+	
+	return normalCheck;// || planeCheck;
+}
+
+bool IsNaN(float x)
+{
+	uint exponent = (asuint(x) & 0x7f800000) >> 23;
+	uint mantissa = (asuint(x)) & 0x7fffff;
+	return exponent == 0xff && mantissa != 0;
+}
 
 [numthreads(8,8,1)]
 void SVGFKernel(uint3 id : SV_DispatchThreadID)
 {
 	uint dimensionsWidth, dimensionsHeight;
+	
 	_CameraMotionVectorsTexture.GetDimensions(dimensionsWidth, dimensionsHeight);
 	uint2 dim = uint2(dimensionsWidth, dimensionsHeight);
+	
+	if (id.x >= dim.x || id.y >= dim.y)
+		return;
+
 	//Get current sample.
 	float4 currentSample = _UnigmaAlbedo[id.xy];
 
 	//Get motion vectors
-	float4 motionVectors = _CameraMotionVectorsTexture[id.xy];
+	float4 motionVector = _CameraMotionVectorsTexture[id.xy];
 	float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
 	float2 invPrevUV = UV + motionVector;
-	float2 previousFrameIndex = ((prevUV * dim.xy + dim.xy) / 2) - 0.5f;
+	float2 previousFrameIndex = ((invPrevUV * dim.xy + dim.xy) / 2) - 0.5f;
 	
-    _UnigmaDenoisedGlobalIllumination[id.xy] = motionVectors;
+	float4 output = currentSample;
+
+	if (CheckReprojection(id.xy, previousFrameIndex))
+	{
+		output = 1;
+	}
+	
+	float3 toCurrent = _UnigmaMotionID[id.xy].xyz - _UnigmaMotionIDTemporal[previousFrameIndex].xyz;
+	float threshold = step(0.01, distance(_UnigmaMotionID[id.xy].xyz, _UnigmaMotionIDTemporal[previousFrameIndex].xyz));
+	float distToPlane = abs(dot(toCurrent, _UnigmaNormal[id.xy].xyz));
+	
+	float dotProduct = _UnigmaNormal[id.xy].r *_UnigmaNormal[id.xy].r;
+	_UnigmaDenoisedGlobalIllumination[id.xy] = IsNaN(_UnigmaNormal[id.xy].r);
 }
 
 [numthreads(8, 8, 1)]

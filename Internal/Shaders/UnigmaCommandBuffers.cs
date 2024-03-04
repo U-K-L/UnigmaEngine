@@ -109,6 +109,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaNormalTemporal;
     public RenderTexture _UnigmaMotionIDTemporal;
     public RenderTexture _UnigmaDenoisedGlobalIllumination;
+    public RenderTexture _UnigmaDepthTemporal;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     public Camera secondCam;
@@ -335,9 +336,13 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaMotionID.enableRandomWrite = true;
         _UnigmaMotionID.Create();
 
-        _UnigmaMotionIDTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaMotionIDTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaMotionIDTemporal.enableRandomWrite = true;
         _UnigmaMotionIDTemporal.Create();
+
+        _UnigmaDepthTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaDepthTemporal.enableRandomWrite = true;
+        _UnigmaDepthTemporal.Create();
 
         _renderTextureWidthPrev = _renderTextureWidth;
         _renderTextureHeightPrev = _renderTextureHeight;
@@ -636,6 +641,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         Vector3 threads = new Vector3(threadsX, threadsY, threadsZ);
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_CameraMotionVectorsTexture", Shader.GetGlobalTexture("_CameraMotionVectorsTexture"));
+        svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_UnigmaCameraDepthTexture", Shader.GetGlobalTexture("_CameraDepthTexture"));
         svgfUnigma.DispatchCompute(svgfComputeShader, 0, Mathf.CeilToInt((float)_renderTextureWidth / (float)threads.x), Mathf.CeilToInt((float)_renderTextureHeight / (float)threads.y), 1);
 
         //Store the current frame's global illumination for temporal reprojection
@@ -669,6 +675,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         //Third pass albedo
         outlineDepthBuffer.SetRenderTarget(_UnigmaAlbedo);
+        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
         DrawIsometricAlbedo(outlineDepthBuffer);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
 

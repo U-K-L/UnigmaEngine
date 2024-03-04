@@ -89,11 +89,14 @@ Shader "Unlit/IsometricDepthNormals"
                 float depthGen : TEXCOORD1;
                 float3 normal : TEXCOORD2;
 				float3 worldPos : TEXCOORD3;
+                float4 projPos : TEXCOORD4;
+                float3 camRelativeWorldPos : TEXCOORD5;
             };
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float _Fade, _NormalAmount, _DepthAmount;
+            UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 
             v2f vert(appdata v)
             {
@@ -101,19 +104,38 @@ Shader "Unlit/IsometricDepthNormals"
                 float4 vertexProgjPos = mul(UNITY_MATRIX_MV, v.vertex);
                 o.depthGen = saturate((-vertexProgjPos.z - _ProjectionParams.y) / (_Fade + 0.001));
                 o.vertex = UnityObjectToClipPos(v.vertex);
+                o.projPos = ComputeScreenPos(o.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.normal = UnityObjectToWorldNormal(v.normal);
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                o.camRelativeWorldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0)).xyz - _WorldSpaceCameraPos;
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
-                float4 worldPos = mul(unity_ObjectToWorld, float4(0,0,0,1)); //Get the last column.
-                float uniqueID = rand(worldPos.xyz);
-                float4 finalColor = normalize(worldPos * (1.5)*(uniqueID+0.5) * _ProjectionParams.y);
-                finalColor.a = uniqueID;//pow(i.depthGen, _DepthAmount);
+                float2 screenUV = i.projPos.xy / i.projPos.w;
+
+                // sample depth texture
+                float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, screenUV);
+
+                // get linear depth from the depth
+                float sceneZ = LinearEyeDepth(depth);
+
+                // calculate the view plane vector
+                // note: Something like normalize(i.camRelativeWorldPos.xyz) is what you'll see other
+                // examples do, but that is wrong! You need a vector that at a 1 unit view depth, not
+                // a1 unit magnitude.
+                float3 viewPlane = i.camRelativeWorldPos.xyz / dot(i.camRelativeWorldPos.xyz, unity_WorldToCamera._m20_m21_m22);
+
+                // calculate the world position
+                // multiply the view plane by the linear depth to get the camera relative world space position
+                // add the world space camera position to get the world space position from the depth texture
+                float3 worldPos = viewPlane * sceneZ + _WorldSpaceCameraPos;
+                worldPos = mul(unity_CameraToWorld, float4(i.worldPos, 1.0));
+
+				float4 finalColor = float4(i.worldPos, 1.0);
                 return finalColor;
             }
             ENDCG

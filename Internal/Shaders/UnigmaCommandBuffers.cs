@@ -119,7 +119,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaMotionIDTemporal;
     public RenderTexture _UnigmaDenoisedGlobalIllumination;
     public RenderTexture _UnigmaDenoisedGlobalIlluminationTemporal;
+    public RenderTexture _UnigmaDenoisedGlobalIlluminationTemp;
     public RenderTexture _UnigmaDepthTemporal;
+    
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     public Camera secondCam;
@@ -368,6 +370,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaDepthTemporal.enableRandomWrite = true;
         _UnigmaDepthTemporal.Create();
 
+        _UnigmaDenoisedGlobalIlluminationTemp = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaDenoisedGlobalIlluminationTemp.enableRandomWrite = true;
+        _UnigmaDenoisedGlobalIlluminationTemp.Create();
+
         _renderTextureWidthPrev = _renderTextureWidth;
         _renderTextureHeightPrev = _renderTextureHeight;
 
@@ -430,6 +436,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             _UnigmaMotionIDTemporal.Release();
             _UnigmaMotionIDTemporal = null;
+        }
+        if (_UnigmaDenoisedGlobalIlluminationTemp != null)
+        {
+            _UnigmaDenoisedGlobalIlluminationTemp.Release();
+            _UnigmaDenoisedGlobalIlluminationTemp = null;
         }
 
     }
@@ -671,15 +682,17 @@ public class UnigmaCommandBuffers : MonoBehaviour
         Vector3 threads = new Vector3(threadsX, threadsY, threadsZ);
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_CameraMotionVectorsTexture", Shader.GetGlobalTexture("_CameraMotionVectorsTexture"));
-        svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_UnigmaCameraDepthTexture", Shader.GetGlobalTexture("_CameraDepthTexture"));
+        svgfUnigma.SetComputeTextureParam(svgfComputeShader, 2, "_UnigmaCameraDepthTexture", Shader.GetGlobalTexture("_CameraDepthTexture"));
         svgfUnigma.SetComputeBufferParam(svgfComputeShader, 0, "_SVGFBuffer", svgfBuffer);
         svgfUnigma.SetComputeBufferParam(svgfComputeShader, 2, "_SVGFBuffer", svgfBuffer);
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 2, "_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 2, "_CameraMotionVectorsTexture", Shader.GetGlobalTexture("_CameraMotionVectorsTexture"));
+        svgfUnigma.SetComputeTextureParam(svgfComputeShader, 2, "_UnigmaDenoisedGlobalIlluminationTemp", _UnigmaDenoisedGlobalIlluminationTemp);
+        svgfUnigma.SetComputeTextureParam(svgfComputeShader, 1, "_UnigmaDenoisedGlobalIlluminationTemp", _UnigmaDenoisedGlobalIlluminationTemp);
         svgfUnigma.DispatchCompute(svgfComputeShader, 0, Mathf.CeilToInt((float)_renderTextureWidth / (float)threads.x), Mathf.CeilToInt((float)_renderTextureHeight / (float)threads.y), 1);
 
         //Atorus
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 2; i++)
         {
             int stepSize = 1 << i;
             svgfUnigma.SetComputeIntParam(svgfComputeShader, "_StepSize", stepSize);
@@ -846,7 +859,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaAlbedoTemporal.Release();
         _UnigmaNormal.Release();
         _UnigmaNormalTemporal.Release();
-        
+        _UnigmaDenoisedGlobalIlluminationTemp.Release();
+
+
 
     }
 

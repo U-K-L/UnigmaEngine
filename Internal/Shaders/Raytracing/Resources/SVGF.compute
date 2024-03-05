@@ -7,6 +7,7 @@
 // with cs.SetTexture
 Texture2D<float4> _CameraMotionVectorsTexture;
 Texture2D<float4> _UnigmaGlobalIllumination;
+Texture2D<float4> _UnigmaCameraDepthTexture;
 
 RWTexture2D<float4> _UnigmaDenoisedGlobalIllumination;
 RWTexture2D<float4> _UnigmaAlbedo;
@@ -15,6 +16,7 @@ RWTexture2D<float4> _UnigmaMotionID;
 
 //Temporal buffers.
 RWTexture2D<float4> _UnigmaDenoisedGlobalIlluminationTemporal;
+RWTexture2D<float4> _UnigmaDenoisedGlobalIlluminationTemp;
 RWTexture2D<float4> _UnigmaAlbedoTemporal;
 RWTexture2D<float4> _UnigmaNormalTemporal;
 RWTexture2D<float4> _UnigmaMotionIDTemporal;
@@ -39,7 +41,7 @@ float luminance(float3 color)
 
 bool CheckNormalSimilarity(float3 currentNormal, float3 prevNormal)
 {
-	if (pow(abs(dot(currentNormal, prevNormal)), 2) > 0.999999)
+	if (pow(abs(dot(currentNormal, prevNormal)), 1) > 0.9)
 		return false;
 	else
 		return true;
@@ -50,7 +52,7 @@ bool CheckPlane(float3 currentPos, float3 prevPos, float3 currentNormal)
 	float3 toCurrent = currentPos - prevPos;
 	float distToPlane = abs(dot(toCurrent, currentNormal));
 
-	return distToPlane > 0.000000000000000000000001;
+	return distToPlane > 0.00000;
 	
 }
 
@@ -60,7 +62,7 @@ bool CheckReprojection(float2 UV, float2 prevUV)
 	
 	bool normalCheck = CheckNormalSimilarity(_UnigmaNormal[UV].xyz, _UnigmaNormalTemporal[prevUV].xyz);
 	
-	return normalCheck && planeCheck;
+	return normalCheck || planeCheck;
 }
 
 bool IsNaN(float x)
@@ -68,6 +70,44 @@ bool IsNaN(float x)
 	uint exponent = (asuint(x) & 0x7f800000) >> 23;
 	uint mantissa = (asuint(x)) & 0x7fffff;
 	return exponent == 0xff && mantissa != 0;
+}
+
+float ComputeVariance(int2 ipos)
+{
+	float sum = 0.f;
+
+	const float kernel[2][2] = {
+		{ 1.0 / 4.0, 1.0 / 8.0 },
+		{ 1.0 / 8.0, 1.0 / 16.0 },
+	};
+
+	const int radius = 1;
+	for (int yy = -radius; yy <= radius; yy++)
+	{
+		for (int xx = -radius; xx <= radius; xx++)
+		{
+			const int2 p = ipos + int2(xx, yy);
+			const float k = kernel[abs(xx)][abs(yy)];
+			sum += _UnigmaDenoisedGlobalIllumination[ipos].a * k;
+		}
+	}
+
+	return sum;
+}
+
+float NormalEdgeWeight(float3 centerNormal, float3 sampleNormal, float power)
+{
+	return pow(clamp(dot(centerNormal, sampleNormal), 0.0f, 1.0f), power);
+}
+
+float DepthEdgeWeight(float centerDepth, float sampleDepth, float phi)
+{
+	return exp(-abs(centerDepth - sampleDepth) / phi);
+}
+
+float LumaEdgeWeight(float centerLuma, float sampleLuma, float phi)
+{
+	return abs(centerLuma - sampleLuma) / phi;
 }
 
 [numthreads(8,8,1)]
@@ -116,6 +156,7 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 		variance = max(0.0f, moments.g - moments.r * moments.r);
 		
 		output = lerp(prevSample, currentSample, alpha);
+		output.a = variance;
 		
 		_SVGFBuffer[flattenIndex].history = historyLength;
 		_SVGFBuffer[previousFrameIndedFlatten].moments = moments;
@@ -136,6 +177,7 @@ void StoreToPreviousBuffer(uint3 id : SV_DispatchThreadID)
 	_UnigmaNormalTemporal[id.xy] = _UnigmaNormal[id.xy];
 	_UnigmaMotionIDTemporal[id.xy] = _UnigmaMotionID[id.xy];
 	_UnigmaDenoisedGlobalIlluminationTemporal[id.xy] = _UnigmaDenoisedGlobalIllumination[id.xy];
+	_UnigmaDenoisedGlobalIllumination[id.xy] = _UnigmaDenoisedGlobalIlluminationTemp[id.xy];
 }
 
 [numthreads(8, 8, 1)]
@@ -150,7 +192,7 @@ void Atorus(uint3 id : SV_DispatchThreadID)
 		return;
 
 	//Get current sample.
-	float4 currentSample = _UnigmaGlobalIllumination[id.xy];
+	float4 currentSample = _UnigmaDenoisedGlobalIllumination[id.xy];
 
 	//Get motion vectors
 	float4 motionVector = _CameraMotionVectorsTexture[id.xy];
@@ -159,27 +201,57 @@ void Atorus(uint3 id : SV_DispatchThreadID)
 
 	float2 previousFrameIndex = ((invPrevUV * dim.xy + dim.xy) / 2) - 0.5f;
 	int previousFrameIndedFlatten = previousFrameIndex.x + previousFrameIndex.y * dim.x;
-
-	float4 output = currentSample;
+	
+	int flattenIndex = id.x + id.y * dim.x;
+	float historyLength = _SVGFBuffer[flattenIndex].history;
 	
 	//A torus filter.
-	float sumWeights = 1.0;
-	float4 sum = output;
-	//float sumVariance = variance;
+	float sumWeights = 0.0;
+	float4 sum = 0.0;
+	float variance = _UnigmaDenoisedGlobalIllumination[id.xy].a;
+	float sumVariance = variance;
 
-	int _KernelSize = 3;
-	int stepSize = 3;
+	
+	int _KernelSize = 2;
+	const float kernelWeights[4] = { 1.0, 2.0 / 3.0, 1.0 / 6.0, 1.0 / 9.0 };
+
+	float3 centerNormal = _UnigmaNormal[id.xy].xyz;
+	float centerDepth = _UnigmaCameraDepthTexture[id.xy];
 
 	for (int yy = -_KernelSize; yy <= _KernelSize; yy++)
 	{
 		for (int xx = -_KernelSize; xx <= _KernelSize; xx++)
 		{
 			float2 offset = float2(xx, yy);
-			float2 sampleUV = id.xy + offset * stepSize;
+			float2 sampleUV = id.xy + offset * _StepSize;
 
 			if (sampleUV.x < 0 || sampleUV.x >= dim.x || sampleUV.y < 0 || sampleUV.y >= dim.y)
 				continue;
+
+			float4 sampleNoise = _UnigmaDenoisedGlobalIllumination[sampleUV];
+			float4 sampleColor = _UnigmaAlbedo[sampleUV];
+			float3 sampleNormal = _UnigmaNormal[sampleUV].xyz;
+			float sampleVariance = ComputeVariance(sampleUV);
+			float sampleDepth = _UnigmaCameraDepthTexture[sampleUV];
+
+			float phiColor = 10.0f * sqrt(max(0.0, 0.0000001 + sampleVariance));
+			
+			float normalPhi = NormalEdgeWeight(centerNormal, sampleNormal, 0.01);
+			float depthPhi = DepthEdgeWeight(centerDepth, sampleDepth, phiColor);
+			float colorPhi = LumaEdgeWeight(luminance(_UnigmaAlbedo[id.xy]).r, luminance(sampleColor).r, phiColor);
+			
+			float weight = exp(-colorPhi - depthPhi - normalPhi);
+			weight *= kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
+
+			// Variance-based weighting
+			float varianceWeight = 1.0 / (1.0 + max(0.0, sampleVariance - variance));
+			weight *= varianceWeight;
+
+			sumWeights += weight;
+			sum += sampleNoise * weight;
+			sumVariance += sampleVariance * weight;
 		}
 	}
+	_UnigmaDenoisedGlobalIlluminationTemp[id.xy] = sum / sumWeights;
 
 }

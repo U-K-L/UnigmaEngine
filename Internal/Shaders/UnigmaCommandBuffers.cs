@@ -673,7 +673,18 @@ public class UnigmaCommandBuffers : MonoBehaviour
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_CameraMotionVectorsTexture", Shader.GetGlobalTexture("_CameraMotionVectorsTexture"));
         svgfUnigma.SetComputeTextureParam(svgfComputeShader, 0, "_UnigmaCameraDepthTexture", Shader.GetGlobalTexture("_CameraDepthTexture"));
         svgfUnigma.SetComputeBufferParam(svgfComputeShader, 0, "_SVGFBuffer", svgfBuffer);
+        svgfUnigma.SetComputeBufferParam(svgfComputeShader, 2, "_SVGFBuffer", svgfBuffer);
+        svgfUnigma.SetComputeTextureParam(svgfComputeShader, 2, "_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
+        svgfUnigma.SetComputeTextureParam(svgfComputeShader, 2, "_CameraMotionVectorsTexture", Shader.GetGlobalTexture("_CameraMotionVectorsTexture"));
         svgfUnigma.DispatchCompute(svgfComputeShader, 0, Mathf.CeilToInt((float)_renderTextureWidth / (float)threads.x), Mathf.CeilToInt((float)_renderTextureHeight / (float)threads.y), 1);
+
+        //Atorus
+        for (int i = 0; i < 4; i++)
+        {
+            int stepSize = 1 << i;
+            svgfUnigma.SetComputeIntParam(svgfComputeShader, "_StepSize", stepSize);
+            svgfUnigma.DispatchCompute(svgfComputeShader, 2, Mathf.CeilToInt((float)_renderTextureWidth / (float)threads.x), Mathf.CeilToInt((float)_renderTextureHeight / (float)threads.y), 1);
+        }
 
         //Store the current frame's global illumination for temporal reprojection
         svgfUnigma.DispatchCompute(svgfComputeShader, 1, Mathf.CeilToInt((float)_renderTextureWidth / (float)threads.x), Mathf.CeilToInt((float)_renderTextureHeight / (float)threads.y), 1);

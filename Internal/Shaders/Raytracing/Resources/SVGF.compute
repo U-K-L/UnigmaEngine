@@ -1,6 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel SVGFKernel
 #pragma kernel StoreToPreviousBuffer
+#pragma kernel Atorus
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -29,6 +30,7 @@ RWStructuredBuffer<SVGF> _SVGFBuffer;
 
 float _PLANE_DISTANCE_THRESHOLD = 0.01;
 float _NORMAL_DISTANCE_THRESHOLD = 0.01;
+int _StepSize = 1;
 
 float luminance(float3 color)
 {
@@ -37,7 +39,7 @@ float luminance(float3 color)
 
 bool CheckNormalSimilarity(float3 currentNormal, float3 prevNormal)
 {
-	if (pow(abs(dot(currentNormal, prevNormal)), 2) > 0.9999999)
+	if (pow(abs(dot(currentNormal, prevNormal)), 2) > 0.999999)
 		return false;
 	else
 		return true;
@@ -48,7 +50,7 @@ bool CheckPlane(float3 currentPos, float3 prevPos, float3 currentNormal)
 	float3 toCurrent = currentPos - prevPos;
 	float distToPlane = abs(dot(toCurrent, currentNormal));
 
-	return distToPlane >= -0.0000000001;
+	return distToPlane > 0.000000000000000000000001;
 	
 }
 
@@ -58,7 +60,7 @@ bool CheckReprojection(float2 UV, float2 prevUV)
 	
 	bool normalCheck = CheckNormalSimilarity(_UnigmaNormal[UV].xyz, _UnigmaNormalTemporal[prevUV].xyz);
 	
-	return normalCheck || planeCheck;
+	return normalCheck && planeCheck;
 }
 
 bool IsNaN(float x)
@@ -85,7 +87,7 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 	//Get motion vectors
 	float4 motionVector = _CameraMotionVectorsTexture[id.xy];
 	float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
-	float2 invPrevUV = UV - motionVector;
+	float2 invPrevUV = UV - motionVector.xy;
 	
 	float2 previousFrameIndex = ((invPrevUV * dim.xy + dim.xy) / 2) - 0.5f;
 	int previousFrameIndedFlatten = previousFrameIndex.x + previousFrameIndex.y * dim.x;
@@ -93,12 +95,14 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 	float4 output = currentSample;
 	
 	float historyLength = 1.0f;
+	int flattenIndex = id.x + id.y * dim.x;
+	float variance = 1.0;
 
 	if (CheckReprojection(id.xy, previousFrameIndex))
 	{
 		float4 prevSample = _UnigmaDenoisedGlobalIlluminationTemporal[previousFrameIndex];
 		historyLength = _SVGFBuffer[previousFrameIndedFlatten].history += 1;
-
+		
 		float alpha = 1.0f / historyLength;
 
 		float2 moments = 0;
@@ -109,17 +113,20 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 		
 		
 		moments = lerp(historyMoment, moments, alpha);
-		float variance = max(0.0f, moments.g - moments.r * moments.r);
+		variance = max(0.0f, moments.g - moments.r * moments.r);
 		
-		output = variance;//lerp(prevSample, currentSample, alpha);
+		output = lerp(prevSample, currentSample, alpha);
+		
+		_SVGFBuffer[flattenIndex].history = historyLength;
+		_SVGFBuffer[previousFrameIndedFlatten].moments = moments;
+	}
+	else
+	{
+		_SVGFBuffer[previousFrameIndedFlatten].history = 0;
 	}
 
-	int flattenIndex = id.x + id.y * dim.x;
-
-
-
 	_UnigmaDenoisedGlobalIllumination[id.xy] = output;//_UnigmaGlobalIllumination[id.xy];// + _UnigmaDenoisedGlobalIlluminationTemporal[id.xy] *0.5;
-	_SVGFBuffer[flattenIndex].history = historyLength;
+	
 }
 
 [numthreads(8, 8, 1)]
@@ -129,4 +136,50 @@ void StoreToPreviousBuffer(uint3 id : SV_DispatchThreadID)
 	_UnigmaNormalTemporal[id.xy] = _UnigmaNormal[id.xy];
 	_UnigmaMotionIDTemporal[id.xy] = _UnigmaMotionID[id.xy];
 	_UnigmaDenoisedGlobalIlluminationTemporal[id.xy] = _UnigmaDenoisedGlobalIllumination[id.xy];
+}
+
+[numthreads(8, 8, 1)]
+void Atorus(uint3 id : SV_DispatchThreadID)
+{
+	uint dimensionsWidth, dimensionsHeight;
+
+	_CameraMotionVectorsTexture.GetDimensions(dimensionsWidth, dimensionsHeight);
+	uint2 dim = uint2(dimensionsWidth, dimensionsHeight);
+
+	if (id.x >= dim.x || id.y >= dim.y)
+		return;
+
+	//Get current sample.
+	float4 currentSample = _UnigmaGlobalIllumination[id.xy];
+
+	//Get motion vectors
+	float4 motionVector = _CameraMotionVectorsTexture[id.xy];
+	float2 UV = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+	float2 invPrevUV = UV - motionVector.xy;
+
+	float2 previousFrameIndex = ((invPrevUV * dim.xy + dim.xy) / 2) - 0.5f;
+	int previousFrameIndedFlatten = previousFrameIndex.x + previousFrameIndex.y * dim.x;
+
+	float4 output = currentSample;
+	
+	//A torus filter.
+	float sumWeights = 1.0;
+	float4 sum = output;
+	//float sumVariance = variance;
+
+	int _KernelSize = 3;
+	int stepSize = 3;
+
+	for (int yy = -_KernelSize; yy <= _KernelSize; yy++)
+	{
+		for (int xx = -_KernelSize; xx <= _KernelSize; xx++)
+		{
+			float2 offset = float2(xx, yy);
+			float2 sampleUV = id.xy + offset * stepSize;
+
+			if (sampleUV.x < 0 || sampleUV.x >= dim.x || sampleUV.y < 0 || sampleUV.y >= dim.y)
+				continue;
+		}
+	}
+
 }

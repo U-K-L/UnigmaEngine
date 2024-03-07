@@ -41,7 +41,7 @@ float luminance(float3 color)
 
 bool CheckNormalSimilarity(float3 currentNormal, float3 prevNormal)
 {
-	if (pow(abs(dot(currentNormal, prevNormal)), 1) > 0.9)
+	if (pow(abs(dot(currentNormal, prevNormal)), 1) < 0.2)
 		return false;
 	else
 		return true;
@@ -52,17 +52,17 @@ bool CheckPlane(float3 currentPos, float3 prevPos, float3 currentNormal)
 	float3 toCurrent = currentPos - prevPos;
 	float distToPlane = abs(dot(toCurrent, currentNormal));
 
-	return distToPlane > 0.00000;
+	return distToPlane < 0.000051;
 	
 }
 
 bool CheckReprojection(float2 UV, float2 prevUV)
 {
-	bool planeCheck = CheckPlane(_UnigmaMotionID[UV].xyz, _UnigmaMotionIDTemporal[prevUV].xyz, _UnigmaNormal[UV].xyz);
+	bool planeCheck = CheckPlane(_UnigmaMotionID[UV].xyz, _UnigmaMotionIDTemporal[UV].xyz, _UnigmaNormal[UV].xyz);
 	
 	bool normalCheck = CheckNormalSimilarity(_UnigmaNormal[UV].xyz, _UnigmaNormalTemporal[prevUV].xyz);
 	
-	return normalCheck || planeCheck;
+	return normalCheck && planeCheck;
 }
 
 bool IsNaN(float x)
@@ -166,7 +166,16 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 		_SVGFBuffer[previousFrameIndedFlatten].history = 0;
 	}
 
-	_UnigmaDenoisedGlobalIllumination[id.xy] = output;//_UnigmaGlobalIllumination[id.xy];// + _UnigmaDenoisedGlobalIlluminationTemporal[id.xy] *0.5;
+	float3 currentNormal = _UnigmaNormal[id.xy].xyz; 
+	float3 prevNormal = _UnigmaNormalTemporal[previousFrameIndex].xyz;
+
+	float normalDiff = pow(abs(dot(currentNormal, prevNormal)), 0.1);
+
+	//_UnigmaMotionID[UV].xyz, _UnigmaMotionIDTemporal[prevUV].xyz, _UnigmaNormal[UV].xyz
+	float3 toCurrent = _UnigmaMotionID[id.xy].xyz - _UnigmaMotionIDTemporal[id.xy].xyz;
+	float distToPlane = abs(dot(toCurrent, _UnigmaNormal[UV].xyz));
+
+	_UnigmaDenoisedGlobalIllumination[id.xy] = output;//distToPlane;//normalDiff;//_UnigmaGlobalIllumination[id.xy];// + _UnigmaDenoisedGlobalIlluminationTemporal[id.xy] *0.5;
 	
 }
 

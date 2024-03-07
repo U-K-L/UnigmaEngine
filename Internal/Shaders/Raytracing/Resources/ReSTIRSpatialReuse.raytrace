@@ -458,7 +458,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     visibility = step(0.0001, SxVPayload.color.w);
 
 
-    return float4(spatialReservoirPath.radiance * spatialReservoirPath.wSum * SxNPayload.color.xyz, 1) + ambientColor;
+    return float4(spatialReservoirPath.radiance * spatialReservoirPath.wSum * SxNPayload.color.xyz, 0) + ambientColor;
 }
 
 [shader("raygeneration")]
@@ -538,7 +538,13 @@ void RestirGlobalIllumantionRayGen()
     {
         
         targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples*0.5;
-        targetResult += SampleIndirect(payload, ray)*inverseSamples*0.5;
+        float4 indirectSample = SampleIndirect(payload, ray)*inverseSamples;
+        float4x4 saturation = saturationMatrix(3.6);
+        float4x4 constrast = contrastMatrix(0.60);
+        indirectSample = mul(indirectSample, saturation);
+        indirectSample = mul(indirectSample, constrast);
+        indirectSample *= 0.5;
+        targetResult += indirectSample;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 

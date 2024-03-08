@@ -483,6 +483,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 }
             }
         }
+
         /*
         //Add spherical map.
         int width = SphericalMap.width;

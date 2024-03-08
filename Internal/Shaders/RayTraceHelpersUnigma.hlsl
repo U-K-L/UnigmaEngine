@@ -79,6 +79,121 @@ struct UnigmaDispatchInfo
 };
 
 
+
+// Expands a 10-bit integer into 30 bits
+// by inserting 2 zeros after each bit.
+unsigned int expandBits(unsigned int v)
+{
+    v = (v * 0x00010001u) & 0xFF0000FFu;
+    v = (v * 0x00000101u) & 0x0F00F00Fu;
+    v = (v * 0x00000011u) & 0xC30C30C3u;
+    v = (v * 0x00000005u) & 0x49249249u;
+    return v;
+}
+
+// Calculates a 30-bit Morton code for the
+// given 3D point located within the unit cube [0,1].
+unsigned int morton3D(float x, float y, float z)
+{
+    x = min(max(x * 1024.0f, 0.0f), 1023.0f);
+    y = min(max(y * 1024.0f, 0.0f), 1023.0f);
+    z = min(max(z * 1024.0f, 0.0f), 1023.0f);
+    unsigned int xx = expandBits((unsigned int)x);
+    unsigned int yy = expandBits((unsigned int)y);
+    unsigned int zz = expandBits((unsigned int)z);
+    return xx * 4 + yy * 2 + zz;
+}
+
+uint MortonX(uint x)
+{
+    x = (x | (x << 8)) & 0x00FF00FF;
+    x = (x | (x << 4)) & 0x0F0F0F0F;
+    x = (x | (x << 2)) & 0x33333333;
+    x = (x | (x << 1)) & 0x55555555;
+    return x;
+}
+
+uint ZCurveToLinearIndex(uint2 xy)
+{
+    return MortonX(xy[0]) | (MortonX(xy[1]) << 1);
+}
+
+// 32 bit Jenkins hash
+uint JenkinsHash(uint a)
+{
+    // http://burtleburtle.net/bob/hash/integer.html
+    a = (a + 0x7ed55d16) + (a << 12);
+    a = (a ^ 0xc761c23c) ^ (a >> 19);
+    a = (a + 0x165667b1) + (a << 5);
+    a = (a + 0xd3a2646c) ^ (a << 9);
+    a = (a + 0xfd7046c5) + (a << 3);
+    a = (a ^ 0xb55a4f09) ^ (a >> 16);
+    return a;
+}
+
+uint GetRandomSeed(uint2 pixelLocation, uint _Offset)
+{
+    uint Zindex = ZCurveToLinearIndex(pixelLocation);
+    uint seed = JenkinsHash(Zindex) + _Time.y * 1000 + _Offset;
+    //Offset seed by time
+    //float floatSeed = (float)seed; +_Time.y;
+    //Offset seed by frame
+    //floatSeed += _Offset;
+    return seed;
+}
+
+uint murmur3(uint seed, uint index)
+{
+#define ROT32(x, y) ((x << y) | (x >> (32 - y)))
+
+    // https://en.wikipedia.org/wiki/MurmurHash
+    uint c1 = 0xcc9e2d51;
+    uint c2 = 0x1b873593;
+    uint r1 = 15;
+    uint r2 = 13;
+    uint m = 5;
+    uint n = 0xe6546b64;
+
+    uint hash = seed;
+    uint k = index++;
+    k *= c1;
+    k = ROT32(k, r1);
+    k *= c2;
+
+    hash ^= k;
+    hash = ROT32(hash, r2) * m + n;
+
+    hash ^= 4;
+    hash ^= (hash >> 16);
+    hash *= 0x85ebca6b;
+    hash ^= (hash >> 13);
+    hash *= 0xc2b2ae35;
+    hash ^= (hash >> 16);
+
+#undef ROT32
+
+    return hash;
+}
+
+float sampleUniformRng(uint seed, uint index = 1)
+{
+    uint v = murmur3(seed, index);
+    const uint one = asuint(1.f);
+    const uint mask = (1 << 23) - 1;
+    return asfloat((mask & v) | one) - 1.f;
+}
+
+float QualityRand(uint seed)
+{
+    return sampleUniformRng(seed);
+}
+
+float rand(uint seed)
+{
+    return QualityRand(seed);
+}
+
+
 float4x4 saturationMatrix(float saturation)
 {
     float3 luminance = float3(0.3086, 0.6094, 0.0820);
@@ -436,4 +551,60 @@ void CreateSample(inout RayDesc ray, inout Payload payload, float3 chosenCameraP
     payload.direction = chosenDirection;
     payload.pixel = pixel + _Time.xy;
     payload.uv = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y));
+}
+
+
+float4 AreaLightSample(float3 position, uint seed, UnigmaLight lightSource)
+{
+
+    float2 xy = randGaussian(position, rand(seed));
+    float2 xz = randGaussian(position, rand(seed+42));
+    float3 uv = float3(xy, xz.x);
+
+    float3 area = lightSource.area;
+
+    float4 lightSample = 1.0;
+    lightSample.xyz = (uv * area) + lightSource.position;
+    lightSample.w = lightSource.emission;
+
+    return lightSample;
+}
+
+
+
+float GetTargetFunction(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
+{
+
+    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
+    float4 lightSample = AreaLightSample(origin, seed, lightSource);
+    float3 toLight = normalize(lightSample.xyz - origin);
+    //Finally compute the brdf for this light.
+    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
+    float Le = lightSource.emission;
+    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
+
+    //Target function.
+    float4 pHat = BRDF * Le * Gx;
+
+    return pHat;
+}
+
+float UpdateReservoirWeight(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
+{
+
+    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
+    float4 lightSample = AreaLightSample(origin, seed, lightSource);
+    float3 toLight = normalize(lightSample.xyz - origin);
+    //Finally compute the brdf for this light.
+    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
+    float Le = lightSource.emission;
+    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
+
+    //Target function.
+    float4 pHat = BRDF * Le * Gx;
+
+    reservoir.W = pHat > 0.0 ? (reservoir.wSum / reservoir.M) / pHat : 0.0;
+    reservoir.pHat = pHat;
+
+    return pHat;
 }

@@ -281,61 +281,6 @@ float4 ShadePixel(inout Payload payload, inout RayDesc ray)
 
 }
 
-float4 AreaLightSample(float2 seedIn, UnigmaLight lightSource)
-{
-    float2 pixel = seedIn;
-    float2 seed = _Time.xy + seedIn;
-
-    float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
-	float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
-	float3 uv = float3(xy, xz.x);
-
-    float3 area = lightSource.area;
-
-    float4 lightSample = 1.0;
-    lightSample.xyz = (uv * area) + lightSource.position;
-    lightSample.w = lightSource.emission;
-
-    return lightSample;
-}
-
-float GetTargetFunction(inout Reservoir reservoir, float3 origin, in Payload Sx1Payload, float2 seed)
-{
-    
-    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
-    float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
-    float3 toLight = normalize(lightSample.xyz - origin);
-    //Finally compute the brdf for this light.
-    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
-    float Le = _unigmaLights[lightIndex].emission;
-    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
-
-    //Target function.
-    float4 pHat = BRDF * Le * Gx;
-
-    return pHat;
-}
-
-float UpdateReservoirWeight(inout Reservoir reservoir, float3 origin, in Payload Sx1Payload, float2 seed)
-{
-    
-    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
-    float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
-    float3 toLight = normalize(lightSample.xyz - origin);
-    //Finally compute the brdf for this light.
-    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
-    float Le = _unigmaLights[lightIndex].emission;
-    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
-
-    //Target function.
-    float4 pHat = BRDF * Le * Gx;
-
-    reservoir.W = pHat > 0.0 ? (reservoir.wSum / reservoir.M) / pHat : 0.0;
-    reservoir.pHat = pHat;
-
-    return pHat;
-}
-
 //Just a basic unbiased direct lighter for one light.
 float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 {
@@ -358,7 +303,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float2 previousFrameIndex = ((prevUV*dim.xy + dim.xy) / 2) - 0.5f;
 
-    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
+    float randSeed = GetRandomSeed(id.xy, 0);//payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
     int currentReservoirTemporal = 0;//_UnigmaFrameCount % _TemporalReservoirsCount;
     int reservoirIndex = previousFrameIndex.x + previousFrameIndex.y*dim.x; //id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
 
@@ -396,11 +341,11 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     for(uint i = 0; i < min(_NumberOfLights, MareaSamples); i++)
     {
         //TODO: Better random.
-        float2 randSeed = payload.pixel + _Time.xy + float2(i,i);
+        uint randSeed = GetRandomSeed(id.xy, i);//payload.pixel + _Time.xy + float2(i,i);
         float numLights = (float)_NumberOfLights;
-        uint lightIndex = rand(randSeed)*numLights;//uint(ceil(rand(randSeed*randSeed + rand(randSeed)) * (numLights-1))); //randomly get a light to sample from.
+        uint lightIndex = QualityRand(randSeed)*numLights;//uint(ceil(rand(randSeed*randSeed + rand(randSeed)) * (numLights-1))); //randomly get a light to sample from.
         //Sample the area light given that light index.
-        float4 lightSample = AreaLightSample(randSeed, _unigmaLights[lightIndex]);
+        float4 lightSample = AreaLightSample(x2Origin, randSeed, _unigmaLights[lightIndex]);
 
         float3 toLight = normalize(lightSample.xyz - x2Origin);
 
@@ -415,9 +360,9 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeed);
     }
 
-    float4 lightSample = AreaLightSample(randSeed, _unigmaLights[currentReservoir.Y]);
+    float4 lightSample = AreaLightSample(x2Origin, randSeed, _unigmaLights[currentReservoir.Y]);
     float3 x2Direction = normalize(lightSample.xyz - x2Origin);
-    float currentPhat = UpdateReservoirWeight(currentReservoir, x2Origin, Sx1Payload, randSeed);
+    float currentPhat = UpdateReservoirWeight(currentReservoir,_unigmaLights[currentReservoir.Y], x2Origin, Sx1Payload, randSeed);
     //return (currentReservoir.wSum / currentReservoir.M) / currentPhat;
     //Now let's create Sample X2.
     RayDesc Sx2Ray;
@@ -442,7 +387,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //Temporal
     //Add previous samples.
     //Same pixel and also same time.
-    float randSeedR = payload.pixel + _Time.xy;
+    //float randSeedR = payload.pixel + _Time.xy;
     Reservoir temporalReservoir;
     Reservoir previousReservoir = _reservoirs[reservoirIndex];
     InitializeReservoir(temporalReservoir);
@@ -458,7 +403,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
 
     //Combine current reservoir.
-    addReservoirSample(temporalReservoir, currentReservoir.Y, currentReservoir.pHat * currentReservoir.W * currentReservoir.M, 1, randSeedR);
+    addReservoirSample(temporalReservoir, currentReservoir.Y, currentReservoir.pHat * currentReservoir.W * currentReservoir.M, 1, randSeed);
 
 
     if(distance(prevUV, UV) > 0.00001 || distance(x2Origin, previousReservoir.x1) > 0.001 || (abs(previousReservoir.pHat - currentPhat) / currentPhat) > 0.2)
@@ -471,7 +416,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     previousReservoir.M = min(MHistoryLength * currentReservoir.M, previousReservoir.M); //History length.
 
     uint prevLightIndex = previousReservoir.Y;
-    float4 prevLightSample = AreaLightSample(randSeedR, _unigmaLights[prevLightIndex]);
+    float4 prevLightSample = AreaLightSample(x2Origin, randSeed, _unigmaLights[prevLightIndex]);
 
     float3 prevToLight = normalize(prevLightSample.xyz - previousReservoir.x1);
 
@@ -479,10 +424,10 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float weight = previousReservoir.pHat *previousReservoir.W*previousReservoir.M;
 
-    addReservoirSample(temporalReservoir, previousReservoir.Y, weight, previousReservoir.M, randSeedR);
+    addReservoirSample(temporalReservoir, previousReservoir.Y, weight, previousReservoir.M, randSeed);
 
     //Add this reservoir to final sample.
-    UpdateReservoirWeight(temporalReservoir, x2Origin, Sx1Payload, randSeed);
+    UpdateReservoirWeight(temporalReservoir, _unigmaLights[temporalReservoir.Y], x2Origin, Sx1Payload, randSeed);
     currentReservoir = temporalReservoir;
     currentReservoir.age += previousReservoir.age;
 
@@ -543,11 +488,11 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     return Sx1Payload.color.w * Sx1Payload.color;
 }
 
-float GetTargetPathRadiance(inout Reservoir reservoir, float3 origin, float3 normal, float2 seed)
+float GetTargetPathRadiance(inout Reservoir reservoir, float3 origin, float3 normal, uint seed)
 {
 
     uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
-    float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
+    float4 lightSample = AreaLightSample(origin, seed, _unigmaLights[lightIndex]);
     float3 toLight = normalize(lightSample.xyz - origin);
     //Finally compute the brdf for this light.
     float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
@@ -754,7 +699,7 @@ float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
     //Getting that hit point location. Will be the origin of x2 path.
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
     //This is direct light sampling. So just path towards primary light. There is only 1 light considered in this case.
-    float4 lightSample = AreaLightSample(payload.pixel+_Time.xy, _unigmaLights[lightIndex]);
+    float4 lightSample = AreaLightSample(x2Origin, payload.pixel+_Time.xy, _unigmaLights[lightIndex]);
     float3 toLight = normalize(lightSample.xyz - x2Origin);
     float3 x2Direction = toLight;//Sx1Payload.direction;
     

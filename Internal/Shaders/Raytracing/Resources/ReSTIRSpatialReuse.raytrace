@@ -53,60 +53,6 @@ bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, fl
     return false;
 }
 
-float4 AreaLightSample(float2 seedIn, UnigmaLight lightSource)
-{
-    float2 pixel = seedIn;
-    float2 seed = _Time.xy + seedIn;
-
-    float2 xy = randGaussian(float3(pixel + seed, seed.y), rand(seed.x));
-	float2 xz = randGaussian(float3(pixel + seed + 2452, seed.x), rand(seed.y));
-	float3 uv = float3(xy, xz.x);
-
-    float3 area = float3(3.5, 0.15, 3.5);
-
-    float4 lightSample = 1.0;
-    lightSample.xyz = (uv * area) + lightSource.position;
-    lightSample.w = lightSource.emission;
-
-    return lightSample;
-}
-
-float GetTargetFunction(inout Reservoir reservoir, float3 origin, in Payload Sx1Payload, float2 seed)
-{
-    
-    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
-    float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
-    float3 toLight = normalize(lightSample.xyz - origin);
-    //Finally compute the brdf for this light.
-    float Gx = 1.0f / (distance(lightSample.xyz, origin));
-    float Le = _unigmaLights[lightIndex].emission;
-    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
-
-    //Target function.
-    float4 pHat = BRDF * Le * Gx;
-
-    return pHat;
-}
-
-float UpdateReservoirWeight(inout Reservoir reservoir, float3 origin, in Payload Sx1Payload, float2 seed)
-{
-    
-    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
-    float4 lightSample = AreaLightSample(seed, _unigmaLights[lightIndex]);
-    float3 toLight = normalize(lightSample.xyz - origin);
-    //Finally compute the brdf for this light.
-    float Gx = 1.0f / (distance(lightSample.xyz, origin));
-    float Le = _unigmaLights[lightIndex].emission;
-    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
-
-    //Target function.
-    float4 pHat = BRDF * Le * Gx;
-
-    reservoir.W = pHat > 0.0 ? (reservoir.wSum / reservoir.M) / pHat : 0.0;
-    reservoir.pHat = pHat;
-
-    return pHat;
-}
 
 //Just a basic unbiased direct lighter for one light.
 float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
@@ -247,7 +193,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //Combine with spatial Reservoir
     addReservoirSample(spatialReservoir, currentReservoir.Y, currentReservoir.pHat * currentReservoir.W * currentReservoir.M, currentReservoir.M, randSeed);
     //UpdateReservoirWeight(spatialReservoir, x2Origin, Sx1Payload, randSeed);
-
+    /*
     int _NumberOfNeighbors = 15;
     int _NeighborsRadius = 5;
     for(int i = 0; i < _NumberOfNeighbors; i++)
@@ -266,8 +212,8 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         Reservoir neighborReservoir = _reservoirs[reservoirIndex];
         addReservoirSample(spatialReservoir, neighborReservoir.Y, neighborReservoir.pHat * neighborReservoir.W * neighborReservoir.M, neighborReservoir.M, randSeed);
     }
-
-    float spatialPDF = UpdateReservoirWeight(spatialReservoir, x2Origin, Sx1Payload, randSeed);
+    */
+    float spatialPDF = UpdateReservoirWeight(spatialReservoir, _unigmaLights[spatialReservoir.Y], x2Origin, Sx1Payload, randSeed);
 
     
     //----------------------------------
@@ -518,14 +464,14 @@ void RestirGlobalIllumantionRayGen()
     for(int i = 0; i < numSamples; i++)
     {
         
-        targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples*0.5;
+        targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples;
         float4 indirectSample = SampleIndirect(payload, ray)*inverseSamples;
         float4x4 saturation = saturationMatrix(3.6);
         float4x4 constrast = contrastMatrix(0.60);
         indirectSample = mul(indirectSample, saturation);
         indirectSample = mul(indirectSample, constrast);
         indirectSample *= 0.5;
-        targetResult += indirectSample;
+        //targetResult += indirectSample;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 

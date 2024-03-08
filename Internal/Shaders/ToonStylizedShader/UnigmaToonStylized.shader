@@ -2,7 +2,7 @@ Shader "Unigma/UnigmaToonStylized"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
+        _MainTex ("Texture", 2D) = "black" {}
         _NormalMap("Texture", 2D) = "black" {}
 	    _Midtone("Midtone", Color) = (1,1,1,1)
 		_Shadow("Shadow", Color) = (1,1,1,1)
@@ -95,7 +95,7 @@ Shader "Unigma/UnigmaToonStylized"
 				float4 finalColor = max(midTones, shadows);
 				finalColor = max(finalColor, highlights);
 
-                return _Midtone * col;
+                return _Midtone;
                 return col;
                 //return globalIllum;
                 return finalColor;
@@ -201,14 +201,17 @@ Shader "Unigma/UnigmaToonStylized"
                 
                 //Get from Texture2D
 				//normals = _UnigmaNormal.SampleLevel(sampler_UnigmaNormal, payload.uv, 0).xyz;
-                
+                float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
                 worldNormal = worldNormalTBN;
+                float3 rgbNormalMap = tex.xzy * 2 - 1;
                 if (_NormalMap.SampleLevel(sampler_NormalMap, uvs, 0).w <= 0)
                     worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz);
+                if (_NormalMap.SampleLevel(sampler_NormalMap, uvs, 0).w > 0)
+                    worldNormal = normalize(mul(ObjectToWorld3x4(), float4(rgbNormalMap, 0)).xyz);
 
 
                 float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);
-                float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
+                
 
                 //Project position into tangent, basically uv space.
 

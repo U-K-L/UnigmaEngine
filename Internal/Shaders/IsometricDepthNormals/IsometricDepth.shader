@@ -77,7 +77,12 @@ Shader "Unlit/IsometricDepthNormals"
             fixed4 frag(v2f i) : SV_Target
             {
                 //Get texture data
+                return float4(i.worldNormal, 1.0);
                 float3 tangentNormal = tex2D(_MainTex, i.uv).xyz;
+                float3 rgbNormalMap = tangentNormal.xzy * 2 - 1;
+                rgbNormalMap = UnityObjectToWorldNormal(rgbNormalMap);
+                return float4(rgbNormalMap, 1);
+                return float4(i.worldNormal, 1.0);
                 tangentNormal = normalize(tangentNormal * 2 - 1);
                 float3x3 TBN = float3x3(normalize(i.T), normalize(i.B), normalize(i.N));
                 TBN = transpose(TBN);

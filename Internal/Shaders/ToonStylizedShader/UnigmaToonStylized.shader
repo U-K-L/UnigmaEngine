@@ -3,6 +3,7 @@ Shader "Unigma/UnigmaToonStylized"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        _NormalMap("Texture", 2D) = "black" {}
 	    _Midtone("Midtone", Color) = (1,1,1,1)
 		_Shadow("Shadow", Color) = (1,1,1,1)
 		_Highlight("Highlight", Color) = (1,1,1,1)
@@ -162,8 +163,8 @@ Shader "Unigma/UnigmaToonStylized"
             #include "../RayTraceHelpersUnigma.hlsl"
             #include "UnityCG.cginc"
 
-            Texture2D<float4> _MainTex, _UnigmaNormal;
-			SamplerState sampler_MainTex, sampler_UnigmaNormal;
+            Texture2D<float4> _MainTex, _UnigmaNormal, _NormalMap;
+			SamplerState sampler_MainTex, sampler_UnigmaNormal, sampler_NormalMap;
             float4 _Midtone;
             float4 _Shadow;
             float4 _Highlight;
@@ -179,12 +180,31 @@ Shader "Unigma/UnigmaToonStylized"
                 float3 tangent = GetTangent(attributes);
                 float3 bitangent = normalize(cross(normals, tangent));
 
+                //Create tagents from normal maps...
+                float3 worldNormal = mul(ObjectToWorld3x4(), normals);
+                float3 worldTangent = mul(ObjectToWorld3x4(), tangent);
+
+                float3 binormal = cross(normals, tangent); // *input.tangent.w;
+                float3 worldBinormal = mul(ObjectToWorld3x4(), binormal);
+
+                float3 N = normalize(worldNormal);
+                float3 T = normalize(worldTangent);
+                float3 B = normalize(worldBinormal);
+
+                float3 tangentNormal = _NormalMap.SampleLevel(sampler_NormalMap, uvs, 0).xyz;
+                tangentNormal = normalize(tangentNormal * 2 - 1);
+                float3x3 TBN = float3x3(normalize(T), normalize(B), normalize(N));
+                TBN = transpose(TBN);
+                float3 worldNormalTBN = mul(TBN, tangentNormal);
+
                 float3x3 tangentMatrix = transpose(float3x3(tangent, bitangent, normals));
                 
                 //Get from Texture2D
-				normals = _UnigmaNormal.SampleLevel(sampler_UnigmaNormal, uvs, 0).xyz;
+				//normals = _UnigmaNormal.SampleLevel(sampler_UnigmaNormal, payload.uv, 0).xyz;
                 
-                float3 worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz);
+                worldNormal = worldNormalTBN;
+                if (_NormalMap.SampleLevel(sampler_NormalMap, uvs, 0).w <= 0)
+                    worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz);
 
 
                 float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);

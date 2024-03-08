@@ -53,25 +53,6 @@ bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, fl
     return false;
 }
 
-void CreateSample(inout RayDesc ray, inout Payload payload, float3 chosenCameraPosition, float3 chosenDirection)
-{
-    uint3 id = DispatchRaysIndex();
-    uint3 dim = DispatchRaysDimensions();
-
-    //Convert to 0 - 1.
-    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
-
-    ray.Origin = chosenCameraPosition; 
-    ray.Direction = chosenDirection; 
-    ray.TMin = 0;
-    ray.TMax = 10000;
-
-    payload.color = float4(1,1,1,0);
-    payload.distance = 99999;
-    payload.direction = chosenDirection;
-    payload.pixel = pixel + _Time.xy + _UnigmaFrameCount;
-}
-
 float4 AreaLightSample(float2 seedIn, UnigmaLight lightSource)
 {
     float2 pixel = seedIn;

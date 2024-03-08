@@ -9,6 +9,7 @@ public class IsometricDepthNormalObject : UnigmaPostProcessingObjects
     public float _normalAmp = 1;
     public float _depthAmp = 1;
     public bool _writeToTexture = true;
+    public Texture2D normalMap;
 
     [HideInInspector]
     public Material material = default;
@@ -42,5 +43,6 @@ public class IsometricDepthNormalObject : UnigmaPostProcessingObjects
         material.SetFloat("_Fade", _fadeThreshold);
         material.SetFloat("_NormalAmount", _normalAmp);
         material.SetFloat("_DepthAmount", _depthAmp);
+        material.SetTexture("_MainTex", normalMap);
     }
 }

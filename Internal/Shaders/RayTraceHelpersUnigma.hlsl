@@ -1,6 +1,6 @@
 #define RUNITY_PI 3.14159265359
 
-
+#include "UnityCG.cginc"
 //Struct definitions.
 struct Sample
 {
@@ -32,6 +32,7 @@ struct Payload
     float distance;
     float4 normal;
     float2 pixel;
+    float2 uv;
     
 };
 
@@ -417,3 +418,22 @@ float3 GetTargetFunctionSurface(Surface surface, float3 samplePosition, float3 s
     return reflectedRadiance;
 }
 
+void CreateSample(inout RayDesc ray, inout Payload payload, float3 chosenCameraPosition, float3 chosenDirection)
+{
+    uint3 id = DispatchRaysIndex();
+    uint3 dim = DispatchRaysDimensions();
+
+    //Convert to 0 - 1.
+    float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+
+    ray.Origin = chosenCameraPosition;
+    ray.Direction = chosenDirection;
+    ray.TMin = 0;
+    ray.TMax = 10000;
+
+    payload.color = float4(1, 1, 1, 0);
+    payload.distance = 99999;
+    payload.direction = chosenDirection;
+    payload.pixel = pixel + _Time.xy;
+    payload.uv = ((id.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y));
+}

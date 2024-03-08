@@ -53,7 +53,7 @@ Shader "Unigma/UnigmaOutlines"
                 return o;
             }
             sampler2D _CameraMotionVectorsTexture;
-            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination;
+            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
@@ -67,8 +67,10 @@ Shader "Unigma/UnigmaOutlines"
                 fixed4 BackgroundTexture = tex2D(_BackgroundTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
                 fixed4 motionVectors = tex2D(_CameraMotionVectorsTexture, i.uv);
+				fixed4 normalMap = tex2D(_UnigmaNormal, i.uv);
 
-				//return tex2D(_UnigmaGlobalIllumination, i.uv);
+                //return originalImage;
+				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
 				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
                 
@@ -213,9 +215,14 @@ Shader "Unigma/UnigmaOutlines"
                 //return float4(GlobalIllumination.xyz, 1);
                 //return _UnigmaDepthShadows;
                 //return  FinalColor*0.2 + GlobalIllumination;
-                //return GlobalIllumination;
+                return GlobalIllumination;
 				//return lerp(FinalColor, FinalColor * 0.75 + GlobalIllumination * 0.75, saturate(GlobalIllumination.a+0.5));
-                return lerp(FinalColor, FinalColor*0.79 + GlobalIlluminationDenoised *0.5, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
+                //return GlobalIlluminationDenoised*0.25 + FinalColor;
+
+                //return FinalColor;
+                return normalMap;
+				return FinalColor + GlobalIlluminationDenoised * 0.25;
+                return lerp(FinalColor, FinalColor*0.65 + GlobalIlluminationDenoised, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }

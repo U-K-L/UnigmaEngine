@@ -70,6 +70,8 @@ Shader "Unigma/UnigmaToonStylized"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                //Get main texture
+				float4 col = tex2D(_MainTex, i.uv);
                 //Three colors shadow, midtone, highlight.
                 //Each of this colors are on different normals of a percieved box ...
                 //The normals are NOT interpolated and it is a flat shading.
@@ -92,6 +94,8 @@ Shader "Unigma/UnigmaToonStylized"
 				float4 finalColor = max(midTones, shadows);
 				finalColor = max(finalColor, highlights);
 
+                return _Midtone * col;
+                return col;
                 //return globalIllum;
                 return finalColor;
 
@@ -99,7 +103,7 @@ Shader "Unigma/UnigmaToonStylized"
                 float4 zxCol = _Midtone*step(_Thresholds.z, abs(normals).b);
                 float4 zyCol = _Highlight* step(_Thresholds.z, abs(normals).g);
 
-                return zyCol+ xzCol + zxCol;
+                return col;//zyCol+ xzCol + zxCol;
                 
             }
             ENDCG
@@ -158,8 +162,8 @@ Shader "Unigma/UnigmaToonStylized"
             #include "../RayTraceHelpersUnigma.hlsl"
             #include "UnityCG.cginc"
 
-            Texture2D<float4> _MainTex;
-            SamplerState sampler_MainTex;
+            Texture2D<float4> _MainTex, _UnigmaNormal;
+			SamplerState sampler_MainTex, sampler_UnigmaNormal;
             float4 _Midtone;
             float4 _Shadow;
             float4 _Highlight;
@@ -176,7 +180,9 @@ Shader "Unigma/UnigmaToonStylized"
                 float3 bitangent = normalize(cross(normals, tangent));
 
                 float3x3 tangentMatrix = transpose(float3x3(tangent, bitangent, normals));
-
+                
+                //Get from Texture2D
+				normals = _UnigmaNormal.SampleLevel(sampler_UnigmaNormal, uvs, 0).xyz;
                 
                 float3 worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz);
 

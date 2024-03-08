@@ -55,9 +55,12 @@ Shader "Unlit/IsometricDepthNormals"
                 return o;
             }
 
+            //Make entire shader a shader pass in the future.
             fixed4 frag (v2f i) : SV_Target
             {
-                return float4(i.normal, 1.0);
+                //Get texture data
+				fixed4 col = tex2D(_MainTex, i.uv);
+                return col;//float4(i.normal, 1.0);
             }
             ENDCG
         }

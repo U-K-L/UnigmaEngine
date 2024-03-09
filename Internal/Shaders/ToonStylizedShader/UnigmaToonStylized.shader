@@ -162,7 +162,7 @@ Shader "Unigma/UnigmaToonStylized"
             #include "UnityRaytracingMeshUtils.cginc"
             #include "../RayTraceHelpersUnigma.hlsl"
             #include "UnityCG.cginc"
-
+            
             Texture2D<float4> _MainTex, _UnigmaNormal, _NormalMap;
 			SamplerState sampler_MainTex, sampler_UnigmaNormal, sampler_NormalMap;
             float4 _Midtone;

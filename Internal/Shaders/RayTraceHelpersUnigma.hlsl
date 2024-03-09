@@ -625,11 +625,18 @@ float4 AreaLightSample(float3 position, uint seed, UnigmaLight lightSource)
     return lightSample;
 }
 
-
-
-float GetTargetFunction(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
+float GetStylizedLighting(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
 {
-	seed = 0;
+    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
+    float4 lightSample = AreaLightSample(origin, seed, lightSource);
+    float3 toLight = normalize(lightSample.xyz - origin);
+    float Le = lightSource.emission;
+
+    return 1.0f;
+}
+
+float GetDiffuseLighting(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
+{
     uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
     float4 lightSample = AreaLightSample(origin, seed, lightSource);
     float3 toLight = normalize(lightSample.xyz - origin);
@@ -644,18 +651,17 @@ float GetTargetFunction(inout Reservoir reservoir, UnigmaLight lightSource, floa
     return pHat;
 }
 
+
+float GetTargetFunction(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
+{
+	return GetDiffuseLighting(reservoir, lightSource, origin, Sx1Payload, seed);
+}
+
 float UpdateReservoirWeight(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
 {
-    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
-    float4 lightSample = AreaLightSample(origin, seed, lightSource);
-    float3 toLight = normalize(lightSample.xyz - origin);
-    //Finally compute the brdf for this light.
-    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
-    float Le = lightSource.emission;
-    float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
 
     //Target function.
-    float4 pHat = BRDF * Le * Gx;
+    float4 pHat = GetDiffuseLighting(reservoir, lightSource, origin, Sx1Payload, seed);
 
     reservoir.W = pHat > 0.0 ? (reservoir.wSum / reservoir.M) / pHat : 0.0;
     reservoir.pHat = pHat;

@@ -216,14 +216,14 @@ Shader "Unigma/UnigmaOutlines"
                 //return _UnigmaDepthShadows;
                 //return  FinalColor*0.2 + GlobalIllumination;
                 //return GlobalIlluminationDenoised;
-                //return GlobalIllumination;
+                return GlobalIllumination;
 				//return lerp(FinalColor, FinalColor * 0.75 + GlobalIllumination * 0.75, saturate(GlobalIllumination.a+0.5));
                 //return GlobalIlluminationDenoised*0.25 + FinalColor;
 
                 //return FinalColor;
                 //return normalMap;
 				//return FinalColor + GlobalIlluminationDenoised * 0.25;
-                return lerp(FinalColor, FinalColor*0.75 + GlobalIlluminationDenoised, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
+                return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }

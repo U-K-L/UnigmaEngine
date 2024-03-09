@@ -155,7 +155,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
         float pHat = BRDF * Le * Gx;
 
-        float weight = pHat;
+        float weight = GetTargetFunction(currentReservoir, _unigmaLights[lightIndex], x2Origin, Sx1Payload, randSeedLight);
         
         addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeedLight);
     }

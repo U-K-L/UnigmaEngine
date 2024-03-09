@@ -632,7 +632,19 @@ float GetStylizedLighting(inout Reservoir reservoir, UnigmaLight lightSource, fl
     float3 toLight = normalize(lightSample.xyz - origin);
     float Le = lightSource.emission;
 
-    return 1.0f;
+	float NdotL = saturate(dot(Sx1Payload.normal, toLight));
+    
+    float4 midTones = 0.5 * step(0.2, NdotL);
+    float4 shadows = 0 * step(NdotL, 0.4);
+    float4 highlights = 1 * step(0.6, NdotL);
+
+    float4 BRDF = max(midTones, shadows);
+    BRDF = max(BRDF, highlights);
+    
+    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
+
+    
+    return BRDF * Gx * Le;
 }
 
 float GetDiffuseLighting(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
@@ -654,14 +666,14 @@ float GetDiffuseLighting(inout Reservoir reservoir, UnigmaLight lightSource, flo
 
 float GetTargetFunction(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
 {
-	return GetDiffuseLighting(reservoir, lightSource, origin, Sx1Payload, seed);
+	return GetStylizedLighting(reservoir, lightSource, origin, Sx1Payload, seed);
 }
 
 float UpdateReservoirWeight(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
 {
 
     //Target function.
-    float4 pHat = GetDiffuseLighting(reservoir, lightSource, origin, Sx1Payload, seed);
+    float4 pHat = GetStylizedLighting(reservoir, lightSource, origin, Sx1Payload, seed);
 
     reservoir.W = pHat > 0.0 ? (reservoir.wSum / reservoir.M) / pHat : 0.0;
     reservoir.pHat = pHat;

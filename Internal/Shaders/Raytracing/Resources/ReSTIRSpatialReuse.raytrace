@@ -39,20 +39,6 @@ void InitializeReservoir(inout Reservoir reservoir)
     reservoir.age = 0;
 }
 
-bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float c, float2 randSeed)
-{
-    reservoir.M += c;
-    reservoir.wSum += weight;
-
-    if(rand(randSeed) < weight / reservoir.wSum)
-    {
-        reservoir.Y = lightX;
-        return true;
-    }
-
-    return false;
-}
-
 
 //Just a basic unbiased direct lighter for one light.
 float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
@@ -77,7 +63,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float2 previousFrameIndex = ((prevUV*dim.xy + dim.xy) / 2) - 0.5f;
 
-    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
+    uint randSeed = GetRandomSeed(id.xy, 0);
     int currentReservoirTemporal = 0;//_UnigmaFrameCount % _TemporalReservoirsCount;
     int reservoirIndex = id.x + id.y*dim.x; //id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
 
@@ -99,87 +85,6 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
 
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
-    //----------------Begin Restir by holding X0, X1 as constants and perform integration for X2------------------//
-    /*
-    //----------------------------------
-    //------------------------------------RIS ALGORITHM------------------------------//
-
-    //Algorithm 3, initial light candidates
-    //Firstly M is the number of samples we want.
-    uint MareaSamples = 32;
-    for(uint i = 0; i < MareaSamples; i++)
-    {
-        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i+i);
-        uint lightIndex = uint(rand(randSeed) * (_NumberOfLights)); //randomly get a light to sample from.
-
-        //Sample the area light given that light index.
-        float4 lightSample = AreaLightSample(randSeed, _unigmaLights[lightIndex]);
-
-        float3 toLight = normalize(lightSample.xyz - x2Origin);
-
-        //Create the target function to approximate it.
-        float Gx = 1.0f / (distance(lightSample.xyz, x2Origin));
-        float Le = _unigmaLights[lightIndex].emission;
-        float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
-        float pHat = BRDF * Le * Gx;
-
-        float weight = pHat;
-        
-        addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeed);
-    }
-
-    float4 lightSample = AreaLightSample(randSeed, _unigmaLights[currentReservoir.Y]);
-    float3 x2Direction = normalize(lightSample.xyz - x2Origin);
-    UpdateReservoirWeight(currentReservoir, x2Origin, Sx1Payload, randSeed);
-    //Now let's create Sample X2.
-    RayDesc Sx2Ray;
-    Payload Sx2Payload;
-    CreateSample(Sx2Ray, Sx2Payload, x2Origin, x2Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
-
-    float visible = step(0.0001, Sx2Payload.color.w);
-    if(visible < 0.001)
-    {
-        currentReservoir.W = 0;
-    }
-
-    //----------------------------------
-    //------------------------------------SPATIOTEMPORAL ALGORITHM------------------------------//
-
-    //Temporal
-    //Add previous samples.
-    //Same pixel and also same time.
-    float randSeedR = payload.pixel + _Time.xy;
-    Reservoir previousReservoir = _reservoirs[reservoirIndex];
-
-    bool reservoirValid = previousReservoir.M > 0;
-    if(reservoirValid)
-    {
-        previousReservoir.M = min(MHistoryLength * currentReservoir.M, previousReservoir.M); //History length.
-
-        uint prevLightIndex = previousReservoir.Y;
-        float4 prevLightSample = AreaLightSample(randSeedR, _unigmaLights[prevLightIndex]);
-
-        float3 prevToLight = normalize(prevLightSample.xyz - previousReservoir.x1);
-
-        float pHat = UpdateReservoirWeight(previousReservoir, previousReservoir.x1, Sx1Payload, randSeedR);
-
-        addReservoirSample(currentReservoir, previousReservoir.Y, previousReservoir.W, previousReservoir.M, randSeedR);
-    }
-
-
-    //Add this reservoir to final sample.
-    UpdateReservoirWeight(currentReservoir, x2Origin, Sx1Payload, randSeed);
-
-    //Get the visibility
-    if(visible < 0.001)
-    {
-        currentReservoir.W = 0;
-    }
-
-    currentReservoir.x1 = x2Origin;
-    _reservoirs[storageReservoirIndex] = currentReservoir;
-    */
 
     //Get reservoir from the previous pass.
     Reservoir currentReservoir = _reservoirs[storageReservoirIndex];
@@ -190,19 +95,20 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     Reservoir spatialReservoir;
     InitializeReservoir(spatialReservoir);
 
+
     //Combine with spatial Reservoir
     addReservoirSample(spatialReservoir, currentReservoir.Y, currentReservoir.pHat * currentReservoir.W * currentReservoir.M, currentReservoir.M, randSeed);
+
     //UpdateReservoirWeight(spatialReservoir, x2Origin, Sx1Payload, randSeed);
-    /*
     int _NumberOfNeighbors = 15;
     int _NeighborsRadius = 5;
     for(int i = 0; i < _NumberOfNeighbors; i++)
     {
         //Sample neighbors in a grid fashion to get index of what neighbor to sample from.
         float2 neighborIndex = 0;
-        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i*i);
-        neighborIndex.x = int(rand(randSeed*randSeed + rand(randSeed))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
-		neighborIndex.y = int(rand(randSeed*randSeed + rand(randSeed + float2(1,2)))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+        uint randSeed = GetRandomSeed(id.xy, i);
+        neighborIndex.x = int(rand(randSeed + rand(randSeed))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+		neighborIndex.y = int(rand(randSeed + rand(randSeed + float2(1,2)))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
 		neighborIndex.x = max(0, min(dim.x - 1, id.x + neighborIndex.x));
 		neighborIndex.y = max(0, min(dim.y - 1, id.y + neighborIndex.y));
 
@@ -212,7 +118,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         Reservoir neighborReservoir = _reservoirs[reservoirIndex];
         addReservoirSample(spatialReservoir, neighborReservoir.Y, neighborReservoir.pHat * neighborReservoir.W * neighborReservoir.M, neighborReservoir.M, randSeed);
     }
-    */
+
     float spatialPDF = UpdateReservoirWeight(spatialReservoir, _unigmaLights[spatialReservoir.Y], x2Origin, Sx1Payload, randSeed);
 
     

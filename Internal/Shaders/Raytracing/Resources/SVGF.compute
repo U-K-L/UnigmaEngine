@@ -261,6 +261,8 @@ void Atorus(uint3 id : SV_DispatchThreadID)
 			sumVariance += sampleVariance * weight;
 		}
 	}
+	//Is UnigmaGlobal Illumination NAN in any component
+	float nan = IsNaN(_UnigmaGlobalIllumination[id.xy].x) + IsNaN(_UnigmaGlobalIllumination[id.xy].y) + IsNaN(_UnigmaGlobalIllumination[id.xy].z) + IsNaN(_UnigmaGlobalIllumination[id.xy].w);
 	_UnigmaDenoisedGlobalIlluminationTemp[id.xy] = sum / sumWeights;
 
 }

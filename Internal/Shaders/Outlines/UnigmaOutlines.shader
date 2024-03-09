@@ -215,6 +215,7 @@ Shader "Unigma/UnigmaOutlines"
                 //return float4(GlobalIllumination.xyz, 1);
                 //return _UnigmaDepthShadows;
                 //return  FinalColor*0.2 + GlobalIllumination;
+                //return GlobalIlluminationDenoised;
                 return GlobalIllumination;
 				//return lerp(FinalColor, FinalColor * 0.75 + GlobalIllumination * 0.75, saturate(GlobalIllumination.a+0.5));
                 //return GlobalIlluminationDenoised*0.25 + FinalColor;

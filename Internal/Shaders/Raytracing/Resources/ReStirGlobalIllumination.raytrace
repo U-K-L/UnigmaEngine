@@ -39,19 +39,6 @@ void InitializeReservoir(inout Reservoir reservoir)
     reservoir.age = 0;
 }
 
-bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float c, float2 randSeed)
-{
-    reservoir.M += c;
-    reservoir.wSum += weight;
-
-    if(rand(randSeed) < weight / reservoir.wSum)
-    {
-        reservoir.Y = lightX;
-        return true;
-    }
-
-    return false;
-}
 
 float3 ComputeBRDF(inout Payload payload, in RayDesc ray, int bounce)
 {
@@ -94,193 +81,6 @@ float4 areaSampleLights(inout Payload payload, inout RayDesc ray, inout Reservoi
     return float4(BRDF, 1.0);
 }
 
-float4 ShadePixel(inout Payload payload, inout RayDesc ray)
-{
-    float lightStrengthCostant = 0.1;
-    payload.pixel += _Time.xy;
-    //Hit the first object.
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
-    float distanceFromPoint = 0.01;
-    float3 materialColor = payload.color;
-    float3 materialNormal = payload.direction;
-
-    ray.Origin = ray.Origin + ray.Direction * (payload.distance - distanceFromPoint);
-    ray.Direction = payload.direction;
-
-    float3 materialPosition = ray.Origin;
-
-    float3 BRDF = ComputeBRDF(payload, ray, 0);
-
-    Reservoir temporalReservoir;
-    InitializeReservoir(temporalReservoir);
-
-    uint3 id = DispatchRaysIndex();
-    uint3 dim = DispatchRaysDimensions();
-
-    float4 pixelColor = 0;
-    float pdf = 1.0 / (float)_NumberOfLights;
-    float pHat = 0;
-
-    float3 cachedPosition = ray.Origin;
-    float3 cachedDirection = ray.Direction;
-
-
-    //Algorithm 3, initial candidates
-    for(uint i = 0; i < _NumberOfLights; i++)
-    {
-        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i+i);
-        uint lightIndex = uint(rand(randSeed) * (_NumberOfLights));
-
-        float3 lightPosition = _unigmaLights[lightIndex].position;
-
-        float3 toLight = normalize(lightPosition - ray.Origin);
-        
-        float cosTheta = sdot(payload.direction, toLight);
-        pHat = length(payload.color.xyz / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
-       
-        float weight = pHat;// / pdf;
-        addReservoirSample(temporalReservoir, lightIndex, weight, 1, randSeed);
-    }
-
-
-
-
-    
-    //Evaluate visibility for initial candidates
-    uint lightIndex = temporalReservoir.Y;
-
-    float3 lightPosition = _unigmaLights[lightIndex].position;
-
-    float3 toLight = normalize(lightPosition - materialPosition);
-        
-    float cosTheta = sdot(payload.direction, toLight);
-
-
-
-    
-    ray.Direction = toLight;
-    ray.Origin = materialPosition;
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
-    float visible = step(0.0001, payload.color.w);
-
-    if(visible < 0.001)
-    {
-        temporalReservoir.W = 0;
-    }
-
- 
-    //Temporal reuse.
-    //Add current sample.
-    float2 randSeedR2 = payload.pixel + _Time.xy + float2(rand(payload.pixel + id.xy), rand(payload.pixel + dim.xy));
-    float weightR2 =  pHat * temporalReservoir.W * temporalReservoir.M;
-    
-    pHat = length(payload.color.xyz / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
-
-    temporalReservoir.W = pHat > 0.0 ? (temporalReservoir.wSum / temporalReservoir.M) / pHat : 0.0;
-    addReservoirSample(temporalReservoir, temporalReservoir.Y, weightR2, 0, randSeedR2);
-    
-    //Add previous samples.
-    for(int i = 0; i < _TemporalReservoirsCount; i++)
-    {
-        int currentIndex =  id.x + id.y*dim.x + i*dim.x*dim.y;
-
-        Reservoir previousReservoir = _reservoirs[currentIndex];
-        previousReservoir.M = min(8 * temporalReservoir.M, previousReservoir.M);
-
-        lightIndex = previousReservoir.Y;
-
-        lightPosition = _unigmaLights[lightIndex].position;
-
-        toLight = normalize(lightPosition - materialPosition);
-        
-        cosTheta = sdot(materialNormal, toLight);
-
-        pHat = length(materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
-
-        float randSeedR = payload.pixel + _Time.xy + float2(i, i*i*i);
-        float weightR =  pHat * previousReservoir.W * previousReservoir.M;
-        addReservoirSample(temporalReservoir, previousReservoir.Y, weightR, previousReservoir.M, randSeedR);
-    }
-    
-
-    lightIndex = temporalReservoir.Y;
-
-    lightPosition = _unigmaLights[lightIndex].position;
-
-    toLight = normalize(lightPosition - materialPosition);
-        
-    cosTheta = sdot(materialNormal, toLight);
-
-    pHat = length(materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
-    temporalReservoir.W = pHat > 0.0 ? (temporalReservoir.wSum / temporalReservoir.M) / pHat : 0.0;
-
-    int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
-    int reservoirIndex = id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
-    _reservoirs[reservoirIndex] = temporalReservoir;
-
-
-    //Global illumination.
-
-
-
-
-    //Spatial reuse
-    int _NumberOfNeighbors = 15;
-    int _NeighborsRadius = 5;
-
-    for(int i = 0; i < _NumberOfNeighbors; i++)
-    {
-        float2 neighborIndex = 0;
-        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i*i);
-        neighborIndex.x = int(rand(randSeed) * _NeighborsRadius * 2.f) - _NeighborsRadius;
-		neighborIndex.y = int(rand(randSeed+1) * _NeighborsRadius * 2.f) - _NeighborsRadius;
-
-		neighborIndex.x = max(0, min(dim.x - 1, id.x + neighborIndex.x));
-		neighborIndex.y = max(0, min(dim.y - 1, id.y + neighborIndex.y));
-
-        int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
-        int reservoirIndex = neighborIndex.x + neighborIndex.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
-
-        Reservoir neighborReservoir = _reservoirs[reservoirIndex];
-
-        lightIndex = neighborReservoir.Y;
-
-        lightPosition = _unigmaLights[lightIndex].position;
-
-        toLight = normalize(lightPosition - materialPosition);
-        
-        cosTheta = sdot(materialNormal, toLight);
-
-        pHat = length(materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
-        float weightR =  pHat * neighborReservoir.W * neighborReservoir.M;
-        addReservoirSample(temporalReservoir, neighborReservoir.Y, weightR, neighborReservoir.M, randSeed);
-    }
-
-
-    //pixelColor = areaSampleLights(payload, ray, temporalReservoir) + float4(BRDF, 1);
-    lightIndex = temporalReservoir.Y;
-
-    lightPosition = _unigmaLights[lightIndex].position;
-
-    toLight = normalize(lightPosition - materialPosition);
-        
-    cosTheta = sdot(materialNormal, toLight);
-
-    pHat = length(materialColor / RUNITY_PI *  (_unigmaLights[lightIndex].emission*lightStrengthCostant)*cosTheta);
-    temporalReservoir.W = pHat > 0.0 ? (temporalReservoir.wSum / temporalReservoir.M) / pHat : 0.0;
-    temporalReservoir.pHat = pHat;
-    
-
-    float4 weightFinal = temporalReservoir.W;
-
-    //Set this reservoir as a past frame.
-
-
-    
-    return (float4(materialColor, 1)*weightFinal*pHat + float4(BRDF, 1));
-
-}
-
 //Just a basic unbiased direct lighter for one light.
 float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 {
@@ -303,7 +103,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float2 previousFrameIndex = ((prevUV*dim.xy + dim.xy) / 2) - 0.5f;
 
-    float randSeed = GetRandomSeed(id.xy, 0);//payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
+    uint randSeed = GetRandomSeed(id.xy, 0);//payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
     int currentReservoirTemporal = 0;//_UnigmaFrameCount % _TemporalReservoirsCount;
     int reservoirIndex = previousFrameIndex.x + previousFrameIndex.y*dim.x; //id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
 
@@ -341,11 +141,11 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     for(uint i = 0; i < min(_NumberOfLights, MareaSamples); i++)
     {
         //TODO: Better random.
-        uint randSeed = GetRandomSeed(id.xy, i);//payload.pixel + _Time.xy + float2(i,i);
+        uint randSeedLight = GetRandomSeed(id.xy, i);//payload.pixel + _Time.xy + float2(i,i);
         float numLights = (float)_NumberOfLights;
-        uint lightIndex = QualityRand(randSeed)*numLights;//uint(ceil(rand(randSeed*randSeed + rand(randSeed)) * (numLights-1))); //randomly get a light to sample from.
+        uint lightIndex = rand(randSeedLight)*numLights; //randomly get a light to sample from.
         //Sample the area light given that light index.
-        float4 lightSample = AreaLightSample(x2Origin, randSeed, _unigmaLights[lightIndex]);
+        float4 lightSample = AreaLightSample(x2Origin, randSeedLight, _unigmaLights[lightIndex]);
 
         float3 toLight = normalize(lightSample.xyz - x2Origin);
 
@@ -357,9 +157,9 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
         float weight = pHat;
         
-        addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeed);
+        addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeedLight);
     }
-
+    
     float4 lightSample = AreaLightSample(x2Origin, randSeed, _unigmaLights[currentReservoir.Y]);
     float3 x2Direction = normalize(lightSample.xyz - x2Origin);
     float currentPhat = UpdateReservoirWeight(currentReservoir,_unigmaLights[currentReservoir.Y], x2Origin, Sx1Payload, randSeed);
@@ -392,21 +192,11 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     Reservoir previousReservoir = _reservoirs[reservoirIndex];
     InitializeReservoir(temporalReservoir);
 
-    /*
-    previousReservoir.Y = _reservoirs[reservoirIndex].Y;
-    previousReservoir.W = _reservoirs[reservoirIndex].W;
-    previousReservoir.wSum = _reservoirs[reservoirIndex].wSum;
-    previousReservoir.M = _reservoirs[reservoirIndex].M;
-    previousReservoir.pHat = _reservoirs[reservoirIndex].pHat;
-    previousReservoir.x1 = _reservoirs[reservoirIndex].x1;
-    */
-
-
     //Combine current reservoir.
     addReservoirSample(temporalReservoir, currentReservoir.Y, currentReservoir.pHat * currentReservoir.W * currentReservoir.M, 1, randSeed);
 
 
-    if(distance(prevUV, UV) > 0.00001 || distance(x2Origin, previousReservoir.x1) > 0.001 || (abs(previousReservoir.pHat - currentPhat) / currentPhat) > 0.2)
+    if(distance(prevUV, UV) > 0.00001 || distance(x2Origin, previousReservoir.x1) > 0.001 || (abs(previousReservoir.pHat - currentPhat) / currentPhat) > 0.52)
     {
         //previousReservoir.age = 0;
         previousReservoir.M = 0;
@@ -420,8 +210,6 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     float3 prevToLight = normalize(prevLightSample.xyz - previousReservoir.x1);
 
-    //float pHat = GetTargetFunction(previousReservoir, previousReservoir.x1, Sx1Payload, randSeedR);
-
     float weight = previousReservoir.pHat *previousReservoir.W*previousReservoir.M;
 
     addReservoirSample(temporalReservoir, previousReservoir.Y, weight, previousReservoir.M, randSeed);
@@ -433,58 +221,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     currentReservoir.x1 = x2Origin;
     _reservoirs[storageReservoirIndex] = currentReservoir;
-        /*
-    //Spatial reuse.
-    Reservoir spatialReservoir;
-    InitializeReservoir(spatialReservoir);
-    int _NumberOfNeighbors = 15;
-    int _NeighborsRadius = 5;
-
-    for(int i = 0; i < _NumberOfNeighbors; i++)
-    {
-        //Sample neighbors in a grid fashion to get index of what neighbor to sample from.
-        float2 neighborIndex = 0;
-        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i*i);
-        neighborIndex.x = int(rand(randSeed) * _NeighborsRadius * 2.f) - _NeighborsRadius;
-		neighborIndex.y = int(rand(randSeed+1) * _NeighborsRadius * 2.f) - _NeighborsRadius;
-		neighborIndex.x = max(0, min(dim.x - 1, id.x + neighborIndex.x));
-		neighborIndex.y = max(0, min(dim.y - 1, id.y + neighborIndex.y));
-
-        //Get the reservoir of neighboring pixels.
-        int currentReservoirTemporal = _UnigmaFrameCount % _TemporalReservoirsCount;
-        int reservoirIndex = neighborIndex.x + neighborIndex.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
-        Reservoir neighborReservoir = _reservoirs[reservoirIndex];
-
-        //Begin using spatial neighbors to update the weights.
-        //Check if valid sample.
-        bool reservoirValid = (neighborReservoir.M > 0) && (neighborReservoir.W > 0);
-        if(reservoirValid)
-        {
-            uint neighborLightIndex = neighborReservoir.Y;
-            float4 neighborLightSample = AreaLightSample(randSeed, _unigmaLights[neighborLightIndex]);
-            float3 neighborToLight = normalize(neighborLightSample.xyz - neighborReservoir.x1);
-            float pHat = GetTargetFunction(neighborReservoir, neighborReservoir.x1, Sx1Payload, randSeed);
-            addReservoirSample(spatialReservoir, neighborReservoir.Y, pHat * neighborReservoir.W * neighborReservoir.M, neighborReservoir.M, randSeed);
-        }
-    }
-
-    float spatialPDF = UpdateReservoirWeight(spatialReservoir, x2Origin, Sx1Payload, randSeed);
-
-    //Combine with spatial Reservoir
-    addReservoirSample(currentReservoir, spatialReservoir.Y, spatialPDF * spatialReservoir.W * spatialReservoir.M, spatialReservoir.M, randSeed);
-    //----------------------------------
-    //------------------------------------FINAL GATHER------------------------------//
-
-    //Now that we have stored our reservoirs we look for the current light to sample.
-    uint lightIndex = currentReservoir.Y; //This new light index comes from the weighted reservoir we computed.
-
-    float pHat = GetTargetFunction(currentReservoir, x2Origin, Sx1Payload, randSeed);
-
-    float4 weightFinal = currentReservoir.W;
-
-
-    return pHat*weightFinal*Sx1Payload.color;
-    */
+    
     return Sx1Payload.color.w * Sx1Payload.color;
 }
 
@@ -894,7 +631,7 @@ void RestirGlobalIllumantionRayGen()
     for(int i = 0; i < numSamples; i++)
     {
         targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples;
-        targetResult += SampleIndirect(payload, ray)*inverseSamples;
+        //targetResult += SampleIndirect(payload, ray)*inverseSamples;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 

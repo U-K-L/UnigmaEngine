@@ -121,6 +121,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaDenoisedGlobalIlluminationTemporal;
     public RenderTexture _UnigmaDenoisedGlobalIlluminationTemp;
     public RenderTexture _UnigmaDepthTemporal;
+    public Texture2D _UnigmaBlueNoise;
     
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
@@ -373,9 +374,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaDenoisedGlobalIlluminationTemp = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaDenoisedGlobalIlluminationTemp.enableRandomWrite = true;
         _UnigmaDenoisedGlobalIlluminationTemp.Create();
-
+        
         _renderTextureWidthPrev = _renderTextureWidth;
         _renderTextureHeightPrev = _renderTextureHeight;
+
+
 
     }
 
@@ -717,6 +720,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.SetGlobalTexture("_UnigmaNormalTemporal", _UnigmaNormalTemporal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionIDTemporal", _UnigmaMotionIDTemporal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaAlbedoTemporal", _UnigmaAlbedoTemporal);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaBlueNoise", _UnigmaBlueNoise);
 
 
         outlineDepthBuffer.SetRenderTarget(_UnigmaNormal);

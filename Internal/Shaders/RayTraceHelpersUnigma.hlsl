@@ -1,6 +1,7 @@
 #define RUNITY_PI 3.14159265359
 
 #include "UnityCG.cginc"
+Texture2D<float4> _UnigmaBlueNoise;
 //Struct definitions.
 struct Sample
 {
@@ -113,9 +114,28 @@ uint MortonX(uint x)
     return x;
 }
 
+
+uint IntegerCompact(uint x)
+{
+    x = (x & 0x11111111) | ((x & 0x44444444) >> 1);
+    x = (x & 0x03030303) | ((x & 0x30303030) >> 2);
+    x = (x & 0x000F000F) | ((x & 0x0F000F00) >> 4);
+    x = (x & 0x000000FF) | ((x & 0x00FF0000) >> 8);
+    return x;
+}
+
 uint ZCurveToLinearIndex(uint2 xy)
 {
     return MortonX(xy[0]) | (MortonX(xy[1]) << 1);
+}
+
+
+// Converts a linear to a 2D position following a Z-curve pattern.
+uint2 LinearIndexToZCurve(uint index)
+{
+    return uint2(
+        IntegerCompact(index),
+        IntegerCompact(index >> 1));
 }
 
 // 32 bit Jenkins hash
@@ -134,11 +154,11 @@ uint JenkinsHash(uint a)
 uint GetRandomSeed(uint2 pixelLocation, uint _Offset)
 {
     uint Zindex = ZCurveToLinearIndex(pixelLocation);
-    uint seed = JenkinsHash(Zindex) + _Time.y * 1000 + _Offset;
+    uint seed = JenkinsHash(Zindex);
     //Offset seed by time
-    //float floatSeed = (float)seed; +_Time.y;
+    seed += _Time.y *1000;
     //Offset seed by frame
-    //floatSeed += _Offset;
+    seed += _Offset;
     return seed;
 }
 
@@ -175,6 +195,7 @@ uint murmur3(uint seed, uint index)
     return hash;
 }
 
+
 float sampleUniformRng(uint seed, uint index = 1)
 {
     uint v = murmur3(seed, index);
@@ -188,9 +209,28 @@ float QualityRand(uint seed)
     return sampleUniformRng(seed);
 }
 
+
 float rand(uint seed)
 {
-    return QualityRand(seed);
+
+    uint3 id = DispatchRaysIndex();
+    uint3 dim = DispatchRaysDimensions();
+    float2 zSeed = LinearIndexToZCurve(seed);
+    
+    float val = asfloat(zSeed.x);
+    float3 co = float3(val, val, val);
+    float2 rSeed = frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+
+    val = asfloat(zSeed.y);
+    co = float3(val, val, val);
+    rSeed.y = frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+	rSeed *= dim.xy;
+
+    float2 textureSize = float2(1024, 1024);
+    float2 UV = ((rSeed.xy + float2(0.5, 0.5)) / float2(dim.x, dim.y)) * 2 - 1;
+    float2 index = ((UV * textureSize.xy + textureSize.xy) / 2) - 0.5f;
+    
+    return _UnigmaBlueNoise[index].r;//QualityRand(seed);
 }
 
 
@@ -439,7 +479,7 @@ void CreateSurface(inout Surface surface, float3 position, float3 normal, float3
 	surface.emittance = emittance;
 }
 
-bool addReservoirSamplePath(inout ReservoirPath reservoir, inout ReservoirPath newReservoir, float weight, float c, float2 randSeed)
+bool addReservoirSamplePath(inout ReservoirPath reservoir, inout ReservoirPath newReservoir, float weight, float c, uint randSeed)
 {
     float risWeight = weight * newReservoir.wSum * newReservoir.M;
     reservoir.M += c;
@@ -451,6 +491,21 @@ bool addReservoirSamplePath(inout ReservoirPath reservoir, inout ReservoirPath n
         reservoir.position = newReservoir.position;
         reservoir.radiance = newReservoir.radiance;
         reservoir.normal = newReservoir.normal;
+        return true;
+    }
+
+    return false;
+}
+
+bool addReservoirSample(inout Reservoir reservoir, uint lightX, float weight, float c, uint randSeed)
+{
+    reservoir.M += c;
+    reservoir.wSum += weight;
+    reservoir.pHat = weight;
+
+    if (rand(randSeed) < weight / reservoir.wSum)
+    {
+        reservoir.Y = lightX;
         return true;
     }
 
@@ -574,7 +629,7 @@ float4 AreaLightSample(float3 position, uint seed, UnigmaLight lightSource)
 
 float GetTargetFunction(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
 {
-
+	seed = 0;
     uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
     float4 lightSample = AreaLightSample(origin, seed, lightSource);
     float3 toLight = normalize(lightSample.xyz - origin);
@@ -591,7 +646,6 @@ float GetTargetFunction(inout Reservoir reservoir, UnigmaLight lightSource, floa
 
 float UpdateReservoirWeight(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)
 {
-
     uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
     float4 lightSample = AreaLightSample(origin, seed, lightSource);
     float3 toLight = normalize(lightSample.xyz - origin);

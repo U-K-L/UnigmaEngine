@@ -223,7 +223,7 @@ Shader "Unigma/UnigmaOutlines"
                 //return FinalColor;
                 //return normalMap;
 				//return FinalColor + GlobalIlluminationDenoised * 0.25;
-                return lerp(FinalColor, FinalColor*0.15 + GlobalIlluminationDenoised*1.25, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
+                return lerp(FinalColor, FinalColor*0.75 + GlobalIlluminationDenoised, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }

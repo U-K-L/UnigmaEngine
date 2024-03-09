@@ -370,18 +370,18 @@ void RestirGlobalIllumantionRayGen()
     for(int i = 0; i < numSamples; i++)
     {
         
-        targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples;
+        targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples*0.5;
         float4 indirectSample = SampleIndirect(payload, ray)*inverseSamples;
         float4x4 saturation = saturationMatrix(3.6);
         float4x4 constrast = contrastMatrix(0.60);
         indirectSample = mul(indirectSample, saturation);
         indirectSample = mul(indirectSample, constrast);
         indirectSample *= 0.5;
-        //targetResult += indirectSample;
+        targetResult += indirectSample;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 
-    _UnigmaGlobalIllumination[dispatchIdx] += targetResult;
+    _UnigmaGlobalIllumination[dispatchIdx] += SampleIndirect(payload, ray);//targetResult;
 
 
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;

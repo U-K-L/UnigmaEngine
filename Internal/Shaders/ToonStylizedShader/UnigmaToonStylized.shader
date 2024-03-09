@@ -2,8 +2,8 @@ Shader "Unigma/UnigmaToonStylized"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "black" {}
-        _NormalMap("Texture", 2D) = "black" {}
+        _MainTex ("Augmented RGB Normal Map", 2D) = "black" {}
+        _NormalMap("Normal Map", 2D) = "black" {}
 	    _Midtone("Midtone", Color) = (1,1,1,1)
 		_Shadow("Shadow", Color) = (1,1,1,1)
 		_Highlight("Highlight", Color) = (1,1,1,1)
@@ -204,10 +204,10 @@ Shader "Unigma/UnigmaToonStylized"
                 float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
                 worldNormal = worldNormalTBN;
                 float3 rgbNormalMap = tex.xzy * 2 - 1;
-                if (_NormalMap.SampleLevel(sampler_NormalMap, uvs, 0).w <= 0)
-                    worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz);
-                if (_NormalMap.SampleLevel(sampler_NormalMap, uvs, 0).w > 0)
-                    worldNormal = normalize(mul(ObjectToWorld3x4(), float4(rgbNormalMap, 0)).xyz);
+                if (_NormalMap.SampleLevel(sampler_NormalMap, uvs, 0).w <= 0) //If there isn't a normal map texture.
+                    worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz); //Set to regular world normal based on vertices.
+                if (_MainTex.SampleLevel(sampler_MainTex, uvs, 0).w > 0) //If there is a RGB normal map.
+                    worldNormal = normalize(mul(ObjectToWorld3x4(), float4(rgbNormalMap, 0)).xyz); //Set to RGB normal map.
 
 
                 float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);

@@ -266,7 +266,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
     int storageReservoirTemporal =  1;//(_UnigmaFrameCount+1) % _TemporalReservoirsCount;
     int storageReservoirIndex = id.x + id.y*dim.x + storageReservoirTemporal*dim.x*dim.y;
-    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
+    uint randSeed = GetRandomSeed(id.xy, 0);//payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
 
     //Hit the first object. This is sample x0. Starts from the pixel plane, shoots direction of camera and perspective.
     RayDesc Sx0Ray;
@@ -295,7 +295,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //If it hit nothing return early.
     if(Sx2Payload.distance > 9999)
 	{
-		return 0;//return float4(0.85,0.77,0.8,1)*0.85;
+		//return 0;//return float4(0.85,0.77,0.8,1)*0.85;
 	}
 
     //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.

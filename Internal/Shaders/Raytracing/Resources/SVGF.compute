@@ -41,7 +41,7 @@ float luminance(float3 color)
 
 bool CheckNormalSimilarity(float3 currentNormal, float3 prevNormal)
 {
-	if (pow(abs(dot(currentNormal, prevNormal)), 1) < 0.2)
+	if (pow(abs(dot(currentNormal, prevNormal)), 1) < 0.02)
 		return false;
 	else
 		return true;
@@ -52,7 +52,7 @@ bool CheckPlane(float3 currentPos, float3 prevPos, float3 currentNormal)
 	float3 toCurrent = currentPos - prevPos;
 	float distToPlane = abs(dot(toCurrent, currentNormal));
 
-	return distToPlane < 0.000051;
+	return distToPlane < 0.00051;
 	
 }
 
@@ -138,6 +138,11 @@ void SVGFKernel(uint3 id : SV_DispatchThreadID)
 	int flattenIndex = id.x + id.y * dim.x;
 	float variance = 1.0;
 
+	if (distance(invPrevUV, UV) > 0.00001)
+	{
+		_SVGFBuffer[previousFrameIndedFlatten].history *= 0.05;
+	}
+	
 	if (CheckReprojection(id.xy, previousFrameIndex))
 	{
 		float4 prevSample = _UnigmaDenoisedGlobalIlluminationTemporal[previousFrameIndex];
@@ -221,7 +226,7 @@ void Atorus(uint3 id : SV_DispatchThreadID)
 	float sumVariance = variance;
 
 	
-	int _KernelSize = 2;
+	int _KernelSize = 3;
 	const float kernelWeights[4] = { 1.0, 2.0 / 3.0, 1.0 / 6.0, 1.0 / 9.0 };
 
 	float3 centerNormal = _UnigmaNormal[id.xy].xyz;

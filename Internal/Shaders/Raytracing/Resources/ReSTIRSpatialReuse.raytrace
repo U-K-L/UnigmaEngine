@@ -107,8 +107,8 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         //Sample neighbors in a grid fashion to get index of what neighbor to sample from.
         float2 neighborIndex = 0;
         uint randSeed = GetRandomSeed(id.xy, i);
-        neighborIndex.x = int(rand(randSeed + rand(randSeed))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
-		neighborIndex.y = int(rand(randSeed + rand(randSeed + float2(1,2)))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+        neighborIndex.x = int(rand(randSeed)  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+		neighborIndex.y = int( (rand(randSeed) + rand(randSeed + 1) )  * _NeighborsRadius * 2.f) - _NeighborsRadius;
 		neighborIndex.x = max(0, min(dim.x - 1, id.x + neighborIndex.x));
 		neighborIndex.y = max(0, min(dim.y - 1, id.y + neighborIndex.y));
 
@@ -153,7 +153,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
     float2 previousFrameIndex = ((prevUV*dim.xy + dim.xy) / 2) - 0.5f;
 
-    float2 randSeed = payload.pixel+_Time.xy + float2(rand(_Time.x*_PassCount+_Time.x), rand(_Time.y+_PassCount));
+    uint randSeed = GetRandomSeed(id.xy, 0);
     int currentReservoirTemporal = 0;//_UnigmaFrameCount % _TemporalReservoirsCount;
     int reservoirIndex = id.x + id.y*dim.x; //id.x + id.y*dim.x + currentReservoirTemporal*dim.x*dim.y;
 
@@ -231,15 +231,15 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     currentNormalDepth = float4( currentReservoirPath.normal, currentNormalDepth.r);
     float _GeometricSimilarityThreshold = 10.5;
     int _NumberOfNeighbors = 15;
-    int _NeighborsRadius = 5;
+    int _NeighborsRadius = 8;
     float numberOfTimes = 0;
     for(int i = 0; i < _NumberOfNeighbors; i++)
     {
         //Sample neighbors in a grid fashion to get index of what neighbor to sample from.
         float2 neighborIndex = 0;
-        float2 randSeed = payload.pixel + _Time.xy + float2(i, i*i*i);
-        neighborIndex.x = int(rand(randSeed*randSeed + rand(randSeed))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
-		neighborIndex.y = int(rand(randSeed*randSeed + rand(randSeed + float2(1,2)))  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+        uint randSeed = GetRandomSeed(id.xy, i);
+        neighborIndex.x = int(rand(randSeed)  * _NeighborsRadius * 2.f) - _NeighborsRadius;
+		neighborIndex.y = int((rand(randSeed) + rand(randSeed + 1) )*0.5 * _NeighborsRadius * 2.f) - _NeighborsRadius;
 		neighborIndex.x = max(0, min(dim.x - 1, id.x + neighborIndex.x));
 		neighborIndex.y = max(0, min(dim.y - 1, id.y + neighborIndex.y));
 
@@ -278,7 +278,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float pHat = selectedPdf;
     //currentReservoirPath.wSum =  (targetNumer == 0.0) ? 0.0 : (currentReservoirPath.wSum * targetNumer) / targetDenom;
     spatialReservoirPath.wSum = pHat == 0.f ? 0.f : spatialReservoirPath.wSum / (spatialReservoirPath.M * pHat);
-    
+    //return pHat;
         
     float visibility = 1.0;
     
@@ -381,7 +381,7 @@ void RestirGlobalIllumantionRayGen()
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 
-    _UnigmaGlobalIllumination[dispatchIdx] += SampleIndirect(payload, ray);//targetResult;
+    _UnigmaGlobalIllumination[dispatchIdx] += targetResult;
 
 
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;

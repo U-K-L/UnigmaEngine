@@ -487,7 +487,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             }
         }
 
-
+        /*
         //Add spherical map.
         int width = SphericalMap.width;
         int height = SphericalMap.height;
@@ -510,7 +510,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             Debug.Log("Light: " + i + " : " + lightList[i].position);
         }
-
+        */
     }
 
     void AddObjectsToAccerleration()

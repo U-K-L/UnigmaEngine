@@ -88,7 +88,7 @@ namespace PlayFab.Networking
                 {
                     Connection = conn,
                     ConnectionId = conn.connectionId,
-                    LobbyId = PlayFabMultiplayerAgentAPI.SessionConfig.SessionId
+                    //LobbyId = PlayFabMultiplayerAgentAPI.SessionConfig.SessionId
                 });
             }
         }

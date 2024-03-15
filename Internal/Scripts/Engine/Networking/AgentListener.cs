@@ -16,13 +16,14 @@ public class AgentListener : MonoBehaviour
     void Start()
     {
         _connectedPlayers = new List<ConnectedPlayer>();
+        /*
         PlayFabMultiplayerAgentAPI.Start();
         PlayFabMultiplayerAgentAPI.IsDebugging = Debugging;
         PlayFabMultiplayerAgentAPI.OnMaintenanceCallback += OnMaintenance;
         PlayFabMultiplayerAgentAPI.OnShutDownCallback += OnShutdown;
         PlayFabMultiplayerAgentAPI.OnServerActiveCallback += OnServerActive;
         PlayFabMultiplayerAgentAPI.OnAgentErrorCallback += OnAgentError;
-
+        */
         UnityNetworkServer.Instance.OnPlayerAdded.AddListener(OnPlayerAdded);
         UnityNetworkServer.Instance.OnPlayerRemoved.AddListener(OnPlayerRemoved);
 
@@ -30,9 +31,10 @@ public class AgentListener : MonoBehaviour
         // We *have to* do it on process mode, since there might be more than one game server instances on the same VM and we want to avoid port collision
         // On container mode, we can omit the below code and set the port directly, since each game server instance will run on its own network namespace. However, below code will work as well
         // we have to do that on process
-        var connInfo = PlayFabMultiplayerAgentAPI.GetGameServerConnectionInfo();
+        //var connInfo = PlayFabMultiplayerAgentAPI.GetGameServerConnectionInfo();
         // make sure the ListeningPortKey is the same as the one configured in your Build settings (either on LocalMultiplayerAgent or on MPS)
         const string ListeningPortKey = "gameport";
+        /*
         var portInfo = connInfo.GamePortsConfiguration.Where(x => x.Name == ListeningPortKey);
         if (portInfo.Count() > 0)
         {
@@ -47,12 +49,13 @@ public class AgentListener : MonoBehaviour
         }
 
         StartCoroutine(ReadyForPlayers());
+        */
     }
 
     IEnumerator ReadyForPlayers()
     {
         yield return new WaitForSeconds(.5f);
-        PlayFabMultiplayerAgentAPI.ReadyForPlayers();
+        //PlayFabMultiplayerAgentAPI.ReadyForPlayers();
     }
 
     private void OnServerActive()
@@ -65,13 +68,13 @@ public class AgentListener : MonoBehaviour
     {
         ConnectedPlayer player = _connectedPlayers.Find(x => x.PlayerId.Equals(playfabId, StringComparison.OrdinalIgnoreCase));
         _connectedPlayers.Remove(player);
-        PlayFabMultiplayerAgentAPI.UpdateConnectedPlayers(_connectedPlayers);
+        //PlayFabMultiplayerAgentAPI.UpdateConnectedPlayers(_connectedPlayers);
     }
 
     private void OnPlayerAdded(string playfabId)
     {
         _connectedPlayers.Add(new ConnectedPlayer(playfabId));
-        PlayFabMultiplayerAgentAPI.UpdateConnectedPlayers(_connectedPlayers);
+        //PlayFabMultiplayerAgentAPI.UpdateConnectedPlayers(_connectedPlayers);
     }
 
     private void OnAgentError(string error)

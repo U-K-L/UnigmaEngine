@@ -53,7 +53,7 @@ Shader "Unigma/UnigmaOutlines"
                 return o;
             }
             sampler2D _CameraMotionVectorsTexture;
-            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal;
+            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
@@ -68,7 +68,9 @@ Shader "Unigma/UnigmaOutlines"
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
                 fixed4 motionVectors = tex2D(_CameraMotionVectorsTexture, i.uv);
 				fixed4 normalMap = tex2D(_UnigmaNormal, i.uv);
-
+				fixed4 specularHighlights = tex2D(_UnigmaSpecularLights, i.uv);
+				fixed4 albedo = tex2D(_UnigmaAlbedo, i.uv);
+                
                 //return originalImage;
 				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
@@ -208,7 +210,7 @@ Shader "Unigma/UnigmaOutlines"
                 //float4 directLight = step(0.05, GlobalIllumination);
                 //return directLight;
 
-                return FinalColor;
+                //return FinalColor;
                 //return shadow0 * 10;
                 //return edgeUnigmaDepth;//pos0*10;//pos0;// *step(0.001, OutterLineColors.w);
                 //return float4(HDRToOutput(GlobalIllumination.xyz,-0.51), 1);
@@ -222,8 +224,14 @@ Shader "Unigma/UnigmaOutlines"
 
                 //return FinalColor;
                 //return normalMap;
-				//return FinalColor + GlobalIlluminationDenoised * 0.25;
-                return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows)));
+				//return FinalColor * GlobalIlluminationDenoised;
+				//return lerp(FinalColor, GlobalIllumination, 1-distance(FinalColor, GlobalIllumination));
+                //return albedo;
+                //return specularHighlights;
+                //return lerp(albedo, albedo * 0.75 + GlobalIllumination * 0.62, 0.541 + GlobalIllumination.w * 0.712 + (0.182 * (1.0 - shadows))) + specularHighlights;
+                
+                //return specularHighlights;
+                return lerp(FinalColor, FinalColor*0.75 + GlobalIlluminationDenoised*0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }

@@ -91,6 +91,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private ComputeShader computeOutlineColors;
     private ComputeShader unigmaDispatchInfoComputeShader;
     private ComputeShader svgfComputeShader;
+    private CommandBuffer outlineDepthBuffer;
     private Material _nullMaterial = default;
 
     private bool BuffersReady = false;
@@ -121,7 +122,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaDenoisedGlobalIlluminationTemporal;
     public RenderTexture _UnigmaDenoisedGlobalIlluminationTemp;
     public RenderTexture _UnigmaDepthTemporal;
+    public RenderTexture _UnigmaSpecularLights;
     public Texture2D _UnigmaBlueNoise;
+    
     
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
@@ -374,7 +377,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaDenoisedGlobalIlluminationTemp = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaDenoisedGlobalIlluminationTemp.enableRandomWrite = true;
         _UnigmaDenoisedGlobalIlluminationTemp.Create();
-        
+
+        _UnigmaSpecularLights = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaSpecularLights.enableRandomWrite = true;
+        _UnigmaSpecularLights.Create();
+
         _renderTextureWidthPrev = _renderTextureWidth;
         _renderTextureHeightPrev = _renderTextureHeight;
 
@@ -444,6 +451,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             _UnigmaDenoisedGlobalIlluminationTemp.Release();
             _UnigmaDenoisedGlobalIlluminationTemp = null;
+        }
+        if (_UnigmaSpecularLights != null)
+        {
+            _UnigmaSpecularLights.Release();
+            _UnigmaSpecularLights = null;
         }
 
     }
@@ -712,7 +724,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void CreateDepthNormalBuffers()
     {
-        CommandBuffer outlineDepthBuffer = new CommandBuffer();
+        outlineDepthBuffer = new CommandBuffer();
         outlineDepthBuffer.name = "OutlineDepthBuffer";
         outlineDepthBuffer.SetGlobalTexture("_UnigmaNormal", _UnigmaNormal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionID", _UnigmaMotionID);
@@ -721,6 +733,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionIDTemporal", _UnigmaMotionIDTemporal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaAlbedoTemporal", _UnigmaAlbedoTemporal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaBlueNoise", _UnigmaBlueNoise);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaSpecularLights", _UnigmaSpecularLights);
 
 
         outlineDepthBuffer.SetRenderTarget(_UnigmaNormal);
@@ -733,10 +746,17 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
         DrawIsometricDepthNormals(outlineDepthBuffer, 1);
 
-        //Third pass albedo
+        //Third pass specular highlights
+        outlineDepthBuffer.SetRenderTarget(_UnigmaSpecularLights);
+        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
+        DrawSpecularLight(outlineDepthBuffer);
+       
+
+        //Final pass albedo
         outlineDepthBuffer.SetRenderTarget(_UnigmaAlbedo);
         outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
         DrawIsometricAlbedo(outlineDepthBuffer);
+
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
 
     }
@@ -774,6 +794,19 @@ public class UnigmaCommandBuffers : MonoBehaviour
     }
 
     void DrawIsometricAlbedo(CommandBuffer outlineDepthBuffer)
+    {
+        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
+        {
+            IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
+            if (iso != null)
+                if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
+                {
+                    outlineDepthBuffer.DrawRenderer(r.renderer, r.renderer.material, 0, 1);
+                }
+        }
+    }
+
+    void DrawSpecularLight(CommandBuffer outlineDepthBuffer)
     {
         foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
         {
@@ -852,6 +885,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
             unigmaDispatchInfoBuffer.Release();
         if (svgfBuffer != null)
             svgfBuffer.Release();
+        if (outlineDepthBuffer != null)
+            outlineDepthBuffer.Release();
         CommandBuffer[] buffers = mainCam.GetCommandBuffers(CameraEvent.AfterForwardOpaque);
         foreach (CommandBuffer buffer in buffers)
         {

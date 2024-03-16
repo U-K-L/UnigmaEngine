@@ -37,6 +37,7 @@ Shader "Unigma/IsometricNormal"
             sampler2D _MainTex;
             float4 _MainTex_ST;
 
+            
             v2f vert (appdata v)
             {
                 v2f o;

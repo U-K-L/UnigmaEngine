@@ -377,7 +377,7 @@ void RestirGlobalIllumantionRayGen()
         indirectSample = mul(indirectSample, saturation);
         indirectSample = mul(indirectSample, constrast);
         indirectSample *= 0.5;
-        targetResult += indirectSample;
+        //targetResult += indirectSample;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 

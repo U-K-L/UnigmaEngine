@@ -53,7 +53,7 @@ Shader "Unigma/UnigmaOutlines"
                 return o;
             }
             sampler2D _CameraMotionVectorsTexture;
-            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights;
+            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
@@ -70,6 +70,7 @@ Shader "Unigma/UnigmaOutlines"
 				fixed4 normalMap = tex2D(_UnigmaNormal, i.uv);
 				fixed4 specularHighlights = tex2D(_UnigmaSpecularLights, i.uv);
 				fixed4 albedo = tex2D(_UnigmaAlbedo, i.uv);
+				fixed4 reflections = tex2D(_UnigmaDepthReflectionsMap, i.uv);
                 
                 //return originalImage;
 				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
@@ -230,8 +231,13 @@ Shader "Unigma/UnigmaOutlines"
                 //return specularHighlights;
                 //return lerp(albedo, albedo * 0.75 + GlobalIllumination * 0.62, 0.541 + GlobalIllumination.w * 0.712 + (0.182 * (1.0 - shadows))) + specularHighlights;
                 
-                //return specularHighlights;
-                return lerp(FinalColor, FinalColor*0.75 + GlobalIlluminationDenoised*0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
+                //return min(1, length(GlobalIllumination));
+                FinalColor = lerp(FinalColor, FinalColor + reflections * 0.21, min(1, reflections.w));
+                //return FinalColor + reflections;
+                //return FinalColor;
+                //return FinalColor + GlobalIllumination;
+                return lerp(FinalColor, FinalColor*0.75+ GlobalIlluminationDenoised *0.75 + +reflections * 0.21, min(1, length(GlobalIllumination)));
+                return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }

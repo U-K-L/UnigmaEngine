@@ -61,8 +61,10 @@ bool CheckReprojection(float2 UV, float2 prevUV)
 	bool planeCheck = CheckPlane(_UnigmaMotionID[UV].xyz, _UnigmaMotionIDTemporal[UV].xyz, _UnigmaNormal[UV].xyz);
 	
 	bool normalCheck = CheckNormalSimilarity(_UnigmaNormal[UV].xyz, _UnigmaNormalTemporal[prevUV].xyz);
+
+	bool pdfCheck = abs(_UnigmaDenoisedGlobalIllumination[UV].a - _UnigmaDenoisedGlobalIlluminationTemporal[UV].a) < 0.01;
 	
-	return normalCheck && planeCheck;
+	return normalCheck && planeCheck && pdfCheck;
 }
 
 bool IsNaN(float x)
@@ -226,7 +228,7 @@ void Atorus(uint3 id : SV_DispatchThreadID)
 	float sumVariance = variance;
 
 	
-	int _KernelSize = 3;
+	int _KernelSize = 2;
 	const float kernelWeights[4] = { 1.0, 2.0 / 3.0, 1.0 / 6.0, 1.0 / 9.0 };
 
 	float3 centerNormal = _UnigmaNormal[id.xy].xyz;

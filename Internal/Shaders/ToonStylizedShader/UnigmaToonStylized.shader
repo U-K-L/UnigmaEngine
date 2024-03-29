@@ -320,7 +320,7 @@ Shader "Unigma/UnigmaToonStylized"
             {
                 float2 uvs = GetUVs(attributes);
                 float3 normals = GetNormals(attributes);
-                float3 worldNormal = mul((float4x4)unity_ObjectToWorld, float4(normals, 0)).xyz;
+                float3 worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz);
                 payload.normal = float4(worldNormal, 1);
 
                 float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);

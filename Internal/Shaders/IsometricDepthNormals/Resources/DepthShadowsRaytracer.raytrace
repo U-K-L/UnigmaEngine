@@ -78,7 +78,8 @@ void DepthShadowsRaygenShader()
 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    position = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+    float distanceFromPoint = 0.0353;
+    position = ray.Origin+ (ray.Direction * payload.distance) + (payload.normal * distanceFromPoint);//ray.Origin + ray.Direction * (payload.distance - 0.0353);
     
     if (unity_OrthoParams.w > 0)
     {

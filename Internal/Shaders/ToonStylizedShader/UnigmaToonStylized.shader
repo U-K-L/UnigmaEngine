@@ -312,6 +312,7 @@ Shader "Unigma/UnigmaToonStylized"
             float4 _Shadow;
             float4 _Highlight;
             float4 _Thresholds;
+            float _Smoothness;
             
             [shader("closesthit")]
             void MyHitShader(inout Payload payload : SV_RayPayload,
@@ -326,7 +327,7 @@ Shader "Unigma/UnigmaToonStylized"
                 float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
 
                 payload.distance = RayTCurrent();
-                payload.color = float4(1, 1, 0, InstanceID());
+                payload.color = float4(1, 1, _Smoothness, InstanceID());
                 //Act as color
                 float3 lightDirAbsolute = normalize(_WorldSpaceLightPos0.xyz);
                 float3 lightDir = normalize(lightDirAbsolute);

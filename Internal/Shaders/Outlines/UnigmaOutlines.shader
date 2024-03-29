@@ -240,7 +240,7 @@ Shader "Unigma/UnigmaOutlines"
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(FinalColor, FinalColor*0.75+ GlobalIlluminationDenoised *0.75 + +reflections * 0.21, min(1, length(GlobalIllumination)));
+                return lerp(FinalColor, FinalColor*0.75+ GlobalIlluminationDenoised *0.75 + +reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
                 return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));

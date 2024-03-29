@@ -124,6 +124,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaDenoisedGlobalIlluminationTemp;
     public RenderTexture _UnigmaDepthTemporal;
     public RenderTexture _UnigmaSpecularLights;
+    public RenderTexture _UnigmaIdsTexture;
     public Texture2D _UnigmaBlueNoise;
     
     
@@ -387,6 +388,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaSpecularLights.enableRandomWrite = true;
         _UnigmaSpecularLights.Create();
 
+        _UnigmaIdsTexture = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaIdsTexture.enableRandomWrite = true;
+        _UnigmaIdsTexture.Create();
+
         _renderTextureWidthPrev = _renderTextureWidth;
         _renderTextureHeightPrev = _renderTextureHeight;
 
@@ -466,6 +471,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             _UnigmaSpecularLights.Release();
             _UnigmaSpecularLights = null;
+        }
+        if (_UnigmaIdsTexture != null)
+        {
+            _UnigmaIdsTexture.Release();
+            _UnigmaIdsTexture = null;
         }
 
     }
@@ -745,7 +755,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.SetGlobalTexture("_UnigmaAlbedoTemporal", _UnigmaAlbedoTemporal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaBlueNoise", _UnigmaBlueNoise);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaSpecularLights", _UnigmaSpecularLights);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaIds", _UnigmaIdsTexture);
 
+        outlineDepthBuffer.SetRenderTarget(_UnigmaIdsTexture);
+
+        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
+        DrawIds(outlineDepthBuffer, 2);
 
         outlineDepthBuffer.SetRenderTarget(_UnigmaNormal);
 
@@ -827,6 +842,28 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 {
                     outlineDepthBuffer.DrawRenderer(r.renderer, r.renderer.material, 0, 0);
                 }
+        }
+    }
+
+    void DrawIds(CommandBuffer outlineDepthBuffer, int pass)
+    {
+        int i = 0;
+        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
+        {
+            IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
+            if (iso != null)
+                if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
+                {
+                    r.materials["IsometricDepthNormals"].SetInt("_ObjectID", i);
+                    outlineDepthBuffer.DrawRenderer(r.renderer, r.materials["IsometricDepthNormals"], 0, pass);
+                }
+            i++;
+        }
+
+        foreach (Renderer r in _OutlineNullObjects)
+        {
+            if (r.enabled == true)
+                outlineDepthBuffer.DrawRenderer(r, _nullMaterial, 0, -1);
         }
     }
 

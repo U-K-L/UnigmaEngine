@@ -52,7 +52,7 @@ Shader "Unigma/UnigmaOutlines"
                 o.uv = v.uv;
                 return o;
             }
-            sampler2D _CameraMotionVectorsTexture;
+            sampler2D _CameraMotionVectorsTexture, _UnigmaIds;
             sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
@@ -71,6 +71,7 @@ Shader "Unigma/UnigmaOutlines"
 				fixed4 specularHighlights = tex2D(_UnigmaSpecularLights, i.uv);
 				fixed4 albedo = tex2D(_UnigmaAlbedo, i.uv);
 				fixed4 reflections = tex2D(_UnigmaDepthReflectionsMap, i.uv);
+				fixed4 IdsTexture = tex2D(_UnigmaIds, i.uv);
                 
                 //return originalImage;
 				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
@@ -93,10 +94,10 @@ Shader "Unigma/UnigmaOutlines"
                 float2 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
 
-                float4 depthnormal0 = tex2D(_IsometricDepthNormal, bottomLeft);
-                float4 depthnormal1 = tex2D(_IsometricDepthNormal, topRight);
-                float4 depthnormal2 = tex2D(_IsometricDepthNormal, bottomRight);
-                float4 depthnormal3 = tex2D(_IsometricDepthNormal, topLeft);
+                float4 depthnormal0 = tex2D(_UnigmaNormal, bottomLeft) * 0.5 + 0.5;
+                float4 depthnormal1 = tex2D(_UnigmaNormal, topRight) * 0.5 + 0.5;
+                float4 depthnormal2 = tex2D(_UnigmaNormal, bottomRight) * 0.5 + 0.5;
+                float4 depthnormal3 = tex2D(_UnigmaNormal, topLeft) * 0.5 + 0.5;
 
                 
                 float depthFiniteDifference3 = depthnormal1.a - depthnormal0.a;
@@ -104,15 +105,16 @@ Shader "Unigma/UnigmaOutlines"
                 float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2)) * 100;
                 float depthThreshold = _DepthThreshold * depthnormal0;
                 edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
-                
-                float4 pos0 = tex2D(_IsometricPositions, bottomLeft);
-                float4 pos1 = tex2D(_IsometricPositions, topRight);
-                float4 pos2 = tex2D(_IsometricPositions, bottomRight);
-                float4 pos3 = tex2D(_IsometricPositions, topLeft);
+
+                //Get ID uniqueness
+                float4 pos0 = tex2D(_UnigmaIds, bottomLeft);
+                float4 pos1 = tex2D(_UnigmaIds, topRight);
+                float4 pos2 = tex2D(_UnigmaIds, bottomRight);
+                float4 pos3 = tex2D(_UnigmaIds, topLeft);
 
 
-                float posFiniteDifference3 = abs(pos1.a - pos0.a);//length(pos1 - pos0);
-                float posFiniteDifference4 = abs(pos3.a - pos2.a);//length(pos3 - pos2);
+                float posFiniteDifference3 = abs(pos1 - pos0);//length(pos1 - pos0);
+                float posFiniteDifference4 = abs(pos3 - pos2);//length(pos3 - pos2);
                 float edgePos = sqrt(pow(posFiniteDifference3, 2) + pow(posFiniteDifference4, 2)) * 100;
                 float posThreshold = _PosThreshold;
                 edgePos = edgePos > posThreshold ? 1 : 0;
@@ -127,10 +129,10 @@ Shader "Unigma/UnigmaOutlines"
                 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
 
-                float4 normal0 = tex2D(_IsometricDepthNormal, bottomLeft);
-                float4 normal1 = tex2D(_IsometricDepthNormal, topRight);
-                float4 normal2 = tex2D(_IsometricDepthNormal, bottomRight);
-                float4 normal3 = tex2D(_IsometricDepthNormal, topLeft);
+                float4 normal0 = tex2D(_UnigmaNormal, bottomLeft);
+                float4 normal1 = tex2D(_UnigmaNormal, topRight);
+                float4 normal2 = tex2D(_UnigmaNormal, bottomRight);
+                float4 normal3 = tex2D(_UnigmaNormal, topLeft);
 
                 float3 normalFiniteDifference0 = normal1.xyz - normal0.xyz;
                 float3 normalFiniteDifference1 = normal3.xyz - normal2.xyz;
@@ -138,6 +140,7 @@ Shader "Unigma/UnigmaOutlines"
                 float edgeNormal = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
                 edgeNormal = edgeNormal > _NormalThreshold ? 1 : 0;
 
+				//return edgeNormal;
 
                 //Get shadow outlines.
                 
@@ -233,6 +236,7 @@ Shader "Unigma/UnigmaOutlines"
                 
                 //return min(1, length(GlobalIllumination));
                 FinalColor = lerp(FinalColor, FinalColor + reflections * 0.21, min(1, reflections.w));
+                //return FinalColor;
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;

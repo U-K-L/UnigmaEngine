@@ -106,6 +106,17 @@ Shader "Unigma/UnigmaOutlines"
                 float depthThreshold = _DepthThreshold * depthnormal0;
                 edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
 
+
+
+                float scaleUV = 1;
+                scaleFloor = floor(_ScaleInner * 0.5);
+                scaleCeil = ceil(_ScaleInner * 0.5);
+
+                bottomLeft = scaleUV * i.uv -float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
+                topRight = scaleUV * i.uv +float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
+                bottomRight = scaleUV * i.uv +float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
+                topLeft = scaleUV * i.uv +float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
+
                 //Get ID uniqueness
                 float4 pos0 = tex2D(_UnigmaIds, bottomLeft);
                 float4 pos1 = tex2D(_UnigmaIds, topRight);
@@ -201,7 +212,8 @@ Shader "Unigma/UnigmaOutlines"
                 //And make it optional!
                 //FinalColor = lerp(FinalColor, BackgroundTexture, step(_UnigmaDepthShadows.r, 0.01));
                 FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz, 1), edge * step(0.001, OutterLineColors.w));
-
+                FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
+                
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 
                 float shadows = _UnigmaDepthShadows.y;
@@ -240,7 +252,7 @@ Shader "Unigma/UnigmaOutlines"
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(FinalColor, FinalColor*0.75+ GlobalIlluminationDenoised *0.75 + +reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
+                return lerp(FinalColor, FinalColor + GlobalIlluminationDenoised *0.75 + +reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
                 return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));

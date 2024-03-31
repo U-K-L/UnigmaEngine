@@ -347,7 +347,7 @@ Shader "Unigma/UnigmaToonStylized"
 
                 float4 finalColor = max(midTones, shadows);
                 finalColor = max(finalColor, highlights);
-                float distSquared = min(1, 1 / (RayTCurrent() * RayTCurrent()));
+                float distSquared = max(0.01, min(1, 1 / (RayTCurrent() * RayTCurrent())));
                 payload.direction = finalColor * distSquared;//_Midtone* distSquared;//float4(normals, 1);
                 /*
                 if(InstanceID() == payload.color.w)

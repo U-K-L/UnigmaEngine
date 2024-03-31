@@ -52,7 +52,7 @@ Shader "Unigma/UnigmaOutlines"
                 o.uv = v.uv;
                 return o;
             }
-            sampler2D _CameraMotionVectorsTexture, _UnigmaIds;
+            sampler2D _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections;
             sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
@@ -72,7 +72,11 @@ Shader "Unigma/UnigmaOutlines"
 				fixed4 albedo = tex2D(_UnigmaAlbedo, i.uv);
 				fixed4 reflections = tex2D(_UnigmaDepthReflectionsMap, i.uv);
 				fixed4 IdsTexture = tex2D(_UnigmaIds, i.uv);
+				fixed4 WaterNormals = tex2D(_UnigmaWaterNormals, i.uv);
+				fixed4 WaterPositions = tex2D(_UnigmaWaterPosition, i.uv);
+				fixed4 WaterReflections = tex2D(_UnigmaWaterReflections, i.uv);
                 
+                //return reflections;
                 //return originalImage;
 				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
@@ -247,12 +251,18 @@ Shader "Unigma/UnigmaOutlines"
                 //return lerp(albedo, albedo * 0.75 + GlobalIllumination * 0.62, 0.541 + GlobalIllumination.w * 0.712 + (0.182 * (1.0 - shadows))) + specularHighlights;
                 
                 //return min(1, length(GlobalIllumination));
-                FinalColor = lerp(FinalColor, FinalColor + reflections * 0.21, min(1, reflections.w));
-                //return FinalColor;
+				float4 reflectMask = step(reflections.r, 0.01) * 1;
+                float4 reflectMaskInv = step(0.01, reflections.r) * 1;
+
+                //return reflectMaskInv* reflections*0.25;
+                //reflections = reflectMaskInv * reflections * 0.75;
+				//reflections += reflectMask;
+                //return reflections;
+                FinalColor = lerp(FinalColor, FinalColor*(min(1,reflections.w*0.975)) + reflections*0.25, reflectMaskInv*min(1, reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(FinalColor, FinalColor + GlobalIlluminationDenoised *0.75 + +reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
+                return lerp(FinalColor, FinalColor + GlobalIlluminationDenoised *0.75 + reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
                 return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));

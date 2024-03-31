@@ -16,18 +16,55 @@ Material:
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 2012
   stringTagMap: {}
   disabledShaderPasses: []
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _DisplacementTex:
+        m_Texture: {fileID: 2800000, guid: 65fc74252e385fe4581460e2b9f18386, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SurfaceNoise:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
-    m_Floats: []
-    m_Colors: []
+    m_Floats:
+    - _DepthAmount: 1
+    - _DepthMaxDistance: 1
+    - _Emmittance: 0
+    - _Fade: 1
+    - _FoamMaxDistance: 0.4
+    - _FoamMinDistance: 0.04
+    - _Intensity: 0.74
+    - _LightAbsorbtion: 0
+    - _NormalAmount: 1
+    - _ObjectID: 0
+    - _Scale: 1
+    - _Smootheness: 1
+    - _Smoothness: 0
+    - _SurfaceNoiseCutoff: 0.777
+    m_Colors:
+    - _DepthDistanceAxis: {r: 0, g: 0, b: 0, a: 1}
+    - _DepthGradiantDeep: {r: 1, g: 1, b: 1, a: 1}
+    - _DepthGradiantShallow: {r: 1, g: 1, b: 1, a: 1}
+    - _LineArtColor: {r: 0, g: 0, b: 0, a: 1}
+    - _LineThickness: {r: 0, g: 0, b: 0, a: 0}
+    - _RefracStr: {r: 20, g: 2, b: 0.003, a: 1}
+    - _SparkleFoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _SurfaceNoiseScroll: {r: 0.03, g: 0.03, b: 0, a: 0}
+    - _TextureInfluence: {r: 1, g: 1, b: 1, a: 1}
+    - _WaterColor: {r: 0.8, g: 0.94, b: 1, a: 1}
+    - _WaterMainColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

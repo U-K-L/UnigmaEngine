@@ -7,10 +7,20 @@
 RWTexture2D<float4> _UnigmaDepthShadowsMap;
 RWTexture2D<float4> _UnigmaDepthReflectionsMap;
 
+Texture2D<float4> _UnigmaWaterNormals;
+Texture2D<float4> _UnigmaWaterPosition;
+RWTexture2D<float4> _UnigmaWaterReflections;
+
 #pragma max_recursion_depth 8
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 float4x4                        _Perspective_Matrix_VP;
+
+float3 reflectUnigma( float3 i, float3 n )
+{
+  return i - 1.8510 * n * dot(n,i);
+}
+
 [shader("raygeneration")]
 void DepthShadowsRaygenShader()
 {
@@ -134,7 +144,7 @@ void DepthShadowsRaygenShader()
     float3 worldDirection = normalize(worldPosPixel - _WorldSpaceCameraPos);
     float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
         
-    float3 reflectedDirection = reflect(worldDirection, reflectionNormal);
+    float3 reflectedDirection = reflectUnigma(worldDirection, reflectionNormal);
     reflectedDirection = lerp(reflectionNormal,reflectedDirection, prevColor.z);
     ray.Origin = position;
     ray.Direction = reflectedDirection;
@@ -146,6 +156,19 @@ void DepthShadowsRaygenShader()
     float attenuation = 1 / (distance * distance);
     
     _UnigmaDepthReflectionsMap[id.xy] = lerp(0, float4(payload.direction, 1),  prevColor.z);
+
+    /*
+    //Compute water reflections.
+    float3 waterNormal = _UnigmaWaterNormals[id.xy];
+    float3 waterReflection = reflect(worldDirection, waterNormal);
+    float3 waterOrigin = _UnigmaWaterPosition[id.xy];
+    float3 waterPosition = waterOrigin + (waterNormal * distanceFromPoint);
+
+    ray.Origin = waterPosition;
+    ray.Direction = waterReflection;
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    _UnigmaWaterReflections[id.xy] = lerp(0, float4(payload.direction, 1),  prevColor.z);
+    */
 }
 
 [shader("miss")]

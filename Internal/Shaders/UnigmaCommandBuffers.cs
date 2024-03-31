@@ -9,6 +9,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private int buffersAdded = 0;
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
     private List<Renderer> _OutlineNullObjects = default; //Objects not part of this render.
+    private List<UnigmaWater> _WaterObjects = default; //Objects that consist of water.
     public int _temporalReservoirsCount = 1;
     private Camera mainCam;
     public int ResolutionDivider = 0;
@@ -122,9 +123,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaDenoisedGlobalIllumination;
     public RenderTexture _UnigmaDenoisedGlobalIlluminationTemporal;
     public RenderTexture _UnigmaDenoisedGlobalIlluminationTemp;
-    public RenderTexture _UnigmaDepthTemporal;
     public RenderTexture _UnigmaSpecularLights;
     public RenderTexture _UnigmaIdsTexture;
+    public RenderTexture _UnigmaWaterNormals;
+    public RenderTexture _UnigmaWaterPosition;
+    public RenderTexture _UnigmaWaterReflections;
     public Texture2D _UnigmaBlueNoise;
     
     
@@ -280,7 +283,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
             //Create isometric depth normals.
             _OutlineRenderObjects = new List<UnigmaPostProcessingObjects>();
             _OutlineNullObjects = new List<Renderer>();
+            //Create Water Objects.
+            _WaterObjects = new List<UnigmaWater>();
             FindObjects("IsometricDepthNormalObject");
+            FindWaterObjects();
             AddObjectsToList();
             
             AddObjectsToAccerleration();
@@ -376,9 +382,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaMotionIDTemporal.enableRandomWrite = true;
         _UnigmaMotionIDTemporal.Create();
 
-        _UnigmaDepthTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaDepthTemporal.enableRandomWrite = true;
-        _UnigmaDepthTemporal.Create();
+        _UnigmaWaterReflections = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaWaterReflections.enableRandomWrite = true;
+        _UnigmaWaterReflections.Create();
 
         _UnigmaDenoisedGlobalIlluminationTemp = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaDenoisedGlobalIlluminationTemp.enableRandomWrite = true;
@@ -391,6 +397,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaIdsTexture = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaIdsTexture.enableRandomWrite = true;
         _UnigmaIdsTexture.Create();
+
+        _UnigmaWaterNormals = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaWaterNormals.enableRandomWrite = true;
+        _UnigmaWaterNormals.Create();
+
+        _UnigmaWaterPosition = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaWaterPosition.enableRandomWrite = true;
+        _UnigmaWaterPosition.Create();
 
         _renderTextureWidthPrev = _renderTextureWidth;
         _renderTextureHeightPrev = _renderTextureHeight;
@@ -476,6 +490,16 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             _UnigmaIdsTexture.Release();
             _UnigmaIdsTexture = null;
+        }
+        if (_UnigmaWaterNormals != null)
+        {
+            _UnigmaWaterNormals.Release();
+            _UnigmaWaterNormals = null;
+        }
+        if (_UnigmaWaterPosition != null)
+        {
+            _UnigmaWaterPosition.Release();
+            _UnigmaWaterPosition = null;
         }
 
     }
@@ -756,6 +780,19 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.SetGlobalTexture("_UnigmaBlueNoise", _UnigmaBlueNoise);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaSpecularLights", _UnigmaSpecularLights);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaIds", _UnigmaIdsTexture);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterNormals", _UnigmaWaterNormals);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterPosition", _UnigmaWaterPosition);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterReflections", _UnigmaWaterReflections);
+
+        outlineDepthBuffer.SetRenderTarget(_UnigmaWaterNormals);
+
+        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
+        DrawWaterNormals(outlineDepthBuffer);
+
+        outlineDepthBuffer.SetRenderTarget(_UnigmaWaterPosition);
+
+        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
+        DrawWaterPosition(outlineDepthBuffer);
 
         outlineDepthBuffer.SetRenderTarget(_UnigmaIdsTexture);
 
@@ -845,6 +882,24 @@ public class UnigmaCommandBuffers : MonoBehaviour
         }
     }
 
+    void DrawWaterNormals(CommandBuffer outlineDepthBuffer)
+    {
+        foreach (UnigmaWater r in _WaterObjects)
+        {
+            Renderer render = r.gameObject.GetComponent<Renderer>();
+            outlineDepthBuffer.DrawRenderer(render, render.material, 0, 0);
+        }
+    }
+
+    void DrawWaterPosition(CommandBuffer outlineDepthBuffer)
+    {
+        foreach (UnigmaWater r in _WaterObjects)
+        {
+            Renderer render = r.gameObject.GetComponent<Renderer>();
+            outlineDepthBuffer.DrawRenderer(render, render.material, 0, 1);
+        }
+    }
+
     void DrawIds(CommandBuffer outlineDepthBuffer, int pass)
     {
         int i = 0;
@@ -915,6 +970,19 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 _OutlineRenderObjects.Add(sceneRenderers[i].gameObject.GetComponent(component) as UnigmaPostProcessingObjects);
             else
                 _OutlineNullObjects.Add(sceneRenderers[i]);
+    }
+
+    void FindWaterObjects()
+    {
+        string component = "UnigmaWater";
+        // Retrieve all renderers in scene
+        Renderer[] sceneRenderers = FindObjectsOfType<Renderer>();
+
+        // Store only visible renderers
+        _WaterObjects.Clear();
+        for (int i = 0; i < sceneRenderers.Length; i++)
+            if (sceneRenderers[i].GetComponent(component))
+                _WaterObjects.Add(sceneRenderers[i].gameObject.GetComponent(component) as UnigmaWater);
     }
 
     //Release all buffers and memory

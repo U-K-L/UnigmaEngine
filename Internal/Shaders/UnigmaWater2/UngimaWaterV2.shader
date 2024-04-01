@@ -16,6 +16,11 @@ Shader "Unlit/UngimaWaterV2"
         _RefracStr("Refractance Strength, amp, speed.", Vector) = (12,2.0,0.002,1)
 		_DisplacementTex("Normal Distortion", 2D) = "white" {}
 		_Intensity("Intensity", Float) = 1.0
+        _FoamMaxDistance("Foam Maximum Distance", Float) = 0.4
+        _FoamMinDistance("Foam Minimum Distance", Float) = 0.04
+		_SparkleFoamColor("Foam Color", Color) = (1.0, 1.0, 1.0, 1.0)
+        _TextureInfluence("Snoise, Map, Snoise2", Vector) = (1.0,1.0,1.0,1.0)
+		_FoamIntensity("Foam Intensity", Vector) = (4.0,1.0,1.0,1.0)
     }
     SubShader
     {
@@ -198,11 +203,13 @@ Shader "Unlit/UngimaWaterV2"
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
-
+            #include "../ShaderHelpers.hlsl"
+                    
             struct appdata
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+				float3 normal : NORMAL;
             };
 
             struct v2f
@@ -211,6 +218,10 @@ Shader "Unlit/UngimaWaterV2"
                 float4 vertex : SV_POSITION;
                 float4 pos : TEXCOORD1;
                 float4 screenPosition : TEXCOORD2;
+				float3 worldNormal : TEXCOORD3;
+                float3 viewNormal : TEXCOORD4;
+                float3 worldPos : TEXCOORD5;
+                float3 viewDir : TEXCOORD6;
             };
 
             sampler2D _MainTex, _UnigmaWaterReflections, _WaterIsoBackgroundV2, _CameraDepthNormalsTexture, _UnigmaDepthShadowsMap, _DisplacementTex;
@@ -223,6 +234,12 @@ Shader "Unlit/UngimaWaterV2"
             float4 _RefracStr;
             float4 _SurfaceNoiseScroll;
             float _Intensity;
+            float _FoamMaxDistance;
+            float _FoamMinDistance;
+            float4 _SparkleFoamColor;
+            float4 _TextureInfluence;
+            float4 _FoamIntensity;
+
 
             v2f vert (appdata v)
             {
@@ -231,6 +248,10 @@ Shader "Unlit/UngimaWaterV2"
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.screenPosition = ComputeScreenPos(o.pos);
+                o.worldNormal = mul(unity_ObjectToWorld, float4(v.normal, 0.0)).xyz;
+                o.viewNormal = COMPUTE_VIEW_NORMAL;
+                o.worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0)).xyz;
+                o.viewDir = WorldSpaceViewDir(v.vertex);
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
@@ -238,6 +259,13 @@ Shader "Unlit/UngimaWaterV2"
             fixed4 frag (v2f i) : SV_Target
             {
                 
+				//Calculate the Normal:
+                
+                float3 normalDot = saturate(dot(i.worldNormal, i.viewNormal));
+                float3 viewDir = normalize(i.viewDir);
+
+                float3 halfVector = normalize(_WorldSpaceLightPos0 + viewDir);
+                float NdotH = dot(i.viewNormal, halfVector);
                 //Calculate the Animation:
                 float3 flowDirection = _SurfaceNoiseScroll.xyz * _SurfaceNoiseScroll.w;
                 float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
@@ -255,10 +283,23 @@ Shader "Unlit/UngimaWaterV2"
                 float2 distortion = uv + ((_Intensity * 0.01) * diplacementNormals.rg);
 
 				float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthNormalsTexture, i.screenPosition.xy / i.screenPosition.w).r;
-
+                
+                //Calculate noise:
+                //Get random value based on time and position.
+				float randomVal = snoise(i.worldPos + noiseUV)*0.1;
+                float noise = tex2D(_SurfaceNoise, noiseUV.xy).r;
+                float surfaceNoiseSample2 = snoise(i.worldPos * _FoamIntensity.x + noiseUV);
+                float surfaceNoiseSample = (snoise(i.worldPos * _FoamIntensity.y + noiseUV) - surfaceNoiseSample2);//snoise(i.worldPos * 7 + noiseUV);//_TextureInfluence.w * ((snoise(i.worldPos * 7 + noiseUV) * _TextureInfluence.x) - ((noise / 2.0) * _TextureInfluence.y) + (surfaceNoiseSample2 * _TextureInfluence.z));
+				float noiseMask = noise > _SurfaceNoiseCutoff ? 1 : 0;
+                float4 surfaceNoise = smoothstep(_SurfaceNoiseCutoff, _SurfaceNoiseCutoff + 0.1, surfaceNoiseSample)* _SparkleFoamColor * (noiseMask < randomVal);//surfaceNoiseSample > _SurfaceNoiseCutoff ? _SparkleFoamColor* noiseMask : 0;
+                float surfaceNoiseEmit = pow(NdotH+ NdotH, 1.5)*25 * depth * tex2D(_SurfaceNoise, float2(i.worldPos.x * 10, i.worldPos.z *5) * distortion).r*10* step(abs(rand(i.worldPos + noiseUV)).r, 0.978* depth* depth) * surfaceNoise;
+                //return (surfaceNoise < randomVal);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, uv);
                 fixed4 underWater = tex2D(_WaterIsoBackgroundV2, distortion);
-                return lerp(underWater, _WaterColor, _UnigmaDepthShadows.r*20);//float4(_UnigmaDepthShadows.r, _UnigmaDepthShadows.r, _UnigmaDepthShadows.r, 1);//lerp(_WaterColor, underWater , depth);
+                float4 finalColor = lerp(saturate(underWater), saturate(_WaterColor), min(1, max(0, _UnigmaDepthShadows.r * 20)));
+                finalColor.w = 1;
+                finalColor.xyz += surfaceNoise + surfaceNoiseEmit;
+                return finalColor;//float4(_UnigmaDepthShadows.r, _UnigmaDepthShadows.r, _UnigmaDepthShadows.r, 1);//lerp(_WaterColor, underWater , depth);
             }
             ENDCG
         }

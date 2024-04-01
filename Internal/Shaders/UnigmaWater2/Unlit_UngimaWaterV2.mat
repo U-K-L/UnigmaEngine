@@ -36,7 +36,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SurfaceNoise:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 2bb5e7940d64e4510b915a23c753a3f3, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -54,17 +54,18 @@ Material:
     - _Scale: 1
     - _Smootheness: 1
     - _Smoothness: 0
-    - _SurfaceNoiseCutoff: 0.777
+    - _SurfaceNoiseCutoff: 0.941
     m_Colors:
     - _DepthDistanceAxis: {r: 0, g: 0, b: 0, a: 1}
     - _DepthGradiantDeep: {r: 1, g: 1, b: 1, a: 1}
     - _DepthGradiantShallow: {r: 1, g: 1, b: 1, a: 1}
+    - _FoamIntensity: {r: 7.87, g: 0.01, b: 1, a: 1}
     - _LineArtColor: {r: 0, g: 0, b: 0, a: 1}
     - _LineThickness: {r: 0, g: 0, b: 0, a: 0}
-    - _RefracStr: {r: 20, g: 2, b: 0.003, a: 1}
+    - _RefracStr: {r: 20, g: 2, b: 0.003, a: 0.19}
     - _SparkleFoamColor: {r: 1, g: 1, b: 1, a: 1}
-    - _SurfaceNoiseScroll: {r: 0.03, g: 0.03, b: 0, a: 0}
+    - _SurfaceNoiseScroll: {r: -0.5, g: -1, b: 4.6, a: 0.015}
     - _TextureInfluence: {r: 1, g: 1, b: 1, a: 1}
-    - _WaterColor: {r: 0.8, g: 0.94, b: 1, a: 1}
+    - _WaterColor: {r: 0.6229975, g: 0.7985689, b: 0.9433962, a: 1}
     - _WaterMainColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

@@ -101,7 +101,7 @@ MonoBehaviour:
     value: 0.48
   softKnee:
     overrideState: 1
-    value: 0.5
+    value: 0.406
   clamp:
     overrideState: 1
     value: 65472
@@ -136,7 +136,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: adb84e30e02715445aeb9959894e3b4d, type: 3}
   m_Name: ColorGrading
   m_EditorClassIdentifier: 
-  active: 1
+  active: 0
   enabled:
     overrideState: 1
     value: 1
@@ -228,7 +228,7 @@ MonoBehaviour:
     value: 100
   lift:
     overrideState: 1
-    value: {x: 0.40392378, y: 0.18747288, z: 1, w: 0.09848115}
+    value: {x: 0, y: 0.060241938, z: 1, w: 0.09848115}
   gamma:
     overrideState: 1
     value: {x: 0.64609367, y: 0.6368854, z: 1, w: 0}
@@ -1492,13 +1492,13 @@ MonoBehaviour:
     value: 0
   color:
     overrideState: 1
-    value: {r: 1, g: 0.4716981, b: 0.9262207, a: 1}
+    value: {r: 0.5188679, g: 0.88113207, b: 1, a: 1}
   center:
     overrideState: 1
-    value: {x: 0.5, y: 0.5}
+    value: {x: 0.5, y: 0.45}
   intensity:
     overrideState: 1
-    value: 0.15
+    value: 0.089
   smoothness:
     overrideState: 1
     value: 1

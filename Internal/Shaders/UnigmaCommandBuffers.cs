@@ -263,16 +263,20 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
         UpdateScreenResolution();
         UpdateCameraVP();
-        
+        UpdateRayTracedObjects();
         AddLightsToList();
+        AddCommandBuffers();
+        UpdateRenderTextures();
+    }
 
+    void UpdateRayTracedObjects()
+    {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
         foreach (Renderer r in _rayTracedObjects)
         {
             _AccelerationStructure.UpdateInstanceTransform(r);
         }
-
-        AddCommandBuffers();
-        UpdateRenderTextures();
     }
 
     void AddCommandBuffers()

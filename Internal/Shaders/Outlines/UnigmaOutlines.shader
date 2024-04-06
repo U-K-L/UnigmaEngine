@@ -254,6 +254,7 @@ Shader "Unigma/UnigmaOutlines"
 				float4 reflectMask = step(reflections.r, 0.01) * 1;
                 float4 reflectMaskInv = step(0.01, reflections.r) * 1;
 
+                return FinalColor;
                 //return reflectMaskInv* reflections*0.25;
                 //reflections = reflectMaskInv * reflections * 0.75;
 				//reflections += reflectMask;

@@ -39,16 +39,19 @@ public class UnigmaPhysicsObject : MonoBehaviour
         float minDist = float.PositiveInfinity;
         float maxDist = 10.0f;
         Vector3 finalforce = Vector4.zero;
-        foreach (UnigmaSpaceTime.VectorPoint vp in SpaceTimeVectorField.VectorField)
+        if (SpaceTimeVectorField != null)
         {
-            float distance = Vector3.Distance(vp.position, transform.position);
-
-            if (minDist > distance && maxDist > distance)
+            foreach (UnigmaSpaceTime.VectorPoint vp in SpaceTimeVectorField.VectorField)
             {
-                finalforce = vp.direction;
-                minDist = distance;
-            }
+                float distance = Vector3.Distance(vp.position, transform.position);
 
+                if (minDist > distance && maxDist > distance)
+                {
+                    finalforce = vp.direction;
+                    minDist = distance;
+                }
+
+            }
         }
 
         acceleration = finalforce;
@@ -81,7 +84,11 @@ public class UnigmaPhysicsObject : MonoBehaviour
             rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         }
         if (SpaceTimeVectorField == null)
-            SpaceTimeVectorField = GameObject.FindGameObjectWithTag("GameManager").GetComponent<UnigmaSpaceTime>();
+        {
+            GameObject obj = GameObject.FindGameObjectWithTag("GameManager");
+            if (obj != null)
+                SpaceTimeVectorField = SpaceTimeVectorField.GetComponent<UnigmaSpaceTime>();
+        }
 
         if (Beta == 0)
             Beta = 0.001f;

@@ -68,7 +68,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public Vector2 moments;
     };
 
-    int _unigmaDispatchInfoStride = sizeof(int);
     int _reservoirStride = sizeof(float) * 6 + sizeof(float)*3;
     int _reservoirPathStride = sizeof(float) * 2 + sizeof(float) * 3*3;
     int _lightStride = sizeof(float) * 3*3 + sizeof(float);
@@ -86,13 +85,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private List<ReservoirPath> reservoirPaths;
     private List<Sample> samplesList;
     private List<UnigmaLight> lightList;
-    private List<UnigmaDispatchInfo> unigmaDispatchInfos;
     private List<SVGF> svgfList;
 
     private ComputeShader computeOutlineColors;
-    private ComputeShader unigmaDispatchInfoComputeShader;
     private ComputeShader svgfComputeShader;
     private CommandBuffer outlineDepthBuffer;
+    private CommandBuffer compositeBuffer;
     private Material _nullMaterial = default;
 
     private bool BuffersReady = false;
@@ -129,39 +127,56 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaWaterPosition;
     public RenderTexture _UnigmaWaterReflections;
     public Texture2D _UnigmaBlueNoise;
-    
-    
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     public Camera secondCam;
     // Start is called before the first frame update
     void Start()
     {
-        samplesList = new List<Sample>();
-        lightList = new List<UnigmaLight>();
-        reservoirs = new List<Reservoir>();
-        reservoirPaths = new List<ReservoirPath>();
-        AddLightsToList();
-        lightsBuffer = new ComputeBuffer(Mathf.Max(lightList.Count, 1), _lightStride);
-        unigmaDispatchInfos = new List<UnigmaDispatchInfo>();
-        svgfList = new List<SVGF>();
+        UpdateRenderTextures();
+        SetUpOutline();
+    }
+
+    void SetUpOutline()
+    {
         _nullMaterial = new Material(Shader.Find("Unigma/IsometricNull"));
         computeOutlineColors = Resources.Load("OutlineColorsBoxBlur") as ComputeShader;
-        unigmaDispatchInfoComputeShader = Resources.Load("UnigmaDispatchInfo") as ComputeShader;
-        svgfComputeShader = Resources.Load("SVGF") as ComputeShader;
+
         Camera cam = GetComponent<Camera>();
         Camera.main.depthTextureMode = DepthTextureMode.MotionVectors;
         mainCam = Camera.main;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.Depth;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.DepthNormals;
-
-        UpdateRenderTextures();
-
-        CreateAcceleratedStructure();
+        SetUpGlobalIllumination();
     }
 
-    void CreateAcceleratedStructure()
+    void SetUpGlobalIllumination()
     {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
+        SetupReSTIR();
+        CreateRayTracingAcceleratedStructure();
+        Debug.Log("setup raytracing");
+    }
+
+    void SetupReSTIR()
+    {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
+        samplesList = new List<Sample>();
+        lightList = new List<UnigmaLight>();
+        reservoirs = new List<Reservoir>();
+        reservoirPaths = new List<ReservoirPath>();
+
+        AddLightsToList();
+        svgfList = new List<SVGF>();
+        svgfComputeShader = Resources.Load("SVGF") as ComputeShader;
+    }
+
+    void CreateRayTracingAcceleratedStructure()
+    {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
         int amountOfSamples = _renderTextureWidth * _renderTextureHeight;
 
         for(int i = 0; i < amountOfSamples; i++)
@@ -202,16 +217,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
             reservoirPaths.Add(rp);
         }
-
-        for (int i = 0; i < 1; i++)
-        {
-            UnigmaDispatchInfo u = new UnigmaDispatchInfo();
-            u.FrameCount = 0;
-
-            unigmaDispatchInfos.Add(u);
-
-
-        }
         
 
         samplesBuffer = new ComputeBuffer(amountOfSamples, _sampleStride);
@@ -222,9 +227,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         reservoirPathsBuffer = new ComputeBuffer(amountOfSamples * _temporalReservoirsCount, _reservoirPathStride);
         reservoirPathsBuffer.SetData(reservoirPaths);
-
-        unigmaDispatchInfoBuffer = new ComputeBuffer(1, _unigmaDispatchInfoStride);
-        unigmaDispatchInfoBuffer.SetData(unigmaDispatchInfos);
 
         svgfBuffer = new ComputeBuffer(amountOfSamples, _svgfStride);
         svgfBuffer.SetData(svgfList);
@@ -258,21 +260,26 @@ public class UnigmaCommandBuffers : MonoBehaviour
     void LateUpdate()
     {
         UpdateScreenResolution();
-        Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
-        Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
-        //Shader.SetGlobalInt("_UnigmaFrameCount", _UnigmaFrameCount);
-        lightList.Clear();
+        UpdateCameraVP();
+        UpdateRayTracedObjects();
         AddLightsToList();
+        AddCommandBuffers();
+        UpdateRenderTextures();
+    }
 
-        Debug.Log("amount of lights: " + lightList.Count);
-        
-        lightsBuffer.SetData(lightList);
-
+    void UpdateRayTracedObjects()
+    {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
         foreach (Renderer r in _rayTracedObjects)
         {
             _AccelerationStructure.UpdateInstanceTransform(r);
         }
+    }
 
+    void AddCommandBuffers()
+    {
+        //Need command buffers in specific ordering.
         if (BuffersReady == false)
         {
             BuffersReady = true;
@@ -288,32 +295,31 @@ public class UnigmaCommandBuffers : MonoBehaviour
             FindObjects("IsometricDepthNormalObject");
             FindWaterObjects();
             AddObjectsToList();
-            
+
             AddObjectsToAccerleration();
 
             CreateDepthNormalBuffers();
+
             CreateDepthShadowBuffers();
             CreateDenoisedGlobalIllumination();
 
 
             buffersAdded += 1;
-            /*
-            _RestirGlobalIllumRayTracingShaderAccelerated.SetBuffer("_UnigmaDispatchInfo", unigmaDispatchInfoBuffer);
-            unigmaDispatchInfoComputeShader.SetBuffer(0, "_UnigmaDispatchInfo", unigmaDispatchInfoBuffer);
-            _RestirGlobalIllumRayTracingShaderAccelerated.SetBuffer("_samples", samplesBuffer);
-            _RestirGlobalIllumRayTracingShaderAccelerated.SetBuffer("_unigmaLights", lightsBuffer);
-            _RestirGlobalIllumRayTracingShaderAccelerated.SetBuffer("_reservoirs", reservoirsBuffer);
-            _DepthShadowsRayTracingShaderAccelerated.SetBuffer("_Samples", samplesBuffer);
-            */
         }
 
         if (buffersAdded < 2)
         {
             CreateOutlineColorBuffers();
+            CreateCompositeBuffer();
+
             buffersAdded += 1;
         }
-        //UpdateRayTracer();
-        UpdateRenderTextures();
+    }
+
+    void UpdateCameraVP()
+    {
+        Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
+        Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
     }
 
     void UpdateRenderTextures()
@@ -333,7 +339,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
         //check if already exists, if so release it.
         ReleaseRenderTextures();
-        Debug.Log("created");
+        CreateGlobalIlluminationTextures();
         _DepthShadowsTexture = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _DepthShadowsTexture.enableRandomWrite = true;
         _DepthShadowsTexture.Create();
@@ -342,10 +348,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _ReflectionsTexture.enableRandomWrite = true;
         _ReflectionsTexture.Create();
 
-        _UnigmaGlobalIllumination = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaGlobalIllumination.enableRandomWrite = true;
-        _UnigmaGlobalIllumination.Create();
-
         _UnigmaAlbedo = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaAlbedo.enableRandomWrite = true;
         _UnigmaAlbedo.Create();
@@ -353,18 +355,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaNormal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaNormal.enableRandomWrite = true;
         _UnigmaNormal.Create();
-
-        _UnigmaGlobalIlluminationTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaGlobalIlluminationTemporal.enableRandomWrite = true;
-        _UnigmaGlobalIlluminationTemporal.Create();
-
-        _UnigmaDenoisedGlobalIllumination = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaDenoisedGlobalIllumination.enableRandomWrite = true;
-        _UnigmaDenoisedGlobalIllumination.Create();
-
-        _UnigmaDenoisedGlobalIlluminationTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaDenoisedGlobalIlluminationTemporal.enableRandomWrite = true;
-        _UnigmaDenoisedGlobalIlluminationTemporal.Create();
 
         _UnigmaAlbedoTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaAlbedoTemporal.enableRandomWrite = true;
@@ -386,10 +376,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaWaterReflections.enableRandomWrite = true;
         _UnigmaWaterReflections.Create();
 
-        _UnigmaDenoisedGlobalIlluminationTemp = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaDenoisedGlobalIlluminationTemp.enableRandomWrite = true;
-        _UnigmaDenoisedGlobalIlluminationTemp.Create();
-
         _UnigmaSpecularLights = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaSpecularLights.enableRandomWrite = true;
         _UnigmaSpecularLights.Create();
@@ -408,8 +394,31 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         _renderTextureWidthPrev = _renderTextureWidth;
         _renderTextureHeightPrev = _renderTextureHeight;
+    }
 
+    void CreateGlobalIlluminationTextures()
+    {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
+        _UnigmaGlobalIllumination = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaGlobalIllumination.enableRandomWrite = true;
+        _UnigmaGlobalIllumination.Create();
 
+        _UnigmaGlobalIlluminationTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaGlobalIlluminationTemporal.enableRandomWrite = true;
+        _UnigmaGlobalIlluminationTemporal.Create();
+
+        _UnigmaDenoisedGlobalIllumination = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaDenoisedGlobalIllumination.enableRandomWrite = true;
+        _UnigmaDenoisedGlobalIllumination.Create();
+
+        _UnigmaDenoisedGlobalIlluminationTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaDenoisedGlobalIlluminationTemporal.enableRandomWrite = true;
+        _UnigmaDenoisedGlobalIlluminationTemporal.Create();
+
+        _UnigmaDenoisedGlobalIlluminationTemp = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaDenoisedGlobalIlluminationTemp.enableRandomWrite = true;
+        _UnigmaDenoisedGlobalIlluminationTemp.Create();
 
     }
 
@@ -519,6 +528,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void AddLightsToList()
     {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
+        if (lightList != null)
+            lightList.Clear();
+        else
+            return;
         int index = 0;
         foreach (Renderer obj in FindObjectsOfType<Renderer>())
         {
@@ -567,10 +582,15 @@ public class UnigmaCommandBuffers : MonoBehaviour
             Debug.Log("Light: " + i + " : " + lightList[i].position);
         }
         */
+        if (lightsBuffer == null)
+            lightsBuffer = new ComputeBuffer(Mathf.Max(lightList.Count, 1), _lightStride);
+        lightsBuffer.SetData(lightList);
     }
 
     void AddObjectsToAccerleration()
     {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
         uint index = 0;
         foreach (Renderer r in _rayTracedObjects)
         {
@@ -582,10 +602,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void CreateDepthShadowBuffers()
     {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
         CommandBuffer depthShadowsCommandBuffer = new CommandBuffer();
         depthShadowsCommandBuffer.name = "DepthShadowsBuffer";
-        depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_UnigmaDispatchInfo", unigmaDispatchInfoBuffer);
-        depthShadowsCommandBuffer.SetComputeBufferParam(unigmaDispatchInfoComputeShader, 0, "_UnigmaDispatchInfo", unigmaDispatchInfoBuffer);
 
         depthShadowsCommandBuffer.BuildRayTracingAccelerationStructure(_AccelerationStructure);
 
@@ -657,7 +677,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void UpdateRayTracer()
     {
-
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
         _AccelerationStructure.Build();
         Shader.SetGlobalTexture("_UnigmaDepthShadowsMap", _DepthShadowsTexture);
         RenderTexture.active = _DepthShadowsTexture;
@@ -681,58 +702,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _RestirGlobalIllumRayTracingShaderAccelerated.SetShaderPass("GlobalIlluminationRaytracingShaderPass");
         _RestirGlobalIllumRayTracingShaderAccelerated.Dispatch("RestirGlobalIllumantionRayGen", (int)Screen.width, (int)Screen.height, 1);
 
-        unigmaDispatchInfoComputeShader.Dispatch(0, 1, 1, 1);
-
         _UnigmaFrameCount += 1;
         _RestirGlobalIllumRayTracingShaderAccelerated.SetInt("_UnigmaFrameCount", _UnigmaFrameCount);
     }
 
-    private void OnPostRender()
-    {
-
-        //depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_UnigmaDispatchInfo", unigmaDispatchInfoBuffer);
-        //depthShadowsCommandBuffer.SetComputeBufferParam(unigmaDispatchInfoComputeShader, 0, "_UnigmaDispatchInfo", unigmaDispatchInfoBuffer);
-
-        //depthShadowsCommandBuffer.BuildRayTracingAccelerationStructure(_AccelerationStructure);
-
-        //depthShadowsCommandBuffer.SetGlobalTexture("_UnigmaDepthShadowsMap", _DepthShadowsTexture);
-        //depthShadowsCommandBuffer.SetRenderTarget(_DepthShadowsTexture);
-        //depthShadowsCommandBuffer.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-        //depthShadowsCommandBuffer.SetRayTracingTextureParam(_DepthShadowsRayTracingShaderAccelerated, "_UnigmaDepthShadowsMap", _DepthShadowsTexture);
-
-
-        //depthShadowsCommandBuffer.SetRayTracingShaderPass(_DepthShadowsRayTracingShaderAccelerated, "DepthShadowsRaytracingShaderPass");
-        //depthShadowsCommandBuffer.SetRayTracingBufferParam(_DepthShadowsRayTracingShaderAccelerated, "_Samples", samplesBuffer);
-        //depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_DepthShadowsRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
-        //depthShadowsCommandBuffer.DispatchRays(_DepthShadowsRayTracingShaderAccelerated, "DepthShadowsRaygenShader", (uint)Screen.width, (uint)Screen.height, 1);
-
-        //depthShadowsCommandBuffer.SetGlobalTexture("_UnigmaGlobalIllumination", _UnigmaGlobalIllumination);
-        //depthShadowsCommandBuffer.SetRenderTarget(_UnigmaGlobalIllumination);
-        //depthShadowsCommandBuffer.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-        //depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_samples", samplesBuffer);
-        //depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_unigmaLights", lightsBuffer);
-        //depthShadowsCommandBuffer.SetRayTracingBufferParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_reservoirs", reservoirsBuffer);
-
-        //depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_NumberOfLights", lightList.Count);
-        //depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_TemporalReservoirsCount", _temporalReservoirsCount);
-        //depthShadowsCommandBuffer.SetRayTracingTextureParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_GlobalIllumination", _DepthShadowsTexture);
-
-        //depthShadowsCommandBuffer.SetRayTracingIntParam(_RestirGlobalIllumRayTracingShaderAccelerated, "_UnigmaFrameCount", _UnigmaFrameCount);
-        //depthShadowsCommandBuffer.SetRayTracingAccelerationStructure(_RestirGlobalIllumRayTracingShaderAccelerated, "_RaytracingAccelerationStructure", _AccelerationStructure);
-        //depthShadowsCommandBuffer.SetRayTracingShaderPass(_RestirGlobalIllumRayTracingShaderAccelerated, "GlobalIlluminationRaytracingShaderPass");
-        //depthShadowsCommandBuffer.DispatchRays(_RestirGlobalIllumRayTracingShaderAccelerated, "RestirGlobalIllumantionRayGen", (uint)Screen.width, (uint)Screen.height, 1);
-        //depthShadowsCommandBuffer.DispatchCompute(unigmaDispatchInfoComputeShader, 0, 1, 1, 1);
-        /*
-        _UnigmaFrameCount += 1;
-        if (_UnigmaFrameCount > int.MaxValue)
-            _UnigmaFrameCount = 0;
-        Shader.SetGlobalInt("_UnigmaFrameCount", _UnigmaFrameCount);
-        Debug.Log(_UnigmaFrameCount);
-        */
-    }
-
     void CreateDenoisedGlobalIllumination()
     {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
         CommandBuffer svgfUnigma = new CommandBuffer();
         svgfUnigma.name = "SVGFBuffer";
         svgfUnigma.SetGlobalTexture("_UnigmaDenoisedGlobalIllumination", _UnigmaDenoisedGlobalIllumination);
@@ -774,15 +751,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.SetGlobalTexture("_UnigmaNormal", _UnigmaNormal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionID", _UnigmaMotionID);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaAlbedo", _UnigmaAlbedo);
-        outlineDepthBuffer.SetGlobalTexture("_UnigmaNormalTemporal", _UnigmaNormalTemporal);
-        outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionIDTemporal", _UnigmaMotionIDTemporal);
-        outlineDepthBuffer.SetGlobalTexture("_UnigmaAlbedoTemporal", _UnigmaAlbedoTemporal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaBlueNoise", _UnigmaBlueNoise);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaSpecularLights", _UnigmaSpecularLights);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaIds", _UnigmaIdsTexture);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterNormals", _UnigmaWaterNormals);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterPosition", _UnigmaWaterPosition);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterReflections", _UnigmaWaterReflections);
+
+        SetGlobalIlluminationTextures();
 
         outlineDepthBuffer.SetRenderTarget(_UnigmaWaterNormals);
 
@@ -822,6 +798,38 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
 
+    }
+
+    void CreateCompositeBuffer()
+    {
+        compositeBuffer = new CommandBuffer();
+        compositeBuffer.name = "CompositeBuffer";
+
+        //Get Composite Material.
+        Material compositeMaterial = null;
+        if (UnigmaSettings.GetIsRTXEnabled())
+        {
+            compositeMaterial = Resources.Load<Material>("UnigmaCompositeRayTrace");
+        }
+        else
+        {
+            compositeMaterial = Resources.Load<Material>("UnigmaComposite");
+        }
+
+        //Blit material to current camera target.
+        compositeBuffer.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, compositeMaterial);
+
+        //This happens right before post processing.
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, compositeBuffer);
+    }
+
+    void SetGlobalIlluminationTextures()
+    {
+        if (!UnigmaSettings.GetIsRTXEnabled())
+            return;
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaNormalTemporal", _UnigmaNormalTemporal);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionIDTemporal", _UnigmaMotionIDTemporal);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaAlbedoTemporal", _UnigmaAlbedoTemporal);
     }
 
     void CreateOutlineColorBuffers()

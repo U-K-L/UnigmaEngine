@@ -19,7 +19,6 @@ public class UnigmaOutlines : MonoBehaviour
 
     void OnRenderImage(RenderTexture src, RenderTexture dst)
     {
-
         Graphics.Blit(src, dst, material);
     }
 }

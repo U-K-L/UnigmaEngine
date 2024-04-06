@@ -68,7 +68,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public Vector2 moments;
     };
 
-    int _unigmaDispatchInfoStride = sizeof(int);
     int _reservoirStride = sizeof(float) * 6 + sizeof(float)*3;
     int _reservoirPathStride = sizeof(float) * 2 + sizeof(float) * 3*3;
     int _lightStride = sizeof(float) * 3*3 + sizeof(float);
@@ -86,13 +85,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private List<ReservoirPath> reservoirPaths;
     private List<Sample> samplesList;
     private List<UnigmaLight> lightList;
-    private List<UnigmaDispatchInfo> unigmaDispatchInfos;
     private List<SVGF> svgfList;
 
     private ComputeShader computeOutlineColors;
-    private ComputeShader unigmaDispatchInfoComputeShader;
     private ComputeShader svgfComputeShader;
     private CommandBuffer outlineDepthBuffer;
+    private CommandBuffer compositeBuffer;
     private Material _nullMaterial = default;
 
     private bool BuffersReady = false;
@@ -281,6 +279,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void AddCommandBuffers()
     {
+        //Need command buffers in specific ordering.
         if (BuffersReady == false)
         {
             BuffersReady = true;
@@ -300,6 +299,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             AddObjectsToAccerleration();
 
             CreateDepthNormalBuffers();
+
             CreateDepthShadowBuffers();
             CreateDenoisedGlobalIllumination();
 
@@ -310,6 +310,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
         if (buffersAdded < 2)
         {
             CreateOutlineColorBuffers();
+            CreateCompositeBuffer();
+
             buffersAdded += 1;
         }
     }
@@ -796,6 +798,29 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineDepthBuffer);
 
+    }
+
+    void CreateCompositeBuffer()
+    {
+        compositeBuffer = new CommandBuffer();
+        compositeBuffer.name = "CompositeBuffer";
+
+        //Get Composite Material.
+        Material compositeMaterial = null;
+        if (UnigmaSettings.GetIsRTXEnabled())
+        {
+            compositeMaterial = Resources.Load<Material>("UnigmaCompositeRayTrace");
+        }
+        else
+        {
+            compositeMaterial = Resources.Load<Material>("UnigmaComposite");
+        }
+
+        //Blit material to current camera target.
+        compositeBuffer.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, compositeMaterial);
+
+        //This happens right before post processing.
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, compositeBuffer);
     }
 
     void SetGlobalIlluminationTextures()

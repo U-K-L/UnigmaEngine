@@ -1,3 +1,7 @@
+// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
+
+// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
+
 Shader "Unigma/UnigmaToonStylized"
 {
     Properties
@@ -19,7 +23,7 @@ Shader "Unigma/UnigmaToonStylized"
         _RimAmount("Rim Amount", Range(0, 1)) = 0.716
         _RimThreshold("Rim Threshold", Range(0, 1)) = 0.1
 		_UseRim("Use RIM", Float) = 0
-        [KeywordEnum(CelShaded, ToonShaded)] _ColorDistModel("Color BRDF", Float) = 0
+        [KeywordEnum(CelShaded, ToonShaded, DistShaded)] _ColorDistModel("Color BRDF", Float) = 0
 		_RimControl("Rim Control", Range(-1,1)) = 0
 
         
@@ -184,9 +188,10 @@ Shader "Unigma/UnigmaToonStylized"
             #pragma fragment frag
             // make fog work
             #pragma multi_compile_fog 
-            #pragma multi_compile _COLORDISTMODEL_CELSHADED _COLORDISTMODEL_TOONSHADED
+            #pragma multi_compile _COLORDISTMODEL_CELSHADED _COLORDISTMODEL_TOONSHADED _COLORDISTMODEL_DISTSHADED
 
             #include "UnityCG.cginc"
+            #include "../ShaderHelpers.hlsl"
 
             struct appdata
             {
@@ -221,6 +226,7 @@ Shader "Unigma/UnigmaToonStylized"
             float _RimThreshold;
             float _UseRim;
             float _ColorDistModel;
+            float _Emmittance;
 
             v2f vert (appdata v)
             {
@@ -258,19 +264,24 @@ Shader "Unigma/UnigmaToonStylized"
 				float NdotL = dot(normals, lightDir);
                 
                 float4 finalColor = 0;
-#ifdef _COLORDISTMODEL_CELSHADED
+            #ifdef _COLORDISTMODEL_CELSHADED
                 float4 xzCol = _Shadow * step(_Thresholds.x, abs(normals).r);
                 float4 zxCol = _Midtone * step(_Thresholds.z, abs(normals).b);
                 float4 zyCol = _Highlight * step(_Thresholds.z, abs(normals).g);
                 finalColor = zyCol + xzCol + zxCol;
-#elif _COLORDISTMODEL_TOONSHADED
+            #elif _COLORDISTMODEL_TOONSHADED
                 float4 midTones = _Midtone * step(_Thresholds.x, NdotL);
                 float4 shadows = _Shadow * step(NdotL, _Thresholds.y);
                 float4 highlights = _Highlight * step(_Thresholds.z, NdotL);
 
                 finalColor = max(midTones, shadows);
                 finalColor = max(finalColor, highlights);
-#endif
+
+            #elif _COLORDISTMODEL_DISTSHADED
+				finalColor = _Midtone;
+                //float3 objectOrigin = mul(unity_ObjectToWorld, float4(0,0,0, 1)).xyz;
+                //finalColor = pow(distance(objectOrigin, i.worldPos), 1);
+            #endif
 
                 //return _Midtone;
                 //return col;

@@ -1,4 +1,4 @@
-Shader "Unigma/UnigmaOutlines"
+Shader "Unigma/UnigmaOutlinesRayTrace"
 {
     Properties
     {
@@ -75,10 +75,7 @@ Shader "Unigma/UnigmaOutlines"
 				fixed4 WaterNormals = tex2D(_UnigmaWaterNormals, i.uv);
 				fixed4 WaterPositions = tex2D(_UnigmaWaterPosition, i.uv);
 				fixed4 WaterReflections = tex2D(_UnigmaWaterReflections, i.uv);
-                
-                //return specularHighlights *10000;
-                //return reflections;
-                //return originalImage;
+
 				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
 				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
@@ -255,7 +252,8 @@ Shader "Unigma/UnigmaOutlines"
 				float4 reflectMask = step(reflections.r, 0.01) * 1;
                 float4 reflectMaskInv = step(0.01, reflections.r) * 1;
 
-                return FinalColor + specularHighlights;
+                //return GlobalIllumination;
+                //return FinalColor + specularHighlights;
                 //return reflectMaskInv* reflections*0.25;
                 //reflections = reflectMaskInv * reflections * 0.75;
 				//reflections += reflectMask;
@@ -264,10 +262,10 @@ Shader "Unigma/UnigmaOutlines"
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(FinalColor, FinalColor + GlobalIlluminationDenoised *0.75 + reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
-                return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
+                return lerp(FinalColor, FinalColor*0.975 + GlobalIlluminationDenoised *0.85 + reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
+                //return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
-                return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
+                //return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }
             ENDCG
         }

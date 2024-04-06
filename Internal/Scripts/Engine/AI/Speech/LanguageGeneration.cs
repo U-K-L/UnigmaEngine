@@ -1,3 +1,4 @@
+#if UNITY_STANDALONE_WIN
 using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Models;
@@ -108,3 +109,4 @@ public class LanguageGeneration : MonoBehaviour
         System.IO.File.WriteAllText(Application.persistentDataPath + "conversations.json", convos);
     }
 }
+#endif

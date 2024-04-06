@@ -5,11 +5,22 @@
 #include "UnityCG.cginc"
 
 RWTexture2D<float4> _UnigmaDepthShadowsMap;
+RWTexture2D<float4> _UnigmaDepthReflectionsMap;
+
+Texture2D<float4> _UnigmaWaterNormals;
+Texture2D<float4> _UnigmaWaterPosition;
+RWTexture2D<float4> _UnigmaWaterReflections;
 
 #pragma max_recursion_depth 8
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 float4x4                        _Perspective_Matrix_VP;
+
+float3 reflectUnigma( float3 i, float3 n )
+{
+  return i - 1.8510 * n * dot(n,i);
+}
+
 [shader("raygeneration")]
 void DepthShadowsRaygenShader()
 {
@@ -72,10 +83,13 @@ void DepthShadowsRaygenShader()
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
     payload.distance = 99999;
+    payload.normal = 0;
+    payload.direction = 0;
 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    position = ray.Origin + ray.Direction * (payload.distance - 0.0001);
+    float distanceFromPoint = 0.0353;
+    position = ray.Origin+ (ray.Direction * payload.distance) + (payload.normal * distanceFromPoint);//ray.Origin + ray.Direction * (payload.distance - 0.0353);
     
     if (unity_OrthoParams.w > 0)
     {
@@ -99,6 +113,10 @@ void DepthShadowsRaygenShader()
         depth = 0;
     }
 
+    //Store payload normal for the reflections later on.
+    float3 reflectionNormal = payload.normal;
+    float4 prevColor = payload.color;
+    
     //Find the shadow.
 
     //Set new position and direction.
@@ -110,6 +128,47 @@ void DepthShadowsRaygenShader()
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
     _UnigmaDepthShadowsMap[id.xy] += float4(depth, payload.color.r, payload.color.g, 1);
+
+    //Begin reflection mapping.
+    //Get the reflection vector.
+        //Camera is Perspective.
+    //Convert to camera space.
+    float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
+    //Perspective divide.
+    viewPos /= viewPos.w; //This takes into account field of view, how the frustrum of the view plane is.
+    
+    //Convert to world space.
+    float3 worldPosPixel = mul(unity_MatrixInvV, viewPos).xyz;
+
+    //Take the pixel and get the direction from the origin to create perspective.
+    float3 worldDirection = normalize(worldPosPixel - _WorldSpaceCameraPos);
+    float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+        
+    float3 reflectedDirection = reflectUnigma(worldDirection, reflectionNormal);
+    reflectedDirection = lerp(reflectionNormal,reflectedDirection, prevColor.z);
+    ray.Origin = position;
+    ray.Direction = reflectedDirection;
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    
+    //Store the reflection.
+    //Attenutate based on distance of ray.
+    float distance = length(ray.Origin - position);
+    float attenuation = 1 / (distance * distance);
+    
+    _UnigmaDepthReflectionsMap[id.xy] = lerp(0, float4(payload.direction, 1),  prevColor.z);
+
+    /*
+    //Compute water reflections.
+    float3 waterNormal = _UnigmaWaterNormals[id.xy];
+    float3 waterReflection = reflect(worldDirection, waterNormal);
+    float3 waterOrigin = _UnigmaWaterPosition[id.xy];
+    float3 waterPosition = waterOrigin + (waterNormal * distanceFromPoint);
+
+    ray.Origin = waterPosition;
+    ray.Direction = waterReflection;
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    _UnigmaWaterReflections[id.xy] = lerp(0, float4(payload.direction, 1),  prevColor.z);
+    */
 }
 
 [shader("miss")]
@@ -117,5 +176,7 @@ void MyMissShader(inout Payload payload : SV_RayPayload)
 {
     payload.color = 0;
     payload.distance = 99999;
+    payload.normal = 0;
+    payload.direction = 0;
     
 }

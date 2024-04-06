@@ -170,7 +170,12 @@ public void OnEnable()
         pixelGrassComputeShader.Dispatch(idPyramidKernel, dispatchSize.x, dispatchSize.y, dispatchSize.z);
 
         //Render the generated mesh.
-        Graphics.DrawProceduralIndirect(material, bounds, MeshTopology.Triangles, argsBuffer, 0, null, null, UnityEngine.Rendering.ShadowCastingMode.Off, true, gameObject.layer);
+        RenderParams rp = new RenderParams(material);
+        rp.material = material;
+        rp.worldBounds = bounds;
+        //GraphicsBuffer commands = outputTriangles;
+        //Graphics.RenderPrimitivesIndirect(rp, MeshTopology.Triangles, argsBuffer, 2);
+        //Graphics.DrawProceduralIndirect(material, bounds, MeshTopology.Triangles, argsBuffer, 0, null, null, UnityEngine.Rendering.ShadowCastingMode.Off, true, gameObject.layer);
 
 
         //Print out vertices from output.

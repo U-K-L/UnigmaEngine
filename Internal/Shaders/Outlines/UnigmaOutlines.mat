@@ -38,17 +38,17 @@ Material:
     m_Ints: []
     m_Floats:
     - _DepthThreshold: 0.37
-    - _LineBreakage: 0.526
+    - _LineBreakage: 0.488
     - _NormalThreshold: 0.39
     - _PosThreshold: 0
     - _Scale: 2.4
-    - _ScaleInner: 3
+    - _ScaleInner: 2
     - _ScaleOuter: 0
     - _ScaleShadow: 2.5
-    - _ScaleWhiteOutline: 3.7
+    - _ScaleWhiteOutline: 9.8
     m_Colors:
     - _InnerLines: {r: 0.1273585, g: 0.7536071, b: 1, a: 1}
     - _OuterLines: {r: 0.25, g: 0.4642856, b: 1, a: 1}
-    - _ShadowOutlineColor: {r: 0.85416645, g: 0.60746706, b: 0.8820755, a: 0.90588236}
+    - _ShadowOutlineColor: {r: 0.9764706, g: 0.7607843, b: 1, a: 0.90588236}
     - _SurfaceNoiseScroll: {r: 0.002, g: 0.0045, b: 0.01, a: 1}
   m_BuildTextureStacks: []

@@ -19,7 +19,9 @@ Shader "Unigma/UnigmaToonStylized"
         _RimAmount("Rim Amount", Range(0, 1)) = 0.716
         _RimThreshold("Rim Threshold", Range(0, 1)) = 0.1
 		_UseRim("Use RIM", Float) = 0
+        [KeywordEnum(CelShaded, ToonShaded)] _ColorDistModel("Color BRDF", Float) = 0
 		_RimControl("Rim Control", Range(-1,1)) = 0
+
         
     }
     SubShader
@@ -181,7 +183,8 @@ Shader "Unigma/UnigmaToonStylized"
             #pragma vertex vert
             #pragma fragment frag
             // make fog work
-            #pragma multi_compile_fog
+            #pragma multi_compile_fog 
+            #pragma multi_compile _COLORDISTMODEL_CELSHADED _COLORDISTMODEL_TOONSHADED
 
             #include "UnityCG.cginc"
 
@@ -217,6 +220,7 @@ Shader "Unigma/UnigmaToonStylized"
             float _RimAmount;
             float _RimThreshold;
             float _UseRim;
+            float _ColorDistModel;
 
             v2f vert (appdata v)
             {
@@ -253,12 +257,20 @@ Shader "Unigma/UnigmaToonStylized"
                 
 				float NdotL = dot(normals, lightDir);
                 
-				float4 midTones = _Midtone * step(_Thresholds.x, NdotL);
-				float4 shadows = _Shadow * step(NdotL, _Thresholds.y);
-				float4 highlights = _Highlight * step(_Thresholds.z, NdotL);
-                
-				float4 finalColor = max(midTones, shadows);
-				finalColor = max(finalColor, highlights);
+                float4 finalColor = 0;
+#ifdef _COLORDISTMODEL_CELSHADED
+                float4 xzCol = _Shadow * step(_Thresholds.x, abs(normals).r);
+                float4 zxCol = _Midtone * step(_Thresholds.z, abs(normals).b);
+                float4 zyCol = _Highlight * step(_Thresholds.z, abs(normals).g);
+                finalColor = zyCol + xzCol + zxCol;
+#elif _COLORDISTMODEL_TOONSHADED
+                float4 midTones = _Midtone * step(_Thresholds.x, NdotL);
+                float4 shadows = _Shadow * step(NdotL, _Thresholds.y);
+                float4 highlights = _Highlight * step(_Thresholds.z, NdotL);
+
+                finalColor = max(midTones, shadows);
+                finalColor = max(finalColor, highlights);
+#endif
 
                 //return _Midtone;
                 //return col;
@@ -281,14 +293,9 @@ Shader "Unigma/UnigmaToonStylized"
                 
                 //if (_UseRim < 0.1)
                 //    return finalColor;
-                
-                return finalColor;// +(specular + rimIntensity + rimDot);
 
-                float4 xzCol = _Shadow*step(_Thresholds.x, abs(normals).r);
-                float4 zxCol = _Midtone*step(_Thresholds.z, abs(normals).b);
-                float4 zyCol = _Highlight* step(_Thresholds.z, abs(normals).g);
 
-                return col;//zyCol+ xzCol + zxCol;
+                return finalColor;
                 
             }
             ENDCG
@@ -308,21 +315,40 @@ Shader "Unigma/UnigmaToonStylized"
 
             Texture2D<float4> _MainTex;
             SamplerState sampler_MainTex;
-
+            float4 _Midtone;
+            float4 _Shadow;
+            float4 _Highlight;
+            float4 _Thresholds;
+            float _Smoothness;
+            
             [shader("closesthit")]
             void MyHitShader(inout Payload payload : SV_RayPayload,
                 AttributeData attributes : SV_IntersectionAttributes)
             {
                 float2 uvs = GetUVs(attributes);
                 float3 normals = GetNormals(attributes);
-                //float3 worldNormal = mul((float4x4)unity_ObjectToWorld, float4(normals, 0)).xyz;
-
+                float3 worldNormal = normalize(mul(ObjectToWorld3x4(), float4(normals, 0)).xyz);
+                payload.normal = float4(worldNormal, 1);
 
                 float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);
                 float4 tex = _MainTex.SampleLevel(sampler_MainTex, uvs, 0);
 
                 payload.distance = RayTCurrent();
-                payload.color = float4(1, 1, 0, InstanceID());
+                payload.color = float4(1, 1, _Smoothness, InstanceID());
+                //Act as color
+                float3 lightDirAbsolute = normalize(_WorldSpaceLightPos0.xyz);
+                float3 lightDir = normalize(lightDirAbsolute);
+
+                float NdotL = dot(worldNormal, lightDir);
+
+                float4 midTones = _Midtone * step(_Thresholds.x, NdotL);
+                float4 shadows = _Shadow * step(NdotL, _Thresholds.y);
+                float4 highlights = _Highlight * step(_Thresholds.z, NdotL);
+
+                float4 finalColor = max(midTones, shadows);
+                finalColor = max(finalColor, highlights);
+                float distSquared = max(0.01, min(1, 1 / (RayTCurrent() * RayTCurrent())));
+                payload.direction = finalColor * distSquared;//_Midtone* distSquared;//float4(normals, 1);
                 /*
                 if(InstanceID() == payload.color.w)
                     //Incode self-shadows as y

@@ -52,8 +52,8 @@ Shader "Unigma/UnigmaOutlines"
                 o.uv = v.uv;
                 return o;
             }
-            sampler2D _CameraMotionVectorsTexture;
-            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights;
+            sampler2D _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections;
+            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
@@ -70,7 +70,13 @@ Shader "Unigma/UnigmaOutlines"
 				fixed4 normalMap = tex2D(_UnigmaNormal, i.uv);
 				fixed4 specularHighlights = tex2D(_UnigmaSpecularLights, i.uv);
 				fixed4 albedo = tex2D(_UnigmaAlbedo, i.uv);
+				fixed4 reflections = tex2D(_UnigmaDepthReflectionsMap, i.uv);
+				fixed4 IdsTexture = tex2D(_UnigmaIds, i.uv);
+				fixed4 WaterNormals = tex2D(_UnigmaWaterNormals, i.uv);
+				fixed4 WaterPositions = tex2D(_UnigmaWaterPosition, i.uv);
+				fixed4 WaterReflections = tex2D(_UnigmaWaterReflections, i.uv);
                 
+                //return reflections;
                 //return originalImage;
 				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
@@ -92,10 +98,10 @@ Shader "Unigma/UnigmaOutlines"
                 float2 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
 
-                float4 depthnormal0 = tex2D(_IsometricDepthNormal, bottomLeft);
-                float4 depthnormal1 = tex2D(_IsometricDepthNormal, topRight);
-                float4 depthnormal2 = tex2D(_IsometricDepthNormal, bottomRight);
-                float4 depthnormal3 = tex2D(_IsometricDepthNormal, topLeft);
+                float4 depthnormal0 = tex2D(_UnigmaNormal, bottomLeft) * 0.5 + 0.5;
+                float4 depthnormal1 = tex2D(_UnigmaNormal, topRight) * 0.5 + 0.5;
+                float4 depthnormal2 = tex2D(_UnigmaNormal, bottomRight) * 0.5 + 0.5;
+                float4 depthnormal3 = tex2D(_UnigmaNormal, topLeft) * 0.5 + 0.5;
 
                 
                 float depthFiniteDifference3 = depthnormal1.a - depthnormal0.a;
@@ -103,15 +109,27 @@ Shader "Unigma/UnigmaOutlines"
                 float edgeDepth = sqrt(pow(depthFiniteDifference3, 2) + pow(depthFiniteDifference4, 2)) * 100;
                 float depthThreshold = _DepthThreshold * depthnormal0;
                 edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
-                
-                float4 pos0 = tex2D(_IsometricPositions, bottomLeft);
-                float4 pos1 = tex2D(_IsometricPositions, topRight);
-                float4 pos2 = tex2D(_IsometricPositions, bottomRight);
-                float4 pos3 = tex2D(_IsometricPositions, topLeft);
 
 
-                float posFiniteDifference3 = abs(pos1.a - pos0.a);//length(pos1 - pos0);
-                float posFiniteDifference4 = abs(pos3.a - pos2.a);//length(pos3 - pos2);
+
+                float scaleUV = 1;
+                scaleFloor = floor(_ScaleInner * 0.5);
+                scaleCeil = ceil(_ScaleInner * 0.5);
+
+                bottomLeft = scaleUV * i.uv -float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
+                topRight = scaleUV * i.uv +float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
+                bottomRight = scaleUV * i.uv +float2(_MainTex_TexelSize.x * scaleCeil, -_MainTex_TexelSize.y * scaleFloor);
+                topLeft = scaleUV * i.uv +float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
+
+                //Get ID uniqueness
+                float4 pos0 = tex2D(_UnigmaIds, bottomLeft);
+                float4 pos1 = tex2D(_UnigmaIds, topRight);
+                float4 pos2 = tex2D(_UnigmaIds, bottomRight);
+                float4 pos3 = tex2D(_UnigmaIds, topLeft);
+
+
+                float posFiniteDifference3 = abs(pos1 - pos0);//length(pos1 - pos0);
+                float posFiniteDifference4 = abs(pos3 - pos2);//length(pos3 - pos2);
                 float edgePos = sqrt(pow(posFiniteDifference3, 2) + pow(posFiniteDifference4, 2)) * 100;
                 float posThreshold = _PosThreshold;
                 edgePos = edgePos > posThreshold ? 1 : 0;
@@ -126,10 +144,10 @@ Shader "Unigma/UnigmaOutlines"
                 topLeft = i.uv + float2(-_MainTex_TexelSize.x * scaleFloor, _MainTex_TexelSize.y * scaleCeil);
 
 
-                float4 normal0 = tex2D(_IsometricDepthNormal, bottomLeft);
-                float4 normal1 = tex2D(_IsometricDepthNormal, topRight);
-                float4 normal2 = tex2D(_IsometricDepthNormal, bottomRight);
-                float4 normal3 = tex2D(_IsometricDepthNormal, topLeft);
+                float4 normal0 = tex2D(_UnigmaNormal, bottomLeft);
+                float4 normal1 = tex2D(_UnigmaNormal, topRight);
+                float4 normal2 = tex2D(_UnigmaNormal, bottomRight);
+                float4 normal3 = tex2D(_UnigmaNormal, topLeft);
 
                 float3 normalFiniteDifference0 = normal1.xyz - normal0.xyz;
                 float3 normalFiniteDifference1 = normal3.xyz - normal2.xyz;
@@ -137,6 +155,7 @@ Shader "Unigma/UnigmaOutlines"
                 float edgeNormal = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
                 edgeNormal = edgeNormal > _NormalThreshold ? 1 : 0;
 
+				//return edgeNormal;
 
                 //Get shadow outlines.
                 
@@ -197,7 +216,8 @@ Shader "Unigma/UnigmaOutlines"
                 //And make it optional!
                 //FinalColor = lerp(FinalColor, BackgroundTexture, step(_UnigmaDepthShadows.r, 0.01));
                 FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz, 1), edge * step(0.001, OutterLineColors.w));
-
+                FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
+                
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 
                 float shadows = _UnigmaDepthShadows.y;
@@ -230,8 +250,20 @@ Shader "Unigma/UnigmaOutlines"
                 //return specularHighlights;
                 //return lerp(albedo, albedo * 0.75 + GlobalIllumination * 0.62, 0.541 + GlobalIllumination.w * 0.712 + (0.182 * (1.0 - shadows))) + specularHighlights;
                 
-                //return specularHighlights;
-                return lerp(FinalColor, FinalColor*0.75 + GlobalIlluminationDenoised*0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
+                //return min(1, length(GlobalIllumination));
+				float4 reflectMask = step(reflections.r, 0.01) * 1;
+                float4 reflectMaskInv = step(0.01, reflections.r) * 1;
+
+                //return reflectMaskInv* reflections*0.25;
+                //reflections = reflectMaskInv * reflections * 0.75;
+				//reflections += reflectMask;
+                //return reflections;
+                FinalColor = lerp(FinalColor, FinalColor*(min(1,reflections.w*0.975)) + reflections*0.25, reflectMaskInv*min(1, reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
+                //return FinalColor + reflections;
+                //return FinalColor;
+                //return FinalColor + GlobalIllumination;
+                return lerp(FinalColor, FinalColor + GlobalIlluminationDenoised *0.75 + reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
+                return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));
             }

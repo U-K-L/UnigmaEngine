@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Unlit_UngimaWaterV2
+  m_Shader: {fileID: 4800000, guid: 7bb2746f0fd2e074bbc885b76215306c, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2012
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _DisplacementTex:
+        m_Texture: {fileID: 2800000, guid: 65fc74252e385fe4581460e2b9f18386, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SurfaceNoise:
+        m_Texture: {fileID: 2800000, guid: 2bb5e7940d64e4510b915a23c753a3f3, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _DepthAmount: 1
+    - _DepthMaxDistance: 1
+    - _Emmittance: 0
+    - _Fade: 1
+    - _FoamMaxDistance: 0.4
+    - _FoamMinDistance: 0.04
+    - _Intensity: 0.74
+    - _LightAbsorbtion: 0
+    - _NormalAmount: 1
+    - _ObjectID: 0
+    - _Scale: 1
+    - _Smootheness: 1
+    - _Smoothness: 0
+    - _SurfaceNoiseCutoff: 0.941
+    m_Colors:
+    - _DepthDistanceAxis: {r: 0, g: 0, b: 0, a: 1}
+    - _DepthGradiantDeep: {r: 1, g: 1, b: 1, a: 1}
+    - _DepthGradiantShallow: {r: 1, g: 1, b: 1, a: 1}
+    - _FoamIntensity: {r: 7.87, g: 0.01, b: 1, a: 1}
+    - _LineArtColor: {r: 0, g: 0, b: 0, a: 1}
+    - _LineThickness: {r: 0, g: 0, b: 0, a: 0}
+    - _RefracStr: {r: 20, g: 2, b: 0.003, a: 0.19}
+    - _SparkleFoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _SurfaceNoiseScroll: {r: -0.5, g: -1, b: 4.6, a: 0.015}
+    - _TextureInfluence: {r: 1, g: 1, b: 1, a: 1}
+    - _WaterColor: {r: 0.6229975, g: 0.7985689, b: 0.9433962, a: 1}
+    - _WaterMainColor: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []

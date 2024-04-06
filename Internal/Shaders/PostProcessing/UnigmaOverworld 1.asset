@@ -95,13 +95,13 @@ MonoBehaviour:
     value: 1
   intensity:
     overrideState: 1
-    value: 0.62
+    value: 0.51
   threshold:
     overrideState: 1
     value: 0.48
   softKnee:
     overrideState: 1
-    value: 0.5
+    value: 0.406
   clamp:
     overrideState: 1
     value: 65472
@@ -113,7 +113,7 @@ MonoBehaviour:
     value: -0.43
   color:
     overrideState: 1
-    value: {r: 0.28773582, g: 0.5782279, b: 1, a: 1}
+    value: {r: 0.46927288, g: 0.5987927, b: 0.759434, a: 1}
   fastMode:
     overrideState: 1
     value: 0
@@ -136,7 +136,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: adb84e30e02715445aeb9959894e3b4d, type: 3}
   m_Name: ColorGrading
   m_EditorClassIdentifier: 
-  active: 1
+  active: 0
   enabled:
     overrideState: 1
     value: 1
@@ -149,7 +149,7 @@ MonoBehaviour:
     defaultState: 1
   tonemapper:
     overrideState: 1
-    value: 2
+    value: 1
   toneCurveToeStrength:
     overrideState: 1
     value: 0.43
@@ -180,7 +180,7 @@ MonoBehaviour:
     value: 21
   tint:
     overrideState: 1
-    value: -28
+    value: 11
   colorFilter:
     overrideState: 1
     value: {r: 1, g: 1, b: 1, a: 1}
@@ -228,13 +228,13 @@ MonoBehaviour:
     value: 100
   lift:
     overrideState: 1
-    value: {x: 0.6134009, y: 0.28283507, z: 1, w: 0.09848115}
+    value: {x: 0, y: 0.060241938, z: 1, w: 0.09848115}
   gamma:
     overrideState: 1
-    value: {x: 1, y: 0.9020108, z: 0.9021991, w: 0}
+    value: {x: 0.64609367, y: 0.6368854, z: 1, w: 0}
   gain:
     overrideState: 1
-    value: {x: 0.75576425, y: 0.59580475, z: 1, w: 0}
+    value: {x: 0.43582278, y: 0.6247896, z: 1, w: 0}
   masterCurve:
     overrideState: 1
     value:
@@ -1492,13 +1492,13 @@ MonoBehaviour:
     value: 0
   color:
     overrideState: 1
-    value: {r: 0.24705882, g: 0.0039215684, b: 0.0341986, a: 1}
+    value: {r: 0.5188679, g: 0.88113207, b: 1, a: 1}
   center:
     overrideState: 1
-    value: {x: 0.5, y: 0.5}
+    value: {x: 0.5, y: 0.45}
   intensity:
     overrideState: 1
-    value: 0.15
+    value: 0.089
   smoothness:
     overrideState: 1
     value: 1
@@ -1547,7 +1547,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b94fcd11afffcb142908bfcb1e261fba, type: 3}
   m_Name: MotionBlur
   m_EditorClassIdentifier: 
-  active: 1
+  active: 0
   enabled:
     overrideState: 1
     value: 1

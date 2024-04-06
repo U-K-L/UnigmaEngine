@@ -105,7 +105,7 @@ public class UnigmaNetworkManager : NetworkManager
             {
                 Connection = conn,
                 ConnectionId = conn.connectionId,
-                LobbyId = PlayFabMultiplayerAgentAPI.SessionConfig.SessionId
+                //LobbyId = PlayFabMultiplayerAgentAPI.SessionConfig.SessionId
             });
         }
     }

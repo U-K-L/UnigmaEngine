@@ -18,24 +18,30 @@ public class IsometricDepthNormalObject : UnigmaPostProcessingObjects
     private void Awake()
     {
         Material mat = Resources.Load("Materials/IsometricDepthNormals/IsometricDepthNormals") as Material;
-        material = Instantiate(mat);
-        material.name = material.name + " " + gameObject.name;
-        materials.Add("IsometricDepthNormals", material);
-        renderer = GetComponent<Renderer>();
-
-        //Add to this component to all children
-        foreach (Transform child in transform)
+        if (mat != null)
         {
-            if (child.gameObject.GetComponent<IsometricDepthNormalObject>() != null)
+            Debug.Log("_UNIGMA Material Loaded ISOMETRICDEPTHNORMALS");
+            material = Instantiate(mat);
+            material.name = material.name + " " + gameObject.name;
+            materials.Add("IsometricDepthNormals", material);
+            renderer = GetComponent<Renderer>();
+
+            //Add to this component to all children
+            foreach (Transform child in transform)
             {
-                continue;
+                if (child.gameObject.GetComponent<IsometricDepthNormalObject>() != null)
+                {
+                    continue;
+                }
+                IsometricDepthNormalObject iso = child.gameObject.AddComponent<IsometricDepthNormalObject>();
+                iso._fadeThreshold = _fadeThreshold;
+                iso._normalAmp = _normalAmp;
+                iso._depthAmp = _depthAmp;
             }
-            IsometricDepthNormalObject iso = child.gameObject.AddComponent<IsometricDepthNormalObject>();
-            iso._fadeThreshold = _fadeThreshold;
-            iso._normalAmp = _normalAmp;
-            iso._depthAmp = _depthAmp;
+            ready = true;
         }
-        ready = true;
+        else
+            Debug.Log("_UNIGMA Failed to load Material ISOMETRICDEPTHNORMALS");
     }
 
     private void Update()

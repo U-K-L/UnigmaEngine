@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: UnigmaCompositeRayTrace
-  m_Shader: {fileID: 4800000, guid: e682c26825169914387a0daf5373cf43, type: 3}
+  m_Shader: {fileID: 4800000, guid: 1238f4f4cc7b9ab4fbb916133c78f884, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []

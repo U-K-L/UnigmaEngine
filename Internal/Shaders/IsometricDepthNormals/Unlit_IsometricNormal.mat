@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Unlit_IsometricNormal
-  m_Shader: {fileID: 4800000, guid: 723944edd3b91184390969b60df786a3, type: 3}
+  m_Shader: {fileID: 4800000, guid: a0da782927812ae47b44d5f227da868c, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []

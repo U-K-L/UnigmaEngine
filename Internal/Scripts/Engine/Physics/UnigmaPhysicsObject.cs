@@ -21,7 +21,6 @@ public class UnigmaPhysicsObject : MonoBehaviour
     {
         if (!ObjectSetup)
             SetUpObject();
-        Debug.Log("Physics Updating");
         UpdatePosition();
         UpdateVelocity();
         UpdateAcceleration();

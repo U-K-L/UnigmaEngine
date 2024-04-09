@@ -128,11 +128,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaWaterReflections;
     public Texture2D _UnigmaBlueNoise;
 
-    private List<Renderer> _rayTracedObjects = new List<Renderer>();
+    private List<Renderer> _rayTracedObjects = default;
     public Camera secondCam;
     // Start is called before the first frame update
     void Start()
     {
+        _rayTracedObjects = new List<Renderer>();
         UpdateRenderTextures();
         SetUpOutline();
     }
@@ -340,6 +341,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         //check if already exists, if so release it.
         ReleaseRenderTextures();
         CreateGlobalIlluminationTextures();
+
         _DepthShadowsTexture = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _DepthShadowsTexture.enableRandomWrite = true;
         _DepthShadowsTexture.Create();
@@ -348,33 +350,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _ReflectionsTexture.enableRandomWrite = true;
         _ReflectionsTexture.Create();
 
-        _UnigmaAlbedo = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaAlbedo.enableRandomWrite = true;
-        _UnigmaAlbedo.Create();
-
         _UnigmaNormal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaNormal.enableRandomWrite = true;
         _UnigmaNormal.Create();
-
-        _UnigmaAlbedoTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaAlbedoTemporal.enableRandomWrite = true;
-        _UnigmaAlbedoTemporal.Create();
-
-        _UnigmaNormalTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaNormalTemporal.enableRandomWrite = true;
-        _UnigmaNormalTemporal.Create();
-
-        _UnigmaMotionID = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaMotionID.enableRandomWrite = true;
-        _UnigmaMotionID.Create();
-
-        _UnigmaMotionIDTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaMotionIDTemporal.enableRandomWrite = true;
-        _UnigmaMotionIDTemporal.Create();
-
-        _UnigmaWaterReflections = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaWaterReflections.enableRandomWrite = true;
-        _UnigmaWaterReflections.Create();
 
         _UnigmaSpecularLights = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaSpecularLights.enableRandomWrite = true;
@@ -384,14 +362,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaIdsTexture.enableRandomWrite = true;
         _UnigmaIdsTexture.Create();
 
-        _UnigmaWaterNormals = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaWaterNormals.enableRandomWrite = true;
-        _UnigmaWaterNormals.Create();
-
-        _UnigmaWaterPosition = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _UnigmaWaterPosition.enableRandomWrite = true;
-        _UnigmaWaterPosition.Create();
-
         _renderTextureWidthPrev = _renderTextureWidth;
         _renderTextureHeightPrev = _renderTextureHeight;
     }
@@ -400,6 +370,27 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
         if (!UnigmaSettings.GetIsRTXEnabled())
             return;
+
+        _UnigmaAlbedoTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaAlbedoTemporal.enableRandomWrite = true;
+        _UnigmaAlbedoTemporal.Create();
+
+        _UnigmaNormalTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaNormalTemporal.enableRandomWrite = true;
+        _UnigmaNormalTemporal.Create();
+        
+        _UnigmaMotionID = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaMotionID.enableRandomWrite = true;
+        _UnigmaMotionID.Create();
+
+        _UnigmaMotionIDTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaMotionIDTemporal.enableRandomWrite = true;
+        _UnigmaMotionIDTemporal.Create();
+        
+        _UnigmaAlbedo = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaAlbedo.enableRandomWrite = true;
+        _UnigmaAlbedo.Create();
+        
         _UnigmaGlobalIllumination = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaGlobalIllumination.enableRandomWrite = true;
         _UnigmaGlobalIllumination.Create();
@@ -419,6 +410,16 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaDenoisedGlobalIlluminationTemp = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaDenoisedGlobalIlluminationTemp.enableRandomWrite = true;
         _UnigmaDenoisedGlobalIlluminationTemp.Create();
+
+        /*
+        _UnigmaWaterNormals = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaWaterNormals.enableRandomWrite = true;
+        _UnigmaWaterNormals.Create();
+
+        _UnigmaWaterPosition = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaWaterPosition.enableRandomWrite = true;
+        _UnigmaWaterPosition.Create();
+        */
 
     }
 
@@ -749,26 +750,25 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer = new CommandBuffer();
         outlineDepthBuffer.name = "OutlineDepthBuffer";
         outlineDepthBuffer.SetGlobalTexture("_UnigmaNormal", _UnigmaNormal);
-        outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionID", _UnigmaMotionID);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaAlbedo", _UnigmaAlbedo);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaBlueNoise", _UnigmaBlueNoise);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaSpecularLights", _UnigmaSpecularLights);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaIds", _UnigmaIdsTexture);
-        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterNormals", _UnigmaWaterNormals);
-        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterPosition", _UnigmaWaterPosition);
-        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterReflections", _UnigmaWaterReflections);
 
         SetGlobalIlluminationTextures();
 
-        outlineDepthBuffer.SetRenderTarget(_UnigmaWaterNormals);
+        if (UnigmaSettings.GetIsRTXEnabled())
+        {
+            outlineDepthBuffer.SetRenderTarget(_UnigmaWaterNormals);
 
-        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
-        DrawWaterNormals(outlineDepthBuffer);
+            outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
+            DrawWaterNormals(outlineDepthBuffer);
 
-        outlineDepthBuffer.SetRenderTarget(_UnigmaWaterPosition);
+            outlineDepthBuffer.SetRenderTarget(_UnigmaWaterPosition);
 
-        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
-        DrawWaterPosition(outlineDepthBuffer);
+            outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
+            DrawWaterPosition(outlineDepthBuffer);
+        }
 
         outlineDepthBuffer.SetRenderTarget(_UnigmaIdsTexture);
 
@@ -780,10 +780,13 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
         DrawIsometricDepthNormals(outlineDepthBuffer, 0);
 
-        //Second pass
-        outlineDepthBuffer.SetRenderTarget(_UnigmaMotionID);
-        outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
-        DrawIsometricDepthNormals(outlineDepthBuffer, 1);
+        if (UnigmaSettings.GetIsRTXEnabled())
+        {
+            //Second pass
+            outlineDepthBuffer.SetRenderTarget(_UnigmaMotionID);
+            outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
+            DrawIsometricDepthNormals(outlineDepthBuffer, 1);
+        }
 
         //Third pass specular highlights
         outlineDepthBuffer.SetRenderTarget(_UnigmaSpecularLights);
@@ -830,6 +833,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.SetGlobalTexture("_UnigmaNormalTemporal", _UnigmaNormalTemporal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionIDTemporal", _UnigmaMotionIDTemporal);
         outlineDepthBuffer.SetGlobalTexture("_UnigmaAlbedoTemporal", _UnigmaAlbedoTemporal);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaMotionID", _UnigmaMotionID);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterNormals", _UnigmaWaterNormals);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterPosition", _UnigmaWaterPosition);
+        outlineDepthBuffer.SetGlobalTexture("_UnigmaWaterReflections", _UnigmaWaterReflections);
     }
 
     void CreateOutlineColorBuffers()
@@ -917,6 +924,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             if (iso != null)
                 if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
                 {
+                    Debug.Log("_UNIGMA Reading materials " + r.materials.ContainsKey("IsometricDepthNormals") + " UnigmaCommandBuffers");
                     r.materials["IsometricDepthNormals"].SetInt("_ObjectID", i);
                     outlineDepthBuffer.DrawRenderer(r.renderer, r.materials["IsometricDepthNormals"], 0, pass);
                 }

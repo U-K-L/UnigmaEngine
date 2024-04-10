@@ -2,12 +2,15 @@
 
 #pragma kernel RayTrace
 #pragma kernel InitializeRays
+#pragma kernel DepthShadowsReflection
 #include "../../ShaderHelpers.hlsl"
 
 RWTexture2D<float4> _RayTracer;
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
 Texture2D<float4> _SkyBoxTexture;
+RWTexture2D<float4> _UnigmaDepthShadowsMap;
+RWTexture2D<float4> _UnigmaDepthReflectionsMap;
 SamplerState sampler_SkyBoxTexture;
 float epsilon = 0.00001;
 int _MaxBounces;
@@ -15,7 +18,7 @@ int _MinBounces;
 float _Samples;
 float2 _FrameSeed;
 float _RussianRouletteChance;
-
+float4x4 _Perspective_Matrix_VP;
 struct Ray
 {
 	float3 o;
@@ -270,6 +273,7 @@ void SceneTrace(inout Ray ray, inout Hit hit)
 {
 	for (int k = 0; k < numOfStructs; k++)
 	{
+
 		MeshObject meshObject = _MeshObjects[k];
 		if (TraceAABB(ray, hit, meshObject) == true)
 		{
@@ -507,4 +511,96 @@ void RayTrace(uint3 id : SV_DispatchThreadID)
 
 	//_RayTracer[id.xy] += float4(ray.energy, 1.0) * (1.0 / _Samples);
 	_Rays[id.x + id.y * width] = ray;
+}
+
+[numthreads(8, 8, 1)]
+void DepthShadowsReflection(uint3 id : SV_DispatchThreadID)
+{
+	uint width, height;
+	_MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
+
+	_UnigmaDepthShadowsMap.GetDimensions(width, height);
+	
+	float2 pixel = ((id.xy + float2(0.5, 0.5)) / float2(width, height)) * 2 - 1;
+
+	float3 chosenCameraPosition;
+	float3 chosenDirection;
+	float depth = 0;
+	//Is it orthographic?
+	if (unity_OrthoParams.w > 0)
+	{
+		//Camera is orthographic.
+		//Convert to camera space.
+		float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, -1, 1));
+		//Perspective divide.
+		viewPos /= viewPos.w;
+
+		//Convert to world space.
+		float3 worldPosPixel = mul(unity_MatrixInvV, viewPos).xyz;
+		float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+
+		chosenCameraPosition = worldPosPixel; //No need to get direction from camera's origin.
+		chosenDirection = normalize(worldSpaceViewForward);
+
+	}
+	else
+	{
+		//Camera is Perspective.
+		//Convert to camera space.
+		float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
+		//Perspective divide.
+		viewPos /= viewPos.w; //This takes into account field of view, how the frustrum of the view plane is.
+
+		//Convert to world space.
+		float3 worldPosPixel = mul(unity_MatrixInvV, viewPos).xyz;
+
+		//Take the pixel and get the direction from the origin to create perspective.
+		float3 worldDirection = normalize(worldPosPixel - _WorldSpaceCameraPos);
+		float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
+
+		chosenCameraPosition = _WorldSpaceCameraPos;
+		chosenDirection = worldDirection;
+	}
+	
+	Ray ray = CreateCameraRay(pixel);
+	ray.o = chosenCameraPosition;
+	ray.d = chosenDirection;
+	Hit hit = CreateHit();
+
+	//Hit initial object.
+	SceneTrace(ray, hit);
+	float distanceFromPoint = 0.0353;
+	float3 position = hit.position + (hit.normal * distanceFromPoint);
+	if (unity_OrthoParams.w > 0)
+	{
+		//isOrthographic.
+		//But....actually we do something neat here. We use a perspective camera and take its viewing projection into the orthographic Camera.
+		float4 clipPos = mul(_Perspective_Matrix_VP, float4(position, 1));//UnityWorldToClipPos(position);
+		depth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
+
+		//We get back raw depth, so now interpolate with the near and far plane.
+		//depth = lerp(_ProjectionParams.y, _ProjectionParams.z*0.01, clipPos.z);
+	}
+	else
+	{
+		//Perspective.
+		float4 clipPos = mul(_Perspective_Matrix_VP, float4(position, 1));//UnityWorldToClipPos(position);
+		depth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
+	}
+
+
+	//Shadow casting
+	float3 toLightDir = normalize(_WorldSpaceLightPos0);
+	ray.o = position;//hit.position + hit.distance * 0.001;
+	ray.d = toLightDir;
+	
+	hit.distance = 9999;
+	SceneTrace(ray, hit);
+	
+	float IsInShadow = 0;
+	if (hit.distance < 9998)
+	{
+		IsInShadow = 1;
+	}
+	_UnigmaDepthShadowsMap[id.xy] = float4(depth, IsInShadow, IsInShadow, 1);
 }

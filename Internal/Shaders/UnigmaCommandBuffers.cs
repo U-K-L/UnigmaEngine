@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -13,8 +14,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public int _temporalReservoirsCount = 1;
     private Camera mainCam;
     public int ResolutionDivider = 0;
+    public int RayTracingResolutionDivider = 0;
     private int _renderTextureWidth;
     private int _renderTextureHeight;
+    private int _rayTracingRenderTextureWidth;
+    private int _rayTracingRenderTextureHeight;
     private int _renderTextureWidthPrev;
     private int _renderTextureHeightPrev;
 
@@ -68,6 +72,45 @@ public class UnigmaCommandBuffers : MonoBehaviour
         public Vector2 moments;
     };
 
+    //Structs for ray tracing.
+    struct MeshObject
+    {
+        public Matrix4x4 localToWorld;
+        public int indicesOffset;
+        public int indicesCount;
+        public Vector3 position;
+        public Vector3 AABBMin;
+        public Vector3 AABBMax;
+        public Vector3 color;
+        public float emission;
+        public float smoothness;
+        public float transparency;
+        public float absorbtion;
+        public float celShaded;
+        public uint id;
+    }
+
+    struct Ray
+    {
+        public Vector3 o;
+        public Vector3 d;
+        public Vector3 color;
+        public Vector3 energy;
+        int bounces;
+    };
+
+    struct Vertex
+    {
+        public Vector3 position;
+        public Vector3 normal;
+        public Vector2 uv;
+    };
+
+    private List<MeshObject> meshObjects = new List<MeshObject>();
+    private List<Vertex> Vertices = new List<Vertex>();
+    private List<int> Indices = new List<int>();
+    private List<Ray> _rays = new List<Ray>();
+
     int _reservoirStride = sizeof(float) * 6 + sizeof(float)*3;
     int _reservoirPathStride = sizeof(float) * 2 + sizeof(float) * 3*3;
     int _lightStride = sizeof(float) * 3*3 + sizeof(float);
@@ -80,6 +123,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
     ComputeBuffer reservoirPathsBuffer;
     ComputeBuffer unigmaDispatchInfoBuffer;
     ComputeBuffer svgfBuffer;
+    //Provides the script to be executed for computing the ray tracer. One is RTX the other is a fallback compute shader.
+    private ComputeShader _RayTracingShader;
+    ComputeBuffer _meshObjectBuffer;
+    ComputeBuffer _verticesObjectBuffer;
+    ComputeBuffer _indicesObjectBuffer;
+    ComputeBuffer _rayBuffer;
 
     private List<Reservoir> reservoirs;
     private List<ReservoirPath> reservoirPaths;
@@ -130,6 +179,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     private List<Renderer> _rayTracedObjects = default;
     public Camera secondCam;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -148,7 +198,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
         mainCam = Camera.main;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.Depth;
         cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.DepthNormals;
-        SetUpGlobalIllumination();
+
+        if (UnigmaSettings.GetIsRTXEnabled())
+            SetUpGlobalIllumination();
     }
 
     void SetUpGlobalIllumination()
@@ -251,10 +303,111 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     }
 
+    void CreateNonAcceleratedStructure()
+    {
+        if (_RayTracingShader == null)
+            _RayTracingShader = Resources.Load<ComputeShader>("RayTracer");
+        BuildTriangleList();
+    }
+
+    //To build the BVH we need to take all of the game objects in our raytracing list.
+    //Afterwards place them in a tree with the root node containing all of the objects.
+    //The bounding box is calculated by finding the min and max vertices for each axis.
+    //If the ray intersects the box we search the triangles of that node, if not we traverse another node and ignore the children.
+    unsafe void BuildBVH()
+    {
+        //First traverse through all of the objects and create their bounding boxes.
+
+        //Get positions stored them to mesh objects.
+        int kernelId = _RayTracingShader.FindKernel("DepthShadowsReflection");
+
+        //Update position of mesh objects.
+        for (int i = 0; i < _rayTracedObjects.Count; i++)
+        {
+            
+            MeshObject meshobj = new MeshObject();
+            Renderer rto = _rayTracedObjects[i];
+            if (!rto.GetComponent<MeshRenderer>().enabled)
+                continue;
+            meshobj.localToWorld = _rayTracedObjects[i].GetComponent<Renderer>().localToWorldMatrix;
+            meshobj.indicesOffset = meshObjects[i].indicesOffset;
+            meshobj.indicesCount = meshObjects[i].indicesCount;
+            meshobj.position = _rayTracedObjects[i].transform.position;
+            meshobj.AABBMin = _rayTracedObjects[i].bounds.min;
+            meshobj.AABBMax = _rayTracedObjects[i].bounds.max;
+            meshobj.id = (uint)i;
+            if (rto)
+            {
+                Color color = rto.material.GetColor("_MainColor");
+                meshobj.color = new Vector3(color.r, color.g, color.b);//new Vector3(rto.color.r, rto.color.g, rto.color.b);
+                meshobj.emission = 1;//rto.material.GetFloat("_Emmittance");
+                meshobj.smoothness = 1;//rto.material.GetFloat("_Smoothness");
+                meshobj.transparency = color.a;
+                meshobj.absorbtion = 0;//rto.material.GetFloat("_LightAbsorbtion");
+                meshobj.celShaded = 0;
+            }
+            meshObjects[i] = meshobj;
+        }
+        if (_meshObjectBuffer.count > 0)
+        {
+            _meshObjectBuffer.SetData(meshObjects);
+            _RayTracingShader.SetBuffer(kernelId, "_MeshObjects", _meshObjectBuffer);
+        }
+
+        _meshObjectBuffer.SetData(meshObjects);
+        _RayTracingShader.SetBuffer(kernelId, "_MeshObjects", _meshObjectBuffer);
+
+    }
+
+    void BuildTriangleList()
+    {
+        Vertices.Clear();
+        Indices.Clear();
+        int kernelId = _RayTracingShader.FindKernel("DepthShadowsReflection");
+        foreach (Renderer r in _rayTracedObjects)
+        {
+            MeshFilter mf = r.GetComponent<MeshFilter>();
+            if (mf)
+            {
+                Mesh m = mf.sharedMesh;
+                int startVert = Vertices.Count;
+                int startIndex = Indices.Count;
+
+                for (int i = 0; i < m.vertices.Length; i++)
+                {
+                    Vertex v = new Vertex();
+                    v.position = m.vertices[i];
+                    v.normal = m.normals[i];
+                    v.uv = m.uv[i];
+                    Vertices.Add(v);
+                }
+                var indices = m.GetIndices(0);
+                Indices.AddRange(indices.Select(index => index + startVert));
+
+                // Add the object itself
+                meshObjects.Add(new MeshObject()
+                {
+                    localToWorld = r.transform.localToWorldMatrix,
+                    indicesOffset = startIndex,
+                    indicesCount = indices.Length
+                });
+            }
+        }
+        _meshObjectBuffer = new ComputeBuffer(meshObjects.Count, 144);
+        _verticesObjectBuffer = new ComputeBuffer(Vertices.Count, 32);
+        _indicesObjectBuffer = new ComputeBuffer(Indices.Count, 4);
+        _verticesObjectBuffer.SetData(Vertices);
+        _RayTracingShader.SetBuffer(kernelId, "_Vertices", _verticesObjectBuffer);
+        _indicesObjectBuffer.SetData(Indices);
+        _RayTracingShader.SetBuffer(kernelId, "_Indices", _indicesObjectBuffer);
+    }
+    
     void UpdateScreenResolution()
     {
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
         _renderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.height), 32);
+        _rayTracingRenderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(RayTracingResolutionDivider)))), Screen.width), 32);
+        _rayTracingRenderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(RayTracingResolutionDivider)))), Screen.height), 32);
     }
 
     // Update is called once per frame
@@ -301,7 +454,10 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
             CreateDepthNormalBuffers();
 
-            CreateDepthShadowBuffers();
+            if (UnigmaSettings.GetIsRTXEnabled())
+                CreateDepthShadowBuffers();
+            else if (UnigmaSettings.GetIsRayTracingEnabled())
+                CreateDepthShadowBuffersNonAccelerated();
             CreateDenoisedGlobalIllumination();
 
 
@@ -329,6 +485,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
         //Check if screen size changed, if so update the texture.
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
         _renderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.height), 32);
+        _rayTracingRenderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(RayTracingResolutionDivider)))), Screen.width), 32);
+        _rayTracingRenderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(RayTracingResolutionDivider)))), Screen.height), 32);
 
         if (_renderTextureWidth != _renderTextureWidthPrev || _renderTextureHeight != _renderTextureHeightPrev)
         {
@@ -342,13 +500,17 @@ public class UnigmaCommandBuffers : MonoBehaviour
         ReleaseRenderTextures();
         CreateGlobalIlluminationTextures();
 
-        _DepthShadowsTexture = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _DepthShadowsTexture.enableRandomWrite = true;
-        _DepthShadowsTexture.Create();
+        if (UnigmaSettings.GetIsRTXEnabled() || UnigmaSettings.GetIsRayTracingEnabled())
+        {
+            _DepthShadowsTexture = new RenderTexture(_rayTracingRenderTextureWidth, _rayTracingRenderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            _DepthShadowsTexture.enableRandomWrite = true;
+            _DepthShadowsTexture.Create();
 
-        _ReflectionsTexture = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        _ReflectionsTexture.enableRandomWrite = true;
-        _ReflectionsTexture.Create();
+            _ReflectionsTexture = new RenderTexture(_rayTracingRenderTextureWidth, _rayTracingRenderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            _ReflectionsTexture.enableRandomWrite = true;
+            _ReflectionsTexture.Create();
+        }
+
 
         _UnigmaNormal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaNormal.enableRandomWrite = true;
@@ -672,8 +834,46 @@ public class UnigmaCommandBuffers : MonoBehaviour
         }
         //depthShadowsCommandBuffer.DispatchCompute(unigmaDispatchInfoComputeShader, 0, 1, 1, 1);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, depthShadowsCommandBuffer);
+    }
+
+    void CreateDepthShadowBuffersNonAccelerated()
+    {
+        if (!UnigmaSettings.GetIsRayTracingEnabled())
+            return;
+        if (UnigmaSettings.GetIsRTXEnabled())
+            return;
+        CommandBuffer depthShadowsCommandBuffer = new CommandBuffer();
+        depthShadowsCommandBuffer.name = "DepthShadowsBuffer";
+
+        //Update BVH here.
+        CreateNonAcceleratedStructure();
+        BuildBVH();
 
 
+
+        //Get Kernel.
+        int kernelHandleRayTrace = _RayTracingShader.FindKernel("DepthShadowsReflection");
+
+        //Set all the parameters.
+        depthShadowsCommandBuffer.SetGlobalTexture("_UnigmaDepthShadowsMap", _DepthShadowsTexture);
+        depthShadowsCommandBuffer.SetGlobalTexture("_UnigmaDepthReflectionsMap", _ReflectionsTexture);
+        depthShadowsCommandBuffer.SetComputeTextureParam(_RayTracingShader, kernelHandleRayTrace, "_UnigmaDepthShadowsMap", _DepthShadowsTexture);
+
+        //Get thread sizes.
+        uint tx, ty, tz;
+        _RayTracingShader.GetKernelThreadGroupSizes(0, out tx, out ty, out tz);
+
+        //Set shader variables.
+        depthShadowsCommandBuffer.SetComputeMatrixParam(_RayTracingShader, "_CameraInverseProjection", mainCam.projectionMatrix.inverse);
+        
+        int threadGroupsX = Mathf.CeilToInt(_rayTracingRenderTextureWidth / (float)tx);
+        int threadGroupsY = Mathf.CeilToInt(_rayTracingRenderTextureHeight / (float)ty);
+        int threadGroupsZ = Mathf.CeilToInt((float)tz);
+
+        //Dispatch the shader.
+        depthShadowsCommandBuffer.DispatchCompute(_RayTracingShader, kernelHandleRayTrace, threadGroupsX, threadGroupsY, threadGroupsZ);
+
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, depthShadowsCommandBuffer);
     }
 
     void UpdateRayTracer()
@@ -1033,6 +1233,13 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaNormal.Release();
         _UnigmaNormalTemporal.Release();
         _UnigmaDenoisedGlobalIlluminationTemp.Release();
+
+        if (_verticesObjectBuffer != null)
+            _verticesObjectBuffer.Release();
+        if (_indicesObjectBuffer != null)
+            _indicesObjectBuffer.Release();
+        if (_meshObjectBuffer != null)
+            _meshObjectBuffer.Release();
 
 
 

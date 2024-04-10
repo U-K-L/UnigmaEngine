@@ -76,6 +76,7 @@ Shader "Unigma/UnigmaOutlines"
 				fixed4 WaterPositions = tex2D(_UnigmaWaterPosition, i.uv);
 				fixed4 WaterReflections = tex2D(_UnigmaWaterReflections, i.uv);
                 
+                //return _UnigmaDepthShadows;
                 //return specularHighlights *10000;
                 //return reflections;
                 //return originalImage;
@@ -160,8 +161,8 @@ Shader "Unigma/UnigmaOutlines"
 
                 //Get shadow outlines.
                 
-                scaleFloor = floor(_ScaleShadow * 0.5);
-                scaleCeil = ceil(_ScaleShadow * 0.5);
+                scaleFloor = floor(_ScaleShadow * 0.05);
+                scaleCeil = ceil(_ScaleShadow * 0.05);
 
                 bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
                 topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;

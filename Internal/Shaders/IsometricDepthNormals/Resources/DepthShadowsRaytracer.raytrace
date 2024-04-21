@@ -5,6 +5,7 @@
 #include "UnityCG.cginc"
 
 RWTexture2D<float4> _UnigmaDepthShadowsMap;
+RWTexture2D<float4> _UnigmaShadowColors;
 RWTexture2D<float4> _UnigmaDepthReflectionsMap;
 
 Texture2D<float4> _UnigmaWaterNormals;
@@ -127,7 +128,9 @@ void DepthShadowsRaygenShader()
     ray.Direction = toLightDir; 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _UnigmaDepthShadowsMap[id.xy] += float4(depth, payload.color.r, payload.color.g, 1);
+    _UnigmaDepthShadowsMap[id.xy] += float4(depth, payload.color.r*payload.pixel.y, payload.color.g*payload.pixel.y, 1);
+
+    _UnigmaShadowColors[id.xy] = float4(payload.uv.x, payload.uv.y, payload.pixel.x, payload.pixel.y);
 
     //Begin reflection mapping.
     //Get the reflection vector.
@@ -178,5 +181,7 @@ void MyMissShader(inout Payload payload : SV_RayPayload)
     payload.distance = 99999;
     payload.normal = 0;
     payload.direction = 0;
+    payload.pixel = 0;
+    payload.uv = 0;
     
 }

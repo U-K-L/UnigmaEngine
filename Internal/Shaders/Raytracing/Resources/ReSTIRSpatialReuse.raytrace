@@ -376,8 +376,8 @@ void RestirGlobalIllumantionRayGen()
         float4x4 constrast = contrastMatrix(0.60);
         indirectSample = mul(indirectSample, saturation);
         indirectSample = mul(indirectSample, constrast);
-        indirectSample *= 0.5;
-        //targetResult += indirectSample;
+        //indirectSample *= 0.5;
+        targetResult += indirectSample;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 

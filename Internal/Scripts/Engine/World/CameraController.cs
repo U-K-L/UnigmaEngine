@@ -27,6 +27,7 @@ public class CameraController : MonoBehaviour
     public PerspectiveCameraLerp perpCam;
     public bool originalCamIsPerp = true;
     public float AxisSlider = 1;
+    public GameObject simplePivot;
 
     public enum CameraState
     {
@@ -36,7 +37,8 @@ public class CameraController : MonoBehaviour
         Rotating,
         Dragged,
         Idle,
-        FreeRoaming
+        FreeRoaming, 
+        Simple
     }
 
     public CameraState _camState = CameraState.Tracking;
@@ -59,7 +61,7 @@ public class CameraController : MonoBehaviour
         UpdateStates();
         updateInputMouse();
         //updateInputController();
-        UpdateChildCameraPosition();
+       //UpdateChildCameraPosition();
         //UpdateCameraAlongAxis();
     }
 
@@ -87,6 +89,10 @@ public class CameraController : MonoBehaviour
         {
             SetPivot(_pivot);
             moveCamera(_pivot);
+        }
+        else if (_camState == CameraController.CameraState.Simple)
+        {
+            SetPivot(simplePivot.transform.position);
         }
     }
 
@@ -165,8 +171,8 @@ public class CameraController : MonoBehaviour
         }
         else
         {
-            if(_camState != CameraState.Resetting)
-                _camState = CameraState.Tracking;
+            //if(_camState != CameraState.Resetting)
+            //    _camState = CameraState.Tracking;
         }
         float deltaSize = -Input.mouseScrollDelta.y * 0.05f;
         /*

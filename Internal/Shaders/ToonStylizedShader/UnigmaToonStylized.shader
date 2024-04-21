@@ -10,6 +10,7 @@ Shader "Unigma/UnigmaToonStylized"
         _NormalMap("Normal Map", 2D) = "black" {}
 	    _MainColor("Midtone", Color) = (1,1,1,1)
 		_Shadow("Shadow", Color) = (1,1,1,1)
+        _ShadowColors("Shadow Casted Colors", Color) = (1,1,1,1)
 		_Highlight("Highlight", Color) = (1,1,1,1)
 		_Thresholds("Light thresholds", Vector) = (0.2, 0.4, 0.6, 0.8)
         _Smoothness("Smoothness", Range(0,1)) = 0
@@ -25,14 +26,22 @@ Shader "Unigma/UnigmaToonStylized"
 		_UseRim("Use RIM", Float) = 0
         [KeywordEnum(CelShaded, ToonShaded, DistShaded)] _ColorDistModel("Color BRDF", Float) = 0
 		_RimControl("Rim Control", Range(-1,1)) = 0
-
+        [IntRange] _StencilRef("Stencil Ref Value", Range(0,255)) = 0
         
     }
     SubShader
     {
+        Cull Off
         Tags { "RenderType" = "Transparent"
         "LightMode" = "ForwardBase" }
         LOD 100
+
+        Stencil
+        {
+            Ref[_StencilRef]
+            Comp Equal
+        }
+            
         Pass
         {
             CGPROGRAM
@@ -193,6 +202,7 @@ Shader "Unigma/UnigmaToonStylized"
             #include "UnityCG.cginc"
             #include "../ShaderHelpers.hlsl"
 
+            
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -278,7 +288,7 @@ Shader "Unigma/UnigmaToonStylized"
                 finalColor = max(finalColor, highlights);
 
             #elif _COLORDISTMODEL_DISTSHADED
-				finalColor = _MainColor;
+				finalColor = _MainColor * _Emmittance*10;
                 //float3 objectOrigin = mul(unity_ObjectToWorld, float4(0,0,0, 1)).xyz;
                 //finalColor = pow(distance(objectOrigin, i.worldPos), 1);
             #endif
@@ -331,6 +341,7 @@ Shader "Unigma/UnigmaToonStylized"
             float4 _Highlight;
             float4 _Thresholds;
             float _Smoothness;
+            float4 _ShadowColors;
             
             [shader("closesthit")]
             void MyHitShader(inout Payload payload : SV_RayPayload,
@@ -359,7 +370,12 @@ Shader "Unigma/UnigmaToonStylized"
                 float4 finalColor = max(midTones, shadows);
                 finalColor = max(finalColor, highlights);
                 float distSquared = max(0.01, min(1, 1 / (RayTCurrent() * RayTCurrent())));
-                payload.direction = finalColor * distSquared;//_Midtone* distSquared;//float4(normals, 1);
+                //Make different reflection models.
+                payload.direction = finalColor;// *distSquared;//_Midtone* distSquared;//float4(normals, 1
+
+                //Put this into uv and pixel
+                payload.uv = _ShadowColors.xy;
+                payload.pixel = _ShadowColors.zw;
                 /*
                 if(InstanceID() == payload.color.w)
                     //Incode self-shadows as y
@@ -491,6 +507,26 @@ Shader "Unigma/UnigmaToonStylized"
             }
 
             ENDHLSL
+        }
+
+        Pass
+        {
+            Tags{ "LightMode" = "ShadowCaster" }
+            CGPROGRAM
+            #pragma vertex VSMain
+            #pragma fragment PSMain
+
+            float4 VSMain(float4 vertex:POSITION) : SV_POSITION
+            {
+                return UnityObjectToClipPos(vertex);
+            }
+
+            float4 PSMain(float4 vertex:SV_POSITION) : SV_TARGET
+            {
+                return 0;
+            }
+
+            ENDCG
         }
     }
 }

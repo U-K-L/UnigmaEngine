@@ -109,7 +109,7 @@ public class PerspectiveCameraLerp : MonoBehaviour
         cam.projectionMatrix = destination;
 
         cam.orthographic = isOrtho;
-        cam.nearClipPlane = 0.01f;
+        cam.nearClipPlane = 0.3f;
         cam.ResetProjectionMatrix();
         if (isOrtho)
         {

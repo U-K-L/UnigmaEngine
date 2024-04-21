@@ -52,7 +52,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 o.uv = v.uv;
                 return o;
             }
-            sampler2D _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections;
+            sampler2D _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections, _UnigmaShadowColors;
             sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
@@ -75,7 +75,10 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 				fixed4 WaterNormals = tex2D(_UnigmaWaterNormals, i.uv);
 				fixed4 WaterPositions = tex2D(_UnigmaWaterPosition, i.uv);
 				fixed4 WaterReflections = tex2D(_UnigmaWaterReflections, i.uv);
+				fixed4 ShadowColors = tex2D(_UnigmaShadowColors, i.uv);
 
+                //return GlobalIllumination;
+                //return ShadowColors;
 				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
 				float4 OutterLineColors = tex2D(_IsometricOutlineColor, i.uv);
 				float4 InnerLineColors = tex2D(_IsometricInnerOutlineColor, i.uv);
@@ -222,8 +225,11 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float3 shadowStrength = 0.115 * step(0.001,shadows) * float3(0.55,1, 0.55);
                 //FinalColor = lerp(mainTex, FinalColor, lineBreak.r);
                 //White outline added.
-                FinalColor = float4(FinalColor.xyz - shadowStrength, FinalColor.w) + edgeUnigmaDepth;
+                //FinalColor = float4(FinalColor.xyz - shadowStrength, FinalColor.w) + edgeUnigmaDepth;
 
+                float4 shadowColorMaked = shadows * ShadowColors;
+                
+                FinalColor =  lerp(FinalColor, shadowColorMaked, shadowColorMaked.w) + edgeUnigmaDepth;
                 //Convert direct lighting buffer.
                 //float4 directLight = step(0.05, GlobalIllumination);
                 //return directLight;
@@ -262,7 +268,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(FinalColor, FinalColor*0.975 + GlobalIlluminationDenoised *0.85 + reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;
+                return lerp(FinalColor, FinalColor*0.975 + GlobalIlluminationDenoised *0.85 + reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights*0.56;
                 //return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 //return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));

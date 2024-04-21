@@ -375,5 +375,25 @@ Shader "Unlit/UngimaWaterV2"
 
                 ENDHLSL
             }
+
+            Pass
+                {
+                    Tags{ "LightMode" = "ShadowCaster" }
+                    CGPROGRAM
+                    #pragma vertex VSMain
+                    #pragma fragment PSMain
+
+                    float4 VSMain(float4 vertex:POSITION) : SV_POSITION
+                    {
+                        return UnityObjectToClipPos(vertex);
+                    }
+
+                    float4 PSMain(float4 vertex:SV_POSITION) : SV_TARGET
+                    {
+                        return 0;
+                    }
+
+                    ENDCG
+                }
     }
 }

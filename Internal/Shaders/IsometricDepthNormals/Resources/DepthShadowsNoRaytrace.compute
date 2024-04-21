@@ -1,0 +1,35 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CalculateShadowDepth
+
+#include "../../ShaderHelpers.hlsl"
+
+RWTexture2D<float4> _UnigmaDepthShadowsMap2;
+RWTexture2D<float4> _UnigmaScreenSpaceShadowsMap2;
+RWTexture2D<float4> _UnigmaMotionID2;
+float4x4 _Perspective_Matrix_VP;
+
+[numthreads(8,8,1)]
+void CalculateShadowDepth(uint3 id : SV_DispatchThreadID)
+{
+    float camDepth = 0;
+    float3 position = _UnigmaMotionID2[id.xy].xyz;
+    if (unity_OrthoParams.w > 0)
+    {
+        //isOrthographic.
+        //But....actually we do something neat here. We use a perspective camera and take its viewing projection into the orthographic Camera.
+        float4 clipPos = mul(_Perspective_Matrix_VP, float4(position, 1));//UnityWorldToClipPos(position);
+        camDepth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
+
+        //We get back raw depth, so now interpolate with the near and far plane.
+        //depth = lerp(_ProjectionParams.y, _ProjectionParams.z*0.01, clipPos.z);
+    }
+    else
+    {
+        //Perspective.
+        float4 clipPos = mul(_Perspective_Matrix_VP, float4(position, 1));//UnityWorldToClipPos(position);
+        camDepth = (clipPos.z) / (clipPos.w); //clipPos.w is always 1 in this case. Ignore.
+    }
+
+    
+    _UnigmaDepthShadowsMap2[id.xy] = float4(camDepth*0.25, step(0.999, 1 - _UnigmaScreenSpaceShadowsMap2[id.xy].y), step(0.999, 1 - _UnigmaScreenSpaceShadowsMap2[id.xy].z), 1);
+}

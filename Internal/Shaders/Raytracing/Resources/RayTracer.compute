@@ -571,6 +571,8 @@ void DepthShadowsReflection(uint3 id : SV_DispatchThreadID)
 	SceneTrace(ray, hit);
 	float distanceFromPoint = 0.0353;
 	float3 position = hit.position + (hit.normal * distanceFromPoint);
+	float3 direction = ray.d;
+	float3 rayNormal = hit.normal;
 	if (unity_OrthoParams.w > 0)
 	{
 		//isOrthographic.
@@ -603,4 +605,18 @@ void DepthShadowsReflection(uint3 id : SV_DispatchThreadID)
 		IsInShadow = 1;
 	}
 	_UnigmaDepthShadowsMap[id.xy] = float4(depth, IsInShadow, IsInShadow, 1);
+
+	//Do reflections.
+	ray.o = position; //Hit position.
+	ray.d = reflect(direction, rayNormal); //reflect angle.
+	hit.distance = 9999;
+	SceneTrace(ray, hit);
+	float3 color = hit.meshObj.color;
+	if(hit.distance > 1498)
+	{
+		color = float3(0, 0, 0);
+	}
+
+	float distSquared = max(0.01, min(1, 1 / (hit.distance * hit.distance)));
+	_UnigmaDepthReflectionsMap[id.xy] = float4(color, 1 * distSquared*2);
 }

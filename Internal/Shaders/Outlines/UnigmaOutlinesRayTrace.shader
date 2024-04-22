@@ -111,7 +111,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float depthThreshold = _DepthThreshold * depthnormal0;
                 edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
 
-
+                
 
                 float scaleUV = 1;
                 scaleFloor = floor(_ScaleInner * 0.5);
@@ -156,7 +156,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float edgeNormal = sqrt(dot(normalFiniteDifference0, normalFiniteDifference0) + dot(normalFiniteDifference1, normalFiniteDifference1));
                 edgeNormal = edgeNormal > _NormalThreshold ? 1 : 0;
 
-				//return edgeNormal;
+
 
                 //Get shadow outlines.
                 
@@ -180,6 +180,8 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float depthThresholdShadow = _DepthThreshold * shadow0;
                 edgeShadow = edgeShadow > depthThresholdShadow ? 1 : 0;
 
+                
+                
                 //UnigmaDepth. For scene vs background.
                 scaleFloor = floor(_ScaleWhiteOutline * 0.5);
                 scaleCeil = ceil(_ScaleWhiteOutline * 0.5);
@@ -202,7 +204,6 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 edgeUnigmaDepth = edgeUnigmaDepth > 0.999 ? 1 : 0;
                 
                 float edge = max(edgeDepth, edgePos);
-                
                 //Delete where edge is present.
                 edgeUnigmaDepth = edgeUnigmaDepth * step(edge, 0.01);
                 float4 FinalColor = mainTex;
@@ -263,7 +264,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 //return reflectMaskInv* reflections*0.25;
                 //reflections = reflectMaskInv * reflections * 0.75;
 				//reflections += reflectMask;
-                //return reflections;
+                return reflections;
                 FinalColor = lerp(FinalColor, FinalColor*(min(1,reflections.w*0.975)) + reflections*0.25, reflectMaskInv*min(1, reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
                 //return FinalColor + reflections;
                 //return FinalColor;

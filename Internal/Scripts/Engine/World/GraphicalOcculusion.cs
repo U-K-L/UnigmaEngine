@@ -9,7 +9,6 @@ public class GraphicalOcculusion : MonoBehaviour
     public List<GameObject> objectsToView = new List<GameObject>(); //Objects we are trying to see. Player is added in this by default, but could add more.
     public void Awake()
     {
-        
     }
 
     public void Update()
@@ -34,17 +33,33 @@ public class GraphicalOcculusion : MonoBehaviour
     private void IsWallInFront(GameObject obj)
     {
         //Get player to camera direction.
-        Vector3 direction = obj.transform.position - Camera.main.transform.position;
+        Vector3 direction = Vector3.Normalize(obj.transform.position - Camera.main.transform.position);
+        
+
         //Do a large sphere cast to get all possible objects.
-        RaycastHit[] hits = Physics.SphereCastAll(Camera.main.transform.position, 0.5f, direction, direction.magnitude);
+        RaycastHit[] hits = Physics.SphereCastAll(Camera.main.transform.position, 1.0f, gameObject.transform.forward, 100);
+        float distancePlayerToCamera = Vector3.Distance(obj.transform.position, Camera.main.transform.position);
+        foreach (RaycastHit hit in hits)
+        {
+            //Check tag to see if it is a Wall.
+            if (hit.collider.gameObject.tag == "Player")
+            {
+                distancePlayerToCamera = hit.distance;
+            }
+        }
+
+
         //Check if any of the objects are a wall.
         foreach (RaycastHit hit in hits)
         {
             //Check tag to see if it is a Wall.
             if (hit.collider.gameObject.tag == "Wall")
             {
-                //If it is a wall, change the stencil buffer to 1.
-                ChangeStencilBuffer(1, hit.collider.gameObject);
+                //Checks to see if distance from this wall to camera is less than the object to camera.
+                //float distanceWallToCamera = Vector3.Distance(hit.point, Camera.main.transform.position);
+                Debug.Log(hit.distance + " " + distancePlayerToCamera);
+                if (hit.distance < distancePlayerToCamera)
+                    ChangeStencilBuffer(2, hit.collider.gameObject);
             }
         }
     }
@@ -52,5 +67,10 @@ public class GraphicalOcculusion : MonoBehaviour
     public void ChangeStencilBuffer(int value, GameObject wall)
     {
         wall.GetComponent<MeshRenderer>().material.SetInt("_StencilRef", value);
+        IsometricDepthNormalObject isometricDepthNormals = wall.GetComponent<IsometricDepthNormalObject>();
+        if (isometricDepthNormals != null)
+        {
+            isometricDepthNormals.material.SetInt("_StencilRef", value);
+        }
     }
 }

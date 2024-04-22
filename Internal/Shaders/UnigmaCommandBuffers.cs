@@ -208,6 +208,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             _graphicalOcculusion.objectsToView.Add(player);
         }
+        GameObject[] ceilings = GameObject.FindGameObjectsWithTag("Ceiling");
+        foreach (GameObject ceiling in ceilings)
+        {
+            //Get _StencilRef from isometricDepth.
+            int stencilValue = ceiling.GetComponent<Renderer>().material.GetInt("_StencilRef");
+            ceiling.GetComponent<IsometricDepthNormalObject>().material.SetInt("_StencilRef", stencilValue);
+
+        }
     }
 
     void SetUpOutline()
@@ -449,7 +457,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
             return;
         foreach (Renderer r in _rayTracedObjects)
         {
+            uint stencilValue = (uint)r.material.GetInt("_StencilRef");
             _AccelerationStructure.UpdateInstanceTransform(r);
+            _AccelerationStructure.UpdateInstanceMask(r, stencilValue);
         }
     }
 
@@ -530,7 +540,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaShadowColors.enableRandomWrite = true;
         _UnigmaShadowColors.Create();
 
-        _UnigmaMotionID = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaMotionID = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 32, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaMotionID.enableRandomWrite = true;
         _UnigmaMotionID.Create();
 
@@ -543,15 +553,15 @@ public class UnigmaCommandBuffers : MonoBehaviour
         }
 
 
-        _UnigmaNormal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaNormal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 32, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaNormal.enableRandomWrite = true;
         _UnigmaNormal.Create();
 
-        _UnigmaSpecularLights = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaSpecularLights = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 32, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaSpecularLights.enableRandomWrite = true;
         _UnigmaSpecularLights.Create();
 
-        _UnigmaIdsTexture = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaIdsTexture = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 32, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaIdsTexture.enableRandomWrite = true;
         _UnigmaIdsTexture.Create();
 
@@ -793,7 +803,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
         uint index = 0;
         foreach (Renderer r in _rayTracedObjects)
         {
-            _AccelerationStructure.AddInstance(r, id:index);
+            uint stencilValue = (uint)r.material.GetInt("_StencilRef");
+            if (stencilValue == 0)
+            {
+                stencilValue = 1;
+            }
+            _AccelerationStructure.AddInstance(r, id:index, mask:stencilValue);
             _AccelerationStructure.UpdateInstanceTransform(r); 
             index++;
         }

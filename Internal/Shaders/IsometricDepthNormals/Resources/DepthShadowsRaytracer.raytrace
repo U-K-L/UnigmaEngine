@@ -87,7 +87,7 @@ void DepthShadowsRaygenShader()
     payload.normal = 0;
     payload.direction = 0;
 
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x04, 0, 1, 0, ray, payload);
 
     float distanceFromPoint = 0.0353;
     position = ray.Origin+ (ray.Direction * payload.distance) + (payload.normal * distanceFromPoint);//ray.Origin + ray.Direction * (payload.distance - 0.0353);
@@ -128,7 +128,7 @@ void DepthShadowsRaygenShader()
     ray.Direction = toLightDir; 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _UnigmaDepthShadowsMap[id.xy] += float4(depth, payload.color.r*payload.pixel.y, payload.color.g*payload.pixel.y, 1);
+    _UnigmaDepthShadowsMap[id.xy] = float4(depth, payload.color.r*payload.pixel.y, payload.color.g*payload.pixel.y, 1);
 
     _UnigmaShadowColors[id.xy] = float4(payload.uv.x, payload.uv.y, payload.pixel.x, payload.pixel.y);
 
@@ -158,7 +158,7 @@ void DepthShadowsRaygenShader()
     float distance = length(ray.Origin - position);
     float attenuation = 1 / (distance * distance);
     
-    _UnigmaDepthReflectionsMap[id.xy] = lerp(0, float4(payload.direction, 1),  prevColor.z);
+    _UnigmaDepthReflectionsMap[id.xy] = float4(prevColor.xyz, 1);//lerp(0, float4(payload.direction, 1),  prevColor.z);
 
     /*
     //Compute water reflections.

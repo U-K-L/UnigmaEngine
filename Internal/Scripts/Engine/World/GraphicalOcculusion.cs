@@ -59,7 +59,7 @@ public class GraphicalOcculusion : MonoBehaviour
                 //float distanceWallToCamera = Vector3.Distance(hit.point, Camera.main.transform.position);
                 Debug.Log(hit.distance + " " + distancePlayerToCamera);
                 if (hit.distance < distancePlayerToCamera)
-                    ChangeStencilBuffer(2, hit.collider.gameObject);
+                    ChangeStencilBuffer(1, hit.collider.gameObject);
             }
         }
     }
@@ -71,6 +71,12 @@ public class GraphicalOcculusion : MonoBehaviour
         if (isometricDepthNormals != null)
         {
             isometricDepthNormals.material.SetInt("_StencilRef", value);
+        }
+
+        OutlineColor outlineColors = wall.GetComponent<OutlineColor>();
+        if (outlineColors != null)
+        {
+            outlineColors.material.SetInt("_StencilRef", value);
         }
     }
 }

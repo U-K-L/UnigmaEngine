@@ -95,7 +95,7 @@ MonoBehaviour:
     value: 1
   intensity:
     overrideState: 1
-    value: 0.51
+    value: 0.58
   threshold:
     overrideState: 1
     value: 0.72
@@ -107,7 +107,7 @@ MonoBehaviour:
     value: 65472
   diffusion:
     overrideState: 1
-    value: 8.14
+    value: 10
   anamorphicRatio:
     overrideState: 1
     value: -0.43
@@ -195,7 +195,7 @@ MonoBehaviour:
     value: 0
   postExposure:
     overrideState: 1
-    value: -0.12
+    value: -0.1
   contrast:
     overrideState: 0
     value: 10
@@ -228,10 +228,10 @@ MonoBehaviour:
     value: 100
   lift:
     overrideState: 1
-    value: {x: 0.705769, y: 0.7859616, z: 1, w: 0.09848115}
+    value: {x: 0.5554457, y: 0.64733225, z: 1, w: 0.09848115}
   gamma:
     overrideState: 1
-    value: {x: 0.64609367, y: 0.6368854, z: 1, w: 0}
+    value: {x: 0.552691, y: 0.79749864, z: 1, w: 0}
   gain:
     overrideState: 1
     value: {x: 0.82043743, y: 0.8455544, z: 1, w: 0.014630577}

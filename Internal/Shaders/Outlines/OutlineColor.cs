@@ -12,7 +12,7 @@ public class OutlineColor : UnigmaPostProcessingObjects
     public Texture2D _thicknessTexture = default;
     public Vector4 _ThicknessTexture_ST = new Vector4(1,1,1,1);
 
-    [HideInInspector]
+    //[HideInInspector]
     public Material material = default;
     private void Awake()
     {

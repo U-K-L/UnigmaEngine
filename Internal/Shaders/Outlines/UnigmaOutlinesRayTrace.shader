@@ -18,6 +18,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 		_LineBreak("Line break texture", 2D) = "white" {}
 		_LineBreakage("Scale of line breakage", Range(0,1)) = 0.15
 		_SurfaceNoiseScroll("Surface noise scroll", Vector) = (0,0,0,0)
+        _GlobalIlluminationWeights("Global Illumination Weights: Albedo, Light, Reflect, Specular", Vector) = (0.975, 0.85, 0.21, 0.56)
     }
     SubShader
     {
@@ -57,7 +58,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
-			float4 _SurfaceNoiseScroll;
+			float4 _SurfaceNoiseScroll, _GlobalIlluminationWeights;
 
             fixed4 frag(v2f i) : SV_Target
             {
@@ -247,6 +248,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 				//return lerp(FinalColor, FinalColor * 0.75 + GlobalIllumination * 0.75, saturate(GlobalIllumination.a+0.5));
                 //return GlobalIlluminationDenoised*0.25 + FinalColor;
 
+                //return GlobalIlluminationDenoised;
                 //return FinalColor;
                 //return normalMap;
 				//return FinalColor * GlobalIlluminationDenoised;
@@ -259,17 +261,18 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 				float4 reflectMask = step(reflections.r, 0.01) * 1;
                 float4 reflectMaskInv = step(0.01, reflections.r) * 1;
 
-                //return GlobalIllumination;
+                float lightedAreas = step(0.00001, _UnigmaDepthShadows.r);
+                //return lightedAreas;
                 //return FinalColor + specularHighlights;
                 //return reflectMaskInv* reflections*0.25;
                 //reflections = reflectMaskInv * reflections * 0.75;
 				//reflections += reflectMask;
-                return reflections;
+                //return reflections;
                 FinalColor = lerp(FinalColor, FinalColor*(min(1,reflections.w*0.975)) + reflections*0.25, reflectMaskInv*min(1, reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(FinalColor, FinalColor*0.975 + GlobalIlluminationDenoised *0.85 + reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights*0.56;
+                return lerp(FinalColor, FinalColor* _GlobalIlluminationWeights.x + GlobalIlluminationDenoised * _GlobalIlluminationWeights.y + reflections * _GlobalIlluminationWeights.z, 0.5* lightedAreas) + specularHighlights* _GlobalIlluminationWeights.w;
                 //return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 //return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));

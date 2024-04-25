@@ -214,6 +214,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             //Get _StencilRef from isometricDepth.
             int stencilValue = ceiling.GetComponent<Renderer>().material.GetInt("_StencilRef");
             ceiling.GetComponent<IsometricDepthNormalObject>().material.SetInt("_StencilRef", stencilValue);
+            ceiling.GetComponent<OutlineColor>().material.SetInt("_StencilRef", stencilValue);
 
         }
     }
@@ -458,6 +459,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
         foreach (Renderer r in _rayTracedObjects)
         {
             uint stencilValue = (uint)r.material.GetInt("_StencilRef");
+            if (stencilValue == 0)
+                stencilValue = 255;
             _AccelerationStructure.UpdateInstanceTransform(r);
             _AccelerationStructure.UpdateInstanceMask(r, stencilValue);
         }
@@ -806,7 +809,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             uint stencilValue = (uint)r.material.GetInt("_StencilRef");
             if (stencilValue == 0)
             {
-                stencilValue = 1;
+                stencilValue = 255;
             }
             _AccelerationStructure.AddInstance(r, id:index, mask:stencilValue);
             _AccelerationStructure.UpdateInstanceTransform(r); 

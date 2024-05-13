@@ -71,6 +71,7 @@ public class GraphicalOcculusion : MonoBehaviour
         if (isometricDepthNormals != null)
         {
             isometricDepthNormals.material.SetInt("_StencilRef", value);
+            //isometricDepthNormals.materials["FluidPositions"].SetInt("_StencilRef", value);
         }
 
         OutlineColor outlineColors = wall.GetComponent<OutlineColor>();

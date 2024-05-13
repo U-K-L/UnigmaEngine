@@ -141,6 +141,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private ComputeShader computeOutlineColors;
     private ComputeShader svgfComputeShader;
     private CommandBuffer outlineDepthBuffer;
+    private CommandBuffer backgroundColorBuffer;
     private CommandBuffer compositeBuffer;
     private Material _nullMaterial = default;
 
@@ -179,16 +180,22 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public RenderTexture _UnigmaWaterPosition;
     public RenderTexture _UnigmaWaterReflections;
     public RenderTexture _UnigmaShadowColors;
+    public RenderTexture _UnigmaBackgroundColor;
+    public RenderTexture _UnigmaComposite;
     public Texture2D _UnigmaBlueNoise;
 
     private List<Renderer> _rayTracedObjects = default;
     public Camera secondCam;
+    Material _unigmaBackgroundMaterial;
+
+    public bool debugMode = false;
 
     // Start is called before the first frame update
     void Start()
     {
         _rayTracedObjects = new List<Renderer>();
         _graphicalOcculusion = gameObject.AddComponent<GraphicalOcculusion>();
+        _unigmaBackgroundMaterial = Resources.Load<Material>("UnigmaBackgroundMaterial");
         SetUpWallsAndObjects();
         UpdateRenderTextures();
         SetUpOutline();
@@ -215,8 +222,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
             int stencilValue = ceiling.GetComponent<Renderer>().material.GetInt("_StencilRef");
             ceiling.GetComponent<IsometricDepthNormalObject>().material.SetInt("_StencilRef", stencilValue);
             ceiling.GetComponent<OutlineColor>().material.SetInt("_StencilRef", stencilValue);
-
+            //ceiling.GetComponent<IsometricDepthNormalObject>().materials["FluidPositions"].SetInt("_StencilRef", stencilValue);
         }
+        
     }
 
     void SetUpOutline()
@@ -450,6 +458,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         AddLightsToList();
         AddCommandBuffers();
         UpdateRenderTextures();
+        SaveRenderTexture();
     }
 
     void UpdateRayTracedObjects()
@@ -472,10 +481,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
         if (BuffersReady == false)
         {
             BuffersReady = true;
+            CreateBackground();
             return;
         }
         if (buffersAdded < 1)
         {
+            
             //Create isometric depth normals.
             _OutlineRenderObjects = new List<UnigmaPostProcessingObjects>();
             _OutlineNullObjects = new List<Renderer>();
@@ -535,6 +546,15 @@ public class UnigmaCommandBuffers : MonoBehaviour
         ReleaseRenderTextures();
         CreateGlobalIlluminationTextures();
 
+
+        _UnigmaBackgroundColor = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaBackgroundColor.enableRandomWrite = true;
+        _UnigmaBackgroundColor.Create();
+
+        _UnigmaComposite = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Linear);
+        _UnigmaComposite.enableRandomWrite = true;
+        _UnigmaComposite.Create();
+
         _DepthShadowsTexture = new RenderTexture(_rayTracingRenderTextureWidth, _rayTracingRenderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _DepthShadowsTexture.enableRandomWrite = true;
         _DepthShadowsTexture.Create();
@@ -592,7 +612,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaAlbedo = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaAlbedo.enableRandomWrite = true;
         _UnigmaAlbedo.Create();
-        
+
         _UnigmaGlobalIllumination = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaGlobalIllumination.enableRandomWrite = true;
         _UnigmaGlobalIllumination.Create();
@@ -717,6 +737,16 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             _UnigmaShadowColors.Release();
             _UnigmaShadowColors = null;
+        }
+        if (_UnigmaBackgroundColor != null)
+        {
+            _UnigmaBackgroundColor.Release();
+            _UnigmaBackgroundColor = null;
+        }
+        if (_UnigmaComposite != null)
+        {
+            _UnigmaComposite.Release();
+            _UnigmaComposite = null;
         }
 
     }
@@ -1001,6 +1031,24 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     }
 
+    void CreateBackground()
+    {
+
+        backgroundColorBuffer = new CommandBuffer();
+        backgroundColorBuffer.name = "UnigmaBackgroundColor";
+        backgroundColorBuffer.SetGlobalTexture("_UnigmaBackgroundColor", _UnigmaBackgroundColor);
+
+        //blit with UnigmaBackgroundMaterial
+        backgroundColorBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaBackgroundColor, _unigmaBackgroundMaterial, 0);
+        //backgroundColorBuffer.Blit(_UnigmaBackgroundColor, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 1);
+
+
+
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.BeforeImageEffects, backgroundColorBuffer);
+
+    }
+
+
     void CreateDepthNormalBuffers()
     {
         outlineDepthBuffer = new CommandBuffer();
@@ -1118,8 +1166,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
             compositeMaterial = Resources.Load<Material>("UnigmaComposite");
         }
 
+        compositeBuffer.SetGlobalTexture("_UnigmaComposite", _UnigmaComposite);
+
         //Blit material to current camera target.
+
         compositeBuffer.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, compositeMaterial);
+        compositeBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaComposite, compositeMaterial, 0); //Refactor this such that second pass only calculates outlines.
 
         //This happens right before post processing.
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, compositeBuffer);
@@ -1357,8 +1409,36 @@ public class UnigmaCommandBuffers : MonoBehaviour
         return new Vector3(x,y,z);
     }
 
+    public void SaveRenderTexture()
+    {
+        if (debugMode)
+        {
+            //Get space bar input.
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                //Save all render textures.
+                SaveTexture.SaveRenderTexture2D(_UnigmaAlbedo, "ScreenShots/Albedo.png");
+                SaveTexture.SaveRenderTexture2D(_UnigmaNormal, "ScreenShots/Normal.png");
+                SaveTexture.SaveRenderTexture2D(_UnigmaSpecularLights, "ScreenShots/SpecularLights.png");
+                SaveTexture.SaveRenderTexture2D(_DepthShadowsTexture, "ScreenShots/Depth.png");
+                SaveTexture.SaveRenderTexture2D(_ReflectionsTexture, "ScreenShots/Reflections.png");
+
+                //Unigma Ids
+                SaveTexture.SaveRenderTexture2D(_UnigmaIdsTexture, "ScreenShots/Ids.png");
+
+                SaveTexture.SaveRenderTexture2D(_UnigmaGlobalIllumination, "ScreenShots/GlobalIllumination.png");
+                SaveTexture.SaveRenderTexture2D(_UnigmaDenoisedGlobalIllumination, "ScreenShots/DenoisedGlobalIllumination.png");
+                //Render what camera sees.
+                Camera cam = GetComponent<Camera>();
+                SaveTexture.TakeScreenshot("ScreenShots/CameraTexture.png");
+            }
+        }
+    }
+
     private void OnDrawGizmos()
     {
+
+
         /*
         int width = SphericalMap.width;
         int height = SphericalMap.height;

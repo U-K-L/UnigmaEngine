@@ -333,7 +333,7 @@ void RestirGlobalIllumantionRayGen()
     {
         //Camera is Perspective.
         //Convert to camera space.
-        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
+        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 0, 1));
         //Perspective divide.
         viewPos /= viewPos.w; //This takes into account field of view, how the frustrum of the view plane is.
     

@@ -53,7 +53,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 o.uv = v.uv;
                 return o;
             }
-            sampler2D _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections, _UnigmaShadowColors;
+            sampler2D _UnigmaFluidsFinal, _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections, _UnigmaShadowColors;
             sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
@@ -62,6 +62,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
 			    fixed4 GlobalIlluminationDenoised = tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
                 fixed4 GlobalIllumination = tex2D(_UnigmaGlobalIllumination, i.uv);//tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
@@ -77,7 +78,9 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 				fixed4 WaterPositions = tex2D(_UnigmaWaterPosition, i.uv);
 				fixed4 WaterReflections = tex2D(_UnigmaWaterReflections, i.uv);
 				fixed4 ShadowColors = tex2D(_UnigmaShadowColors, i.uv);
-
+				fixed4 fluids = tex2D(_UnigmaFluidsFinal, i.uv);
+                
+                //originalImage = _UnigmaFluidsFinal;
                 //return GlobalIllumination;
                 //return ShadowColors;
 				//return tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
@@ -112,7 +115,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float depthThreshold = _DepthThreshold * depthnormal0;
                 edgeDepth = edgeDepth > depthThreshold ? 1 : 0;
 
-                
+                //return originalImage;
 
                 float scaleUV = 1;
                 scaleFloor = floor(_ScaleInner * 0.5);
@@ -247,9 +250,9 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 //return GlobalIllumination;
 				//return lerp(FinalColor, FinalColor * 0.75 + GlobalIllumination * 0.75, saturate(GlobalIllumination.a+0.5));
                 //return GlobalIlluminationDenoised*0.25 + FinalColor;
-
-                //return GlobalIlluminationDenoised;
-                //return FinalColor;
+                
+                //return _UnigmaDepthShadows.r*30;
+                //return edge;
                 //return normalMap;
 				//return FinalColor * GlobalIlluminationDenoised;
 				//return lerp(FinalColor, GlobalIllumination, 1-distance(FinalColor, GlobalIllumination));

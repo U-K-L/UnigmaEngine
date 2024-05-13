@@ -96,6 +96,7 @@ public class FluidSimulationManager : MonoBehaviour
     RenderTexture _velocitySurfaceDensityDepthTexture;
     RenderTexture _depthBufferTexture;
     RenderTexture _unigmaDepthTexture;
+    RenderTexture _UnigmaFluidsFinal;
     List<RenderTexture> _previousPositionTextures;
 
     Shader _fluidNormalShader;
@@ -162,6 +163,8 @@ public class FluidSimulationManager : MonoBehaviour
     private Vector4 _initialForce;
     private Vector3 _initialPosition;
 
+    int buffersAdded = 0;
+    bool buffersInitialized = false;
     struct MeshObject
     {
         public Matrix4x4 localToWorld;
@@ -324,6 +327,8 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidNormalBufferTexture.name = "FluidDepthBufferTexture";
         _velocitySurfaceDensityDepthTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _velocitySurfaceDensityDepthTexture.name = "VelocitySurfaceDensityDepthTexture";
+        _UnigmaFluidsFinal = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaFluidsFinal.name = "UnigmaFluidsFinal";
         _particles = new Particles[MaxNumOfParticles];
         _particlesPositions = new Vector3[MaxNumOfParticles];
         _ParticleIDs = new int[MaxNumOfParticles];
@@ -380,6 +385,8 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidNormalBufferTexture.Create();
         _unigmaDepthTexture.enableRandomWrite = true;
         _unigmaDepthTexture.Create();
+        _UnigmaFluidsFinal.enableRandomWrite = true;
+        _UnigmaFluidsFinal.Create();
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "Result", _rtTarget);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "DensityMap", _densityMapTexture);
         _fluidSimulationComputeShader.SetTexture(_CreateGridKernelId, "NormalMap", _fluidNormalBufferTexture);
@@ -405,8 +412,6 @@ public class FluidSimulationManager : MonoBehaviour
         }
         UpdateNonAcceleratedRayTracer();
         rasterMaterial.SetBuffer("_Particles", _particleBuffer);
-        CreateFluidCommandBuffers();
-
 
     }
 
@@ -544,6 +549,26 @@ public class FluidSimulationManager : MonoBehaviour
     {
         Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
+
+
+        //Need command buffers in specific ordering.
+        if (buffersInitialized == false)
+        {
+            buffersInitialized = true;
+
+            return;
+        }
+        if (buffersAdded < 1)
+        {
+
+            CreateFluidCommandBuffers();
+            buffersAdded += 1;
+        }
+
+        if (buffersAdded < 2)
+        {
+            buffersAdded += 1;
+        }
     }
 
     void AddObjectsToList()
@@ -1385,7 +1410,7 @@ public class FluidSimulationManager : MonoBehaviour
         //Graphics.Blit(source, _rtTarget, _fluidSimMaterialDepthHori);
         //if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
         //    DispatchAcceleratedRayTrace();
-        Graphics.Blit(source, destination, _fluidSimMaterialComposite);
+        //Graphics.Blit(source, destination, _fluidSimMaterialComposite);
 
 
     }
@@ -1394,6 +1419,7 @@ public class FluidSimulationManager : MonoBehaviour
     {
         CommandBuffer fluidCommandBuffers = new CommandBuffer();
         RenderTexture[] rtGBuffers = new RenderTexture[4];
+
         RenderTargetIdentifier[] rtGBuffersID = new RenderTargetIdentifier[rtGBuffers.Length];
         Material writeOutDepth = Resources.Load<Material>("WriteOutDepth");
 
@@ -1415,9 +1441,9 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.name = "Fluid Command Buffer";
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluids", _rtTarget);
 
-        fluidCommandBuffers.SetRenderTarget(_rtTarget);
+        //fluidCommandBuffers.SetRenderTarget(_rtTarget);
 
-        fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0,0,0,0));
+        //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0,0,0,0));
 
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "Result", _rtTarget);
         fluidCommandBuffers.SetComputeTextureParam(_fluidSimulationComputeShader, _CreateGridKernelId, "_VelocitySurfaceDensityDepthTexture", _velocitySurfaceDensityDepthTexture);
@@ -1426,14 +1452,21 @@ public class FluidSimulationManager : MonoBehaviour
             fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateGridKernelId, Mathf.CeilToInt(_renderTextureWidth / _createGridThreadSize.x), Mathf.CeilToInt(_renderTextureHeight / _createGridThreadSize.y), (int)_createGridThreadSize.z);
         else
         {
-            fluidCommandBuffers.SetRenderTarget(_unigmaDepthTexture);
-            fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+            //fluidCommandBuffers.SetRenderTarget(_unigmaDepthTexture);
+            //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             foreach (Renderer r in _rayTracedObjects)
             {
-                fluidCommandBuffers.DrawRenderer(r, writeOutDepth);
+                int stencil = 0;//r.material.GetInt("_StencilRef");
+                float ssj = 0.01f;
+                writeOutDepth.SetFloat("_StencilSSJ", ssj);
+                writeOutDepth.SetInt("_StencilRef", stencil);
+                Debug.Log(r.name + " " + stencil);
+                r.GetComponent<IsometricDepthNormalObject>().materials.Add("FluidPositions", writeOutDepth);
+                Material m = r.GetComponent<IsometricDepthNormalObject>().materials["FluidPositions"];
+                //fluidCommandBuffers.DrawRenderer(r, m);
             }
             //fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateDistancesKernelId, Mathf.CeilToInt(_distanceTextureWidth / _createDistancesThreadSize.x), Mathf.CeilToInt(_distanceTextureHeight / _createDistancesThreadSize.y), (int)_createDistancesThreadSize.z);
-            fluidCommandBuffers.SetRenderTarget(_rtTarget);
+            //fluidCommandBuffers.SetRenderTarget(_rtTarget);
         }
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsDepth", _velocitySurfaceDensityDepthTexture);
         fluidCommandBuffers.SetGlobalTexture("_DensityMap", _densityMapTexture);
@@ -1441,16 +1474,16 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.SetGlobalTexture("_SurfaceMap", _surfaceMapTexture);
         fluidCommandBuffers.SetGlobalTexture("_CurlMap", _curlMapTexture);
         fluidCommandBuffers.SetGlobalTexture("_ColorFieldNormalMap", _normalMapTexture);
-        fluidCommandBuffers.SetGlobalTexture("_UnigmaDepthMap", _unigmaDepthTexture);
+        //fluidCommandBuffers.SetGlobalTexture("_UnigmaDepthMap", _unigmaDepthTexture);
 
 
 
-        fluidCommandBuffers.SetRenderTarget(_velocitySurfaceDensityDepthTexture);
+        //fluidCommandBuffers.SetRenderTarget(_velocitySurfaceDensityDepthTexture);
 
         if (_renderMethod == RenderMethod.Rasterization)
         {
-            fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _rtTarget.depthBuffer);
-            fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+            //fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _rtTarget.depthBuffer);
+            //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 0, MaxNumOfParticles);
             fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 1, MaxNumOfParticles);
             fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 2, MaxNumOfParticles);
@@ -1463,7 +1496,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _MeshAccelerationStructure.AddInstance(r);
             }
             //_AccelerationStructure.UpdateInstanceTransform(handle, 
-            fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+            //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             fluidCommandBuffers.SetRayTracingTextureParam(_RayTracingShaderAccelerated, "_RayTracedImage", _rtTarget);
             fluidCommandBuffers.SetRayTracingTextureParam(_RayTracingShaderAccelerated, "_VelocitySurfaceDensityDepthTexture", _velocitySurfaceDensityDepthTexture);
             fluidCommandBuffers.SetRayTracingTextureParam(_RayTracingShaderAccelerated, "_UnigmaDepthMapRayTrace", _unigmaDepthTexture);
@@ -1483,14 +1516,21 @@ public class FluidSimulationManager : MonoBehaviour
 
 
         fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsNormals", _fluidNormalBufferTexture);
+        fluidCommandBuffers.SetGlobalTexture("_UnigmaFluidsFinal", _UnigmaFluidsFinal);
 
-        fluidCommandBuffers.SetRenderTarget(_fluidNormalBufferTexture);
+        //fluidCommandBuffers.SetRenderTarget(_fluidNormalBufferTexture);
 
         //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
 
         fluidCommandBuffers.Blit(_fluidDepthBufferTexture, _fluidNormalBufferTexture, _fluidSimMaterialNormal);
 
-        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, fluidCommandBuffers);
+        //fluidCommandBuffers.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaFluidsFinal, _fluidSimMaterialComposite);
+        //fluidCommandBuffers.SetRenderTarget(_fluidNormalBufferTexture);
+
+        //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+        fluidCommandBuffers.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, _fluidSimMaterialComposite);
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterEverything, fluidCommandBuffers);
+        
         //UnityEditor.SceneView.GetAllSceneCameras()[0].AddCommandBuffer(CameraEvent.AfterForwardOpaque, fluidCommandBuffers);
 
     }
@@ -1586,6 +1626,8 @@ public class FluidSimulationManager : MonoBehaviour
             _MeshAccelerationStructure.Release();
         if (_unigmaDepthTexture != null)
             _unigmaDepthTexture.Release();
+        if (_UnigmaFluidsFinal != null)
+            _UnigmaFluidsFinal.Release();
         if (aabbList != null)
             aabbList.Release();
         if (_particleNeighbors != null)

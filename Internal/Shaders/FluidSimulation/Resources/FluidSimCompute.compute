@@ -104,7 +104,7 @@ struct Hit
     float2 uv;
     float depth;
     Vertex vertices[3];
-    MeshObject meshObj;
+    int meshIndex;
 };
 
 struct Particle
@@ -150,7 +150,7 @@ struct MortonCode
     int particleIndex;
 };
 
-StructuredBuffer<MeshObject> _MeshObjects;
+RWStructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
 RWStructuredBuffer<Particle> _Particles;
@@ -223,7 +223,7 @@ Hit CreateHit()
     hit.vertices[2] = v2;
 
     hit.uv = 0;
-    hit.meshObj = _MeshObjects[0];
+    hit.meshIndex = -1;
     
     return hit;
 }
@@ -445,17 +445,17 @@ float TraceBVHF(inout Ray ray, inout Hit hit, BVHNode node)
     return 9999999;
 }
 
-bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
+bool TraceMesh(inout Ray ray, inout Hit hit, int k)
 {
-    uint offset = meshObject.indicesOffset;
-    uint count = offset + meshObject.indicesCount;
+    uint offset = _MeshObjects[k].indicesOffset;
+    uint count = offset + _MeshObjects[k].indicesCount;
     float3 tuv = 0;
 
     for (uint i = offset; i < count; i += 3)
     {
-        float3 vp0 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i]].position, 1))).xyz;
-        float3 vp1 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 1]].position, 1))).xyz;
-        float3 vp2 = (mul(meshObject.localToWorld, float4(_Vertices[_Indices[i + 2]].position, 1))).xyz;
+        float3 vp0 = (mul(_MeshObjects[k].localToWorld, float4(_Vertices[_Indices[i]].position, 1))).xyz;
+        float3 vp1 = (mul(_MeshObjects[k].localToWorld, float4(_Vertices[_Indices[i + 1]].position, 1))).xyz;
+        float3 vp2 = (mul(_MeshObjects[k].localToWorld, float4(_Vertices[_Indices[i + 2]].position, 1))).xyz;
 
         if (TriangleTrace(ray, vp0, vp1, vp2, tuv.x, tuv.y, tuv.z))
         {
@@ -470,7 +470,7 @@ bool TraceMesh(inout Ray ray, inout Hit hit, MeshObject meshObject)
                 hit.distance = t;
                 hit.uv = float2(tuv.y, tuv.z);
                 hit.position = ray.o + t * ray.d;
-                hit.meshObj = meshObject;
+                hit.meshIndex = k;
                 return true;
             }
         }
@@ -937,7 +937,7 @@ float4 SceneTrace(inout Ray ray, inout Hit hit, out int particleId, out float pa
         MeshObject meshObject = _MeshObjects[k];
         if (TraceAABB(ray, hit, meshObject) == true)
         {
-            TraceMesh(ray, hit, meshObject);
+            TraceMesh(ray, hit, k);
         }
 
     }
@@ -1066,7 +1066,7 @@ uint2 determineRange(int idx)
 
     int direction = sign(commonPrefixClz(idx, idx + 1) - commonPrefixClz(idx, idx - 1));
 
-    //Subtracting that direction gives us the lower bound, ie the lowest level for this node.
+    //Subtracting that direction gives us the lower bound, ie the lowest level for this node.meshObj
     int sigMin = commonPrefixClz(idx, idx - direction);
 
 
@@ -1100,24 +1100,23 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
     for (int k = 0; k < numOfStructs; k++)
     {
         MeshObject meshObject = _MeshObjects[k];
-        if (TraceAABB(ray, hit, meshObject) == true)
-        {
-            TraceMesh(ray, hit, meshObject);
-        }
+        //if (TraceAABB(ray, hit, meshObject) == true)
+        //{
+            TraceMesh(ray, hit, k);
+        //}
 
     }
-
-    MeshObject meshObject = hit.meshObj;
+    
     Vertex v0 = hit.vertices[0];
     Vertex v1 = hit.vertices[1];
     Vertex v2 = hit.vertices[2];
     //Convert to world space along with ray and compute the barycentric coordinate.
-    v0.position = (mul(meshObject.localToWorld, float4(v0.position, 1))).xyz;
-    v1.position = (mul(meshObject.localToWorld, float4(v1.position, 1))).xyz;
-    v2.position = (mul(meshObject.localToWorld, float4(v2.position, 1))).xyz;
-    v0.normal = (mul(meshObject.localToWorld, float4(v0.normal, 0))).xyz;
-    v1.normal = (mul(meshObject.localToWorld, float4(v1.normal, 0))).xyz;
-    v2.normal = (mul(meshObject.localToWorld, float4(v2.normal, 0))).xyz;
+    v0.position = (mul(_MeshObjects[hit.meshIndex].localToWorld, float4(v0.position, 1))).xyz;
+    v1.position = (mul(_MeshObjects[hit.meshIndex].localToWorld, float4(v1.position, 1))).xyz;
+    v2.position = (mul(_MeshObjects[hit.meshIndex].localToWorld, float4(v2.position, 1))).xyz;
+    v0.normal = (mul(_MeshObjects[hit.meshIndex].localToWorld, float4(v0.normal, 0))).xyz;
+    v1.normal = (mul(_MeshObjects[hit.meshIndex].localToWorld, float4(v1.normal, 0))).xyz;
+    v2.normal = (mul(_MeshObjects[hit.meshIndex].localToWorld, float4(v2.normal, 0))).xyz;
     float3 barycentric = Barycentric(v0.position, v1.position, v2.position, hit.position);
 
     //Now that we have the barycentric coordinate we can use this to reconstruct the UVs.
@@ -1159,6 +1158,10 @@ void CreateGrid (uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupT
     Ray ray = CreateCameraRay(pixel);
     Hit hit = CreateHit();
 
+    CollisionTrace(ray, hit);
+
+	_CurlMap[id.xy] = float4(hit.normal.x, hit.normal.y, hit.normal.z, 1);
+    
     //Actually perform intersection.
     float4 tracedPoint = SceneTrace(ray, hit, particleId, particlesHit, GroupThreadID.x + GroupThreadID.y * 16);
     Result[id.xy] = float4(tracedPoint.xyz, tracedPoint.w);
@@ -1202,7 +1205,7 @@ void CreateGrid (uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupT
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
         _SurfaceMap[id.xy] = float4(freeSurface, 1);
 		_VelocityMap[id.xy] = float4(particle.velocity, length(particle.velocity) + length(_Particles[particleId].curl) * 0.055);
-        _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
+        //_CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
         
     }
     
@@ -1353,8 +1356,8 @@ void GetDensityGrid(uint3 id)
             Particle neighbour = _Particles[particleIndexB];
             float distance2 = distance(_Particles[particleIndex].predictedPosition, _Particles[particleIndexB].predictedPosition);
             float3 pressureGradDir = _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition;
-            //if (0.001f < distance2 && distance2 < _Radius * 2)
-            //{
+            if (0.001f < distance2 && distance2 < _Radius * 2)
+            {
                 //Poly6
                 densitySum += Poly6Kernel(distance2) * _Mass;
                 //Spiky
@@ -1362,7 +1365,7 @@ void GetDensityGrid(uint3 id)
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
                 colorField += _Mass * (1 / _Particles[particleIndexB].density) * Poly6GradientKernel(distance2, pressureGradDir);
-            //}
+            }
 
             cell = clearBit(cell, index);
 
@@ -1478,14 +1481,14 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
 
                 Particle neighbor = _Particles[particleIndexB];
                 float dist = distance(particleCurrent.predictedPosition, neighbor.predictedPosition);
-                //if (0.001f < dist && dist < _Radius * 2)
-                //{
+                if (0.001f < dist && dist < _Radius * 2)
+                {
                     float Scorr = -0.001 * pow(Poly6Kernel(dist) / Poly6Kernel(0.0003 * _Radius), 4);
                     float left = particleCurrent.lambda + neighbor.lambda + Scorr;
                     float3 right = SpikyKernelGradient(dist, particleCurrent.predictedPosition - neighbor.predictedPosition);
 
                     positionDelta += left * right / _RestDensity;//left * right / _RestDensity;
-                //}
+                }
                 cell = clearBit(cell, index);
 
             }
@@ -1701,13 +1704,15 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     ray.d = normalize(positionDelta - _Particles[id.x].lastPosition);
 
     CollisionTrace(ray, hit);
-
     if (hit.distance < abs(length(positionDelta - _Particles[id.x].lastPosition)) + _SizeOfParticle * 2)
     {
         //We hit something.
         float3 normal = hit.normal;
         positionDelta = ray.o + (ray.d * ( hit.distance- _SizeOfParticle * 2));
         velDamping = -normal * _BoundsDamping;
+
+        //Response
+		_MeshObjects[hit.meshIndex].color += (((positionDelta - _Particles[id.x].lastPosition) / _TimeStep) + _Particles[id.x].density * _TimeStep);
         //positionDelta = float3(0, 0, 0);
     }
     

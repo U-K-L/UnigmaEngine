@@ -17,13 +17,18 @@ public class UnigmaPhysicsObject : MonoBehaviour
     UnigmaSpaceTime SpaceTimeVectorField;
 
     bool ObjectSetup = false;
+
+    private void Awake()
+    {
+        SetUpObject();
+    }
     public virtual void UpdatePhysics()
     {
         if (!ObjectSetup)
             SetUpObject();
-        UpdatePosition();
-        UpdateVelocity();
-        UpdateAcceleration();
+        //UpdatePosition();
+        //UpdateVelocity();
+        //UpdateAcceleration();
 
     }
 
@@ -75,11 +80,13 @@ public class UnigmaPhysicsObject : MonoBehaviour
     {
         if(collider == null)
             collider = GetComponent<Collider>();
+        if (collider == null)
+            collider = gameObject.AddComponent<BoxCollider>() as Collider;
         if (rigidbody == null)
         {
             rigidbody = transform.gameObject.AddComponent<Rigidbody>();
             rigidbody.useGravity = false;
-            rigidbody.isKinematic = true;
+            rigidbody.isKinematic = false;
             rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         }
         if (SpaceTimeVectorField == null)

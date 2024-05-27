@@ -144,7 +144,7 @@ public class FluidSimulationManager : MonoBehaviour
     public int MaxNeighbors = 50;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
-    private List<MeshObject> _meshObjects = new List<MeshObject>();
+    private MeshObject[] _meshObjects;
     private List<Vertex> _vertices = new List<Vertex>();
     private List<int> _indices = new List<int>();
     private Particles[] _particles;
@@ -286,6 +286,7 @@ public class FluidSimulationManager : MonoBehaviour
         Debug.Log("BVH Stride size is: " + _BVHStride);
         Debug.Log("Mesh Object Stride size is: " + _meshObjectStride);
         Debug.Log("Morton Code Stride size is: " + _MortonCodeStride);
+
         aabbs = new AABB[MaxNumOfParticles];
         _spawnParticles = new List<Vector3>();
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
@@ -578,6 +579,7 @@ public class FluidSimulationManager : MonoBehaviour
             //Check if object in the RaytracingLayers.
             if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
             {
+                Debug.Log(obj.name);
                 _rayTracedObjects.Add(obj);
             }
         }
@@ -593,8 +595,11 @@ public class FluidSimulationManager : MonoBehaviour
         _vertices.Clear();
         _indices.Clear();
 
-        foreach (Renderer r in _rayTracedObjects)
+        int indexMeshObject = 0;
+        _meshObjects = new MeshObject[_rayTracedObjects.Count];
+        for(int rIndex = 0; rIndex < _rayTracedObjects.Count; rIndex++)
         {
+            Renderer r = _rayTracedObjects[rIndex];
             MeshFilter mf = r.GetComponent<MeshFilter>();
             if (mf)
             {
@@ -616,17 +621,19 @@ public class FluidSimulationManager : MonoBehaviour
                 _indices.AddRange(indices.Select(index => index + startVert));
 
                 // Add the object itself
-                _meshObjects.Add(new MeshObject()
-                {
-                    localToWorld = r.transform.localToWorldMatrix,
-                    indicesOffset = startIndex,
-                    indicesCount = indices.Length
-                });
+                _meshObjects[indexMeshObject] = new MeshObject()
+                    {
+                        localToWorld = r.transform.localToWorldMatrix,
+                        indicesOffset = startIndex,
+                        indicesCount = indices.Length,
+                        id = (uint)rIndex
+                    };
+                indexMeshObject++;
             }
         }
-        if (_meshObjects.Count > 0)
+        if (_meshObjects.Length > 0)
         {
-            _meshObjectBuffer = new ComputeBuffer(_meshObjects.Count, _meshObjectStride);
+            _meshObjectBuffer = new ComputeBuffer(_meshObjects.Length, _meshObjectStride);
             _verticesObjectBuffer = new ComputeBuffer(_vertices.Count, 32);
             _indicesObjectBuffer = new ComputeBuffer(_indices.Count, 4);
             _verticesObjectBuffer.SetData(_vertices);
@@ -1229,8 +1236,38 @@ public class FluidSimulationManager : MonoBehaviour
             //Set Particle positions to script.
             //NOT NEEDED. MOVE ENTIRE BVH TO GPU!!!!
             //_particleBuffer.GetData(_particles);
+
+            //Get data asynchronously from the GPU. Gets MeshObjectData.
+            ReactToForces();
         }
 
+    }
+
+    void ReactToForces()
+    {
+        _meshObjectBuffer.GetData(_meshObjects);
+
+        //Quick debug of meshObjects
+        for (int i = 0; i < _meshObjects.Length; i++)
+        {
+            Rigidbody rb = _rayTracedObjects[(int)_meshObjects[i].id].GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                Debug.Log("MeshObject: " + _meshObjects[i].id + " name is " + _rayTracedObjects[(int)_meshObjects[i].id].transform.name + " Color " + _meshObjects[i].color);
+                //_rayTracedObjects[(int)_meshObjects[i].id].transform.position += _meshObjects[i].color*0.01f* Time.deltaTime;
+                
+                Vector3 contactPoint = transform.position + Vector3.right * _rayTracedObjects[(int)_meshObjects[i].id].bounds.size.x;
+
+                Vector3 g = new Vector3(0, -9.81f, 0);
+                
+                rb.AddForceAtPosition(2.5f*_meshObjects[i].color * Time.deltaTime, contactPoint);
+
+                _meshObjects[i].color = new Vector3(0,0,0);
+            }
+        }
+
+        //Set data back on GPU.
+        _meshObjectBuffer.SetData(_meshObjects);
     }
 
     void ComputeForces()
@@ -1456,6 +1493,7 @@ public class FluidSimulationManager : MonoBehaviour
             //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             foreach (Renderer r in _rayTracedObjects)
             {
+                /*
                 int stencil = 0;//r.material.GetInt("_StencilRef");
                 float ssj = 0.01f;
                 writeOutDepth.SetFloat("_StencilSSJ", ssj);
@@ -1463,6 +1501,7 @@ public class FluidSimulationManager : MonoBehaviour
                 Debug.Log(r.name + " " + stencil);
                 r.GetComponent<IsometricDepthNormalObject>().materials.Add("FluidPositions", writeOutDepth);
                 Material m = r.GetComponent<IsometricDepthNormalObject>().materials["FluidPositions"];
+                */
                 //fluidCommandBuffers.DrawRenderer(r, m);
             }
             //fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateDistancesKernelId, Mathf.CeilToInt(_distanceTextureWidth / _createDistancesThreadSize.x), Mathf.CeilToInt(_distanceTextureHeight / _createDistancesThreadSize.y), (int)_createDistancesThreadSize.z);

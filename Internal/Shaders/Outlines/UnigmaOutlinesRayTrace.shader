@@ -222,7 +222,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 //And make it optional!
                 //FinalColor = lerp(FinalColor, BackgroundTexture, step(_UnigmaDepthShadows.r, 0.01));
                 FinalColor = lerp(FinalColor, float4(OutterLineColors.xyz, 1), edge * step(0.001, OutterLineColors.w));
-                FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
+                //FinalColor = step(_LineBreakage, lineBreak.r) * FinalColor;
                 
 				FinalColor = lerp(mainTex, FinalColor, FinalColor.a);
                 
@@ -234,7 +234,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 
                 float4 shadowColorMaked = shadows * ShadowColors;
                 
-                FinalColor =  lerp(FinalColor, shadowColorMaked, shadowColorMaked.w) + edgeUnigmaDepth;
+                FinalColor =  lerp(FinalColor, shadowColorMaked, shadowColorMaked.w);
                 //Convert direct lighting buffer.
                 //float4 directLight = step(0.05, GlobalIllumination);
                 //return directLight;
@@ -265,6 +265,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float4 reflectMaskInv = step(0.01, reflections.r) * 1;
 
                 float lightedAreas = step(0.00001, _UnigmaDepthShadows.r);
+				edgeUnigmaDepth *= step(lightedAreas, 0.00001) * step(edge, 0.00001);
                 //return lightedAreas;
                 //return FinalColor + specularHighlights;
                 //return reflectMaskInv* reflections*0.25;
@@ -275,7 +276,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(FinalColor, FinalColor* _GlobalIlluminationWeights.x + GlobalIlluminationDenoised * _GlobalIlluminationWeights.y + reflections * _GlobalIlluminationWeights.z, 0.5* lightedAreas) + specularHighlights* _GlobalIlluminationWeights.w;
+                return lerp(FinalColor + edgeUnigmaDepth, FinalColor* _GlobalIlluminationWeights.x + GlobalIlluminationDenoised * _GlobalIlluminationWeights.y + reflections * _GlobalIlluminationWeights.z, 0.5* lightedAreas) + specularHighlights* _GlobalIlluminationWeights.w;
                 //return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 //return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));

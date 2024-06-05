@@ -18,6 +18,7 @@
 #pragma kernel AssignIndex
 #pragma kernel CreateDistances
 #pragma kernel StoreParticleNeighbors
+#pragma kernel ClearForces
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -65,11 +66,8 @@ struct MeshObject
     float3 AABBMin;
     float3 AABBMax;
     float3 color;
-    float emission;
-    float smoothness;
-    float transparency;
-    float absorbtion;
-    float celShaded;
+    float4x4 collisionForcesHigh;
+    float4x4 collisionForcesLow;
     uint id;
 };
 
@@ -1644,6 +1642,28 @@ void CalculateCurl(uint3 id : SV_DispatchThreadID)
     _Particles[particleIndex].curl = curl;
 }
 
+float4 fluidForceKernel(float3 force, float3 contactPoint, in Hit hit)
+{
+    float kernelRadius = 8.0;
+	float pointDist = distance(contactPoint, hit.position);
+
+	if (pointDist > kernelRadius)
+	{
+		return float4(0, 0, 0, 0);
+	}
+
+	float h = 1.0 / (pow(pointDist*3.0, 2)+1.0);
+
+    //Get angle between force and surface normal.
+	float3 normal = normalize(hit.normal);
+	float3 forceDir = normalize(force);
+	float angle = -dot(normal, forceDir);
+    
+    float3 finalForce = force *h * angle;
+
+	return float4(finalForce, 0);
+}
+
 [numthreads(64, 1, 1)]
 void UpdatePositions(uint3 id : SV_DispatchThreadID)
 {
@@ -1712,7 +1732,34 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
         velDamping = -normal * _BoundsDamping;
 
         //Response
-		_MeshObjects[hit.meshIndex].color += (((positionDelta - _Particles[id.x].lastPosition) / _TimeStep) + _Particles[id.x].density * _TimeStep);
+        //Force
+        float3 fluidForce = (((positionDelta - _Particles[id.x].lastPosition) / _TimeStep) + _Particles[id.x].density * _TimeStep);
+        _MeshObjects[hit.meshIndex].color += fluidForce;
+        
+        //Get the 8 points of the AABB
+        float3 minPoint = _MeshObjects[hit.meshIndex].AABBMin;
+		float3 maxPoint = _MeshObjects[hit.meshIndex].AABBMax;
+        
+        //All combinations.
+		float3 point0 = float3(maxPoint.x, minPoint.y, minPoint.z);
+		float3 point1 = float3(minPoint.x, maxPoint.y, minPoint.z);
+		float3 point2 = float3(minPoint.x, minPoint.y, maxPoint.z);
+		float3 point3 = float3(maxPoint.x, maxPoint.y, minPoint.z);
+		float3 point4 = float3(maxPoint.x, minPoint.y, maxPoint.z);
+		float3 point5 = float3(minPoint.x, maxPoint.y, maxPoint.z);
+
+        //Add to collisionForces 4x4 matrix
+        _MeshObjects[hit.meshIndex].collisionForcesHigh[0] += fluidForceKernel(fluidForce, point0, hit);
+        _MeshObjects[hit.meshIndex].collisionForcesHigh[1] += fluidForceKernel(fluidForce, point1, hit);
+        _MeshObjects[hit.meshIndex].collisionForcesHigh[2] += fluidForceKernel(fluidForce, point2, hit);
+		_MeshObjects[hit.meshIndex].collisionForcesHigh[3] += fluidForceKernel(fluidForce, point3, hit);
+
+		_MeshObjects[hit.meshIndex].collisionForcesLow[0] += fluidForceKernel(fluidForce, point4, hit);
+		_MeshObjects[hit.meshIndex].collisionForcesLow[1] += fluidForceKernel(fluidForce, point5, hit);
+		_MeshObjects[hit.meshIndex].collisionForcesLow[2] += fluidForceKernel(fluidForce, minPoint, hit);
+		_MeshObjects[hit.meshIndex].collisionForcesLow[3] += fluidForceKernel(fluidForce, maxPoint, hit);
+        
+        
         //positionDelta = float3(0, 0, 0);
     }
     
@@ -2243,6 +2290,27 @@ void AssignIndex(uint3 id : SV_DispatchThreadID)
 		}
 	}
     */
+}
+
+[numthreads(8, 1, 1)]
+void ClearForces(uint3 id : SV_DispatchThreadID)
+{
+    _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
+    
+	if (id.x >= numOfStructs)
+	{
+		return;
+	}
+
+    _MeshObjects[id.x].collisionForcesHigh[0] = 0;
+	_MeshObjects[id.x].collisionForcesHigh[1] = 0;
+	_MeshObjects[id.x].collisionForcesHigh[2] = 0;
+    _MeshObjects[id.x].collisionForcesHigh[3] = 0;
+	_MeshObjects[id.x].collisionForcesLow[0] = 0;
+	_MeshObjects[id.x].collisionForcesLow[1] = 0;
+	_MeshObjects[id.x].collisionForcesLow[2] = 0;
+	_MeshObjects[id.x].collisionForcesLow[3] = 0;
+    
 }
 
 [numthreads(1024, 1,1)]

@@ -18,7 +18,8 @@
 #pragma kernel AssignIndex
 #pragma kernel CreateDistances
 #pragma kernel StoreParticleNeighbors
-#pragma kernel ClearForces
+#pragma kernel CalculateControlDensity
+#pragma kernel StoreControlParticleNeighbors
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -47,7 +48,9 @@ float3 _BoxSize;
 int _NumOfNodes;
 int _FrustrumSize = 10;
 uint _NumOfParticles;
+uint _NumOfControlParticles;
 uint _MaxNumOfParticles;
+uint _MaxNumOfControlParticles;
 const uint MaxNeighbors = 50;
 int biBlock;
 int biDim;
@@ -148,6 +151,13 @@ struct MortonCode
     int particleIndex;
 };
 
+struct ControlParticle
+{
+    float3 position;
+    float density;
+    float lambda;
+};
+
 RWStructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
@@ -162,6 +172,7 @@ RWStructuredBuffer<MortonCode> _MortonCodesTemp;
 RWStructuredBuffer<BVHNode> _BVHNodes;
 RWStructuredBuffer<int> _ParticleIDs;
 RWStructuredBuffer<uint> _particleNeighbors;
+RWStructuredBuffer<ControlParticle> _ControlParticles;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
 float density = 0.0;
 int _BoxViewDebug;
@@ -1657,9 +1668,11 @@ float4 fluidForceKernel(float3 force, float3 contactPoint, in Hit hit)
     //Get angle between force and surface normal.
 	float3 normal = normalize(hit.normal);
 	float3 forceDir = normalize(force);
-	float angle = -dot(normal, forceDir);
+	float angle = abs(dot(normal, forceDir));
+
+	float forceMagnitude = length(force);
     
-    float3 finalForce = force *h * angle;
+    float3 finalForce = forceMagnitude * (-normal) * h * angle;//force *h * angle;
 
 	return float4(finalForce, 0);
 }
@@ -1734,7 +1747,6 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
         //Response
         //Force
         float3 fluidForce = (((positionDelta - _Particles[id.x].lastPosition) / _TimeStep) + _Particles[id.x].density * _TimeStep);
-        _MeshObjects[hit.meshIndex].color += fluidForce;
         
         //Get the 8 points of the AABB
         float3 minPoint = _MeshObjects[hit.meshIndex].AABBMin;
@@ -2293,24 +2305,48 @@ void AssignIndex(uint3 id : SV_DispatchThreadID)
 }
 
 [numthreads(8, 1, 1)]
-void ClearForces(uint3 id : SV_DispatchThreadID)
+void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
 {
-    _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
-    
-	if (id.x >= numOfStructs)
-	{
-		return;
-	}
+    if (id.x >= _NumOfControlParticles)
+    {
+        return;
+    }
 
-    _MeshObjects[id.x].collisionForcesHigh[0] = 0;
-	_MeshObjects[id.x].collisionForcesHigh[1] = 0;
-	_MeshObjects[id.x].collisionForcesHigh[2] = 0;
-    _MeshObjects[id.x].collisionForcesHigh[3] = 0;
-	_MeshObjects[id.x].collisionForcesLow[0] = 0;
-	_MeshObjects[id.x].collisionForcesLow[1] = 0;
-	_MeshObjects[id.x].collisionForcesLow[2] = 0;
-	_MeshObjects[id.x].collisionForcesLow[3] = 0;
-    
+    int numOfParticles = _NumOfParticles;
+    uint controlParticleIndex = id.x;
+    uint neighborParticleIndex = id.x + _MaxNumOfParticles;
+    int3 cellIndex = GetCell(_ControlParticles[controlParticleIndex].position);
+    float3 nVisc = 0;
+    float3 velocities = 0;
+
+    uint index = 0;
+	ControlParticle controlParticle = _ControlParticles[controlParticleIndex];
+    for (int n = 0; n < 27; n++)
+    {
+        uint cell = _particleNeighbors[27 * neighborParticleIndex + n];
+        for (uint c = 0; cell; c++)
+        {
+
+            index = firstbitlow(cell);
+
+            int i = (n / 9) % 3;
+            int j = (n / 3) % 3;
+            int k = (n / 1) % 3;
+
+            int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+            uint hashedNeighborIndex = HashCell(neighbourIndex);
+            uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex] + index;
+            uint particleIndexB = _ParticleIndices[neighbourIterator];
+            Particle neighbour = _Particles[particleIndexB];
+            
+            //Do calculations here.
+            _Particles[particleIndexB].position = 0;
+            
+            //End calculations.
+            cell = clearBit(cell, index);
+
+        }
+    }
 }
 
 [numthreads(1024, 1,1)]
@@ -2337,6 +2373,7 @@ void StoreParticleNeighbors(uint3 id : SV_DispatchThreadID)
     uint hashedNeighborIndex = HashCell(neighbourIndex);
     uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
+    //Clear this bit, assumption is always 0 unless otherwise.
     _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k] = 0;
 
     [unroll]
@@ -2410,4 +2447,58 @@ void StoreParticleNeighbors(uint3 id : SV_DispatchThreadID)
         }
     }
     */
+}
+
+[numthreads(1024, 1, 1)]
+void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfControlParticles * 27)
+    {
+        return;
+    }
+    int numOfParticles = _NumOfParticles;
+    int indexFloored = floor(id.x / 27);
+    uint indexMod = id.x % 27;
+
+    int i = (indexMod / 9) % 3;
+    int j = (indexMod / 3) % 3;
+    int k = (indexMod / 1) % 3;
+
+    uint particleIndex = indexFloored + _MaxNumOfParticles;
+    ControlParticle currentParticle = _ControlParticles[indexFloored];
+    int3 cellIndex = GetCell(currentParticle.position);
+
+
+    int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+    uint hashedNeighborIndex = HashCell(neighbourIndex);
+    uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
+
+    _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k] = 0;
+
+    [unroll]
+    for (int index = 0; index < 32; index++)
+    {
+        uint currentNeighbor = neighbourIterator + index;
+        uint particleIndexB = _ParticleIndices[currentNeighbor];
+        Particle neighbour = _Particles[particleIndexB];
+
+        if (_ParticleCellIndices[particleIndexB] != hashedNeighborIndex)
+        {
+            break;
+        }
+
+        if (particleIndexB == particleIndex)
+        {
+            continue;
+        }
+
+
+        float dist = distance(currentParticle.position, neighbour.predictedPosition);
+
+        if (0.001f < dist && dist < _Radius * 2.0f)
+        {
+
+            _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ] = setBit(_particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ], index);
+        }
+    }
 }

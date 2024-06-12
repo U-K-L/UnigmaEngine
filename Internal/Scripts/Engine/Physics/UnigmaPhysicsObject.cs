@@ -13,6 +13,10 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
     public float Beta;
 
+    public Vector4 netForce;
+
+    private float cohesion = 25.0f;
+
     //Make this a singleton
     UnigmaSpaceTime SpaceTimeVectorField;
 
@@ -22,6 +26,11 @@ public class UnigmaPhysicsObject : MonoBehaviour
     {
         SetUpObject();
     }
+
+    private void Update()
+    {
+        UpdatePhysics();
+    }
     public virtual void UpdatePhysics()
     {
         if (!ObjectSetup)
@@ -29,7 +38,23 @@ public class UnigmaPhysicsObject : MonoBehaviour
         //UpdatePosition();
         //UpdateVelocity();
         //UpdateAcceleration();
+        UpdateForceApplied();
 
+    }
+
+    void UpdateForceApplied()
+    {
+        float totalForce = netForce.magnitude;
+
+        if (totalForce > cohesion)
+        {
+            rigidbody.useGravity = true;
+            rigidbody.isKinematic = false;
+        }
+
+        Debug.Log("Total Forces " + totalForce);
+        
+        netForce *= 0.85f;
     }
 
     void UpdateVelocity()
@@ -86,7 +111,7 @@ public class UnigmaPhysicsObject : MonoBehaviour
         {
             rigidbody = transform.gameObject.AddComponent<Rigidbody>();
             rigidbody.useGravity = false;
-            rigidbody.isKinematic = false;
+            rigidbody.isKinematic = true;
             rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         }
         if (SpaceTimeVectorField == null)

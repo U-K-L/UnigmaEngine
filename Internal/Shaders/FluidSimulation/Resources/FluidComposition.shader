@@ -299,6 +299,7 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerpTop = lerp(distortedOriginalImage, causticsTex * fluids.w * step(0.0000001, fluidsDepth.y), 0.55);
                 float4 causaticLerpSide = lerp(distortedOriginalImage, causticsTex * fluids.w * step(0.000000, fluidsDepth.y), 0.25);
                 float4 causaticLerp = causaticLerpSide * 0.15 + causaticLerpTop * 0.825;
+
                 float4 colorLerping = lerp(colorSurfaceFluid* waterColor, causaticLerp * step(0.00001, fluids.w), 0.0465 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 
                 //_CausticIntensity

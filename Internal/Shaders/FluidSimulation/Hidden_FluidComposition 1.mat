@@ -73,7 +73,7 @@ Material:
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51
     - _CausticIntensity: 2.7
-    - _CausticScale: 1.04
+    - _CausticScale: 0.64
     - _DensityThickness: 6.3
     - _DepthMaxDistance: 0.00031
     - _EdgeWidth: 1.62

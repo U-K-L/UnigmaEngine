@@ -38,6 +38,7 @@ Shader "Custom/StandardRayTraceTest"
             float3 curl;
             float density;
             float lambda;
+            float spring;
         };
         
             StructuredBuffer<AABB> g_AABBs;

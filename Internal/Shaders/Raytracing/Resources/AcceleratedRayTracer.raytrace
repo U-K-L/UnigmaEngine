@@ -38,6 +38,7 @@ struct Particle
     float3 curl;
     float density;
     float lambda;
+    float spring;
 };
 
 StructuredBuffer<Particle> _Particles;

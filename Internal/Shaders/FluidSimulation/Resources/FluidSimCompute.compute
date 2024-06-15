@@ -20,6 +20,7 @@
 #pragma kernel StoreParticleNeighbors
 #pragma kernel CalculateControlDensity
 #pragma kernel StoreControlParticleNeighbors
+#pragma kernel CalculateControlForces
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -120,6 +121,7 @@ struct Particle
     float3 curl;
     float density;
     float lambda;
+    float spring;
 };
 
 struct BVHNode
@@ -2321,6 +2323,10 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
 
     uint index = 0;
 	ControlParticle controlParticle = _ControlParticles[controlParticleIndex];
+    
+    float densitySum = 0.0f;
+    float3 spiky_i = 0.0f;
+	float dNorm = 0.0f;
     for (int n = 0; n < 27; n++)
     {
         uint cell = _particleNeighbors[27 * neighborParticleIndex + n];
@@ -2340,13 +2346,102 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
             Particle neighbour = _Particles[particleIndexB];
             
             //Do calculations here.
-            _Particles[particleIndexB].position = 0;
+            float distance2 = distance(controlParticle.position, neighbour.predictedPosition);
+            float3 pressureGradDir = controlParticle.position - neighbour.predictedPosition;
             
-            //End calculations.
+            if (0.001f < distance2 && distance2 < _Radius * 2)
+            {
+                //Poly6
+				densitySum += Poly6Kernel(distance2) * _Mass; //pi to be used to get constraint.
+                //Spiky
+				float3 spiky = SpikyKernelGradient(distance2, pressureGradDir) / _RestDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
+                spiky_i += spiky;
+                dNorm += dot(spiky, spiky);
+                
+            }
+
             cell = clearBit(cell, index);
 
         }
     }
+
+
+    float constraint = (densitySum / _RestDensity) - 1; //Ci constraint.
+    dNorm += dot(spiky_i, spiky_i);
+
+    float epis = 0.01;
+    float lambda = -constraint / (dNorm + epis);
+    //End calculations.
+	_ControlParticles[controlParticleIndex].lambda = lambda;
+}
+
+[numthreads(8, 1, 1)]
+void CalculateControlForces(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+
+    //Get current fluid particle.
+    uint particleIndex = _ParticleIndices[id.x];
+    Particle fluidParticle = _Particles[particleIndex];
+    
+	float3 innerDisplacement = 0.0f;
+    float springDelta = 0.0f;
+
+	int ri = -1; //contraint particle reference.
+    float smallestDist = 999999;
+    float lifeTime = 1.0f;
+	float tDamp = 0.05f;
+	float aLog = 0.1f;
+	float bLog = 0.1f;
+    float alpha = 0.00005;
+    //for each control particle.
+    for (int i = 0; i < _NumOfControlParticles; i++)
+    {
+		ControlParticle controlParticle = _ControlParticles[i];
+        
+        //Do calculation.
+		float dist = distance(fluidParticle.predictedPosition, controlParticle.position);
+        
+        if (0.001f < dist && dist < _Radius * 10)
+        {
+            float3 pressureGradDir = controlParticle.position - fluidParticle.predictedPosition;
+            
+			innerDisplacement += controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir) / _RestDensity;
+
+            //Add this particles spring contraint reference.
+            
+            if (smallestDist > dist)
+            {
+                smallestDist = dist;
+                ri = i;
+                fluidParticle.spring = lifeTime;
+            }
+        }
+    }
+    
+	if (fluidParticle.spring > 0)
+	{
+		fluidParticle.spring -= tDamp;
+        
+		float3 fc = _ControlParticles[ri].position - fluidParticle.predictedPosition;
+		float distanceControlFluid = distance(_ControlParticles[ri].position, fluidParticle.predictedPosition);
+        
+        //logistic regression function
+		float logistic = 1 / (1 + exp(bLog - aLog * distanceControlFluid));
+
+        //springDelta
+		springDelta = alpha*fluidParticle.spring * logistic * normalize(fc);
+	}
+
+	//End calculations.
+
+	float3 densityDisplacement = -alpha * innerDisplacement;
+
+    _Particles[particleIndex].predictedPosition += (densityDisplacement + (springDelta)) * unity_DeltaTime *_TimeStep;
+    
 }
 
 [numthreads(1024, 1,1)]

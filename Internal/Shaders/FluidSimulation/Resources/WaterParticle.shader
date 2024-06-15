@@ -40,6 +40,7 @@ Shader "Unlit/WaterParticle"
                 float3 curl;
                 float density;
                 float lambda;
+                float spring;
             };
     
             StructuredBuffer<Particle> _Particles;
@@ -254,6 +255,7 @@ Shader "Unlit/WaterParticle"
                 float3 curl;
                 float density;
                 float lambda;
+                float spring;
                 float mass;
                 int parent;
             };

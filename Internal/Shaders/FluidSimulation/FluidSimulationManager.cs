@@ -176,6 +176,7 @@ public class FluidSimulationManager : MonoBehaviour
     private Vector3 _initialPosition;
 
     Vector3 controlParticlePosition;
+    public GameObject[] controlParticleSpheres;
 
     int buffersAdded = 0;
     bool buffersInitialized = false;
@@ -759,7 +760,7 @@ public class FluidSimulationManager : MonoBehaviour
         //Add control particles.
         for (int i = 0; i < _controlParticlesArray.Length; i++)
         {
-            _controlParticlesArray[i].position = controlParticlePosition;
+            _controlParticlesArray[i].position = controlParticleSpheres[i].transform.position;
         }
         _controlParticlesBuffer.SetData(_controlParticlesArray);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_ControlParticles", _controlParticlesBuffer);

@@ -1257,7 +1257,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
-	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0);
+	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0)*0.0f;
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force +constantForces;
     float3 vel = _Particles[id.x].velocity;
@@ -2392,11 +2392,11 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 
 	int ri = -1; //contraint particle reference.
     float smallestDist = 999999;
-    float lifeTime = 1.0f;
+    float lifeTime = 5.0f;
 	float tDamp = 0.05f;
 	float aLog = 0.1f;
 	float bLog = 0.1f;
-    float alpha = 0.00005;
+    float alpha = 0.00095;
     //for each control particle.
     for (int i = 0; i < _NumOfControlParticles; i++)
     {
@@ -2440,7 +2440,7 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 
 	float3 densityDisplacement = -alpha * innerDisplacement;
 
-    _Particles[particleIndex].predictedPosition += (densityDisplacement + (springDelta)) * unity_DeltaTime *_TimeStep;
+    _Particles[particleIndex].predictedPosition += (densityDisplacement) * unity_DeltaTime.x *_TimeStep;
     
 }
 

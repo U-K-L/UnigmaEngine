@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Unlit_UngimaWaterV2
-  m_Shader: {fileID: 4800000, guid: a3d59c43a9e205a428262e7eac132f70, type: 3}
+  m_Shader: {fileID: 4800000, guid: 7bb2746f0fd2e074bbc885b76215306c, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -16,7 +16,7 @@ Material:
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 2012
+  m_CustomRenderQueue: 2050
   stringTagMap: {}
   disabledShaderPasses: []
   m_LockedProperties: 
@@ -62,6 +62,7 @@ Material:
     - _FoamIntensity: {r: 7.87, g: 0.01, b: 1, a: 1}
     - _LineArtColor: {r: 0, g: 0, b: 0, a: 1}
     - _LineThickness: {r: 0, g: 0, b: 0, a: 0}
+    - _MainColor: {r: 0.62352943, g: 0.8000001, b: 0.9450981, a: 1}
     - _RefracStr: {r: 20, g: 2, b: 0.003, a: 0.19}
     - _SparkleFoamColor: {r: 1, g: 1, b: 1, a: 1}
     - _SurfaceNoiseScroll: {r: -0.5, g: -1, b: 4.6, a: 0.015}

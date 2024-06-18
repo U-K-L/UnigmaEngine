@@ -52,12 +52,21 @@ Shader "Unigma/UnigmaOutlines"
                 o.uv = v.uv;
                 return o;
             }
-            sampler2D _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections;
-            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
+
+            float CorrectDepth(float rawDepth)
+            {
+                float persp = LinearEyeDepth(rawDepth);
+                float ortho = (_ProjectionParams.z - _ProjectionParams.y) * (1 - rawDepth) + _ProjectionParams.y;
+                return lerp(persp, ortho, unity_OrthoParams.w);
+            }
+            
+            sampler2D _UnigmaScreenSpaceShadows, _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections;
+            sampler2D _UnigmaMotionID, _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
 			float4 _SurfaceNoiseScroll;
+            float4x4 _Perspective_Matrix_VP;
 
             fixed4 frag(v2f i) : SV_Target
             {
@@ -75,7 +84,14 @@ Shader "Unigma/UnigmaOutlines"
 				fixed4 WaterNormals = tex2D(_UnigmaWaterNormals, i.uv);
 				fixed4 WaterPositions = tex2D(_UnigmaWaterPosition, i.uv);
 				fixed4 WaterReflections = tex2D(_UnigmaWaterReflections, i.uv);
+				fixed3 position = tex2D(_UnigmaMotionID, i.uv).xyz;
+                fixed4 depthShadows = tex2D(_UnigmaScreenSpaceShadows, i.uv);
+
+                //return depthShadows.r;
                 
+
+                
+                //return _UnigmaDepthShadows;
                 //return specularHighlights *10000;
                 //return reflections;
                 //return originalImage;
@@ -160,8 +176,8 @@ Shader "Unigma/UnigmaOutlines"
 
                 //Get shadow outlines.
                 
-                scaleFloor = floor(_ScaleShadow * 0.5);
-                scaleCeil = ceil(_ScaleShadow * 0.5);
+                scaleFloor = floor(_ScaleShadow * 0.05);
+                scaleCeil = ceil(_ScaleShadow * 0.05);
 
                 bottomLeft = i.uv - float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleFloor;
                 topRight = i.uv + float2(_MainTex_TexelSize.x, _MainTex_TexelSize.y) * scaleCeil;
@@ -255,13 +271,13 @@ Shader "Unigma/UnigmaOutlines"
 				float4 reflectMask = step(reflections.r, 0.01) * 1;
                 float4 reflectMaskInv = step(0.01, reflections.r) * 1;
 
-                return FinalColor + specularHighlights;
+                //return FinalColor + specularHighlights;
                 //return reflectMaskInv* reflections*0.25;
                 //reflections = reflectMaskInv * reflections * 0.75;
 				//reflections += reflectMask;
                 //return reflections;
-                FinalColor = lerp(FinalColor, FinalColor*(min(1,reflections.w*0.975)) + reflections*0.25, reflectMaskInv*min(1, reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
-                //return FinalColor + reflections;
+                FinalColor = lerp(FinalColor, FinalColor + reflections * 0.25, min(1, reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
+                return FinalColor;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
                 return lerp(FinalColor, FinalColor + GlobalIlluminationDenoised *0.75 + reflections * 0.21, min(1, length(GlobalIllumination))) + specularHighlights;;

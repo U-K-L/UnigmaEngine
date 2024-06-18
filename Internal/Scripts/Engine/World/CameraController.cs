@@ -11,6 +11,7 @@ public class CameraController : MonoBehaviour
     private Vector3 childOrigRot;
     private Vector3 parentOrigRot;
     public float _camSpeed = 1.0f;
+    public float _rotationSpeed = 1.0f;
     public float followSpeed = 1.0f;
     private Vector3 _prevCamDelta;
     private Vector3 _camPosDelta;
@@ -27,6 +28,7 @@ public class CameraController : MonoBehaviour
     public PerspectiveCameraLerp perpCam;
     public bool originalCamIsPerp = true;
     public float AxisSlider = 1;
+    public GameObject simplePivot;
 
     public enum CameraState
     {
@@ -36,7 +38,8 @@ public class CameraController : MonoBehaviour
         Rotating,
         Dragged,
         Idle,
-        FreeRoaming
+        FreeRoaming, 
+        Simple
     }
 
     public CameraState _camState = CameraState.Tracking;
@@ -59,7 +62,7 @@ public class CameraController : MonoBehaviour
         UpdateStates();
         updateInputMouse();
         //updateInputController();
-        UpdateChildCameraPosition();
+       //UpdateChildCameraPosition();
         //UpdateCameraAlongAxis();
     }
 
@@ -87,6 +90,10 @@ public class CameraController : MonoBehaviour
         {
             SetPivot(_pivot);
             moveCamera(_pivot);
+        }
+        else if (_camState == CameraController.CameraState.Simple)
+        {
+            SetPivot(simplePivot.transform.position);
         }
     }
 
@@ -160,13 +167,13 @@ public class CameraController : MonoBehaviour
         else if (Input.GetButton("Rotate_Camera_Desktop"))
         {
             _camState = CameraState.Rotating;
-            Vector3 rot = new Vector3(mouseVert * 5f, mouseHori * 10f, 0);
+            Vector3 rot = new Vector3(mouseVert * 5f * _rotationSpeed, mouseHori * 10f * _rotationSpeed, 0);
             rotateCameraByController(rot);
         }
         else
         {
-            if(_camState != CameraState.Resetting)
-                _camState = CameraState.Tracking;
+            //if(_camState != CameraState.Resetting)
+            //    _camState = CameraState.Tracking;
         }
         float deltaSize = -Input.mouseScrollDelta.y * 0.05f;
         /*
@@ -283,7 +290,7 @@ public class CameraController : MonoBehaviour
             Mathf.Max(MinRots.z, parentCombRot.z));
         */
 
-        gameObject.transform.RotateAround(_pivot, new Vector3(0, rot.y,0), Time.deltaTime * 20 * 10.25f);
+        gameObject.transform.RotateAround(_pivot, new Vector3(0, rot.y,0), Time.deltaTime * 20 * 10.25f * _rotationSpeed);
         Quaternion fromParent = Quaternion.Euler(gameObject.transform.eulerAngles);
         Quaternion toParent = Quaternion.Euler(gameObject.transform.eulerAngles.x + rot.x*15, gameObject.transform.eulerAngles.y, gameObject.transform.eulerAngles.z);
         //Vector3 parentEuler = Quaternion.Slerp(fromParent, toParent, _camSpeed * rotationDelta * 1000).eulerAngles;

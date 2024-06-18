@@ -4,12 +4,20 @@ Shader "Unigma/OutlineColors"
     {
 		_ThicknessTexture("Outline Thickness texture", 2D) = "black" {}
 		_OutlineColor("Color", Color) = (1,1,1,1)
+		_OutlineInnerColor("Color", Color) = (1,1,1,1)
+        [IntRange] _StencilRef("Stencil Ref Value", Range(0,255)) = 0
     }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
         LOD 100
-
+            
+        Stencil
+        {
+            Ref[_StencilRef]
+            Comp Equal
+        }
+            
         Pass
         {
             CGPROGRAM
@@ -80,7 +88,7 @@ Shader "Unigma/OutlineColors"
                 float4 vertex : SV_POSITION;
             };
 
-            float4 _OutlineInnerColor;
+            float4 _OutlineInnerColor, _OutlineColor;
 
             v2f vert(appdata v)
             {

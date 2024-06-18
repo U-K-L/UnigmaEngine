@@ -82,7 +82,8 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     Payload Sx1Payload;
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
+    //Special mask.
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x02, 0, 1, 0, Sx1Ray, Sx1Payload);
 
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
 
@@ -175,7 +176,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     Payload Sx1Payload;
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x02, 0, 1, 0, Sx1Ray, Sx1Payload);
 
     //Getting that hit point location. Will be the origin of x2 path.
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
@@ -332,7 +333,7 @@ void RestirGlobalIllumantionRayGen()
     {
         //Camera is Perspective.
         //Convert to camera space.
-        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
+        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 0, 1));
         //Perspective divide.
         viewPos /= viewPos.w; //This takes into account field of view, how the frustrum of the view plane is.
     
@@ -376,7 +377,7 @@ void RestirGlobalIllumantionRayGen()
         float4x4 constrast = contrastMatrix(0.60);
         indirectSample = mul(indirectSample, saturation);
         indirectSample = mul(indirectSample, constrast);
-        indirectSample *= 0.5;
+        //indirectSample *= 0.5;
         //targetResult += indirectSample;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }

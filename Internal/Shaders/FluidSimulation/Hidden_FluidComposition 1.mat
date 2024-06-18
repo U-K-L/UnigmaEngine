@@ -69,29 +69,29 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BlendSmooth: 2.4
+    - _BlendSmooth: 8.18
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51
-    - _CausticIntensity: 1.02
-    - _CausticScale: 0.11
+    - _CausticIntensity: 2.7
+    - _CausticScale: 0.64
     - _DensityThickness: 6.3
     - _DepthMaxDistance: 0.00031
     - _EdgeWidth: 1.62
     - _FresnelPower: 10
-    - _Intensity: 1.2
+    - _Intensity: 0.14
     - _NoiseScale: 35
     - _OutlineThickness: 0.0003
     - _ScaleX: 0.66
     - _ScaleY: -1.45
     - _SpecularIntensity: 2.9
     - _SpecularPower: 17
-    - _Speed: 2.61
+    - _Speed: 0.32
     - _Spread: 0.18
     m_Colors:
     - _CausticColor: {r: 1, g: 1, b: 1, a: 1}
-    - _DeepWaterColor: {r: 0.003025995, g: 0.2558827, b: 0.6415094, a: 1}
-    - _DeepestWaterColor: {r: 0.7830189, g: 0, b: 0.7698571, a: 1}
-    - _NoiseScale: {r: 42.27, g: 161.5, b: 12.2, a: 0.001}
-    - _NoiseScaleCaustic: {r: 2.01, g: 0.77, b: 1, a: 0.2}
-    - _ShallowWaterColor: {r: 1, g: 0.4009434, b: 0.6783225, a: 1}
+    - _DeepWaterColor: {r: 0.5580278, g: 0.81279784, b: 0.9858491, a: 1}
+    - _DeepestWaterColor: {r: 0.6933962, g: 0.016353682, b: 0.67985535, a: 1}
+    - _NoiseScale: {r: 42.27, g: 161.5, b: 12.2, a: -0.16}
+    - _NoiseScaleCaustic: {r: 57.95, g: 0.77, b: 1, a: 0.2}
+    - _ShallowWaterColor: {r: 0.6509434, g: 0.85699403, b: 1, a: 1}
   m_BuildTextureStacks: []

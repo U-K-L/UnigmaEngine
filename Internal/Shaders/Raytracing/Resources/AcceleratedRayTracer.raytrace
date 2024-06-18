@@ -38,6 +38,7 @@ struct Particle
     float3 curl;
     float density;
     float lambda;
+    float spring;
 };
 
 StructuredBuffer<Particle> _Particles;
@@ -147,7 +148,7 @@ void MyRaygenShader()
         return;
 	}
     */
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < 25; i++)
     {
                     
 		TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
@@ -168,8 +169,8 @@ void MyRaygenShader()
     float hitMap = e - 1.0f;
     _DensityMap[id.xy] = hitMap;
 
-    
-    if(particleId >= 0)
+    _ColorFieldNormalMap[id.xy] = 0;
+    if(particleId > 0)
     {
 
         Particle particle = _Particles[particleId];

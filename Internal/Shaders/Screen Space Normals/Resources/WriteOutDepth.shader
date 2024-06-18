@@ -5,12 +5,13 @@ Shader "Unlit/WriteOutDepth"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        [IntRange] _StencilRef("Stencil Ref Value", Range(0,255)) = 0
     }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
         LOD 100
-
+            
         Pass
         {
             CGPROGRAM
@@ -41,6 +42,7 @@ Shader "Unlit/WriteOutDepth"
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float4x4 _Perspective_Matrix_VP;
+            int _StencilRef;
 
             v2f vert (appdata v)
             {
@@ -112,7 +114,7 @@ Shader "Unlit/WriteOutDepth"
                 fixed4 sccreen = ComputeScreenPos(i.rawVert);
 
 
-                return i.depth;//fixed4(depthnn.z, depthnn.z, depthnn.w/10, 0);// -0.07059;//-0.04;//depthnn.z;
+                return i.depth;//i.depth;//fixed4(depthnn.z, depthnn.z, depthnn.w/10, 0);// -0.07059;//-0.04;//depthnn.z;
             }
             ENDCG
         }

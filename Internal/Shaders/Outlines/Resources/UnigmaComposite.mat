@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: UnigmaComposite
-  m_Shader: {fileID: 4800000, guid: 8f66fc2300741eb4e81d59e40d1f6a90, type: 3}
+  m_Shader: {fileID: 4800000, guid: 93c19d9905771d446ba0f4664ec79a47, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []

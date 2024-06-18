@@ -9,12 +9,19 @@ Shader "Unlit/IsometricDepthNormals"
 		_NormalAmount("Normal amount", Range(0,50)) = 1
 		_DepthAmount("Depth amount", Range(0,50)) = 1
 		_ObjectID("Object ID", Int) = 0
+        [IntRange] _StencilRef("Stencil Ref Value", Range(0,255)) = 0
     }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
         LOD 100
-
+            
+        Stencil
+        {
+            Ref[_StencilRef]
+            Comp Equal
+        }
+            
         Pass
         {
             CGPROGRAM
@@ -47,9 +54,10 @@ Shader "Unlit/IsometricDepthNormals"
 				float3 worldNormal : TEXCOORD6;
             };
 
-            sampler2D _MainTex;
+            sampler2D _MainTex, _UnigmaNormal;
             float4 _MainTex_ST;
 			float _Fade, _NormalAmount, _DepthAmount;
+            int _StencilRef;
 
             v2f vert (appdata v)
             {

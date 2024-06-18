@@ -5,6 +5,7 @@
 #include "UnityCG.cginc"
 
 RWTexture2D<float4> _UnigmaDepthShadowsMap;
+RWTexture2D<float4> _UnigmaShadowColors;
 RWTexture2D<float4> _UnigmaDepthReflectionsMap;
 
 Texture2D<float4> _UnigmaWaterNormals;
@@ -40,7 +41,7 @@ void DepthShadowsRaygenShader()
         //Convert to camera space.
         float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, -1, 1));
         //Perspective divide.
-        viewPos /= viewPos.w;
+        //viewPos /= viewPos.w;
     
         //Convert to world space.
         float3 worldPosPixel = mul(unity_MatrixInvV, viewPos).xyz;
@@ -54,7 +55,7 @@ void DepthShadowsRaygenShader()
     {
         //Camera is Perspective.
         //Convert to camera space.
-        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 1, 1));
+        float4 viewPos = mul(unity_CameraInvProjection, float4(pixel.x, pixel.y, 0, 1));
         //Perspective divide.
         viewPos /= viewPos.w; //This takes into account field of view, how the frustrum of the view plane is.
     
@@ -86,7 +87,7 @@ void DepthShadowsRaygenShader()
     payload.normal = 0;
     payload.direction = 0;
 
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x02, 0, 1, 0, ray, payload);
 
     float distanceFromPoint = 0.0353;
     position = ray.Origin+ (ray.Direction * payload.distance) + (payload.normal * distanceFromPoint);//ray.Origin + ray.Direction * (payload.distance - 0.0353);
@@ -127,7 +128,9 @@ void DepthShadowsRaygenShader()
     ray.Direction = toLightDir; 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _UnigmaDepthShadowsMap[id.xy] += float4(depth, payload.color.r, payload.color.g, 1);
+    _UnigmaDepthShadowsMap[id.xy] = float4(depth, payload.color.r*payload.pixel.y, payload.color.g*payload.pixel.y, 1);
+
+    _UnigmaShadowColors[id.xy] = float4(payload.uv.x, payload.uv.y, payload.pixel.x, payload.pixel.y);
 
     //Begin reflection mapping.
     //Get the reflection vector.
@@ -178,5 +181,7 @@ void MyMissShader(inout Payload payload : SV_RayPayload)
     payload.distance = 99999;
     payload.normal = 0;
     payload.direction = 0;
+    payload.pixel = 0;
+    payload.uv = 0;
     
 }

@@ -36,6 +36,7 @@ Shader "Custom/WaterSurface"
             float3 curl;
             float density;
             float lambda;
+            float spring;
             float mass;
             int parent;
         };

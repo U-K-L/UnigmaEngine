@@ -8,8 +8,8 @@ Shader "Unlit/UngimaWaterV2"
         _NormalAmount("Normal amount", Range(0,50)) = 1
         _DepthAmount("Depth amount", Range(0,50)) = 1
         _ObjectID("Object ID", Int) = 0
-		_WaterColor("Water Color", Color) = (0.80, 0.94, 1.0, 1.0)
-		_Smootheness("Smootheness", Range(0,1)) = 1.0
+		_MainColor("Water Color", Color) = (0.80, 0.94, 1.0, 1.0)
+		_Smoothness("Smoothness", Range(0,1)) = 1.0
         _SurfaceNoise("Surface Noise", 2D) = "white" {}
         _SurfaceNoiseCutoff("Surface Noise Cutoff", Range(0, 1)) = 0.777
         _SurfaceNoiseScroll("Surface Noise Scroll Amount", Vector) = (0.03, 0.03, 0, 0)
@@ -24,7 +24,7 @@ Shader "Unlit/UngimaWaterV2"
     }
     SubShader
     {
-        Tags { "RenderType" = "Opaque+12" }
+        Tags { "RenderType" = "Geometry+100" }
         LOD 200
         GrabPass { "_WaterIsoBackgroundV2" }
         Cull Off
@@ -225,7 +225,7 @@ Shader "Unlit/UngimaWaterV2"
             };
 
             sampler2D _MainTex, _UnigmaWaterReflections, _WaterIsoBackgroundV2, _CameraDepthNormalsTexture, _UnigmaDepthShadowsMap, _DisplacementTex;
-            float4 _MainTex_ST, _WaterColor;
+            float4 _MainTex_ST, _MainColor;
 
 
             sampler2D _SurfaceNoise;
@@ -296,7 +296,7 @@ Shader "Unlit/UngimaWaterV2"
                 //return (surfaceNoise < randomVal);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, uv);
                 fixed4 underWater = tex2D(_WaterIsoBackgroundV2, distortion);
-                float4 finalColor = lerp(saturate(underWater), saturate(_WaterColor), min(1, max(0, _UnigmaDepthShadows.r * 20)));
+                float4 finalColor = lerp(saturate(underWater), saturate(_MainColor), min(1, max(0, _UnigmaDepthShadows.r * 20)));
                 finalColor.w = 1;
                 finalColor.xyz += surfaceNoise + surfaceNoiseEmit;
                 return finalColor;//float4(_UnigmaDepthShadows.r, _UnigmaDepthShadows.r, _UnigmaDepthShadows.r, 1);//lerp(_WaterColor, underWater , depth);
@@ -316,7 +316,7 @@ Shader "Unlit/UngimaWaterV2"
 
             Texture2D<float4> _MainTex, _DisplacementTex, _SurfaceNoise;
 			SamplerState sampler_MainTex, sampler_DisplacementTex, sampler_SurfaceNoise;
-            float4 _WaterColor;
+            float4 _MainColor;
             float _Smoothness;
 
             float4 _SurfaceNoise_ST;
@@ -359,7 +359,7 @@ Shader "Unlit/UngimaWaterV2"
                 payload.distance = RayTCurrent();
                 payload.color = 1;//float4(1, 1, _Smoothness, InstanceID());
 
-                float4 finalColor = _WaterColor;
+                float4 finalColor = _MainColor;
                 float distSquared = min(1, 1 / (RayTCurrent() * RayTCurrent()));
                 payload.direction = finalColor;//_Midtone* distSquared;//float4(normals, 1);
                 /*
@@ -375,5 +375,25 @@ Shader "Unlit/UngimaWaterV2"
 
                 ENDHLSL
             }
+
+            Pass
+                {
+                    Tags{ "LightMode" = "ShadowCaster" }
+                    CGPROGRAM
+                    #pragma vertex VSMain
+                    #pragma fragment PSMain
+
+                    float4 VSMain(float4 vertex:POSITION) : SV_POSITION
+                    {
+                        return UnityObjectToClipPos(vertex);
+                    }
+
+                    float4 PSMain(float4 vertex:SV_POSITION) : SV_TARGET
+                    {
+                        return 0;
+                    }
+
+                    ENDCG
+                }
     }
 }

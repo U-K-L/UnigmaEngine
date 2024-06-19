@@ -152,6 +152,7 @@ public class FluidSimulationManager : MonoBehaviour
     public float Radius = 0.125f;
     public float RestDensity = 1.0f;
     public int MaxNeighbors = 50;
+    public float TimeStepConstantModifier = 1.0f;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     private MeshObject[] _meshObjects;
@@ -1573,7 +1574,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetFloat("_Mass", MassOfParticle);
         _fluidSimulationComputeShader.SetFloat("_GasConstant", GasConstant);
         _fluidSimulationComputeShader.SetFloat("_Viscosity", Viscosity);
-        _fluidSimulationComputeShader.SetFloat("_TimeStep", TimeStep);
+        _fluidSimulationComputeShader.SetFloat("_TimeStep", TimeStep * TimeStepConstantModifier);
         _fluidSimulationComputeShader.SetFloat("_BoundsDamping", BoundsDamping);
         _fluidSimulationComputeShader.SetFloat("_RestDensity", RestDensity);
         _fluidSimulationComputeShader.SetVector("_BoxSize", _BoxSize);

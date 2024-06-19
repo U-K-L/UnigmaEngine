@@ -274,10 +274,10 @@ float4x4 translate(float3 p)
         p.x, p.y, p.z, 1.0);
 }
 
-float Poly6Kernel(float distance2)
+float Poly6Kernel(float distance2, float radius = 1.0f)
 {
     float result = 0.0;
-    float h = 1;
+    float h = 1 * radius;
 
     float h9 = pow(h, 9.0f);
     float constPoly6 = 315.0f / (64.0f * UNITY_PI * h9);
@@ -313,10 +313,10 @@ float SpikyKernelD2(float distance)
     return 90.0f / (UNITY_PI * pow(_Radius, 5.0f)) * h;
 }
 
-float3 SpikyKernelGradient(float distance2, float3 direction)
+float3 SpikyKernelGradient(float distance2, float3 direction, float radius = 1.0f)
 {
     float3 result = 0.0;
-    float h = 1;
+    float h = 1* radius;
     float m = pow(h - distance2, 2.0f);
     float h6 = pow(h, 6.0f);
     float spikyConst = -45.0f / (UNITY_PI);
@@ -2349,12 +2349,12 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
             float distance2 = distance(controlParticle.position, neighbour.predictedPosition);
             float3 pressureGradDir = controlParticle.position - neighbour.predictedPosition;
             
-            if (0.001f < distance2 && distance2 < _Radius * 2)
+            if (0.001f < distance2 && distance2 < _Radius * 12)
             {
                 //Poly6
-				densitySum += Poly6Kernel(distance2) * _Mass; //pi to be used to get constraint.
+				densitySum += Poly6Kernel(distance2, 12) * _Mass; //pi to be used to get constraint.
                 //Spiky
-				float3 spiky = SpikyKernelGradient(distance2, pressureGradDir) / _RestDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
+				float3 spiky = SpikyKernelGradient(distance2, pressureGradDir, 12) / _RestDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
                 
@@ -2369,7 +2369,7 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
     float constraint = (densitySum / _RestDensity) - 1; //Ci constraint.
     dNorm += dot(spiky_i, spiky_i);
 
-    float epis = 0.01;
+    float epis = 65.0f;
     float lambda = -constraint / (dNorm + epis);
     //End calculations.
 	_ControlParticles[controlParticleIndex].lambda = lambda;
@@ -2392,11 +2392,12 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 
 	int ri = -1; //contraint particle reference.
     float smallestDist = 999999;
-    float lifeTime = 5.0f;
-	float tDamp = 0.05f;
-	float aLog = 0.1f;
-	float bLog = 0.1f;
-    float alpha = 0.00095;
+    float lifeTime = 3.80f;
+	float tDamp = 0.15f;
+	float aLog = 0.41f;
+	float bLog = 0.11f;
+    float alpha = 0.1175f;
+    float stiffness = 0.0001f;
     //for each control particle.
     for (int i = 0; i < _NumOfControlParticles; i++)
     {
@@ -2405,7 +2406,7 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
         //Do calculation.
 		float dist = distance(fluidParticle.predictedPosition, controlParticle.position);
         
-        if (0.001f < dist && dist < _Radius * 10)
+        if (0.001f < dist && dist < _Radius * 15)
         {
             float3 pressureGradDir = controlParticle.position - fluidParticle.predictedPosition;
             
@@ -2422,7 +2423,7 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
         }
     }
     
-	if (fluidParticle.spring > 0)
+	if (fluidParticle.spring > 0 && ri >= 0)
 	{
 		fluidParticle.spring -= tDamp;
         
@@ -2433,14 +2434,14 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 		float logistic = 1 / (1 + exp(bLog - aLog * distanceControlFluid));
 
         //springDelta
-		springDelta = alpha*fluidParticle.spring * logistic * normalize(fc);
+		springDelta = stiffness*fluidParticle.spring * logistic * normalize(fc);
 	}
 
 	//End calculations.
 
 	float3 densityDisplacement = -alpha * innerDisplacement;
 
-    _Particles[particleIndex].predictedPosition += (densityDisplacement) * unity_DeltaTime.x *_TimeStep;
+    _Particles[particleIndex].predictedPosition += (densityDisplacement + springDelta);
     
 }
 

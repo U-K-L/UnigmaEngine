@@ -152,6 +152,7 @@ public class FluidSimulationManager : MonoBehaviour
     public float Radius = 0.125f;
     public float RestDensity = 1.0f;
     public int MaxNeighbors = 50;
+    public float TimeStepConstantModifier = 1.0f;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     private MeshObject[] _meshObjects;
@@ -262,6 +263,7 @@ public class FluidSimulationManager : MonoBehaviour
         public Vector3 position;
         public float density;
         public float lambda;
+        public Vector3 prevPosition;
     };
 
     private MortonCode[] _MortonCodes;
@@ -272,7 +274,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) * 3 + ((sizeof(float) * 3) * 7 + (sizeof(float) * 2));
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
-    int _controlParticleStride = sizeof(float) * 3 + sizeof(float) * 2;
+    int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 2;
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -760,6 +762,7 @@ public class FluidSimulationManager : MonoBehaviour
         //Add control particles.
         for (int i = 0; i < _controlParticlesArray.Length; i++)
         {
+            _controlParticlesArray[i].prevPosition = _controlParticlesArray[i].position;
             _controlParticlesArray[i].position = controlParticleSpheres[i].transform.position;
         }
         _controlParticlesBuffer.SetData(_controlParticlesArray);
@@ -1573,7 +1576,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetFloat("_Mass", MassOfParticle);
         _fluidSimulationComputeShader.SetFloat("_GasConstant", GasConstant);
         _fluidSimulationComputeShader.SetFloat("_Viscosity", Viscosity);
-        _fluidSimulationComputeShader.SetFloat("_TimeStep", TimeStep);
+        _fluidSimulationComputeShader.SetFloat("_TimeStep", TimeStep * TimeStepConstantModifier);
         _fluidSimulationComputeShader.SetFloat("_BoundsDamping", BoundsDamping);
         _fluidSimulationComputeShader.SetFloat("_RestDensity", RestDensity);
         _fluidSimulationComputeShader.SetVector("_BoxSize", _BoxSize);

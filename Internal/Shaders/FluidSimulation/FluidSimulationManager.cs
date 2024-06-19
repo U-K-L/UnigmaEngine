@@ -263,6 +263,7 @@ public class FluidSimulationManager : MonoBehaviour
         public Vector3 position;
         public float density;
         public float lambda;
+        public Vector3 prevPosition;
     };
 
     private MortonCode[] _MortonCodes;
@@ -273,7 +274,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) * 3 + ((sizeof(float) * 3) * 7 + (sizeof(float) * 2));
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
-    int _controlParticleStride = sizeof(float) * 3 + sizeof(float) * 2;
+    int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 2;
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -446,7 +447,7 @@ public class FluidSimulationManager : MonoBehaviour
         UpdateNonAcceleratedRayTracer();
         rasterMaterial.SetBuffer("_Particles", _particleBuffer);
 
-        //StartCoroutine(ReactToForces());
+        StartCoroutine(ReactToForces());
     }
 
     void CreateAcceleratedStructure()
@@ -761,6 +762,7 @@ public class FluidSimulationManager : MonoBehaviour
         //Add control particles.
         for (int i = 0; i < _controlParticlesArray.Length; i++)
         {
+            _controlParticlesArray[i].prevPosition = _controlParticlesArray[i].position;
             _controlParticlesArray[i].position = controlParticleSpheres[i].transform.position;
         }
         _controlParticlesBuffer.SetData(_controlParticlesArray);

@@ -177,7 +177,7 @@ public class FluidSimulationManager : MonoBehaviour
     private Vector3 _initialPosition;
 
     Vector3 controlParticlePosition;
-    public GameObject[] controlParticleSpheres;
+    public Vector3[] controlParticlesPositions;
 
     int buffersAdded = 0;
     bool buffersInitialized = false;
@@ -373,6 +373,8 @@ public class FluidSimulationManager : MonoBehaviour
         _particleNeighborsArray = new uint[(MaxNumOfParticles + MaxNumOfControlParticles) * 27];
         Debug.Log(_particleNeighborsArray.Length);
         _particleNeighbors.SetData(_particleNeighborsArray);
+
+        controlParticlesPositions = new Vector3[MaxNumOfControlParticles];
 
         _controlParticlesBuffer = new ComputeBuffer(MaxNumOfControlParticles, _controlParticleStride);
 
@@ -760,10 +762,10 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_MeshObjects", _meshObjectBuffer);
 
         //Add control particles.
-        for (int i = 0; i < _controlParticlesArray.Length; i++)
+        for (int i = 0; i < NumOfControlParticles; i++)
         {
-            _controlParticlesArray[i].prevPosition = _controlParticlesArray[i].position;
-            _controlParticlesArray[i].position = controlParticleSpheres[i].transform.position;
+            _controlParticlesArray[i].prevPosition = controlParticlesPositions[i];
+            _controlParticlesArray[i].position = controlParticlesPositions[i];
         }
         _controlParticlesBuffer.SetData(_controlParticlesArray);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_ControlParticles", _controlParticlesBuffer);
@@ -1311,8 +1313,11 @@ public class FluidSimulationManager : MonoBehaviour
                 CreateBVHTree();
 
             DebugParticlesBVH();
-            ControlDensity();
-            ControlForces();
+            if (NumOfControlParticles > 0)
+            {
+                ControlDensity();
+                ControlForces();
+            }
             for (int i = 0; i < _SolveIterations; i++)
             {
                 ComputeDensity();
@@ -1888,6 +1893,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        /*
         Gizmos.color = Color.green;
         Gizmos.DrawSphere(controlParticlePosition, 0.1f);
         //Set int for simulation
@@ -1928,6 +1934,7 @@ public class FluidSimulationManager : MonoBehaviour
 
             }
         }
+        */
     }
 
 

@@ -1258,7 +1258,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
-	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0);
+	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0)*0.0f;
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force +constantForces;
     float3 vel = _Particles[id.x].velocity;
@@ -2398,7 +2398,7 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 	float tDamp = 0.15f;
 	float aLog = 0.41f;
 	float bLog = 0.11f;
-    float alpha = 0.23175f;
+    float alpha = 0.123175f;
     float stiffness = 0.0001f;
     float gamma = 0.0001f;
     //for each control particle.

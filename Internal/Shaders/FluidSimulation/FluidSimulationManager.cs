@@ -844,6 +844,7 @@ public class FluidSimulationManager : MonoBehaviour
             Vector3 randomPos = Random.insideUnitSphere + initialSpawnPosition;
             _particles[i].position = randomPos;
             _particles[i].velocity = Vector3.zero;
+            _particles[i].curl = Vector3.zero;
             _particles[i].force = force;
             _particles[i].density = 0.0f;
             _particles[i].lambda = 0.0f;

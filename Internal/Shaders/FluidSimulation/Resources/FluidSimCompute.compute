@@ -1673,11 +1673,16 @@ void CalculateCurl(uint3 id : SV_DispatchThreadID)
             Particle neighbour = _Particles[particleIndexB];
             float dist = distance(_Particles[particleIndex].predictedPosition, _Particles[particleIndexB].predictedPosition);
 
-            float3 u = _Particles[particleIndexB].velocity - _Particles[particleIndex].velocity;
-            float3 v = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
-            float3 w = cross(u, v);
-            curl += w;
 
+
+            if (0.001f < dist && dist < _Radius * 2)
+            {
+                float3 u = _Particles[particleIndexB].velocity - _Particles[particleIndex].velocity;
+                float3 v = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
+                float3 w = cross(u, v);
+                curl += w;
+            }
+            
             cell = clearBit(cell, index);
 
         }
@@ -1899,7 +1904,6 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
             if (0.001f < dist && dist < _Radius * 2)
             {
                 nVisc += length(_Particles[particleIndexB].curl) * grad;
-
                 velocities += vij * Poly6Kernel(dist);
             }
 
@@ -1911,14 +1915,17 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
 
 
     float3 n_hat = 0;
-    if (dot(nVisc, nVisc) > epsilon)
+    float voritictyEps = 0.1f;
+    if (length(nVisc) > epsilon)
     {
-        n_hat = (nVisc / length(nVisc));
+        n_hat = normalize(nVisc); //(nVisc / length(nVisc));
+
     }
 
-    float3 f_vc = _Viscosity * cross(n_hat, _Particles[particleIndex].curl);
+    float3 f_vc = voritictyEps * cross(n_hat, _Particles[particleIndex].curl) * _TimeStep;
     
-    _Particles[particleIndex].velocity += _Viscosity * velocities * _TimeStep; // + f_vc * _TimeStep;
+    
+    _Particles[particleIndex].velocity += (_Viscosity * velocities * _TimeStep) + f_vc * _TimeStep;
 }
 
 uint ConcatenateIndex(uint mortonCode, uint index, uint indexBitCount)

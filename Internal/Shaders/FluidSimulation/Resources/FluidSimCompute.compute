@@ -21,6 +21,7 @@
 #pragma kernel CalculateControlDensity
 #pragma kernel StoreControlParticleNeighbors
 #pragma kernel CalculateControlForces
+#pragma kernel ComputeVelocity
 
 #include "../../ShaderHelpers.hlsl"
 float4x4 _CameraToWorld;
@@ -58,6 +59,11 @@ int biDim;
 int _ChosenParticle = 128;
 float4 _initialForce = 0;
 float3 _initialPosition = 99999999;
+float _CDHRadius = 1.0f;
+float _CLHRadius = 1.0f;
+float _Alpha = 1.0f;
+float _CDNorm = 1.0f;
+float _CPNorm = 1.0f;
 
 
 
@@ -1141,6 +1147,30 @@ void CollisionTrace(inout Ray ray, inout Hit hit)
     
 }
 
+float4 fluidForceKernel(float3 force, float3 contactPoint, in Hit hit)
+{
+    float kernelRadius = 8.0;
+    float pointDist = distance(contactPoint, hit.position);
+
+    if (pointDist > kernelRadius)
+    {
+        return float4(0, 0, 0, 0);
+    }
+
+    float h = 1.0 / (pow(pointDist * 3.0, 2) + 1.0);
+
+    //Get angle between force and surface normal.
+    float3 normal = normalize(hit.normal);
+    float3 forceDir = normalize(force);
+    float angle = abs(dot(normal, forceDir));
+
+    float forceMagnitude = length(force);
+    
+    float3 finalForce = forceMagnitude * (-normal) * h * angle; //force *h * angle;
+
+    return float4(finalForce, 0);
+}
+
 [numthreads(16,16,1)]
 void CreateGrid (uint3 id : SV_DispatchThreadID, uint3 GroupThreadID : SV_GroupThreadID)
 {
@@ -1258,7 +1288,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
-	float4 constantForces = float4(0.0, -9.8, 0.0, 0.0)*0.0f;
+	float4 constantForces = float4(0.0, -9.8f, 0.0, 0.0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force +constantForces;
     float3 vel = _Particles[id.x].velocity;
@@ -1387,7 +1417,7 @@ void GetDensityGrid(uint3 id)
     //densitySum *= 0.8250;
     float constraint = (densitySum / _RestDensity) - 1;
 	dNorm += dot(spiky_i, spiky_i);
-    float lambda = -constraint / (dNorm + 1000.0f);
+    float lambda = -constraint / (dNorm + _CPNorm);
     _Particles[particleIndex].density = densitySum;
     //_Particles[particleIndex].debugVector += float3(0, 0, 1) * (densitySum / _RestDensity);
 	_Particles[particleIndex].lambda = lambda;
@@ -1495,7 +1525,7 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
                 float dist = distance(particleCurrent.predictedPosition, neighbor.predictedPosition);
                 if (0.001f < dist && dist < _Radius * 2)
                 {
-                    float Scorr = -0.001 * pow(Poly6Kernel(dist) / Poly6Kernel(0.0003 * _Radius), 4);
+                    float Scorr = -0.0025 * pow(Poly6Kernel(dist) / Poly6Kernel(0.0003 * _Radius), 4);
                     float left = particleCurrent.lambda + neighbor.lambda + Scorr;
                     float3 right = SpikyKernelGradient(dist, particleCurrent.predictedPosition - neighbor.predictedPosition);
 
@@ -1654,44 +1684,23 @@ void CalculateCurl(uint3 id : SV_DispatchThreadID)
     }
 
     _Particles[particleIndex].curl = curl;
-}
-
-float4 fluidForceKernel(float3 force, float3 contactPoint, in Hit hit)
-{
-    float kernelRadius = 8.0;
-	float pointDist = distance(contactPoint, hit.position);
-
-	if (pointDist > kernelRadius)
-	{
-		return float4(0, 0, 0, 0);
-	}
-
-	float h = 1.0 / (pow(pointDist*3.0, 2)+1.0);
-
-    //Get angle between force and surface normal.
-	float3 normal = normalize(hit.normal);
-	float3 forceDir = normalize(force);
-	float angle = abs(dot(normal, forceDir));
-
-	float forceMagnitude = length(force);
     
-    float3 finalForce = forceMagnitude * (-normal) * h * angle;//force *h * angle;
 
-	return float4(finalForce, 0);
 }
 
 [numthreads(64, 1, 1)]
-void UpdatePositions(uint3 id : SV_DispatchThreadID)
+void ComputeVelocity(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _NumOfParticles)
     {
         return;
     }
     
+        
     _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-
-	float3 sumVelocityVorticity = 0;
+    
+    float3 sumVelocityVorticity = 0;
     float3 positionDelta = _Particles[id.x].predictedPosition;
     float3 velDamping = 1;
 
@@ -1744,7 +1753,7 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     {
         //We hit something.
         float3 normal = hit.normal;
-        positionDelta = ray.o + (ray.d * ( hit.distance- _SizeOfParticle * 2));
+        positionDelta = ray.o + (ray.d * (hit.distance - _SizeOfParticle * 2));
         velDamping = -normal * _BoundsDamping;
 
         //Response
@@ -1753,26 +1762,26 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
         
         //Get the 8 points of the AABB
         float3 minPoint = _MeshObjects[hit.meshIndex].AABBMin;
-		float3 maxPoint = _MeshObjects[hit.meshIndex].AABBMax;
+        float3 maxPoint = _MeshObjects[hit.meshIndex].AABBMax;
         
         //All combinations.
-		float3 point0 = float3(maxPoint.x, minPoint.y, minPoint.z);
-		float3 point1 = float3(minPoint.x, maxPoint.y, minPoint.z);
-		float3 point2 = float3(minPoint.x, minPoint.y, maxPoint.z);
-		float3 point3 = float3(maxPoint.x, maxPoint.y, minPoint.z);
-		float3 point4 = float3(maxPoint.x, minPoint.y, maxPoint.z);
-		float3 point5 = float3(minPoint.x, maxPoint.y, maxPoint.z);
+        float3 point0 = float3(maxPoint.x, minPoint.y, minPoint.z);
+        float3 point1 = float3(minPoint.x, maxPoint.y, minPoint.z);
+        float3 point2 = float3(minPoint.x, minPoint.y, maxPoint.z);
+        float3 point3 = float3(maxPoint.x, maxPoint.y, minPoint.z);
+        float3 point4 = float3(maxPoint.x, minPoint.y, maxPoint.z);
+        float3 point5 = float3(minPoint.x, maxPoint.y, maxPoint.z);
 
         //Add to collisionForces 4x4 matrix
         _MeshObjects[hit.meshIndex].collisionForcesHigh[0] += fluidForceKernel(fluidForce, point0, hit);
         _MeshObjects[hit.meshIndex].collisionForcesHigh[1] += fluidForceKernel(fluidForce, point1, hit);
         _MeshObjects[hit.meshIndex].collisionForcesHigh[2] += fluidForceKernel(fluidForce, point2, hit);
-		_MeshObjects[hit.meshIndex].collisionForcesHigh[3] += fluidForceKernel(fluidForce, point3, hit);
+        _MeshObjects[hit.meshIndex].collisionForcesHigh[3] += fluidForceKernel(fluidForce, point3, hit);
 
-		_MeshObjects[hit.meshIndex].collisionForcesLow[0] += fluidForceKernel(fluidForce, point4, hit);
-		_MeshObjects[hit.meshIndex].collisionForcesLow[1] += fluidForceKernel(fluidForce, point5, hit);
-		_MeshObjects[hit.meshIndex].collisionForcesLow[2] += fluidForceKernel(fluidForce, minPoint, hit);
-		_MeshObjects[hit.meshIndex].collisionForcesLow[3] += fluidForceKernel(fluidForce, maxPoint, hit);
+        _MeshObjects[hit.meshIndex].collisionForcesLow[0] += fluidForceKernel(fluidForce, point4, hit);
+        _MeshObjects[hit.meshIndex].collisionForcesLow[1] += fluidForceKernel(fluidForce, point5, hit);
+        _MeshObjects[hit.meshIndex].collisionForcesLow[2] += fluidForceKernel(fluidForce, minPoint, hit);
+        _MeshObjects[hit.meshIndex].collisionForcesLow[3] += fluidForceKernel(fluidForce, maxPoint, hit);
         
         
         //positionDelta = float3(0, 0, 0);
@@ -1781,6 +1790,22 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     float3 vel = ((positionDelta - _Particles[id.x].lastPosition) / _TimeStep);
     
     _Particles[id.x].velocity = vel * velDamping;
+    
+    _Particles[id.x].predictedPosition = positionDelta;
+}
+
+[numthreads(64, 1, 1)]
+void UpdatePositions(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfParticles)
+    {
+        return;
+    }
+    
+    _MeshObjects.GetDimensions(numOfStructs, sizeOfStrides);
+    _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
+
+    float3 positionDelta = _Particles[id.x].predictedPosition;
 	_Particles[id.x].position = positionDelta;
 	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
     g_AABBs[id.x].min = positionDelta - float3(_SizeOfParticle, _SizeOfParticle, _SizeOfParticle);
@@ -1867,12 +1892,17 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
 
             Particle neighbour = _Particles[particleIndexB];
             float dist = distance(_Particles[particleIndex].predictedPosition, _Particles[particleIndexB].predictedPosition);
-
+            float3 grad = SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
             float3 vij = _Particles[particleIndexB].velocity - _Particles[particleIndex].velocity;
             //sumVelocityVorticity
-            nVisc += length(_Particles[particleIndexB].curl) * SpikyKernelGradient(dist, _Particles[particleIndex].predictedPosition - _Particles[particleIndexB].predictedPosition);
+            
+            if (0.001f < dist && dist < _Radius * 2)
+            {
+                nVisc += length(_Particles[particleIndexB].curl) * grad;
 
-            velocities += vij * Poly6Kernel(dist);
+                velocities += vij * Poly6Kernel(dist);
+            }
+
 
             cell = clearBit(cell, index);
 
@@ -1883,13 +1913,12 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
     float3 n_hat = 0;
     if (dot(nVisc, nVisc) > epsilon)
     {
-        n_hat = (nVisc / length(nVisc));// *_Viscosity;
+        n_hat = (nVisc / length(nVisc));
     }
 
     float3 f_vc = _Viscosity * cross(n_hat, _Particles[particleIndex].curl);
-    float3 c = 0.0001;
     
-    _Particles[particleIndex].velocity += c * velocities + f_vc * _TimeStep;
+    _Particles[particleIndex].velocity += _Viscosity * velocities * _TimeStep; // + f_vc * _TimeStep;
 }
 
 uint ConcatenateIndex(uint mortonCode, uint index, uint indexBitCount)
@@ -2321,9 +2350,11 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
     int3 cellIndex = GetCell(_ControlParticles[controlParticleIndex].position);
     float3 nVisc = 0;
     float3 velocities = 0;
-
+    float HRadius = _CDHRadius;
+    
     uint index = 0;
 	ControlParticle controlParticle = _ControlParticles[controlParticleIndex];
+    
     
     float densitySum = 0.0f;
     float3 spiky_i = 0.0f;
@@ -2350,12 +2381,12 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
             float distance2 = distance(controlParticle.position, neighbour.predictedPosition);
             float3 pressureGradDir = controlParticle.position - neighbour.predictedPosition;
             
-            if (0.001f < distance2 && distance2 < _Radius * 12)
+            if (0.001f < distance2 && distance2 < _CDHRadius * 2)
             {
                 //Poly6
-				densitySum += Poly6Kernel(distance2, 12) * _Mass; //pi to be used to get constraint.
+                densitySum += Poly6Kernel(distance2, _CLHRadius) * _Mass; //pi to be used to get constraint.
                 //Spiky
-				float3 spiky = SpikyKernelGradient(distance2, pressureGradDir, 12) / _RestDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
+                float3 spiky = SpikyKernelGradient(distance2, pressureGradDir, _CLHRadius) / _RestDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
                 
@@ -2370,7 +2401,7 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
     float constraint = (densitySum / _RestDensity) - 1; //Ci constraint.
     dNorm += dot(spiky_i, spiky_i);
 
-    float epis = 65.0f;
+    float epis = _CDNorm;
     float lambda = -constraint / (dNorm + epis);
     //End calculations.
 	_ControlParticles[controlParticleIndex].lambda = lambda;
@@ -2391,15 +2422,17 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 	float3 innerDisplacement = 0.0f;
     float3 velocityDisplacement = 0.0f;
     float springDelta = 0.0f;
+    
+    float HRadius = _CLHRadius;
 
 	int ri = -1; //contraint particle reference.
     float smallestDist = 999999;
-    float lifeTime = 3.80f;
+    float lifeTime = 4.80f;
 	float tDamp = 0.15f;
 	float aLog = 0.41f;
 	float bLog = 0.11f;
-    float alpha = 0.123175f;
-    float stiffness = 0.0001f;
+    float alpha = _Alpha;
+    float stiffness = 0.001f;
     float gamma = 0.0001f;
     //for each control particle.
     float3 velocityDisplacementTop = 1.0f;
@@ -2411,15 +2444,15 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
         //Do calculation.
 		float dist = distance(fluidParticle.predictedPosition, controlParticle.position);
         
-        if (0.001f < dist && dist < _Radius * 15)
+        if (0.001f < dist && dist < _CDHRadius * 2)
         {
             float3 pressureGradDir = controlParticle.position - fluidParticle.predictedPosition;
             
-			innerDisplacement += controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir) / _RestDensity;
+            innerDisplacement += controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir, _CLHRadius) / _RestDensity;
 
             //Calculate velocity displacement.
             float3 pressureGradDirVel = fluidParticle.predictedPosition - controlParticle.position;
-            float3 velocityGradient = SpikyKernelGradient(dist, pressureGradDirVel);
+            float3 velocityGradient = SpikyKernelGradient(dist, pressureGradDirVel, _CLHRadius);
             float3 controlParticleVel = (controlParticle.position - controlParticle.prevPosition) / _TimeStep;
             velocityDisplacementTop += velocityGradient*controlParticleVel;
             velocityDisplacmentBottom += velocityGradient;
@@ -2458,7 +2491,7 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 
 	float3 densityDisplacement = -alpha * innerDisplacement;
 
-    _Particles[particleIndex].predictedPosition += (densityDisplacement + springDelta + velocityDelta);
+    _Particles[particleIndex].predictedPosition += densityDisplacement; //(densityDisplacement + springDelta + velocityDelta);
     
 }
 
@@ -2569,6 +2602,10 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
+    
+    float HRadius = _CDHRadius;
+
+    
     int numOfParticles = _NumOfParticles;
     int indexFloored = floor(id.x / 27);
     uint indexMod = id.x % 27;
@@ -2608,7 +2645,7 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
 
         float dist = distance(currentParticle.position, neighbour.predictedPosition);
 
-        if (0.001f < dist && dist < _Radius * 2.0f)
+        if (0.001f < dist && dist < HRadius * 2.0f)
         {
 
             _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ] = setBit(_particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ], index);

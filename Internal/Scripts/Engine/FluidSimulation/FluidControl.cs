@@ -19,6 +19,8 @@ public class FluidControl : MonoBehaviour
 
     GPUVoxelData Voxels;
 
+    public bool fluidOn = true;
+
     enum MeshType
     {
         Volume, Surface
@@ -63,23 +65,29 @@ public class FluidControl : MonoBehaviour
         }
         */
 
-        int voxelCount = Voxels.Buffer.count;
-        if (voxels_t == null)
-            voxels_t = new Voxel_t[voxelCount];
-        Voxels.Buffer.GetData(voxels_t);
-
-        fluidSimulationManager.NumOfControlParticles = voxelCount;
-
-
-        Matrix4x4 localToWorld = dummyMesh.transform.localToWorldMatrix;
-        for (int i = 0; i < voxelCount; i++)
+        if (fluidOn)
         {
-            Vector3 pos = voxels_t[i].position;
-            pos = localToWorld.MultiplyPoint3x4(pos);
-            points[i] = pos;
-            fluidSimulationManager.controlParticlesPositions[i] = pos;
-        }
+            int voxelCount = Voxels.Buffer.count;
+            if (voxels_t == null)
+                voxels_t = new Voxel_t[voxelCount];
+            Voxels.Buffer.GetData(voxels_t);
 
+            fluidSimulationManager.NumOfControlParticles = voxelCount;
+
+
+            Matrix4x4 localToWorld = dummyMesh.transform.localToWorldMatrix;
+            for (int i = 0; i < voxelCount; i++)
+            {
+                Vector3 pos = voxels_t[i].position;
+                pos = localToWorld.MultiplyPoint3x4(pos);
+                points[i] = pos;
+                fluidSimulationManager.controlParticlesPositions[i] = pos;
+            }
+        }
+        else
+        {
+            fluidSimulationManager.NumOfControlParticles = 0;
+        }
 
     }
 
@@ -107,5 +115,27 @@ public class FluidControl : MonoBehaviour
         }
         */
 
+    }
+
+    void OnDisable()
+    {
+        ReleaseBuffers();
+    }
+
+    //On application quit
+    void OnApplicationQuit()
+    {
+        ReleaseBuffers();
+    }
+
+    //On playtest end
+    void OnDestroy()
+    {
+        ReleaseBuffers();
+    }
+
+    void ReleaseBuffers()
+    {
+        Voxels.Dispose();
     }
 }

@@ -459,7 +459,7 @@ public class FluidSimulationManager : MonoBehaviour
         UpdateNonAcceleratedRayTracer();
         rasterMaterial.SetBuffer("_Particles", _particleBuffer);
 
-        //StartCoroutine(ReactToForces());
+        StartCoroutine(ReactToForces());
     }
 
     void CreateAcceleratedStructure()
@@ -1347,8 +1347,8 @@ public class FluidSimulationManager : MonoBehaviour
             DebugParticlesBVH();
             if (NumOfControlParticles > 0)
             {
-                //ControlDensity();
-                //ControlForces();
+                ControlDensity();
+                ControlForces();
             }
             for (int i = 0; i < _SolveIterations; i++)
             {

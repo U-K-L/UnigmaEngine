@@ -19,27 +19,13 @@ Shader "Custom/StandardRayTraceTest"
                 #include "HLSLSupport.cginc"
                 #include "UnityRaytracingMeshUtils.cginc"
                 #include "../RayTraceHelpersUnigma.hlsl"
+                #include "../FluidHelpers.hlsl"
 
                 struct AABB
                 {
                     float3 min;
                     float3 max;
                 };
-
-        struct Particle
-        {
-            float4 force;
-            float3 position;
-            float3 lastPosition;
-            float3 predictedPosition;
-            float3 positionDelta;
-            float3 velocity;
-            float3 normal;
-            float3 curl;
-            float density;
-            float lambda;
-            float spring;
-        };
         
             StructuredBuffer<AABB> g_AABBs;
             Texture2D<float4> _MainTex;
@@ -78,6 +64,27 @@ Shader "Custom/StandardRayTraceTest"
 
                 return t;
             }
+
+            float sdSphere( float3 sp, float3 rp, float s )
+            {
+              float3 p = sp - rp;
+              return length(p)-s;
+            }
+
+            float2 eliIntersect( in float3 ro, in float3 rd, in float3 ra, float3 pos )
+            {
+                float3 oc = ro - pos;
+                float3 ocn = oc/ra;
+                float3 rdn = rd/ra;
+                float a = dot( rdn, rdn );
+                float b = dot( ocn, rdn );
+                float c = dot( ocn, ocn );
+                float h = b*b - a*(c-1.0);
+                if( h<0.0 ) return float2(-1.0, -1.0); //no intersection
+                h = sqrt(h);
+                return float2(-b-h,-b+h)/a;
+            }
+
             
             [shader("intersection")]
             void IntersectionMain()
@@ -95,12 +102,18 @@ Shader "Custom/StandardRayTraceTest"
 
                 float3 pos = _Particles[PrimitiveIndex()].position;
 				float4 sphere = float4(pos, _SizeOfParticle);
-                float t1 = sphIntersect(ro, rd, sphere);
-                //if (t1 > 0)
+                float3 rad = (float3(0.1, 0.1, 0.1) + abs(normalize(_Particles[PrimitiveIndex()].velocity))) * float3(1.0f, 1.0f, 1.0f) * sphere.w;
+
+                //float t1 = ellipIntersect(ro, rd, sphere, rad);
+                float2 t12 = eliIntersect(ro, rd, rad, pos);
+                //t12.x = sphIntersect(ro, rd, sphere);
+
+                //t1 =  sdSphere(sphere.xyz, ro, sphere.w);
+                //if (t1 < 0)
                 //{
-                    attr.distance = t1;
-					attr.position = ro + rd * t1;
-                    ReportHit(t1, 0, attr);
+                    attr.distance = t12.x;
+					attr.position = ro + rd * t12.x;
+                    ReportHit(t12.x, 0, attr);
                 //}
             }
 

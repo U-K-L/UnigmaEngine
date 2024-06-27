@@ -3,6 +3,7 @@
 #include "UnityShaderVariables.cginc"
 #include "../../RayTraceHelpersUnigma.hlsl"
 #include "UnityCG.cginc"
+#include "../../FluidHelpers.hlsl"
 
 RWTexture2D<float4> _RayTracedImage;
 RWTexture2D<float4> _DensityMap;
@@ -24,22 +25,6 @@ float4x4                        _Perspective_Matrix_VP;
 float                           g_Zoom;
 
 #pragma max_recursion_depth 1
-
-
-struct Particle
-{
-    float4 force;
-    float3 position;
-    float3 lastPosition;
-    float3 predictedPosition;
-    float3 positionDelta;
-    float3 velocity;
-    float3 normal;
-    float3 curl;
-    float density;
-    float lambda;
-    float spring;
-};
 
 StructuredBuffer<Particle> _Particles;
 
@@ -164,6 +149,27 @@ void MyRaygenShader()
 			break;
 		}
     }
+
+
+    /*
+    //Marching
+    for(int i = 0; i < 250; i++)
+    {
+        float increment = 0.1f;
+		TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+        if(payload.color.w < 1)
+        {
+            ray.Origin = ray.Origin + ray.Direction * (increment);
+			ray.TMax = 1;
+			payload.distance = 9999999999;
+
+            hits += 1;
+        }else
+        {
+			break;
+		}
+    }
+    */
     float kd = min(99.0f, hits) * 0.0055f;
     float e = exp(kd);
     float hitMap = e - 1.0f;

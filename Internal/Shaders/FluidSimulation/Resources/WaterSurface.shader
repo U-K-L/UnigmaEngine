@@ -23,23 +23,7 @@ Shader "Custom/WaterSurface"
         half _Glossiness;
         half _Metallic;
         fixed4 _Color;
-        struct Particle
-        {
-            float4 force;
-            float3 position;
-            float3 lastPosition;
-            float3 predictedPosition;
-            float3 positionDelta;
-            float3 debugVector;
-            float3 velocity;
-            float3 normal;
-            float3 curl;
-            float density;
-            float lambda;
-            float spring;
-            float mass;
-            int parent;
-        };
+        #include "../../FluidHelpers.hlsl"
 #ifdef SHADER_API_D3D11
         StructuredBuffer<Particle> _Particles;
 #endif

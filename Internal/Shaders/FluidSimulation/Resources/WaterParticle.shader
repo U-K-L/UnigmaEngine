@@ -27,21 +27,7 @@ Shader "Unlit/WaterParticle"
             #include "UnityCG.cginc"
             #include "UnityShaderVariables.cginc"
             #include "../../ShaderHelpers.hlsl"
-
-            struct Particle
-            {
-                float4 force;
-                float3 position;
-                float3 lastPosition;
-                float3 predictedPosition;
-                float3 positionDelta;
-                float3 velocity;
-                float3 normal;
-                float3 curl;
-                float density;
-                float lambda;
-                float spring;
-            };
+            #include "../../FluidHelpers.hlsl"
     
             StructuredBuffer<Particle> _Particles;
             sampler2D _UnigmaDepthMap;
@@ -241,24 +227,7 @@ Shader "Unlit/WaterParticle"
             #include "AutoLight.cginc"
             #include "Lighting.cginc"
             #include "UnityCG.cginc"
-
-            struct Particle
-            {
-                float4 force;
-                float3 position;
-                float3 lastPosition;
-                float3 predictedPosition;
-                float3 positionDelta;
-                float3 debugVector;
-                float3 velocity;
-                float3 normal;
-                float3 curl;
-                float density;
-                float lambda;
-                float spring;
-                float mass;
-                int parent;
-            };
+            #include "../../FluidHelpers.hlsl"
 
             StructuredBuffer<Particle> _Particles;
             sampler2D _DistancesMap;

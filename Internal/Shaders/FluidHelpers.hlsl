@@ -15,6 +15,8 @@ struct Particle
     float density;
     float lambda;
     float spring;
+    float4x4 anisotropicTRS;
+    float4 mean;
 };
 
 #endif

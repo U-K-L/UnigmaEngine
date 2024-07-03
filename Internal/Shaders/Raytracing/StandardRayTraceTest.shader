@@ -99,13 +99,73 @@ Shader "Custom/StandardRayTraceTest"
                 attr.barycentrics = float2(0, 0);
                 attr.distance = -1;
 
+                float maxScalingFactor = 1.5f;
+
+                float3x3 resultMatrix;
+
+                //Check determinant.
+                float3x3 identityMatrix = {
+                    float3(1,0,0),
+                    float3(0,1,0),
+                    float3(0,0,1)
+                };
+
+                resultMatrix = identityMatrix;
+
+                float3x3 Gmatrix = {
+                    _Particles[PrimitiveIndex()].anisotropicTRS[0].xyz * identityMatrix[0],
+                    _Particles[PrimitiveIndex()].anisotropicTRS[1].xyz * identityMatrix[1],
+                    _Particles[PrimitiveIndex()].anisotropicTRS[2].xyz * identityMatrix[2]
+                };
+
+
+
+                float qualityCheck = 0.0000001f;
+                float distanceCheck = 0.00001f;
+                float densityCheck = 0.025f;
+
+                float density = _Particles[PrimitiveIndex()].density / 35.0f;
+
+                float det = determinant(Gmatrix);
+
+                //Check distance from identity, if close set to identity Matrix.
+                float3x3 identitySub = Gmatrix - identityMatrix;
+                float identityDist = euclideanNorm(identitySub);
+
+                float3x3 ginv = inverse(Gmatrix);
+                float3x3 minv = {
+                    min(maxScalingFactor, abs(ginv[0])),
+                    min(maxScalingFactor, abs(ginv[1])),
+                    min(maxScalingFactor, abs(ginv[2])),
+                };
+
+                minv[0].x = max(1, minv[0].x);
+                minv[1].y = max(1, minv[1].y);
+                minv[2].z = max(1, minv[2].z);
+
+                if( (det > qualityCheck) && (identityDist > distanceCheck) && density > densityCheck)
+                    resultMatrix = minv;
+
+                float3 velocityP = _Particles[PrimitiveIndex()].velocity.xyz;
+
+                float3 velocityStretch = abs(velocityP);
+                float verticalRatio = velocityStretch.y / (velocityStretch.x + velocityStretch.z);
+                velocityStretch = min(float3(min(2, velocityStretch.x / verticalRatio), min(2, velocityStretch.y * verticalRatio), min(2, velocityStretch.z / verticalRatio)), 0.1);
+
+                if(abs(velocityP.y) < 15 || density > densityCheck)
+                    velocityStretch = float3(1,1,1);
+                    
 
                 float3 pos = _Particles[PrimitiveIndex()].position;
 				float4 sphere = float4(pos, _SizeOfParticle);
-                float3 rad = (float3(0.1, 0.1, 0.1) + abs(normalize(_Particles[PrimitiveIndex()].velocity))) * float3(1.0f, 1.0f, 1.0f) * sphere.w;
+                float4 rad = float4(1.0f, 1.0f, 1.0f, 0.0f) * sphere.w; //(float3(0.1, 0.1, 0.1) + abs(normalize(_Particles[PrimitiveIndex()].velocity))) * float3(1.0f, 1.0f, 1.0f) * sphere.w;
+
+ 
+
+                rad.xyz = mul(rad.xyz, minv).xyz * velocityStretch;
 
                 //float t1 = ellipIntersect(ro, rd, sphere, rad);
-                float2 t12 = eliIntersect(ro, rd, rad, pos);
+                float2 t12 = eliIntersect(ro, rd, rad.xyz, pos);
                 //t12.x = sphIntersect(ro, rd, sphere);
 
                 //t1 =  sdSphere(sphere.xyz, ro, sphere.w);

@@ -120,9 +120,10 @@ Shader "Hidden/FluidComposition"
                 fixed4 unigmaDepth = tex2D(_UnigmaDepthShadowsMap, i.uv);
 				fixed4 unigmaBackground = tex2D(_UnigmaBackgroundColor, i.uv);
 
+                //return particleNormalMap;
 				//return unigmaBackground;
                 //return unigmaDepth.z*100;
-                //return fluids.w*100;
+                //return fluidsDepth;
                 //return lerp(fluids.w, unigmaDepth.z, step(fluids.w, unigmaDepth.z))*10;
                 //return densityMap;
                 float fluidsSceneDepth = fluids.w;
@@ -291,8 +292,8 @@ Shader "Hidden/FluidComposition"
                 float4 fluidColorFinal = cleanFluidSingleColor + fluids.w * waterSpecular * 0.12;
 
 
-                float4 colorField = float4((particleNormalMap.xyz * 0.5 + 0.5) * fluids.w, fluids.w);
-                float4 colorFieldLerp = lerp(distortedOriginalImage * fluids.w, colorField, atteunuationDensity + 0.35);
+                float4 colorField = float4((particleNormalMap.xyz * 0.5 + 0.5) * fluidsDepth.w, fluidsDepth.w);
+                float4 colorFieldLerp = lerp(distortedOriginalImage * fluidsDepth.w, colorField, atteunuationDensity + 0.35);
                 float4 colorSurfaceFluid = fluidColorFinal + edge + colorFieldLerp * 0.0935 + surface * 0.0756;
 
 
@@ -300,7 +301,7 @@ Shader "Hidden/FluidComposition"
                 float4 causaticLerpSide = lerp(distortedOriginalImage, causticsTex * fluids.w * step(0.000000, fluidsDepth.y), 0.25);
                 float4 causaticLerp = causaticLerpSide * 0.15 + causaticLerpTop * 0.825;
 
-                float4 colorLerping = lerp(colorSurfaceFluid* waterColor, causaticLerp * step(0.00001, fluids.w), 0.0465 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
+                float4 colorLerping = lerp(colorSurfaceFluid* waterColor, causaticLerp * step(0.00001, fluidsDepth.w), 0.0465 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 
                 //_CausticIntensity
                 //return colorSurfaceFluid;

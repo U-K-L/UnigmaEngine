@@ -224,6 +224,8 @@ public class FluidSimulationManager : MonoBehaviour
         public float density;
         public float lambda;
         public float spring;
+        public Matrix4x4 anisotropicTRS;
+        public Vector4 mean;
     };
     
     struct PNode
@@ -280,7 +282,7 @@ public class FluidSimulationManager : MonoBehaviour
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
     int _meshObjectStride = (sizeof(float) * 4 * 4 * 3) + sizeof(int) * 3 + sizeof(float) * 3 * 4;
-    int _particleStride = sizeof(int) + sizeof(float) + sizeof(float) * 3 + ((sizeof(float) * 3) * 7 + (sizeof(float) * 2));
+    int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 3)) + (sizeof(float) * 4 * 4);
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
     int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 2;
@@ -459,7 +461,7 @@ public class FluidSimulationManager : MonoBehaviour
         UpdateNonAcceleratedRayTracer();
         rasterMaterial.SetBuffer("_Particles", _particleBuffer);
 
-        StartCoroutine(ReactToForces());
+        //StartCoroutine(ReactToForces());
     }
 
     void CreateAcceleratedStructure()
@@ -824,7 +826,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         }
     }
-    public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force)
+    public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force, Vector3 radius = default)
     {
         if (NumOfParticles >= MaxNumOfParticles)
         {
@@ -841,7 +843,9 @@ public class FluidSimulationManager : MonoBehaviour
             _ParticleIndices[i] = i;
             _ParticleIDs[i] = i;
 
-            Vector3 randomPos = Random.insideUnitSphere + initialSpawnPosition;
+            Vector3 randPoint = Random.insideUnitSphere;
+            randPoint = new Vector3(randPoint.x * radius.x, randPoint.y * radius.y, randPoint.z * radius.z);
+            Vector3 randomPos = randPoint + initialSpawnPosition;
             _particles[i].position = randomPos;
             _particles[i].velocity = Vector3.zero;
             _particles[i].curl = Vector3.zero;
@@ -850,6 +854,7 @@ public class FluidSimulationManager : MonoBehaviour
             _particles[i].lambda = 0.0f;
             _particles[i].spring = 0.0f;
             _particles[i].predictedPosition = _particles[i].position;
+            _particles[i].anisotropicTRS = Matrix4x4.identity;
         }
         _particleBuffer.SetData(_particles, NumOfParticles, NumOfParticles, sizeOfNewParticlesAdded);
         NumOfParticles += sizeOfNewParticlesAdded;
@@ -888,6 +893,7 @@ public class FluidSimulationManager : MonoBehaviour
                     _particles[particleIndex].density = 0.0f;
                     _particles[particleIndex].lambda = 0.0f;
                     _particles[particleIndex].predictedPosition = _particles[particleIndex].position;
+                    _particles[particleIndex].anisotropicTRS = Matrix4x4.identity;
                     particleIndex++;
                 }
             }
@@ -1155,6 +1161,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _particles[i].spring = 0.0f;
                 _particles[i].normal = Vector3.zero;
                 _particles[i].predictedPosition = _particles[i].position;
+                _particles[i].anisotropicTRS = Matrix4x4.identity;
                 _ParticleIndices[i] = MaxNumOfParticles-1;
                 _ParticleCount[i] = 0;
                 _ParticleCellIndices[i] = MaxNumOfParticles-1;

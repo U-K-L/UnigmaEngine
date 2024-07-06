@@ -120,7 +120,8 @@ Shader "Hidden/FluidComposition"
                 fixed4 unigmaDepth = tex2D(_UnigmaDepthShadowsMap, i.uv);
 				fixed4 unigmaBackground = tex2D(_UnigmaBackgroundColor, i.uv);
 
-                //return particleNormalMap;
+                //return fluidsNormal;
+                return particleNormalMap;
 				//return unigmaBackground;
                 //return unigmaDepth.z*100;
                 //return fluidsDepth;
@@ -266,7 +267,6 @@ Shader "Hidden/FluidComposition"
                 fresnel = pow(fresnel, _FresnelPower);
                 diffuse += fresnel;
 
-
                 float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, 13.95 * densityMap);
                 float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
@@ -274,7 +274,7 @@ Shader "Hidden/FluidComposition"
                 waterColor = lerp(waterColor, _DeepestWaterColor, 1.0 - smoothstep(0.785, 0.05, densityMap));
 
 
-                float4 waterSpecular = waterColor;//diffuse + waterColor;
+                float4 waterSpecular =  waterColor;
 
                 float atteunuationDensity = min(0.0155,saturate(_DensityThickness * densityMap.z) * (exp(densityMap.z * 75 * fluidsDepth.z) - 1.0));
 

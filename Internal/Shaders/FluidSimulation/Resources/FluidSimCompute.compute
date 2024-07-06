@@ -2519,7 +2519,7 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 	float bLog = 0.11f;
     float alpha = _Alpha;
     float stiffness = 0.001f;
-    float gamma = 0.0001f;
+    float gamma = 0.001f;
     //for each control particle.
     float3 velocityDisplacementTop = 1.0f;
     float3 velocityDisplacmentBottom = 1.0f;

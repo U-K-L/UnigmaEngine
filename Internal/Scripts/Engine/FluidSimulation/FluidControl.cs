@@ -1,3 +1,4 @@
+using Deform;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing.Drawing2D;
@@ -20,6 +21,8 @@ public class FluidControl : MonoBehaviour
     GPUVoxelData Voxels;
 
     public bool fluidOn = true;
+    [SerializeField] new protected SkinnedMeshRenderer skinnedRenderer;
+    protected Kernel setupKernel, updateKernel;
 
     enum MeshType
     {
@@ -31,8 +34,11 @@ public class FluidControl : MonoBehaviour
     [SerializeField] new protected MeshFilter mesh;
     [SerializeField] protected ComputeShader voxelizer, particleUpdate;
     [SerializeField] protected int count = 64;
+    protected const string kSetupKernelKey = "Setup", kUpdateKernelKey = "Update";
     void Start()
     {
+        setupKernel = new Kernel(particleUpdate, kSetupKernelKey);
+        updateKernel = new Kernel(particleUpdate, kUpdateKernelKey);
         mesh = dummyMesh.GetComponent<MeshFilter>();
         Voxels = GPUVoxelizer.Voxelize(voxelizer, mesh.mesh, count, (type == MeshType.Volume));
         points = new Vector3[Voxels.Buffer.count];
@@ -67,11 +73,17 @@ public class FluidControl : MonoBehaviour
 
         if (fluidOn)
         {
-            int voxelCount = Voxels.Buffer.count;
+            
+            int voxelCount = voxelSkinnedMesh.data.Buffer.count;
             if (voxels_t == null)
-                voxels_t = new Voxel_t[voxelCount];
-            Voxels.Buffer.GetData(voxels_t);
+            {
 
+            }
+
+
+            voxels_t = new Voxel_t[voxelCount];
+            points = new Vector3[voxelCount];
+            voxelSkinnedMesh.data.Buffer.GetData(voxels_t);
             fluidSimulationManager.NumOfControlParticles = voxelCount;
 
 
@@ -91,6 +103,38 @@ public class FluidControl : MonoBehaviour
 
     }
 
+    /*
+    void updateSkinnedMesh()
+    {
+        if (Voxels == null) return;
+
+        Voxels.Dispose();
+
+        var mesh2 = Sample();
+        Voxels = GPUVoxelizer.Voxelize(voxelizer, mesh2, count, (type == MeshType.Volume));
+
+        Compute(updateKernel, Voxels, Time.deltaTime);
+    }
+
+    Mesh Sample()
+    {
+        var mesh = new Mesh();
+        renderer.BakeMesh(mesh);
+        return mesh;
+    }
+
+    void Compute(Kernel kernel, GPUVoxelData data, float dt)
+    {
+        particleUpdate.SetBuffer(kernel.Index, kVoxelBufferKey, data.Buffer);
+        particleUpdate.SetInt(kVoxelCountKey, data.Buffer.count);
+        particleUpdate.SetFloat(kUnitLengthKey, data.UnitLength);
+
+        particleUpdate.SetBuffer(kernel.Index, kParticleBufferKey, particleBuffer);
+        particleUpdate.SetInt(kParticleCountKey, particleBuffer.count);
+
+        particleUpdate.Dispatch(kernel.Index, particleBuffer.count / (int)kernel.ThreadX + 1, (int)kernel.ThreadY, (int)kernel.ThreadZ);
+    }
+    */
     private void OnDrawGizmos()
     {
         

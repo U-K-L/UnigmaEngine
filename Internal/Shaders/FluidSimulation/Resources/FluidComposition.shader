@@ -121,7 +121,7 @@ Shader "Hidden/FluidComposition"
 				fixed4 unigmaBackground = tex2D(_UnigmaBackgroundColor, i.uv);
 
                 //return fluidsNormal;
-                return particleNormalMap;
+                //return particleNormalMap;
 				//return unigmaBackground;
                 //return unigmaDepth.z*100;
                 //return fluidsDepth;

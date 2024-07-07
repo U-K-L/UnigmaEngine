@@ -1,3 +1,4 @@
+using MudBun;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +8,8 @@ using UnityEngine.Rendering;
 
 public class FluidSimulationManager : MonoBehaviour
 {
+
+    public static FluidSimulationManager Instance { get; private set; }
 
     [SerializeField]
     Material rasterMaterial;
@@ -164,6 +167,7 @@ public class FluidSimulationManager : MonoBehaviour
     public float _CDNorm = 1.0f;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
+    public Dictionary<string, FluidControl> fluidControlledObjects;
     private MeshObject[] _meshObjects;
     private List<Vertex> _vertices = new List<Vertex>();
     private List<int> _indices = new List<int>();
@@ -269,7 +273,7 @@ public class FluidSimulationManager : MonoBehaviour
         public int particleIndex;
     };
 
-    struct ControlParticles
+    public struct ControlParticles
     {
         public Vector3 position;
         public float density;
@@ -314,6 +318,15 @@ public class FluidSimulationManager : MonoBehaviour
     public Camera secondCam;
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this);
+            return;
+        }
+
+        Instance = this;
+
+        fluidControlledObjects = new Dictionary<string, FluidControl>();
         //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
         Debug.Log("Particle Stride size is: " + _particleStride);
@@ -608,7 +621,8 @@ public class FluidSimulationManager : MonoBehaviour
 
     private void Update()
     {
-        GetControlParticlePosition();
+        UpdateControlParticles();
+
         Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
 
@@ -1381,6 +1395,32 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
+    private void UpdateControlParticles()
+    {
+        string[] keys = fluidControlledObjects.Keys.ToArray();
+
+        Debug.Log("The amount of keys" + keys.Length);
+        int currentIndex = 0;
+        for (int i = 0; i < keys.Count(); i++)
+        {
+            FluidControl fluidControl = fluidControlledObjects[keys[i]];
+
+            AddControlParticles(fluidControl, currentIndex);
+
+            currentIndex += fluidControl.points.Length;
+        }
+
+
+        NumOfControlParticles = Mathf.Min(currentIndex, MaxNumOfControlParticles);
+    }
+
+    void AddControlParticles(FluidControl fluidControl, int startIndex)
+    {
+        for (int i = 0; i < fluidControl.points.Length; i++)
+        {
+            controlParticlesPositions[i + startIndex] = fluidControl.points[i];
+        }
+    }
 
     private IEnumerator ReactToForces()
     {
@@ -1558,6 +1598,8 @@ public class FluidSimulationManager : MonoBehaviour
     {
         _fluidSimulationComputeShader.Dispatch(_CalculateVelocityKernelId, Mathf.CeilToInt(NumOfParticles / _calculateVelocityThreadSize.x), 1, 1);
     }
+
+
     void DebugParticlesBVH()
     {
         if (Input.GetKey(KeyCode.Space))

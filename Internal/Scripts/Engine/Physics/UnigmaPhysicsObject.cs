@@ -51,8 +51,6 @@ public class UnigmaPhysicsObject : MonoBehaviour
             rigidbody.useGravity = true;
             rigidbody.isKinematic = false;
         }
-
-        Debug.Log("Total Forces " + totalForce);
         
         netForce *= 0.85f;
     }

@@ -20,10 +20,11 @@ public class FluidControl : MonoBehaviour
     protected GPUVoxelData Voxels;
     protected Kernel setupKernel, updateKernel;
 
-
-
-
     protected const string kSetupKernelKey = "Setup", kUpdateKernelKey = "Update";
+    protected const string kVoxelBufferKey = "_VoxelBuffer", kVoxelCountKey = "_VoxelCount";
+    protected const string kParticleBufferKey = "_ParticleBuffer", kParticleCountKey = "_ParticleCount";
+    protected const string kUnitLengthKey = "_UnitLength";
+
     protected enum MeshType
     {
         Volume, Surface
@@ -32,6 +33,7 @@ public class FluidControl : MonoBehaviour
     [SerializeField] protected MeshType meshType = MeshType.Volume;
     protected ComputeShader voxelizer, particleUpdate;
     [SerializeField] protected int voxelResolution = 12;
+    protected ComputeBuffer particleBuffer;
     void Start()
     {
 
@@ -83,7 +85,7 @@ public class FluidControl : MonoBehaviour
 
                 Gizmos.color = Color.green;
 
-                Gizmos.DrawSphere(pos, 0.1f);
+                Gizmos.DrawSphere(pos, 0.025f);
             }
         }
 

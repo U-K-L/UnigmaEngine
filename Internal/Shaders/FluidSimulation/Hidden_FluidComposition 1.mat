@@ -19,12 +19,12 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
-  m_LockedProperties: 
+  m_LockedProperties: _CausticNoise _NoiseScale
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
     - _CausticNoise:
-        m_Texture: {fileID: 2800000, guid: 891eade74ecd2884eb09b0f25180584f, type: 3}
+        m_Texture: {fileID: 2800000, guid: 2bb5e7940d64e4510b915a23c753a3f3, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _CausticTex:
@@ -59,8 +59,12 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _SurfaceNoise:
+        m_Texture: {fileID: 2800000, guid: a53cf5449d11a15d1100a04b44295342, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _TopTexture:
-        m_Texture: {fileID: 2800000, guid: c7e361ce96b94c94491259ed99398c96, type: 3}
+        m_Texture: {fileID: 2800000, guid: c1d17104ac329429a8ce5b3c5e3e0764, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _UnderWaterTexture:
@@ -72,8 +76,8 @@ Material:
     - _BlendSmooth: 8.18
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51
-    - _CausticIntensity: 2.7
-    - _CausticScale: 0.64
+    - _CausticIntensity: 4.3
+    - _CausticScale: 0.93
     - _DensityThickness: 6.3
     - _DepthMaxDistance: 0.00031
     - _EdgeWidth: 1.62
@@ -85,13 +89,18 @@ Material:
     - _ScaleY: -1.45
     - _SpecularIntensity: 2.9
     - _SpecularPower: 17
-    - _Speed: 0.32
+    - _Speed: 0.746
     - _Spread: 0.18
+    - _SurfaceNoiseCutoff: 0.96
     m_Colors:
+    - _BrightWaterColor: {r: 1, g: 1, b: 1, a: 1}
     - _CausticColor: {r: 1, g: 1, b: 1, a: 1}
-    - _DeepWaterColor: {r: 0.5580278, g: 0.81279784, b: 0.9858491, a: 1}
+    - _DeepWaterColor: {r: 0.4535421, g: 0.76190907, b: 0.9811321, a: 1}
     - _DeepestWaterColor: {r: 0.6933962, g: 0.016353682, b: 0.67985535, a: 1}
+    - _FoamIntensity: {r: 5.43, g: 0.01, b: 1, a: 3.54}
     - _NoiseScale: {r: 42.27, g: 161.5, b: 12.2, a: -0.16}
-    - _NoiseScaleCaustic: {r: 57.95, g: 0.77, b: 1, a: 0.2}
-    - _ShallowWaterColor: {r: 0.6509434, g: 0.85699403, b: 1, a: 1}
+    - _NoiseScaleCaustic: {r: 5.97, g: 0.021, b: 0.01, a: 4.75}
+    - _ShallowWaterColor: {r: 0.57547164, g: 0.82838213, b: 1, a: 1}
+    - _SurfaceNoiseScroll: {r: 7, g: -1, b: 4.6, a: 0.025}
+    - _Threshold: {r: 0.53, g: 1, b: 0.88, a: 0.65}
   m_BuildTextureStacks: []

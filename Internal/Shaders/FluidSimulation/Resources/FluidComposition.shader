@@ -13,7 +13,9 @@ Shader "Hidden/FluidComposition"
 		_DepthMaxDistance("Maximum distance for depth, used for depth buffer", Float) = 100.0
         _ShallowWaterColor("Shallow Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
 		_DeepWaterColor("Deep Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
+        _BrightWaterColor("Brighter Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _DeepestWaterColor("Deepest Water Color", Color) = (1.0, 1.0, 1.0, 1.0)
+        _Threshold("NdotL thresholds", Vector) = (1.0, 1.0, 1.0, 1.0)
 		_BlendSmooth("Normal Smoothing", Range(0, 10)) = 0.5
 		_Spread("Spread", Range(0, 10)) = 0.5
 		_EdgeWidth("Edge Width", Range(0, 10)) = 0.5
@@ -34,6 +36,12 @@ Shader "Hidden/FluidComposition"
 		_CausticScale("Scale of caustic animation", Float) = 1.0
 		_CausticColor("Color of caustic animation", Color) = (1.0, 1.0, 1.0, 1.0)
 		_CausticIntensity("Intensity of caustic", Range(0, 20)) = 1
+
+        _FoamIntensity("Foam Intensity", Vector) = (4.0,1.0,1.0,1.0)
+        _SurfaceNoise("Surface Noise", 2D) = "white" {}
+        _SurfaceNoiseCutoff("Surface Noise Cutoff", Range(0, 1)) = 0.777
+        _SurfaceNoiseScroll("Surface Noise Scroll Amount", Vector) = (0.03, 0.03, 0, 0)
+
     }
     SubShader
     {
@@ -72,14 +80,19 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-			sampler2D _UnigmaBackgroundColor, _UnigmaDepthShadowsMap, _DistancesMap, _DepthBufferTexture, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
+			sampler2D _UnigmaNormal, _UnigmaMotionID, _UnigmaBackgroundColor, _UnigmaDepthShadowsMap, _DistancesMap, _DepthBufferTexture, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _SideTexture, _TopTexture, _FrontSideTexture, _UnderWaterTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity, _DensityThickness, _OutlineThickness;
 			float _CausticIntensity, _CausticScale, _Speed, _ScaleX, _ScaleY, _SpecularPower, _SpecularIntensity, _FresnelPower;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
-            float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor, _DeepestWaterColor, _NoiseScaleCaustic, _CausticColor;
-
+            float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor, _DeepestWaterColor, _NoiseScaleCaustic, _CausticColor, _BrightWaterColor, _Threshold;
             
+            sampler2D _SurfaceNoise;
+            float4 _SurfaceNoise_ST;
+            float _SurfaceNoiseCutoff;
+            float4 _SurfaceNoiseScroll;
+            float4 _FoamIntensity;
+
             fixed4 triplanar(float3 blendNormal, float4 texturex, float4 texturey, float4 texturez)
             {
                 float4 triplanartexture = texturez;
@@ -119,9 +132,12 @@ Shader "Hidden/FluidComposition"
                 fixed4 distanceMap = tex2D(_DistancesMap, i.uv);
                 fixed4 unigmaDepth = tex2D(_UnigmaDepthShadowsMap, i.uv);
 				fixed4 unigmaBackground = tex2D(_UnigmaBackgroundColor, i.uv);
+                fixed4 unigmaMotion = tex2D(_UnigmaMotionID, i.uv);
+                fixed4 unigmaNormal = tex2D(_UnigmaNormal, i.uv);
 
+                //return unigmaMotion;
                 //return fluidsNormal;
-                //return particleNormalMap;
+                //return curlMap;
 				//return unigmaBackground;
                 //return unigmaDepth.z*100;
                 //return fluidsDepth;
@@ -142,9 +158,16 @@ Shader "Hidden/FluidComposition"
                 float3 blendNormal = saturate(pow(worldNormalVec * _BlendSmooth, 4));
                 float3 worldPos = fluids.xyz;
 
+                float2 screenPosUV2 = worldPos.zx;
+                float XUV2 = screenPosUV.x * 0.25 + _Time.y * _Speed;
+                float YUV2 = screenPosUV.y * 0.25 + _Time.y * _Speed;
+
+                screenPosUV2.y += cos(XUV + YUV) * 0.25 * cos(YUV);
+                screenPosUV2.x += sin(XUV - YUV) * 0.25 * sin(YUV);
+
                 _NoiseScale.xyz *= _NoiseScale.w;
                 float4 xn = tex2D(_SideTexture, (worldPos.zy * _NoiseScale.x) - (speed));
-                float4 yn = tex2D(_TopTexture, (worldPos.zx * _NoiseScale.y) - (speed));
+                float4 yn = tex2D(_TopTexture, (screenPosUV2 * _NoiseScale.y) - (speed));
                 float4 zn = tex2D(_FrontSideTexture, (worldPos.xy * _NoiseScale.z) - (speed));
                 float4 noisetexture = zn;
                 noisetexture = lerp(noisetexture, xn, blendNormal.x);
@@ -157,9 +180,9 @@ Shader "Hidden/FluidComposition"
 
                 float triCaustic = triplanar(blendNormal, xx, yy, zz);
 
-                float4 xc = tex2D(_CausticTex, float2((worldPos.z + triCaustic) * _CausticScale, (worldPos.y) * (_CausticScale / 4)));
-                float4 zc = tex2D(_CausticTex, float2((worldPos.x + triCaustic) * _CausticScale, (worldPos.y) * (_CausticScale / 4)));
-                float4 yc = tex2D(_CausticTex, (float2(worldPos.x + triCaustic, worldPos.z + triCaustic)) * _CausticScale);
+                float4 xc = tex2D(_TopTexture, float2((worldPos.z + triCaustic) * _CausticScale, (worldPos.y) * (_CausticScale / 4)));
+                float4 zc = tex2D(_TopTexture, float2((worldPos.x + triCaustic) * _CausticScale, (worldPos.y) * (_CausticScale / 4)));
+                float4 yc = tex2D(_TopTexture, (float2(worldPos.x + triCaustic, worldPos.z + triCaustic)) * _CausticScale);
 
                 float4 causticsTex = triplanar(blendNormal, xc, yc, zc);
 
@@ -171,9 +194,9 @@ Shader "Hidden/FluidComposition"
 
                 float4 causticsTex2 = triplanar(blendNormal, xc2, yc2, zc2);
 
-                float4 xc3 = tex2D(_CausticTex, float2((worldPos.z - triCaustic) * secScale, (worldPos.y) * (secScale / 4)));
-                float4 zc3 = tex2D(_CausticTex, float2((worldPos.x - triCaustic) * secScale, (worldPos.y) * (secScale / 4)));
-                float4 yc3 = tex2D(_CausticTex, float2(worldPos.x - triCaustic, worldPos.z - triCaustic) * secScale);
+                float4 xc3 = tex2D(_TopTexture, float2((worldPos.z - triCaustic) * secScale, (worldPos.y) * (secScale / 4)));
+                float4 zc3 = tex2D(_TopTexture, float2((worldPos.x - triCaustic) * secScale, (worldPos.y) * (secScale / 4)));
+                float4 yc3 = tex2D(_TopTexture, float2(worldPos.x - triCaustic, worldPos.z - triCaustic) * secScale);
 
                 float4 causticsTex3 = triplanar(blendNormal, xc3, yc3, zc3);
 
@@ -181,6 +204,50 @@ Shader "Hidden/FluidComposition"
                 causticsTex *= causticsTex2 + causticsTex3;
                 //causticsTex *= _CausticIntensity * _CausticColor;
 
+                //return causticsTex;
+
+                //Triplanar
+//------------------------------------------------------------
+
+                speed *= 5;
+                float3 worldNormalVecMap = unigmaNormal.xyz;
+                float3 blendNormalMap = saturate(pow(worldNormalVecMap * _BlendSmooth, 4));
+                float3 worldPosMap = unigmaMotion.xyz;
+
+                float4 xnm = tex2D(_SideTexture, (worldPosMap.zy * _NoiseScale.x) - (speed));
+                float4 ynm = tex2D(_TopTexture, (screenPosUV2 * _NoiseScale.y) - (speed));
+                float4 znm = tex2D(_FrontSideTexture, (worldPosMap.xy * _NoiseScale.z) - (speed));
+                float4 noisetextureMap = zn;
+                noisetextureMap = lerp(noisetextureMap, xnm, blendNormalMap.x);
+                noisetextureMap = lerp(noisetextureMap, ynm, blendNormalMap.y);
+
+                float4 xxm = tex2D(_CausticNoise, float2(worldPosMap.zy * _NoiseScaleCaustic.x) - (speed));
+                float4 yym = tex2D(_CausticNoise, float2(worldPosMap.xz * _NoiseScaleCaustic.y) - (speed));
+                float4 zzm = tex2D(_CausticNoise, float2(worldPosMap.xy * _NoiseScaleCaustic.z) - (speed));
+
+                float triCausticMap = triplanar(blendNormalMap, xxm, yym, zzm);
+
+                float4 xcm = tex2D(_CausticTex, float2((worldPosMap.z + triCaustic) * _CausticScale, (worldPosMap.y) * (_CausticScale / 4)));
+                float4 zcm = tex2D(_CausticTex, float2((worldPosMap.x + triCaustic) * _CausticScale, (worldPosMap.y) * (_CausticScale / 4)));
+                float4 ycm = tex2D(_CausticTex, (float2(worldPosMap.x + triCaustic, worldPosMap.z + triCaustic)) * _CausticScale);
+
+                float4 causticsTexMap = triplanar(blendNormalMap, xcm, ycm, zcm);
+
+                float4 xc2m = tex2D(_CausticTile, float2((worldPosMap.z - triCaustic) * secScale, (worldPosMap.y) * (secScale / 4)));
+                float4 zc2m = tex2D(_CausticTile, float2((worldPosMap.x - triCaustic) * secScale, (worldPosMap.y) * (secScale / 4)));
+                float4 yc2m = tex2D(_CausticTile, float2(worldPosMap.x - triCaustic, worldPosMap.z - triCaustic) * secScale);
+
+                float4 causticsTex2Map = triplanar(blendNormalMap, xc2m, yc2m, zc2m);
+
+                float4 xc3m = tex2D(_CausticTex, float2((worldPosMap.z - triCaustic) * secScale, (worldPosMap.y) * (secScale / 4)));
+                float4 zc3m = tex2D(_CausticTex, float2((worldPosMap.x - triCaustic) * secScale, (worldPosMap.y) * (secScale / 4)));
+                float4 yc3m = tex2D(_CausticTex, float2(worldPosMap.x - triCaustic, worldPosMap.z - triCaustic) * secScale);
+
+                float4 causticsTex3Map = triplanar(blendNormalMap, xc3m, yc3m, zc3m);
+
+                // combining
+                causticsTexMap *= causticsTex2Map + causticsTex3Map;
+                //causticsTex *= _CausticIntensity * _CausticColor;
 
                 //Create Lines.
                 float scaleFloor = floor(1 * 0.5);
@@ -256,9 +323,16 @@ Shader "Hidden/FluidComposition"
 
                 float NdotL = saturate(dot(fluidsNormal.xyz, _WorldSpaceLightPos0.xyz)) * 0.5 + 0.5;
 
+                float4 midTones = _ShallowWaterColor * step(_Threshold.x, NdotL) * step(NdotL, _Threshold.w);
+                float4 shadowLight = _DeepWaterColor * step(NdotL, _Threshold.y);
+                float4 highlights = _BrightWaterColor * step(_Threshold.z, NdotL);
+
+                float4 midHighLowLight = max(midTones, shadowLight);
+                midHighLowLight = max(midHighLowLight, highlights);
+
 
                 //NdotL = step(0.705, NdotL);
-                float4 diffuse = saturate(NdotL * _LightColor0);
+                float4 diffuse = midHighLowLight;//saturate(NdotL * _LightColor0);
                 float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
                 float3 specular = _LightColor0 * pow(DotClamped(reflect(-lightDir, fluidNormalsAvg.xyz), viewDir), _SpecularPower) * _SpecularIntensity;
                 diffuse += float4(specular, 1);//float4(ShadeSH9(half4(fluidNormalsAvg.xyz, 1)), 1);
@@ -267,6 +341,7 @@ Shader "Hidden/FluidComposition"
                 fresnel = pow(fresnel, _FresnelPower);
                 diffuse += fresnel;
 
+
                 float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, 13.95 * densityMap);
                 float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
@@ -274,11 +349,30 @@ Shader "Hidden/FluidComposition"
                 waterColor = lerp(waterColor, _DeepestWaterColor, 1.0 - smoothstep(0.785, 0.05, densityMap));
 
 
-                float4 waterSpecular =  waterColor;
+
+                float3 halfVector = normalize(_WorldSpaceLightPos0 + viewDir);
+                float NdotH = dot(worldNormalVec, halfVector);
+                //Calculate the Animation:
+                float3 flowDirection = _SurfaceNoiseScroll.xyz * _SurfaceNoiseScroll.w;
+                float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
+
+                //Calculate noise:
+                //Get random value based on time and position.
+				float randomVal = snoise(worldPos + noiseUV)*0.1;
+                float noise = tex2D(_SurfaceNoise, noiseUV.xy).r;
+                float surfaceNoiseSample2 = snoise(worldPos * _FoamIntensity.x + noiseUV);
+                float surfaceNoiseSample = (snoise(worldPos * _FoamIntensity.y + noiseUV) - surfaceNoiseSample2);//snoise(i.worldPos * 7 + noiseUV);//_TextureInfluence.w * ((snoise(i.worldPos * 7 + noiseUV) * _TextureInfluence.x) - ((noise / 2.0) * _TextureInfluence.y) + (surfaceNoiseSample2 * _TextureInfluence.z));
+				float noiseMask = noise > _SurfaceNoiseCutoff ? 1 : 0;
+                float4 surfaceNoise = smoothstep(_SurfaceNoiseCutoff, _SurfaceNoiseCutoff + 0.1, surfaceNoiseSample)* 1.0 * (noiseMask < randomVal);//surfaceNoiseSample > _SurfaceNoiseCutoff ? _SparkleFoamColor* noiseMask : 0;
+                float surfaceNoiseEmit = pow(NdotH+ NdotH, 1.5)*25 * fluidsDepth.y * tex2D(_SurfaceNoise, float2(worldPos.x * 10, worldPos.z *5)).r*10* step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y) * surfaceNoise;
+
+
+                float4 waterSpecular =  waterColor + diffuse;
 
                 float atteunuationDensity = min(0.0155,saturate(_DensityThickness * densityMap.z) * (exp(densityMap.z * 75 * fluidsDepth.z) - 1.0));
 
                 fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor * fluidsDepth.w, atteunuationDensity + 0.15);
+
 
                 //return densityMap;
                 //return fluids.w;
@@ -289,7 +383,7 @@ Shader "Hidden/FluidComposition"
                 //return cleanFluidSingleColor;
 
                 float surface = smoothstep(0.05, 0.155, fluidsDepth.y);
-                float4 fluidColorFinal = cleanFluidSingleColor + fluids.w * waterSpecular * 0.12;
+                float4 fluidColorFinal = 0.52*cleanFluidSingleColor + fluids.w * waterSpecular * 0.3171575;
 
 
                 float4 colorField = float4((particleNormalMap.xyz * 0.5 + 0.5) * fluidsDepth.w, fluidsDepth.w);
@@ -303,8 +397,15 @@ Shader "Hidden/FluidComposition"
 
                 float4 colorLerping = lerp(colorSurfaceFluid* waterColor, causaticLerp * step(0.00001, fluidsDepth.w), 0.0465 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 
+                float4 finalColorWater = colorSurfaceFluid* waterColor;
+                //return causticsTex;
                 //_CausticIntensity
                 //return colorSurfaceFluid;
+                float whiteCausatic = smoothstep(0.9, 0.95, length(causticsTex.xyz) / sqrt(3));
+                //return whiteCausatic;
+                colorLerping = lerp(finalColorWater, finalColorWater + causticsTex*0.1075  + whiteCausatic*0.2182, smoothstep(0.01, 0.6925, fluidsNormal.y));
+
+                colorLerping += 0.0910875*smoothstep(0.9, 0.95, length(causticsTexMap.xyz) / sqrt(3)) + causticsTexMap*0.0571;
 
                 float4 occulusion = lerp(colorLerping, originalImage, step(fluidsSceneDepth, unigmaDepth.r));
                 //return curlMap;

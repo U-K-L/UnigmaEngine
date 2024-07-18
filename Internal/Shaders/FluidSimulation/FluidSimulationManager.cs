@@ -230,6 +230,7 @@ public class FluidSimulationManager : MonoBehaviour
         public float spring;
         public Matrix4x4 anisotropicTRS;
         public Vector4 mean;
+        public int type;
     };
     
     struct PNode
@@ -286,7 +287,7 @@ public class FluidSimulationManager : MonoBehaviour
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
     int _meshObjectStride = (sizeof(float) * 4 * 4 * 3) + sizeof(int) * 3 + sizeof(float) * 3 * 4;
-    int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 3)) + (sizeof(float) * 4 * 4);
+    int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 3)) + (sizeof(float) * 4 * 4) + sizeof(int);
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
     int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 2;
@@ -811,7 +812,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
-    public void AddParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector3 containerSize, int containerType)
+    public void AddParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector3 containerSize, int containerType, int type)
     {
         if (NumOfParticles >= MaxNumOfParticles)
         {
@@ -825,7 +826,7 @@ public class FluidSimulationManager : MonoBehaviour
         {
             case 0:
                 //Cube
-                SpawnInCube(numOfParticlesCubedRoot, containerSize, initialSpawnPosition);
+                SpawnInCube(numOfParticlesCubedRoot, containerSize, initialSpawnPosition, type);
                 break;
         }
 
@@ -840,7 +841,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         }
     }
-    public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force, Vector3 radius = default)
+    public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force, Vector3 radius = default, int particleType = 0)
     {
         if (NumOfParticles >= MaxNumOfParticles)
         {
@@ -869,6 +870,7 @@ public class FluidSimulationManager : MonoBehaviour
             _particles[i].spring = 0.0f;
             _particles[i].predictedPosition = _particles[i].position;
             _particles[i].anisotropicTRS = Matrix4x4.identity;
+            _particles[i].type = particleType;
         }
         _particleBuffer.SetData(_particles, NumOfParticles, NumOfParticles, sizeOfNewParticlesAdded);
         NumOfParticles += sizeOfNewParticlesAdded;
@@ -883,7 +885,7 @@ public class FluidSimulationManager : MonoBehaviour
         }
     }
 
-    void SpawnInCube(int numberOfParticlesCubed, Vector3 containerSize, Vector3 initialSpawnPosition)
+    void SpawnInCube(int numberOfParticlesCubed, Vector3 containerSize, Vector3 initialSpawnPosition, int type)
     {
         float particleSpacing = containerSize.x / numberOfParticlesCubed;
         float halfContainerSize = containerSize.x / 2.0f;
@@ -908,6 +910,7 @@ public class FluidSimulationManager : MonoBehaviour
                     _particles[particleIndex].lambda = 0.0f;
                     _particles[particleIndex].predictedPosition = _particles[particleIndex].position;
                     _particles[particleIndex].anisotropicTRS = Matrix4x4.identity;
+                    _particles[particleIndex].type = type;
                     particleIndex++;
                 }
             }
@@ -1176,6 +1179,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _particles[i].normal = Vector3.zero;
                 _particles[i].predictedPosition = _particles[i].position;
                 _particles[i].anisotropicTRS = Matrix4x4.identity;
+                _particles[i].type = 0;
                 _ParticleIndices[i] = MaxNumOfParticles-1;
                 _ParticleCount[i] = 0;
                 _ParticleCellIndices[i] = MaxNumOfParticles-1;
@@ -1365,11 +1369,11 @@ public class FluidSimulationManager : MonoBehaviour
             if (_renderMethod == RenderMethod.RayTracing)
                 CreateBVHTree();
 
-            DebugParticlesBVH();
+            //DebugParticlesBVH();
             if (NumOfControlParticles > 0)
             {
-                ControlDensity();
-                ControlForces();
+                //ControlDensity();
+                //ControlForces();
             }
             for (int i = 0; i < _SolveIterations; i++)
             {

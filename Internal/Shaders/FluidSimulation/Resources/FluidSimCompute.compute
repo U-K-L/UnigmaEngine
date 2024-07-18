@@ -349,19 +349,21 @@ Ray CreateCameraRay(float2 uv)
     return CreateRay(og, dir, uv);
 }
 
-int3 GetCell(float3 position)
+int4 GetCell(float3 position, float w=0)
 {
+    w = 10;
     float3 halfS = _BoxSize / 2;
-    return int3((position.x + halfS.x) / _Radius, (position.y + halfS.y) / _Radius, (position.z + halfS.z) / _Radius);
+    return int4((position.x + halfS.x) / _Radius, (position.y + halfS.y) / _Radius, (position.z + halfS.z) / _Radius, (w + halfS.z) / _Radius);
 }
 
-inline uint HashCell(in int3 cellIndex)
+inline uint HashCell(in int4 cellIndex)
 {
 	const uint p1 = 73856093;
 	const uint p2 = 19349663;
 	const uint p3 = 83492791;
+    const uint p4 = 93863251;
     
-	uint n = p1 * cellIndex.x ^ p2 * cellIndex.y ^ p3 * cellIndex.z;
+	uint n = p1 * cellIndex.x ^ p2 * cellIndex.y ^ p3 * cellIndex.z ^ p4 * cellIndex.w;
 	n %= _NumOfParticles;
     return n;
 }
@@ -1345,7 +1347,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 
 	float4 constantForces = float4(0.0, -9.8f, 0.0, 0.0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    float4 forces = _Particles[id.x].force +constantForces;
+    float4 forces = _Particles[id.x].force + constantForces * _Particles[id.x].type;
     float3 vel = _Particles[id.x].velocity;
     vel += forces.xyz * _TimeStep;
     _Particles[id.x].force = forces;
@@ -1375,7 +1377,8 @@ void GetDensityGrid(uint3 id)
 {
     int numOfParticles = _NumOfParticles;
     uint particleIndex = _ParticleIndices[id.x];
-    int3 cellIndex = GetCell(_Particles[particleIndex].predictedPosition);
+    int typeIndex = _Particles[particleIndex].type;
+    int4 cellIndex = GetCell(_Particles[particleIndex].predictedPosition, typeIndex);
     float densitySum = 0;
     float dNorm = 0;
     float3 spiky_i = 0;
@@ -1441,8 +1444,9 @@ void GetDensityGrid(uint3 id)
             int i = (n / 9) % 3;
             int j = (n / 3) % 3;
             int k = (n / 1) % 3;
+            int l = _Particles[particleIndex].type;
 
-            int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+            int4 neighbourIndex = cellIndex + int4(i - 1, j - 1, k - 1, 0);
             uint hashedNeighborIndex = HashCell(neighbourIndex);
             uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex] + index;
             uint particleIndexB = _ParticleIndices[neighbourIterator];
@@ -1503,8 +1507,10 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
     
         int numOfParticles = _NumOfParticles;
         uint particleIndex = _ParticleIndices[id.x];
+
         Particle particleCurrent = _Particles[particleIndex];
-        int3 cellIndex = GetCell(particleCurrent.predictedPosition);
+        int typeIndex = _Particles[particleIndex].type;
+        int4 cellIndex = GetCell(particleCurrent.predictedPosition, typeIndex);
 
         float3 positionDelta = 0;
     
@@ -1570,8 +1576,9 @@ void UpdatePositionDeltas(uint3 id : SV_DispatchThreadID)
                 int i = (n / 9) % 3;
                 int j = (n / 3) % 3;
                 int k = (n / 1) % 3;
+                int l = _Particles[particleIndex].type;
 
-                int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+                int4 neighbourIndex = cellIndex + int4(i - 1, j - 1, k - 1, 0);
                 uint hashedNeighborIndex = HashCell(neighbourIndex);
                 uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex] + index;
                 uint particleIndexB = _ParticleIndices[neighbourIterator];
@@ -1662,7 +1669,8 @@ void CalculateCurl(uint3 id : SV_DispatchThreadID)
 
     int numOfParticles = _NumOfParticles;
     uint particleIndex = _ParticleIndices[id.x];
-    int3 cellIndex = GetCell(_Particles[particleIndex].predictedPosition);
+    int typeIndex = _Particles[particleIndex].type;
+    int4 cellIndex = GetCell(_Particles[particleIndex].predictedPosition, typeIndex);
     float3 curl = 0;
     float4 mean = float4(0, 0, 0, 1);
     
@@ -1721,7 +1729,7 @@ void CalculateCurl(uint3 id : SV_DispatchThreadID)
             int j = (n / 3) % 3;
             int k = (n / 1) % 3;
 
-            int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+            int4 neighbourIndex = cellIndex + int4(i - 1, j - 1, k - 1, 0);
             uint hashedNeighborIndex = HashCell(neighbourIndex);
             uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex] + index;
             uint particleIndexB = _ParticleIndices[neighbourIterator];
@@ -1874,7 +1882,7 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     float3 positionDelta = _Particles[id.x].predictedPosition;
 	_Particles[id.x].position = positionDelta;
 	_Particles[id.x].force.xyz *= _Particles[id.x].force.w;
-    float rad = _SizeOfParticle*1.25;
+    float rad = _SizeOfParticle * 1.25 * _Particles[id.x].type;
     g_AABBs[id.x].min = positionDelta - float3(rad, rad, rad);
     g_AABBs[id.x].max = positionDelta + float3(rad, rad, rad);
     //_Particles[id.x].debugVector = ray.d;
@@ -1891,7 +1899,8 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
 
     int numOfParticles = _NumOfParticles;
     uint particleIndex = _ParticleIndices[id.x];
-    int3 cellIndex = GetCell(_Particles[particleIndex].predictedPosition);
+    int typeIndex = _Particles[particleIndex].type;
+    int4 cellIndex = GetCell(_Particles[particleIndex].predictedPosition, typeIndex);
     float3 nVisc = 0;
     float3 velocities = 0;
     float3 cov1, cov2 = 0;
@@ -1953,8 +1962,9 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
             int i = (n / 9) % 3;
             int j = (n / 3) % 3;
             int k = (n / 1) % 3;
+            int l = _Particles[particleIndex].type;
 
-            int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+            int4 neighbourIndex = cellIndex + int4(i - 1, j - 1, k - 1, 0);
             uint hashedNeighborIndex = HashCell(neighbourIndex);
             uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex] + index;
             uint particleIndexB = _ParticleIndices[neighbourIterator];
@@ -2033,9 +2043,14 @@ void HashParticles(uint3 id : SV_DispatchThreadID)
     _ParticleCount[id.x] = 0;
     
     uint particleIndex = _ParticleIndices[id.x];
+    int typeIndex = _Particles[particleIndex].type;
     
-    if(id.x < _NumOfParticles)
-        _ParticleCellIndices[particleIndex] = HashCell(GetCell(_Particles[particleIndex].predictedPosition));
+    if (id.x < _NumOfParticles)
+    {
+        int4 cell = GetCell(_Particles[particleIndex].predictedPosition, typeIndex);
+        _ParticleCellIndices[particleIndex] = HashCell(cell);
+
+    }
     uint cellIndex = _ParticleCellIndices[particleIndex];
     
     //InterlockedAdd(_ParticleCount[cellIndex], 1);
@@ -2433,7 +2448,7 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
     int numOfParticles = _NumOfParticles;
     uint controlParticleIndex = id.x;
     uint neighborParticleIndex = id.x + _MaxNumOfParticles;
-    int3 cellIndex = GetCell(_ControlParticles[controlParticleIndex].position);
+    int4 cellIndex = GetCell(_ControlParticles[controlParticleIndex].position, 10);
     float3 nVisc = 0;
     float3 velocities = 0;
     float HRadius = _CDHRadius;
@@ -2456,8 +2471,9 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
             int i = (n / 9) % 3;
             int j = (n / 3) % 3;
             int k = (n / 1) % 3;
+            int l = 0;
 
-            int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+            int4 neighbourIndex = cellIndex + int4(i - 1, j - 1, k - 1, 0);
             uint hashedNeighborIndex = HashCell(neighbourIndex);
             uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex] + index;
             uint particleIndexB = _ParticleIndices[neighbourIterator];
@@ -2596,12 +2612,17 @@ void StoreParticleNeighbors(uint3 id : SV_DispatchThreadID)
     int j = (indexMod / 3) % 3;
     int k = (indexMod / 1) % 3;
 
+
     uint particleIndex = _ParticleIndices[indexFloored];
     Particle currentParticle = _Particles[particleIndex];
-    int3 cellIndex = GetCell(currentParticle.predictedPosition);
+    
+    int l = currentParticle.type;
+    
+    int typeIndex = _Particles[particleIndex].type;
+    int4 cellIndex = GetCell(currentParticle.predictedPosition, typeIndex);
 
 
-    int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+    int4 neighbourIndex = cellIndex + int4(i - 1, j - 1, k - 1, 0);
     uint hashedNeighborIndex = HashCell(neighbourIndex);
     uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 
@@ -2702,10 +2723,10 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
 
     uint particleIndex = indexFloored + _MaxNumOfParticles;
     ControlParticle currentParticle = _ControlParticles[indexFloored];
-    int3 cellIndex = GetCell(currentParticle.position);
+    int4 cellIndex = GetCell(currentParticle.position, 10);
 
 
-    int3 neighbourIndex = cellIndex + int3(i - 1, j - 1, k - 1);
+    int4 neighbourIndex = cellIndex + int4(i - 1, j - 1, k - 1, 0);
     uint hashedNeighborIndex = HashCell(neighbourIndex);
     uint neighbourIterator = _ParticleCellOffsets[hashedNeighborIndex];
 

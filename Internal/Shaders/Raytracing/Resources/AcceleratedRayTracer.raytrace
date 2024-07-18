@@ -143,6 +143,9 @@ void MyRaygenShader()
 			ray.TMax = 10000;
 			payload.distance = 9999999999;
 
+            if(particleId <= 0)
+                particleId = payload.color.w;
+
             hits += 1;
         }else
         {

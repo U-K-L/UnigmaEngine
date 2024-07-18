@@ -8,6 +8,7 @@ public class FluidEmitter : MonoBehaviour
     public int numOfParticlesSpawned = 16;
     public Vector4 force = new Vector4(0, 0, 0, 0.33f);
     public Vector3 radius = Vector3.one;
+    public int particleType = 0;
     // Start is called before the first frame update
     void Start()
     {
@@ -19,7 +20,7 @@ public class FluidEmitter : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.Z))
         {
-            _fluidSimManager.ShootParticles(transform.position, numOfParticlesSpawned, force, radius);
+            _fluidSimManager.ShootParticles(transform.position, numOfParticlesSpawned, force, radius, particleType);
         }
     }
 }

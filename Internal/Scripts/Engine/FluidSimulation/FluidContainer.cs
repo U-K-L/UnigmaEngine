@@ -15,6 +15,7 @@ public class FluidContainer : MonoBehaviour
     public Vector3 containerSize = Vector3.one;
     private FluidSimulationManager _fluidSimManager;
     private bool SimCreated = false;
+    public int type;
     void Start()
     {
         _fluidSimManager = FindObjectOfType<FluidSimulationManager>();
@@ -25,7 +26,7 @@ public class FluidContainer : MonoBehaviour
     {
         if (!SimCreated)
         {
-            _fluidSimManager.AddParticles(transform.position, numOfParticles, containerSize, (int)containerType);
+            _fluidSimManager.AddParticles(transform.position, numOfParticles, containerSize, (int)containerType, type);
             SimCreated = true;
         }
     }

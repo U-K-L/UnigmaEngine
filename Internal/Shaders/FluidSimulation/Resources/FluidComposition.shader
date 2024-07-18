@@ -342,6 +342,7 @@ Shader "Hidden/FluidComposition"
                 diffuse += fresnel;
 
 
+
                 float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, 13.95 * densityMap);
                 float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);

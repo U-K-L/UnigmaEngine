@@ -17,6 +17,7 @@ struct Particle
     float spring;
     float4x4 anisotropicTRS;
     float4 mean;
+    int type;
 };
 
 #endif

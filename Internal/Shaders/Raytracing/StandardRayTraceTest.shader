@@ -263,7 +263,7 @@ Shader "Custom/StandardRayTraceTest"
 
 				//payload.hits = interlockedAdd(payload.hits, 1);
 				payload.distance = attributes.distance;
-                payload.color = float4(attributes.position, PrimitiveIndex());//float4(normals, 1);
+                payload.color = float4(attributes.position, PrimitiveIndex()) * _Particles[PrimitiveIndex()].type;//float4(normals, 1);
                 
             }
 

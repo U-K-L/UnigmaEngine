@@ -1,26 +1,38 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.Rendering;
 using UnityEngine;
+using UnityEngine.Rendering;
+using static UnigmaSpaceTime;
 
 public class UnigmaSpaceTime : MonoBehaviour
 {
-    public struct VectorPoint
+    public struct SpaceTimePoint
     {
         public Vector3 position;
         public Vector3 direction;
         public Vector3 previousDirection;
+        public Vector3 force;
+        public float kelvin;
     }
+
+    ComputeShader _spaceTimeCompute;
+    ComputeBuffer _spaceTimePointsBuffer;
+    int _spaceTimePointStride = (sizeof(float) * 3) * 4 + sizeof(float);
 
     public Vector3 SpaceTimeSize;
 
     public int SpaceTimeResolution;
 
-    public VectorPoint[] VectorField;
+    public SpaceTimePoint[] VectorField;
 
+    uint threadsX, threadsY, threadsZ;
+
+    Vector3 _resetVectorFieldThreadIds;
     private void Awake()
     {
         int numOfVectors = Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution);
-        VectorField = new VectorPoint[numOfVectors];
+        VectorField = new SpaceTimePoint[numOfVectors];
 
         for (int i = 0; i < VectorField.Length; i++)
         {
@@ -30,16 +42,52 @@ public class UnigmaSpaceTime : MonoBehaviour
         }
 
         ShapeSpaceTime();
+        CreateComputeBuffers();
+        StartCoroutine(GetVectorFields());
+    }
+
+
+    private IEnumerator GetVectorFields()
+    {
+
+        while (true)
+        {
+            AsyncGPUReadbackRequest request = AsyncGPUReadback.Request(_spaceTimePointsBuffer);
+            while (!request.done)
+            {
+                yield return null;
+            }
+
+            if (request.done)
+            {
+                VectorField = request.GetData<SpaceTimePoint>().ToArray();
+            }
+            yield return new WaitForSeconds(0.05f);
+        }
+    }
+
+    void CreateComputeBuffers()
+    {
+        _spaceTimeCompute = Resources.Load<ComputeShader>("SpaceTimeCompute");
+        _spaceTimePointsBuffer = new ComputeBuffer(VectorField.Length, _spaceTimePointStride);
+        _spaceTimePointsBuffer.SetData(VectorField);
+
+        _spaceTimeCompute.SetBuffer(0, "_VectorField", _spaceTimePointsBuffer);
+        _spaceTimeCompute.GetKernelThreadGroupSizes(0, out threadsX, out threadsY, out threadsZ);
+        _resetVectorFieldThreadIds = new Vector3(threadsX, threadsY, threadsZ);
     }
 
     private void FixedUpdate()
     {
+        _spaceTimeCompute.Dispatch(0, Mathf.CeilToInt(VectorField.Length / _resetVectorFieldThreadIds.x), (int)_resetVectorFieldThreadIds.y, (int)_resetVectorFieldThreadIds.z);
+        /*
         for (int i = 0; i < VectorField.Length; i++)
         {
             VectorField[i].previousDirection = VectorField[i].direction;
             VectorField[i].direction = Vector3.zero;
             
         }
+        */
     }
 
     void ShapeSpaceTime()
@@ -67,6 +115,7 @@ public class UnigmaSpaceTime : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        /*
         //Set int for simulation
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireCube(Vector3.zero, SpaceTimeSize);
@@ -75,7 +124,7 @@ public class UnigmaSpaceTime : MonoBehaviour
         if (VectorField != null)
         {
             float spacing = (SpaceTimeSize.x / (SpaceTimeResolution - 1)) *0.5f;
-            foreach (VectorPoint vp in VectorField)
+            foreach (SpaceTimePoint vp in VectorField)
             {
                 Ray ray = new Ray(vp.position, vp.previousDirection * spacing);
                 Vector3 normalizedDir = Vector3.Normalize(vp.previousDirection)*0.5f + Vector3.one*0.5f;
@@ -84,5 +133,6 @@ public class UnigmaSpaceTime : MonoBehaviour
                 //Gizmos.DrawSphere(vp.position, 0.025f);
             }
         }
+        */
     }
 }

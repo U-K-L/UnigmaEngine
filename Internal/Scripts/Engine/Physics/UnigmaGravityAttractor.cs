@@ -18,7 +18,7 @@ public class UnigmaGravityAttractor : MonoBehaviour
         if (SpaceTimeVectorField == null)
             SpaceTimeVectorField = GameObject.FindGameObjectWithTag("GameManager").GetComponent<UnigmaSpaceTime>();
 
-        UpdateVectorField();
+        //UpdateVectorField();
     }
 
     void UpdateVectorField()

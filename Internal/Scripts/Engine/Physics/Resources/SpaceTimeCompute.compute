@@ -1,0 +1,22 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ResetVectorField
+
+
+struct SpaceTimePoint
+{
+    float3 position;
+    float3 direction;
+    float3 previousDirection;
+    float3 force;
+    float kelvin;
+};
+
+RWStructuredBuffer<SpaceTimePoint> _VectorField;
+
+[numthreads(256,1,1)]
+void ResetVectorField(uint3 id : SV_DispatchThreadID)
+{
+    _VectorField[id.x].previousDirection = _VectorField[id.x].direction;
+    _VectorField[id.x].direction = float3(0, -9.8f, 0);
+
+}

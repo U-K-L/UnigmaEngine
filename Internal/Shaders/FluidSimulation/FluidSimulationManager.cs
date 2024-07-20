@@ -2008,14 +2008,15 @@ public class FluidSimulationManager : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireCube(Vector3.zero, _BoxSize);
         /*
         Gizmos.color = Color.green;
         Gizmos.DrawSphere(controlParticlePosition, 0.1f);
         //Set int for simulation
         if (_fluidSimulationComputeShader != null)
             _fluidSimulationComputeShader.SetInt("_BoxViewDebug", BoxViewDebug);
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireCube(Vector3.zero, _BoxSize);
+
 
         //Draw the bounding box
         Gizmos.color = Color.red;

@@ -70,7 +70,7 @@ public class UnigmaPhysicsObject : MonoBehaviour
         Vector3 finalforce = Vector4.zero;
         if (SpaceTimeVectorField != null)
         {
-            foreach (UnigmaSpaceTime.VectorPoint vp in SpaceTimeVectorField.VectorField)
+            foreach (UnigmaSpaceTime.SpaceTimePoint vp in SpaceTimeVectorField.VectorField)
             {
                 float distance = Vector3.Distance(vp.position, transform.position);
 

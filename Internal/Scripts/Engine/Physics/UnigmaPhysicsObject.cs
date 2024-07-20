@@ -15,6 +15,8 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
     public Vector4 netForce;
 
+    public int emitterType = -1;
+
     private float cohesion = 25.0f;
 
     //Make this a singleton

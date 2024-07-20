@@ -10,4 +10,5 @@ public class RayTracingObject : MonoBehaviour
     public float transparency = 1.0f;
     public float absorbtion = 0.0f;
     public float celShaded = 0f;
+    public int emitterType = -1;
 }

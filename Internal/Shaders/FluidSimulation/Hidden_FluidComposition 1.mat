@@ -73,6 +73,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AirVisibility: 1
     - _BlendSmooth: 8.18
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51

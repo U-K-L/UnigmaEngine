@@ -206,6 +206,8 @@ public class FluidSimulationManager : MonoBehaviour
         public Matrix4x4 collisionForcesHigh;
         public Matrix4x4 collisionForcesLow;
         public uint id;
+        public Matrix4x4 absorbtionMatrix;
+        public int emitterType;
     }
     
     struct Vertex
@@ -230,7 +232,23 @@ public class FluidSimulationManager : MonoBehaviour
         public float spring;
         public Matrix4x4 anisotropicTRS;
         public Vector4 mean;
+        public int phase;
         public int type;
+    };
+
+    public enum particlePhases
+    {
+        Gas,
+        Liquid,
+        Solid,
+        Plasma
+    };
+
+    public enum particleTypes
+    {
+        Oxygen,
+        H2O,
+        CO2
     };
     
     struct PNode
@@ -286,8 +304,8 @@ public class FluidSimulationManager : MonoBehaviour
     private MortonCode[] _MortonCodesTemp;
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
-    int _meshObjectStride = (sizeof(float) * 4 * 4 * 3) + sizeof(int) * 3 + sizeof(float) * 3 * 4;
-    int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 3)) + (sizeof(float) * 4 * 4) + sizeof(int);
+    int _meshObjectStride = (sizeof(float) * 4 * 4 * 4) + sizeof(int) * 4 + sizeof(float) * 3 * 4;
+    int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 3)) + (sizeof(float) * 4 * 4) + sizeof(int)*2;
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
     int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 2;
@@ -475,7 +493,7 @@ public class FluidSimulationManager : MonoBehaviour
         UpdateNonAcceleratedRayTracer();
         rasterMaterial.SetBuffer("_Particles", _particleBuffer);
 
-        //StartCoroutine(ReactToForces());
+        StartCoroutine(ReactToForces());
     }
 
     void CreateAcceleratedStructure()
@@ -703,6 +721,7 @@ public class FluidSimulationManager : MonoBehaviour
                         indicesOffset = startIndex,
                         indicesCount = indices.Length,
                         id = (uint)rIndex
+
                     };
                 indexMeshObject++;
             }
@@ -749,6 +768,7 @@ public class FluidSimulationManager : MonoBehaviour
         for (int i = 0; i < _rayTracedObjects.Count; i++)
         {
             MeshObject meshobj = new MeshObject();
+            UnigmaPhysicsObject uPObj = _rayTracedObjects[i].GetComponent<UnigmaPhysicsObject>();
             RayTracingObject rto = _rayTracedObjects[i].GetComponent<RayTracingObject>();
             meshobj.localToWorld = _rayTracedObjects[i].GetComponent<Renderer>().localToWorldMatrix;
             meshobj.indicesOffset = _meshObjects[i].indicesOffset;
@@ -757,12 +777,18 @@ public class FluidSimulationManager : MonoBehaviour
             meshobj.AABBMin = _rayTracedObjects[i].bounds.min;
             meshobj.AABBMax = _rayTracedObjects[i].bounds.max;
             meshobj.id = (uint)i;
+            meshobj.emitterType = -1;
             //Set matrix4x4 to all zeroes.
             meshobj.collisionForcesHigh = Matrix4x4.zero;
             meshobj.collisionForcesLow = Matrix4x4.zero;
             if (rto)
             {
                 meshobj.color = new Vector3(rto.color.r, rto.color.g, rto.color.b);
+            }
+
+            if (uPObj)
+            {
+                meshobj.emitterType = uPObj.emitterType;
             }
 
             BoxCollider boxCollide = _rayTracedObjects[(int)_meshObjects[i].id].GetComponent<BoxCollider>();
@@ -812,7 +838,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
-    public void AddParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector3 containerSize, int containerType, int type)
+    public void AddParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector3 containerSize, int containerType, int phase, int type)
     {
         if (NumOfParticles >= MaxNumOfParticles)
         {
@@ -826,7 +852,7 @@ public class FluidSimulationManager : MonoBehaviour
         {
             case 0:
                 //Cube
-                SpawnInCube(numOfParticlesCubedRoot, containerSize, initialSpawnPosition, type);
+                SpawnInCube(numOfParticlesCubedRoot, containerSize, initialSpawnPosition, phase, type);
                 break;
         }
 
@@ -841,7 +867,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         }
     }
-    public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force, Vector3 radius = default, int particleType = 0)
+    public void ShootParticles(Vector3 initialSpawnPosition, int numberOfParticles, Vector4 force, Vector3 radius = default, int phase = 0, int type = 0)
     {
         if (NumOfParticles >= MaxNumOfParticles)
         {
@@ -870,7 +896,8 @@ public class FluidSimulationManager : MonoBehaviour
             _particles[i].spring = 0.0f;
             _particles[i].predictedPosition = _particles[i].position;
             _particles[i].anisotropicTRS = Matrix4x4.identity;
-            _particles[i].type = particleType;
+            _particles[i].phase = phase;
+            _particles[i].type = type;
         }
         _particleBuffer.SetData(_particles, NumOfParticles, NumOfParticles, sizeOfNewParticlesAdded);
         NumOfParticles += sizeOfNewParticlesAdded;
@@ -885,7 +912,7 @@ public class FluidSimulationManager : MonoBehaviour
         }
     }
 
-    void SpawnInCube(int numberOfParticlesCubed, Vector3 containerSize, Vector3 initialSpawnPosition, int type)
+    void SpawnInCube(int numberOfParticlesCubed, Vector3 containerSize, Vector3 initialSpawnPosition, int phase, int type)
     {
         float particleSpacing = containerSize.x / numberOfParticlesCubed;
         float halfContainerSize = containerSize.x / 2.0f;
@@ -910,6 +937,7 @@ public class FluidSimulationManager : MonoBehaviour
                     _particles[particleIndex].lambda = 0.0f;
                     _particles[particleIndex].predictedPosition = _particles[particleIndex].position;
                     _particles[particleIndex].anisotropicTRS = Matrix4x4.identity;
+                    _particles[particleIndex].phase = phase;
                     _particles[particleIndex].type = type;
                     particleIndex++;
                 }
@@ -1179,6 +1207,7 @@ public class FluidSimulationManager : MonoBehaviour
                 _particles[i].normal = Vector3.zero;
                 _particles[i].predictedPosition = _particles[i].position;
                 _particles[i].anisotropicTRS = Matrix4x4.identity;
+                _particles[i].phase = 0;
                 _particles[i].type = 0;
                 _ParticleIndices[i] = MaxNumOfParticles-1;
                 _ParticleCount[i] = 0;
@@ -1442,91 +1471,77 @@ public class FluidSimulationManager : MonoBehaviour
             if (request.done)
             {
                 _meshObjects = request.GetData<MeshObject>().ToArray();
+
                 for (int i = 0; i < _meshObjects.Length; i++)
                 {
-                    BoxCollider boxCollide = _rayTracedObjects[(int)_meshObjects[i].id].GetComponent<BoxCollider>();
-                    Rigidbody rb = _rayTracedObjects[(int)_meshObjects[i].id].GetComponent<Rigidbody>();
-                    UnigmaPhysicsObject uobj = _rayTracedObjects[(int)_meshObjects[i].id].GetComponent<UnigmaPhysicsObject>();
-                    if (boxCollide != null && rb != null)
-                    {
-                        Debug.Log("Gizmos is being drawn");
-                        Vector3 sizeVecs = boxCollide.size;
-
-                        Debug.Log("Size of vecs " + sizeVecs);
-                        //Get the 4 corners and center
-                        /*
-                            float3 minPoint = _MeshObjects[hit.meshIndex].AABBMin;
-                            float3 maxPoint = _MeshObjects[hit.meshIndex].AABBMax;
-
-                            float3 point0 = float3(maxPoint.x, minPoint.y, minPoint.z);
-                            float3 point1 = float3(minPoint.x, maxPoint.y, minPoint.z);
-                            float3 point2 = float3(minPoint.x, minPoint.y, maxPoint.z);
-                            float3 point3 = float3(maxPoint.x, maxPoint.y, minPoint.z);
-                            float3 point4 = float3(maxPoint.x, minPoint.y, maxPoint.z);
-                            float3 point5 = float3(minPoint.x, maxPoint.y, maxPoint.z);
-
-                            _MeshObjects[hit.meshIndex].collisionForcesHigh[0] += fluidForceKernel(fluidForce, point0, hit);
-                            _MeshObjects[hit.meshIndex].collisionForcesHigh[1] += fluidForceKernel(fluidForce, point1, hit);
-                            _MeshObjects[hit.meshIndex].collisionForcesHigh[2] += fluidForceKernel(fluidForce, point2, hit);
-                            _MeshObjects[hit.meshIndex].collisionForcesHigh[3] += fluidForceKernel(fluidForce, point3, hit);
-
-                            _MeshObjects[hit.meshIndex].collisionForcesLow[0] += fluidForceKernel(fluidForce, point4, hit);
-                            _MeshObjects[hit.meshIndex].collisionForcesLow[1] += fluidForceKernel(fluidForce, point5, hit);
-                            _MeshObjects[hit.meshIndex].collisionForcesLow[2] += fluidForceKernel(fluidForce, minPoint, hit);
-                            _MeshObjects[hit.meshIndex].collisionForcesLow[3] += fluidForceKernel(fluidForce, maxPoint, hit);
-                        */
-                        Vector3 point0 = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, -boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-                        Vector3 point1 = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-                        Vector3 point2 = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, -boxCollide.size.y, boxCollide.size.z) * 0.5f);
-                        Vector3 point3 = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-                        Vector3 point4 = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, -boxCollide.size.y, boxCollide.size.z) * 0.5f);
-                        Vector3 point5 = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, boxCollide.size.y, boxCollide.size.z) * 0.5f);
-
-                        Vector3 minPoint = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, -boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-                        Vector3 maxPoint = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, boxCollide.size.y, boxCollide.size.z) * 0.5f);
-
-                        float forceConstant = 24.5f;
-
-                        rb.AddForceAtPosition(forceConstant * _meshObjects[i].collisionForcesHigh.GetRow(0) * Time.deltaTime, point0);
-                        rb.AddForceAtPosition(forceConstant * _meshObjects[i].collisionForcesHigh.GetRow(1) * Time.deltaTime, point1);
-                        rb.AddForceAtPosition(forceConstant * _meshObjects[i].collisionForcesHigh.GetRow(2) * Time.deltaTime, point2);
-                        rb.AddForceAtPosition(forceConstant * _meshObjects[i].collisionForcesHigh.GetRow(3) * Time.deltaTime, point3);
-
-                        rb.AddForceAtPosition(forceConstant * _meshObjects[i].collisionForcesLow.GetRow(0) * Time.deltaTime, point4);
-                        rb.AddForceAtPosition(forceConstant * _meshObjects[i].collisionForcesLow.GetRow(1) * Time.deltaTime, point5);
-                        rb.AddForceAtPosition(forceConstant * _meshObjects[i].collisionForcesLow.GetRow(2) * Time.deltaTime, minPoint);
-                        rb.AddForceAtPosition(forceConstant * _meshObjects[i].collisionForcesLow.GetRow(3) * Time.deltaTime, maxPoint);
-
-                        Debug.Log("Collision force Vector0 " + _meshObjects[i].collisionForcesHigh.GetRow(0));
-                        Debug.Log("Collision force Vector1 " + _meshObjects[i].collisionForcesHigh.GetRow(1));
-                        Debug.Log("Collision force Vector2 " + _meshObjects[i].collisionForcesHigh.GetRow(2));
-                        Debug.Log("Collision force Vector3 " + _meshObjects[i].collisionForcesHigh.GetRow(3));
-                        Debug.Log("Collision force Vector4 " + _meshObjects[i].collisionForcesLow.GetRow(0));
-                        Debug.Log("Collision force Vector5 " + _meshObjects[i].collisionForcesLow.GetRow(1));
-                        Debug.Log("Collision force Vector6 " + _meshObjects[i].collisionForcesLow.GetRow(2));
-                        Debug.Log("Collision force Vector7 " + _meshObjects[i].collisionForcesLow.GetRow(3));
-                        //Debug.Log("Right top corner: " + rightTopCorner);
-
-                        if (uobj != null)
-                        {
-                            uobj.netForce += (_meshObjects[i].collisionForcesHigh.GetRow(0) +
-                                             _meshObjects[i].collisionForcesHigh.GetRow(1) +
-                                             _meshObjects[i].collisionForcesHigh.GetRow(2) +
-                                             _meshObjects[i].collisionForcesHigh.GetRow(3) +
-                                             _meshObjects[i].collisionForcesLow.GetRow(0) +
-                                             _meshObjects[i].collisionForcesLow.GetRow(1) +
-                                             _meshObjects[i].collisionForcesLow.GetRow(2) +
-                                             _meshObjects[i].collisionForcesLow.GetRow(3)) * Time.deltaTime * forceConstant;
-                        }
-
-                    }
+                    MeshObject mObj = _meshObjects[i];
+                    PushObjectsWithForce(mObj);
+                    GetAbsorbtion(mObj);
                 }
+
             }
             yield return new WaitForSeconds(0.05f);
         }
 
         //Set data back on GPU.
         //_meshObjectBuffer.SetData(_meshObjects);
+    }
+
+    void GetAbsorbtion(MeshObject meshObject)
+    {
+        UnigmaHelpers.PrintOutMatrix(meshObject.absorbtionMatrix);
+    }
+
+    void PushObjectsWithForce(MeshObject meshObject)
+    {
+        BoxCollider boxCollide = _rayTracedObjects[(int)meshObject.id].GetComponent<BoxCollider>();
+        Rigidbody rb = _rayTracedObjects[(int)meshObject.id].GetComponent<Rigidbody>();
+        UnigmaPhysicsObject uobj = _rayTracedObjects[(int)meshObject.id].GetComponent<UnigmaPhysicsObject>();
+        if (boxCollide != null && rb != null)
+        {
+            Debug.Log("Gizmos is being drawn");
+            Vector3 sizeVecs = boxCollide.size;
+
+            Debug.Log("Size of vecs " + sizeVecs);
+            //Get the 4 corners and center
+
+            Vector3 point0 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, -boxCollide.size.y, -boxCollide.size.z) * 0.5f);
+            Vector3 point1 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, boxCollide.size.y, -boxCollide.size.z) * 0.5f);
+            Vector3 point2 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, -boxCollide.size.y, boxCollide.size.z) * 0.5f);
+            Vector3 point3 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, boxCollide.size.y, -boxCollide.size.z) * 0.5f);
+            Vector3 point4 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, -boxCollide.size.y, boxCollide.size.z) * 0.5f);
+            Vector3 point5 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, boxCollide.size.y, boxCollide.size.z) * 0.5f);
+
+            Vector3 minPoint = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, -boxCollide.size.y, -boxCollide.size.z) * 0.5f);
+            Vector3 maxPoint = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, boxCollide.size.y, boxCollide.size.z) * 0.5f);
+
+            float forceConstant = 24.5f;
+
+            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesHigh.GetRow(0) * Time.deltaTime, point0);
+            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesHigh.GetRow(1) * Time.deltaTime, point1);
+            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesHigh.GetRow(2) * Time.deltaTime, point2);
+            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesHigh.GetRow(3) * Time.deltaTime, point3);
+
+            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesLow.GetRow(0) * Time.deltaTime, point4);
+            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesLow.GetRow(1) * Time.deltaTime, point5);
+            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesLow.GetRow(2) * Time.deltaTime, minPoint);
+            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesLow.GetRow(3) * Time.deltaTime, maxPoint);
+
+            //Debug.Log("Right top corner: " + rightTopCorner);
+
+            if (uobj != null)
+            {
+                uobj.netForce += (meshObject.collisionForcesHigh.GetRow(0) +
+                                 meshObject.collisionForcesHigh.GetRow(1) +
+                                 meshObject.collisionForcesHigh.GetRow(2) +
+                                 meshObject.collisionForcesHigh.GetRow(3) +
+                                 meshObject.collisionForcesLow.GetRow(0) +
+                                 meshObject.collisionForcesLow.GetRow(1) +
+                                 meshObject.collisionForcesLow.GetRow(2) +
+                                 meshObject.collisionForcesLow.GetRow(3)) * Time.deltaTime * forceConstant;
+            }
+
+        }
     }
 
     void ComputeForces()

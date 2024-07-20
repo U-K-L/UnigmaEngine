@@ -30,4 +30,11 @@ public static class UnigmaHelpers{
         }
         Debug.Log(matrix);
     }
+
+    public static void PrintOutMatrix(Matrix4x4 mat)
+    {
+        string matS = $"{mat.m00}, {mat.m01}, {mat.m02}, {mat.m03}" + "\n" + $"{mat.m00}, {mat.m01}, {mat.m02}, {mat.m03}" + "\n" + $"{mat.m20}, {mat.m21}, {mat.m22}, {mat.m23}" + "\n" + $"{mat.m30}, {mat.m31}, {mat.m32}, {mat.m33}";
+
+        Debug.Log(matS);
+    }
 }

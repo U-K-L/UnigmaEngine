@@ -41,6 +41,7 @@ Shader "Hidden/FluidComposition"
         _SurfaceNoise("Surface Noise", 2D) = "white" {}
         _SurfaceNoiseCutoff("Surface Noise Cutoff", Range(0, 1)) = 0.777
         _SurfaceNoiseScroll("Surface Noise Scroll Amount", Vector) = (0.03, 0.03, 0, 0)
+        _AirVisibility("Air visibility", Range(0, 1)) = 0
 
     }
     SubShader
@@ -92,6 +93,7 @@ Shader "Hidden/FluidComposition"
             float _SurfaceNoiseCutoff;
             float4 _SurfaceNoiseScroll;
             float4 _FoamIntensity;
+            float _AirVisibility;
 
             fixed4 triplanar(float3 blendNormal, float4 texturex, float4 texturey, float4 texturez)
             {
@@ -367,12 +369,19 @@ Shader "Hidden/FluidComposition"
                 float4 surfaceNoise = smoothstep(_SurfaceNoiseCutoff, _SurfaceNoiseCutoff + 0.1, surfaceNoiseSample)* 1.0 * (noiseMask < randomVal);//surfaceNoiseSample > _SurfaceNoiseCutoff ? _SparkleFoamColor* noiseMask : 0;
                 float surfaceNoiseEmit = pow(NdotH+ NdotH, 1.5)*25 * fluidsDepth.y * tex2D(_SurfaceNoise, float2(worldPos.x * 10, worldPos.z *5)).r*10* step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y) * surfaceNoise;
 
+                if(curlMap.w == 1)
+                    waterColor = float4(0.8, 0.96, 1, 1);
+
+                if(curlMap.w == 3)
+                    waterColor = float4(0.75, 0.75, 0.75, 1);
 
                 float4 waterSpecular =  waterColor + diffuse;
 
                 float atteunuationDensity = min(0.0155,saturate(_DensityThickness * densityMap.z) * (exp(densityMap.z * 75 * fluidsDepth.z) - 1.0));
 
                 fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor * fluidsDepth.w, atteunuationDensity + 0.15);
+
+
 
 
                 //return densityMap;
@@ -384,6 +393,9 @@ Shader "Hidden/FluidComposition"
                 //return cleanFluidSingleColor;
 
                 float surface = smoothstep(0.05, 0.155, fluidsDepth.y);
+
+                
+
                 float4 fluidColorFinal = 0.52*cleanFluidSingleColor + fluids.w * waterSpecular * 0.3171575;
 
 
@@ -399,6 +411,8 @@ Shader "Hidden/FluidComposition"
                 float4 colorLerping = lerp(colorSurfaceFluid* waterColor, causaticLerp * step(0.00001, fluidsDepth.w), 0.0465 * step(0.00001, fluids.w) * step(0.0000001, fluidsDepth.y));
 
                 float4 finalColorWater = colorSurfaceFluid* waterColor;
+
+                float4 fluidColorFinalNoLight =  0.7*((0.52*cleanFluidSingleColor + fluids.w) + edge + colorFieldLerp * 0.0935 + surface * 0.0756) * waterColor;
                 //return causticsTex;
                 //_CausticIntensity
                 //return colorSurfaceFluid;
@@ -409,6 +423,9 @@ Shader "Hidden/FluidComposition"
                 colorLerping += 0.0910875*smoothstep(0.9, 0.95, length(causticsTexMap.xyz) / sqrt(3)) + causticsTexMap*0.0571;
 
                 float4 occulusion = lerp(colorLerping, originalImage, step(fluidsSceneDepth, unigmaDepth.r));
+
+                if(particleNormalMap.w == 1)
+                    return lerp(distortedOriginalImage, fluidColorFinalNoLight, _AirVisibility);
                 //return curlMap;
                 return occulusion;
             }

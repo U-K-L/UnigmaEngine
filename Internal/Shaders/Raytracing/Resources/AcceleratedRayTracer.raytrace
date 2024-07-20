@@ -185,10 +185,10 @@ void MyRaygenShader()
         Particle particle = _Particles[particleId];
         float3 freeSurface = 1;
         freeSurface = particle.density/ 28.0f;
-        _ColorFieldNormalMap[id.xy] = float4(particle.normal, 1);
+        _ColorFieldNormalMap[id.xy] = float4(particle.normal, particle.phase+1);
         _SurfaceMap[id.xy] = float4(freeSurface, 1);
 		_VelocityMap[id.xy] = float4(particle.velocity, length(particle.velocity) + length(_Particles[particleId].curl) * 0.055);
-        _CurlMap[id.xy] = float4(_Particles[particleId].curl, 1);
+        _CurlMap[id.xy] = float4(_Particles[particleId].curl, particle.type+1);
         _RayTracedImage[id.xy] = float4(position, depth);
         //depth = 1;
     }

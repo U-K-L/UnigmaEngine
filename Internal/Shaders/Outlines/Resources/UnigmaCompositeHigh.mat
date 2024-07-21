@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: UnigmaComposite
+  m_Name: UnigmaCompositeHigh
   m_Shader: {fileID: 4800000, guid: 93c19d9905771d446ba0f4664ec79a47, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0

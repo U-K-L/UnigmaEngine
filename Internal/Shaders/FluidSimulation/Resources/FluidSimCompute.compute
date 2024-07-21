@@ -1347,7 +1347,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     
     float4 constantForces = float4(GetForces(_Particles[id.x].phase).xyz, 0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    float4 forces = _Particles[id.x].force + constantForces * _Particles[id.x].phase;
+    float4 forces = _Particles[id.x].force + constantForces;
     float3 vel = _Particles[id.x].velocity;
     vel += forces.xyz * _TimeStep;
     _Particles[id.x].force = forces;

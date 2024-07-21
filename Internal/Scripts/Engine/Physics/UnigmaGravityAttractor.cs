@@ -35,7 +35,7 @@ public class UnigmaGravityAttractor : MonoBehaviour
     {
         for (int i = 0; i < SpaceTimeVectorField.VectorField.Length; i++)
         {
-            SpaceTimeVectorField.VectorField[i].direction += Vector3.Normalize(direction) * strength;
+            SpaceTimeVectorField.VectorField[i].force += Vector3.Normalize(direction) * strength;
         }
     }
 
@@ -47,7 +47,7 @@ public class UnigmaGravityAttractor : MonoBehaviour
             float distance = 1.0f / Mathf.Pow(Vector3.Distance(SpaceTimeVectorField.VectorField[i].position, transform.position), 2);
             Vector3 toObjDir = Vector3.Normalize(transform.position - SpaceTimeVectorField.VectorField[i].position);
 
-            SpaceTimeVectorField.VectorField[i].direction += toObjDir * strength * Mathf.Min(distance, strength*20);
+            SpaceTimeVectorField.VectorField[i].force += toObjDir * strength * Mathf.Min(distance, strength*20);
 
         }
     }

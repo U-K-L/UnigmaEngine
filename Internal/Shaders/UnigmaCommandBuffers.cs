@@ -7,6 +7,7 @@ using UnityEngine.Rendering;
 
 public class UnigmaCommandBuffers : MonoBehaviour
 {
+
     private GraphicalOcculusion _graphicalOcculusion;
     private int buffersAdded = 0;
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
@@ -193,6 +194,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        UnigmaSettings.Initialize();
         _rayTracedObjects = new List<Renderer>();
         _graphicalOcculusion = gameObject.AddComponent<GraphicalOcculusion>();
         _unigmaBackgroundMaterial = Resources.Load<Material>("UnigmaBackgroundMaterial");
@@ -1159,11 +1161,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
         Material compositeMaterial = null;
         if (UnigmaSettings.GetIsRTXEnabled())
         {
-            compositeMaterial = Resources.Load<Material>("UnigmaCompositeRayTrace");
+            compositeMaterial = Resources.Load<Material>("UnigmaCompositeRayTrace" + UnigmaSettings.CurrentPreset());
         }
         else
         {
-            compositeMaterial = Resources.Load<Material>("UnigmaComposite");
+            compositeMaterial = Resources.Load<Material>("UnigmaComposite" + UnigmaSettings.CurrentPreset());
         }
 
         compositeBuffer.SetGlobalTexture("_UnigmaComposite", _UnigmaComposite);

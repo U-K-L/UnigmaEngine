@@ -76,7 +76,7 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
                 if (minDist > distance && maxDist > distance)
                 {
-                    finalforce = vp.direction;
+                    finalforce = vp.force;
                     minDist = distance;
                 }
 
@@ -114,7 +114,7 @@ public class UnigmaPhysicsObject : MonoBehaviour
             rigidbody.isKinematic = true;
             rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         }
-        if (SpaceTimeVectorField == null)
+        if (SpaceTimeVectorField != null)
         {
             GameObject obj = GameObject.FindGameObjectWithTag("GameManager");
             if (obj != null)

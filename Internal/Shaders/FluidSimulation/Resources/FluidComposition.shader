@@ -145,6 +145,11 @@ Shader "Hidden/FluidComposition"
                 //return fluidsDepth;
                 //return lerp(fluids.w, unigmaDepth.z, step(fluids.w, unigmaDepth.z))*10;
                 //return densityMap;
+                float heatMapIntensity = fluidsDepth.x;
+                //heatMapIntensity *= 0.0251;
+                heatMapIntensity = min(heatMapIntensity, 1);
+
+
                 float fluidsSceneDepth = fluids.w;
                 fluids.w = (1.0 - fluids.w) * step(0, fluids.w);
                 fixed4 underWaterTex = tex2D(_UnderWaterTexture, distortionGrabPass * 2);
@@ -207,6 +212,7 @@ Shader "Hidden/FluidComposition"
                 //causticsTex *= _CausticIntensity * _CausticColor;
 
                 //return causticsTex;
+
 
                 //Triplanar
 //------------------------------------------------------------
@@ -365,10 +371,12 @@ Shader "Hidden/FluidComposition"
                 float noise = tex2D(_SurfaceNoise, noiseUV.xy).r;
                 float surfaceNoiseSample2 = snoise(worldPos * _FoamIntensity.x + noiseUV);
                 float surfaceNoiseSample = (snoise(worldPos * _FoamIntensity.y + noiseUV) - surfaceNoiseSample2);//snoise(i.worldPos * 7 + noiseUV);//_TextureInfluence.w * ((snoise(i.worldPos * 7 + noiseUV) * _TextureInfluence.x) - ((noise / 2.0) * _TextureInfluence.y) + (surfaceNoiseSample2 * _TextureInfluence.z));
-				float noiseMask = noise > _SurfaceNoiseCutoff ? 1 : 0;
-                float4 surfaceNoise = smoothstep(_SurfaceNoiseCutoff, _SurfaceNoiseCutoff + 0.1, surfaceNoiseSample)* 1.0 * (noiseMask < randomVal);//surfaceNoiseSample > _SurfaceNoiseCutoff ? _SparkleFoamColor* noiseMask : 0;
-                float surfaceNoiseEmit = pow(NdotH+ NdotH, 1.5)*25 * fluidsDepth.y * tex2D(_SurfaceNoise, float2(worldPos.x * 10, worldPos.z *5)).r*10* step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y) * surfaceNoise;
 
+				float noiseMask = noise > _SurfaceNoiseCutoff ? 1 : 0;
+                float4 surfaceNoise = smoothstep(_SurfaceNoiseCutoff, _SurfaceNoiseCutoff + 0.1, surfaceNoiseSample);//surfaceNoiseSample > _SurfaceNoiseCutoff ? _SparkleFoamColor* noiseMask : 0;
+                //float surfaceNoiseEmit = pow(NdotH+ NdotH, 1.5)*25 * fluidsDepth.y * tex2D(_SurfaceNoise, float2(worldPos.x * 10, worldPos.z *5)).r*10* step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y) * surfaceNoise;
+
+                float noiseHeatMap = length(worldPos)*100 * step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y);
                 if(curlMap.w == 1)
                     waterColor = float4(0.8, 0.96, 1, 1);
 
@@ -383,7 +391,7 @@ Shader "Hidden/FluidComposition"
 
 
 
-
+                float heatMapSmoothed = pow(smoothstep(0.35, 1, heatMapIntensity), 0.5);
                 //return densityMap;
                 //return fluids.w;
                 //return atteunuationDensity;
@@ -401,7 +409,7 @@ Shader "Hidden/FluidComposition"
 
                 float4 colorField = float4((particleNormalMap.xyz * 0.5 + 0.5) * fluidsDepth.w, fluidsDepth.w);
                 float4 colorFieldLerp = lerp(distortedOriginalImage * fluidsDepth.w, colorField, atteunuationDensity + 0.35);
-                float4 colorSurfaceFluid = fluidColorFinal + edge + colorFieldLerp * 0.0935 + surface * 0.0756;
+                float4 colorSurfaceFluid = 0.0*heatMapIntensity + fluidColorFinal + edge + colorFieldLerp * 0.0935 + surface * 0.0756;
 
 
                 float4 causaticLerpTop = lerp(distortedOriginalImage, causticsTex * fluids.w * step(0.0000001, fluidsDepth.y), 0.55);
@@ -418,11 +426,21 @@ Shader "Hidden/FluidComposition"
                 //return colorSurfaceFluid;
                 float whiteCausatic = smoothstep(0.9, 0.95, length(causticsTex.xyz) / sqrt(3));
                 //return whiteCausatic;
+                //heatMapSmoothed *= abs(surfaceNoiseSample);
+                //heatMapSmoothed = lerp(heatMapSmoothed,1, max(0, min(1, noiseHeatMap)));
+
+                if(heatMapSmoothed <= 0.5 && heatMapSmoothed > 0.01)
+                    heatMapSmoothed = 0.15;
+                if(heatMapSmoothed > 0.5 && heatMapSmoothed < 0.95)
+                    heatMapSmoothed = 0.35;
+                if(heatMapSmoothed > 0.95)
+                    heatMapSmoothed = 1;
+
                 colorLerping = lerp(finalColorWater, finalColorWater + causticsTex*0.1075  + whiteCausatic*0.2182, smoothstep(0.01, 0.6925, fluidsNormal.y));
 
                 colorLerping += 0.0910875*smoothstep(0.9, 0.95, length(causticsTexMap.xyz) / sqrt(3)) + causticsTexMap*0.0571;
 
-                float4 occulusion = lerp(colorLerping, originalImage, step(fluidsSceneDepth, unigmaDepth.r));
+                float4 occulusion = lerp( lerp(colorLerping, colorLerping + heatMapSmoothed, causticsTexMap.r), originalImage, step(fluidsSceneDepth, unigmaDepth.r));
 
                 if(particleNormalMap.w == 1)
                     return lerp(distortedOriginalImage, fluidColorFinalNoLight, _AirVisibility);

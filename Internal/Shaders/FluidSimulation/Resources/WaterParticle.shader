@@ -65,9 +65,14 @@ Shader "Unlit/WaterParticle"
 
                 float3 position = _Particles[v.instanceID].position;
                 
-                unity_ObjectToWorld = 0.0;
-                unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
-                unity_ObjectToWorld._m00_m11_m22 = 1.220875;
+                float4x4 unityObjectMatrix = unity_ObjectToWorld;
+
+                unityObjectMatrix = 0.0;
+                unityObjectMatrix._m03_m13_m23_m33 = float4(position, 1.0);
+                unityObjectMatrix._m00_m11_m22 = GetSize(_Particles[v.instanceID].phase);
+               // unity_ObjectToWorld = 0.0;
+                //unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
+                //unity_ObjectToWorld._m00_m11_m22 = 1.220875;
 
                 /*
                 // check if the current projection is orthographic or not from the current projection matrix
@@ -149,7 +154,7 @@ Shader "Unlit/WaterParticle"
                 float3 worldSpacePivotToView = worldSpaceViewerPos - worldSpacePivotPos;
 
                 // calculate world space view ray direction and origin for perspective or orthographic
-                float3 worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
+                float3 worldPos = mul(unityObjectMatrix, float4(v.vertex.xyz, 1)).xyz;
 
                 float3 worldSpaceRayOrigin = worldSpaceViewerPos;
                 float3 worldSpaceRayDir = worldPos - worldSpaceRayOrigin;
@@ -258,18 +263,23 @@ Shader "Unlit/WaterParticle"
 
                 float3 position = _Particles[v.instanceID].position;
 
-                unity_ObjectToWorld = 0.0;
-                unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
-                unity_ObjectToWorld._m00_m11_m22 = 0.220875;
+                float4x4 unityObjectMatrix = unity_ObjectToWorld;
+
+                unityObjectMatrix = 0.0;
+                unityObjectMatrix._m03_m13_m23_m33 = float4(position, 1.0);
+                unityObjectMatrix._m00_m11_m22 = GetSize(_Particles[v.instanceID].phase);
+                //unity_ObjectToWorld = 0.0;
+                //unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
+                //unity_ObjectToWorld._m00_m11_m22 = 0.220875;
 
                 float4 vert = UnityObjectToClipPos(v.vertex);
                 float4 uvs = ComputeScreenPos(vert);
                 uvs.xy /= uvs.w;
                 o.uv = uvs.xy;
-                float3 worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
+                float3 worldPos = mul(unityObjectMatrix, float4(v.vertex.xyz, 1)).xyz;
                 o.vertex = mul(UNITY_MATRIX_VP, float4(worldPos, 1));
                 //o.vertex = UnityObjectToClipPos(v.vertex);
-                //o.vertex = mul(unity_ObjectToWorld, v.vertex);
+                //o.vertex = vert;
                 o.instanceID = v.instanceID;
 
                 return o;
@@ -308,6 +318,7 @@ Shader "Unlit/WaterParticle"
                 float4 velocitySurfaceDensityDepth = float4(GRT0.x, GRT0.y, density, GRT0.w);
                 GRT0 = velocitySurfaceDensityDepth;
                 GRT1 = density * 4;
+
             }
             ENDCG
         }

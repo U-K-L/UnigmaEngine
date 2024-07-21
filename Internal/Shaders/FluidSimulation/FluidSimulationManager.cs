@@ -133,7 +133,7 @@ public class FluidSimulationManager : MonoBehaviour
     public Color DeepWaterColor = Color.white;
     public Color ShallowWaterColor = Color.white;
 
-    public int ResolutionDivider = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
+    private int ResolutionDivider = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
     public int DistanceResolutionDivider = 0;
     public int NumOfParticles;
     public int NumOfControlParticles;
@@ -345,6 +345,13 @@ public class FluidSimulationManager : MonoBehaviour
 
         Instance = this;
 
+        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.High)
+            ResolutionDivider = 4;
+        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.Mid)
+            ResolutionDivider = 2;
+        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.Low)
+            ResolutionDivider = 1;
+
         fluidControlledObjects = new Dictionary<string, FluidControl>();
         //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
@@ -493,7 +500,7 @@ public class FluidSimulationManager : MonoBehaviour
         UpdateNonAcceleratedRayTracer();
         rasterMaterial.SetBuffer("_Particles", _particleBuffer);
 
-        StartCoroutine(ReactToForces());
+        //StartCoroutine(ReactToForces());
     }
 
     void CreateAcceleratedStructure()
@@ -1817,11 +1824,11 @@ public class FluidSimulationManager : MonoBehaviour
 
         if (_renderMethod == RenderMethod.Rasterization)
         {
-            //fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _rtTarget.depthBuffer);
-            //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
+            fluidCommandBuffers.SetRenderTarget(rtGBuffersID, _rtTarget.depthBuffer);
+            fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
             fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 0, MaxNumOfParticles);
             fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 1, MaxNumOfParticles);
-            fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 2, MaxNumOfParticles);
+            //fluidCommandBuffers.DrawMeshInstancedProcedural(rasterMesh, 0, rasterMaterial, 2, MaxNumOfParticles);
         }
 
         if (_renderMethod == RenderMethod.RayTracingAccelerated)
@@ -1846,6 +1853,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         }
 
+        //Blur.
         fluidCommandBuffers.Blit(_velocitySurfaceDensityDepthTexture, _tempTarget, _fluidSimMaterialDepthHori);
         fluidCommandBuffers.Blit(_tempTarget, _velocitySurfaceDensityDepthTexture, _fluidSimMaterialDepthVert);
 

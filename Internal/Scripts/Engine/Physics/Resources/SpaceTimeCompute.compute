@@ -1,22 +1,151 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel ResetVectorField
-
+#pragma kernel HashVectors
+#pragma kernel BitonicSort
+#pragma kernel CalculateCellOffsets;
+#pragma kernel AttractionField;
 
 struct SpaceTimePoint
 {
+    float3 index;
     float3 position;
-    float3 direction;
-    float3 previousDirection;
     float3 force;
     float kelvin;
 };
 
-RWStructuredBuffer<SpaceTimePoint> _VectorField;
+struct UnigmaPhysicsPoints
+{
+    float3 position;
+};
 
-[numthreads(256,1,1)]
+int _NumOfVectors;
+int _NumOfPhysicsPoints;
+float3 _BoxSize;
+int _Resolution;
+
+int biBlock;
+int biDim;
+
+RWStructuredBuffer<SpaceTimePoint> _VectorField;
+RWStructuredBuffer<UnigmaPhysicsPoints> _UnigmaPhysicsPoints;
+
+RWStructuredBuffer<int> _VectorIndices;
+RWStructuredBuffer<int> _VectorCellIndices;
+RWStructuredBuffer<int> _VectorCellOffsets;
+
+
+int3 GetCellVectorField(float3 position)
+{
+    return int3(floor(position.x), floor(position.y), floor(position.z));
+}
+
+inline uint HashCellVectorField(in int3 cellIndex)
+{
+    const uint p1 = 73856093;
+    const uint p2 = 19349663;
+    const uint p3 = 83492791;
+    
+    uint n = p1 * cellIndex.x ^ p2 * cellIndex.y ^ p3 * cellIndex.z;
+    n %= _NumOfVectors;
+    return n;
+}
+
+[numthreads(256, 1, 1)]
+void HashVectors(uint3 id : SV_DispatchThreadID)
+{
+    //_Particles[id.x].debugVector = 0.25;
+    _VectorCellOffsets[id.x] = 99999999;
+    _VectorCellIndices[id.x] = _NumOfVectors - 1;
+    _VectorIndices[id.x] = id.x;
+    
+    uint vectorIndex = _VectorIndices[id.x];
+    
+    if (id.x < _NumOfVectors)
+    {
+        int3 cell = GetCellVectorField(_VectorField[vectorIndex].index);
+        _VectorCellIndices[vectorIndex] = HashCellVectorField(cell);
+
+    }
+}
+
+[numthreads(256, 1, 1)]
+void BitonicSort(uint3 id : SV_DispatchThreadID)
+{
+
+    if (id.x >= _NumOfVectors)
+    {
+        return;
+    }
+
+    uint index = _VectorCellIndices[id.x];
+    uint i = id.x + id.y * 256 * 1024;
+    uint j = i ^ biBlock;
+
+    if (j < i || i >= _NumOfVectors)
+        return;
+
+    uint key_i = _VectorIndices[i];
+    uint key_j = _VectorIndices[j];
+    float value_i = _VectorCellIndices[key_i];
+    float value_j = _VectorCellIndices[key_j];
+
+    float diff = (value_i - value_j) * ((i & biDim) == 0 ? 1 : -1);
+    if (diff > 0)
+    {
+        _VectorIndices[i] = key_j;
+        _VectorIndices[j] = key_i;
+    }
+
+}
+
+[numthreads(256, 1, 1)]
+void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _NumOfVectors)
+    {
+        return;
+    }
+    
+    uint particleIndex = _VectorIndices[id.x];
+    uint cellIndex = _VectorCellIndices[particleIndex];
+
+	//Sets this value at the index cellIndex. However it waits for all threads and ensures this is the minimum value at that index.
+    InterlockedMin(_VectorCellOffsets[cellIndex], id.x);
+}
+
+
+
+[numthreads(256, 1, 1)]
 void ResetVectorField(uint3 id : SV_DispatchThreadID)
 {
-    _VectorField[id.x].previousDirection = _VectorField[id.x].direction;
-    _VectorField[id.x].direction = float3(0, -9.8f, 0);
+    
+    int3 cell = GetCellVectorField(_VectorField[id.x].index);
+    
+    int vectorIndex = HashCellVectorField(cell);
+    
+    //_VectorField[vectorIndex].previousDirection = _VectorField[vectorIndex].direction;
+    _VectorField[vectorIndex].force = float3(0, -9.8f, 0);
+
+}
+
+[numthreads(256, 1, 1)]
+void AttractionField(uint3 id : SV_DispatchThreadID)
+{
+    
+    int3 cell = GetCellVectorField(_VectorField[id.x].index);
+    
+    int vectorIndex = HashCellVectorField(cell);
+    
+    //_VectorField[vectorIndex].force = float3(4, -9.8f, 0);
+    
+    for (int i = 0; i < _NumOfPhysicsPoints; i++)
+    {
+
+        float dist = 1.0f / pow(distance(_UnigmaPhysicsPoints[i].position, _VectorField[vectorIndex].position), 2);
+        float3 toObjDir = normalize(_UnigmaPhysicsPoints[i].position - _VectorField[vectorIndex].position);
+
+        _VectorField[vectorIndex].force += toObjDir * 1.0f * min(dist, 1.0f * 20);
+
+    }
 
 }

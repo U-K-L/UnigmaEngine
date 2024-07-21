@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: UnigmaCompositeRayTrace
+  m_Name: UnigmaCompositeRayTraceLow
   m_Shader: {fileID: 4800000, guid: e682c26825169914387a0daf5373cf43, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -42,10 +42,10 @@ Material:
     - _NormalThreshold: 0.39
     - _PosThreshold: 0
     - _Scale: 2.4
-    - _ScaleInner: 2
+    - _ScaleInner: 0.25
     - _ScaleOuter: 0
     - _ScaleShadow: 1.6
-    - _ScaleWhiteOutline: 20
+    - _ScaleWhiteOutline: 10
     m_Colors:
     - _GlobalIlluminationWeights: {r: 0.9, g: 0.9, b: 0.21, a: 0.56}
     - _InnerLines: {r: 0.1273585, g: 0.7536071, b: 1, a: 1}

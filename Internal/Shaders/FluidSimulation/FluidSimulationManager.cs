@@ -352,6 +352,17 @@ public class FluidSimulationManager : MonoBehaviour
         if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.Low)
             ResolutionDivider = 1;
 
+        if (UnigmaSettings.GetIsRTXEnabled())
+            _renderMethod = RenderMethod.RayTracingAccelerated;
+        else
+            _renderMethod = RenderMethod.Rasterization;
+
+
+        if (_renderMethod == RenderMethod.Rasterization)
+            _fluidSimMaterialComposite.shader = Resources.Load<Shader>("FluidCompositionRaster");
+        else
+            _fluidSimMaterialComposite.shader = Resources.Load<Shader>("FluidComposition");
+
         fluidControlledObjects = new Dictionary<string, FluidControl>();
         //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;

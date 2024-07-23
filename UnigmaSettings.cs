@@ -6,8 +6,8 @@ using UnityEngine;
 
 public static class UnigmaSettings
 {
-    private static bool RTXEnabled = true; //User choice.
-    private static bool RayTracingOn = true; //User choice.
+    private static bool RTXEnabled = false; //User choice.
+    private static bool RayTracingOn = false; //User choice.
 
     public enum QualityPreset
     {
@@ -17,6 +17,20 @@ public static class UnigmaSettings
     }
 
     public static QualityPreset QualityPresets;
+
+    public static bool SetRaytracing()
+    {
+        if (SystemInfo.supportsRayTracing)
+        {
+            RTXEnabled = true;
+            RayTracingOn = true;
+            return true;
+
+        }
+        RayTracingOn = true;
+        return false;
+    }
+
 
     public static bool GetIsRTXEnabled()
     {

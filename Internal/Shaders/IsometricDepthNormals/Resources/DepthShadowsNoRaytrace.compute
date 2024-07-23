@@ -31,5 +31,5 @@ void CalculateShadowDepth(uint3 id : SV_DispatchThreadID)
     }
 
     
-    _UnigmaDepthShadowsMap2[id.xy] = float4(camDepth*0.25, step(0.999, 1 - _UnigmaScreenSpaceShadowsMap2[id.xy].y), step(0.999, 1 - _UnigmaScreenSpaceShadowsMap2[id.xy].z), 1);
+    _UnigmaDepthShadowsMap2[id.xy] = float4(camDepth * _UnigmaMotionID2[id.xy].w, step(0.999, 1 - _UnigmaScreenSpaceShadowsMap2[id.xy].y), step(0.999, 1 - _UnigmaScreenSpaceShadowsMap2[id.xy].z), 1);
 }

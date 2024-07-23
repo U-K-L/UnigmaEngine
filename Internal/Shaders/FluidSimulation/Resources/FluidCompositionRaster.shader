@@ -1,6 +1,6 @@
 // Upgrade NOTE: replaced '_CameraToWorld' with 'unity_CameraToWorld'
 
-Shader "Hidden/FluidComposition"
+Shader "Hidden/FluidCompositionRaster"
 {
     Properties
     {
@@ -147,12 +147,14 @@ Shader "Hidden/FluidComposition"
                 heatMapIntensity = min(heatMapIntensity, 1);
 
 
-                float fluidsSceneDepth = fluids.w;
-                fluids.w = (1.0 - fluids.w) * step(0, fluids.w);
+                float fluidsSceneDepth = fluidsDepth.w;
+                fluidsDepth.w = (fluidsDepth.w) * step(0, fluidsDepth.w) * 0.00255;
 
+                fluidsDepth.w = fluidsDepth.w * step(0.09, fluidsDepth.w);
                 //return 1;
                 float3 fluidNormalsAvg = fluidsNormal;
-
+                
+                //return fluidsDepth.w;
                 //Triplanar Fluid Surfaces.
 //------------------------------------------------------------
 
@@ -359,11 +361,11 @@ Shader "Hidden/FluidComposition"
                 fresnel = pow(fresnel, _FresnelPower);
                 diffuse += fresnel;
 
-                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, 13.95 * densityMap);
-                float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
+                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, 13.95 * 0.25);
+                float waterDepthDifference = saturate((1.0 - frac(fluidsDepth.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
-                waterColor = lerp(waterColor, waterDeepness, 1.0 - (densityMap));
-                waterColor = lerp(waterColor, _DeepestWaterColor, 1.0 - smoothstep(0.785, 0.05, densityMap));
+                waterColor = lerp(waterColor, waterDeepness, 1.0 - (0.25));
+                //waterColor = lerp(waterColor, _DeepestWaterColor, 1.0 - smoothstep(0.785, 0.05, 0.25));
 
 
 
@@ -385,13 +387,12 @@ Shader "Hidden/FluidComposition"
                 //float surfaceNoiseEmit = pow(NdotH+ NdotH, 1.5)*25 * fluidsDepth.y * tex2D(_SurfaceNoise, float2(worldPos.x * 10, worldPos.z *5)).r*10* step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y) * surfaceNoise;
 
                 float noiseHeatMap = length(worldPos)*100 * step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y);
-                /*
                 if(curlMap.w == 1)
                     waterColor = float4(0.8, 0.96, 1, 1);
 
                 if(curlMap.w == 3)
                     waterColor = float4(0.75, 0.75, 0.75, 1);
-                */
+
                 float4 waterSpecular =  waterColor + diffuse;
 
                 float atteunuationDensity = min(0.0155,saturate(_DensityThickness * densityMap.z) * (exp(densityMap.z * 75 * fluidsDepth.z) - 1.0));
@@ -407,18 +408,17 @@ Shader "Hidden/FluidComposition"
 
                 cleanFluidSingleColor = lerp(originalImage, cleanFluidSingleColor, step(0.01, fluidsDepth.w));
 
-                //return cleanFluidSingleColor;
+
 
                 float surface = smoothstep(0.05, 0.155, fluidsDepth.y);
 
                 
 
-                float4 fluidColorFinal = 0.52*cleanFluidSingleColor + fluids.w * waterSpecular * 0.3171575;
-
+                float4 fluidColorFinal = 0.52*cleanFluidSingleColor + fluidsDepth.w * waterSpecular * 0.3171575;
 
                 float4 colorField = float4((particleNormalMap.xyz * 0.5 + 0.5) * fluidsDepth.w, fluidsDepth.w);
                 float4 colorFieldLerp = lerp(distortedOriginalImage * fluidsDepth.w, colorField, atteunuationDensity + 0.35);
-                float4 colorSurfaceFluid = 0.1715*heatMapIntensity + fluidColorFinal + edge + colorFieldLerp * 0.0935 + surface * 0.0756;
+                float4 colorSurfaceFluid = 0.1715*heatMapIntensity + fluidColorFinal + colorFieldLerp * 0.0935 + surface * 0.0756;
 
 
                 float4 causaticLerpTop = lerp(distortedOriginalImage, causticsTex * fluids.w * step(0.0000001, fluidsDepth.y), 0.55);
@@ -429,10 +429,9 @@ Shader "Hidden/FluidComposition"
 
                 float4 finalColorWater = colorSurfaceFluid* waterColor;
 
-                float4 fluidColorFinalNoLight =  0.7*((0.52*cleanFluidSingleColor + fluids.w) + edge + colorFieldLerp * 0.0935 + surface * 0.0756) * waterColor;
+                float4 fluidColorFinalNoLight =  0.7*((0.52*cleanFluidSingleColor + fluidsDepth.w) + edge + colorFieldLerp * 0.0935 + surface * 0.0756) * waterColor;
                 //return causticsTex;
                 //_CausticIntensity
-                //return colorSurfaceFluid;
                 float whiteCausatic = smoothstep(0.9, 0.95, length(causticsTex.xyz) / sqrt(3));
                 //heatMapSmoothed *= abs(surfaceNoiseSample);
                 //heatMapSmoothed = lerp(heatMapSmoothed,1, max(0, min(1, noiseHeatMap)));
@@ -445,18 +444,18 @@ Shader "Hidden/FluidComposition"
                     heatMapSmoothed = 1;
 
                 colorLerping = lerp(finalColorWater, finalColorWater + causticsTex*0.1075  + whiteCausatic*0.02182, smoothstep(0.01, 0.6925, fluidsNormal.y));
-
+                
                 colorLerping += 0.0910875*smoothstep(0.9, 0.95, length(causticsTexMap.xyz) / sqrt(3)) + causticsTexMap*0.0571;
 
-                //return causticsTex;
 
-                float4 occulusion = lerp( lerp(colorLerping, colorLerping + (heatMapSmoothed)*smoothstep(0.001, 0.6925, fluidsNormal.y), min(1, 0.25 + causticsTexMap.r + smoothstep(0.5, 0.626, causticsTex.r + heatMapSmoothed*0.1))), originalImage, step(fluidsSceneDepth, unigmaDepth.r));
+                float4 occulusion = lerp(originalImage, colorLerping, step(0.001, fluidsDepth.w));
 
-                //return fluidsDepth.z;
-                //if(particleNormalMap.w == 1)
-                    return lerp(originalImage, _ShallowWaterColor, fluidsDepth.z);
-                //return curlMap;
                 return occulusion;
+
+                if(particleNormalMap.w == 1)
+                    return lerp(distortedOriginalImage, fluidColorFinalNoLight, _AirVisibility);
+                //return curlMap;
+                
             }
 
             ENDCG

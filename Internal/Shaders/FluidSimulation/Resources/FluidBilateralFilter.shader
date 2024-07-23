@@ -80,7 +80,7 @@ Shader "Hidden/FluidBilateralFilter"
                 float wsum = 0;
                 float blurScale = 1.0 / _BlurRadius;
                 for (float x = -_BlurRadius; x <= _BlurRadius; x += 1.0) {
-                    float tex = tex2D(depthSampler, texcoord + _UnigmaFluids_TexelSize * x * float2(_ScaleX, _ScaleY)).z;
+                    float tex = tex2D(depthSampler, texcoord + _UnigmaFluids_TexelSize * x * float2(_ScaleX*4, _ScaleY*4)).z;
                     // spatial domain
                     float r = x * blurScale;
                     float r2 = (tex - depth) * _BlurFallOff;

@@ -39,7 +39,7 @@ Shader "Unlit/UnigmaBackground"
                 float4 screenPosition : TEXCOORD1;
             };
 
-            sampler2D _MainTex, _UnigmaDepthShadowsMap, _SkyboxTexture, _DitherTexture, _UnigmaComposite;
+            sampler2D _MainTex, _UnigmaDepthShadowsMap, _SkyboxTexture, _DitherTexture, _UnigmaComposite, _UnigmaDepthMap;;
             float4 _MainTex_ST, _DitherTexture_TexelSize, _BottomColor, _TopColor;
 			float _Dithering, _Brightness;
 
@@ -62,6 +62,7 @@ Shader "Unlit/UnigmaBackground"
                 float unlightAreas = step(0.00001, compositeCol.r+ compositeCol.g + compositeCol.b);
                 fixed4 col = tex2D(_MainTex, i.uv);
                 
+                //return _UnigmaDepthShadows.r;
 				float4 gradientYcolor = float4(0.9, 0.85, 0.92, 1.0);
                 //Make gradient lerp from color
                 gradientYcolor = lerp(_BottomColor, _TopColor, 1.0-i.uv.y );

@@ -120,7 +120,7 @@ void MyRaygenShader()
     }
 
     int particleId = payload.color.w;
-    int hits = 0;
+    float hits = 0;
     float4 cclipPos = UnityWorldToClipPos(position);
     float comparatorDepth = cclipPos.z / cclipPos.w; //Depth used for comparison should always remain the same projection as main camera.
     depth = lerp(depth, 0, step(comparatorDepth, _UnigmaDepthMapRayTrace[id.xy].x)); //x component is the comparison depth.
@@ -133,7 +133,7 @@ void MyRaygenShader()
         return;
 	}
     */
-    for(int i = 0; i < 25; i++)
+    for(int i = 0; i < 35; i++)
     {
                     
 		TraceRay(g_SceneAccelStruct, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
@@ -146,7 +146,7 @@ void MyRaygenShader()
             if(particleId <= 0)
                 particleId = payload.color.w;
 
-            hits += 1;
+            hits += 0.011f + abs( pNoise((ray.Origin + _Time.yyy) ));
         }else
         {
 			break;
@@ -173,9 +173,9 @@ void MyRaygenShader()
 		}
     }
     */
-    float kd = min(99.0f, hits) * 0.0055f;
-    float e = exp(kd);
-    float hitMap = e - 1.0f;
+    float kd = min(35.0f, hits) * 0.095225f;
+    float e = exp(-kd);
+    float hitMap = 1.0f - e;
     _DensityMap[id.xy] = hitMap;
 
     _ColorFieldNormalMap[id.xy] = 0;
@@ -187,13 +187,13 @@ void MyRaygenShader()
         freeSurface = particle.density/ 28.0f;
         _ColorFieldNormalMap[id.xy] = float4(particle.normal, particle.phase+1);
         _SurfaceMap[id.xy] = float4(freeSurface, 1);
-		_VelocityMap[id.xy] = float4(particle.velocity, (abs(particle.velocity.y)*5 + length(particle.velocity)*40 + length(_Particles[particleId].curl)*0.205) * 0.00455);
+		_VelocityMap[id.xy] = float4(particle.velocity, (abs(particle.velocity.y)*5 + length(particle.velocity)*40 + length(_Particles[particleId].curl)*0.2505) * 0.00455);
         _CurlMap[id.xy] = float4(_Particles[particleId].curl, particle.type+1);
         _RayTracedImage[id.xy] = float4(position, depth);
         //depth = 1;
     }
     
-    _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, _DensityMap[id.xy].x, _RayTracedImage[id.xy].w);
+    _VelocitySurfaceDensityDepthTexture[id.xy] = float4(_VelocityMap[id.xy].w, _SurfaceMap[id.xy].y, hitMap, _RayTracedImage[id.xy].w);
     
 }
 
@@ -204,5 +204,6 @@ void MyMissShader(inout Payload payload : SV_RayPayload)
 {
     payload.color = 0;
     payload.distance = 9999999999;
+    payload.uv = 0;
     
 }

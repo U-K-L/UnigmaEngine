@@ -69,7 +69,7 @@ Shader "Unlit/WaterParticle"
 
                 unityObjectMatrix = 0.0;
                 unityObjectMatrix._m03_m13_m23_m33 = float4(position, 1.0);
-                unityObjectMatrix._m00_m11_m22 = GetSize(_Particles[v.instanceID].phase);
+                unityObjectMatrix._m00_m11_m22 = 1 + GetSize(_Particles[v.instanceID].phase);
                // unity_ObjectToWorld = 0.0;
                 //unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
                 //unity_ObjectToWorld._m00_m11_m22 = 1.220875;
@@ -199,7 +199,10 @@ Shader "Unlit/WaterParticle"
             {
                 UNITY_SETUP_INSTANCE_ID(i); // necessary only if any instanced properties are going to be accessed in the fragment Shader.
 
-                float velocity = length(_Particles[i.instanceID].velocity) + length(_Particles[i.instanceID].curl) * 0.055;
+                Particle particle = _Particles[i.instanceID];
+
+
+                float velocity = (abs(particle.velocity.y)*5 + length(particle.velocity)*40 + length(particle.curl)*0.2505) * 0.00455;
                 float surface = 1.0 - (_Particles[i.instanceID].density / 180.0);
                 float density = 0;
                 fixed4 unigmaDepth = tex2D(_UnigmaDepthMap, i.uv);
@@ -267,7 +270,7 @@ Shader "Unlit/WaterParticle"
 
                 unityObjectMatrix = 0.0;
                 unityObjectMatrix._m03_m13_m23_m33 = float4(position, 1.0);
-                unityObjectMatrix._m00_m11_m22 = GetSize(_Particles[v.instanceID].phase);
+                unityObjectMatrix._m00_m11_m22 = 1 + GetSize(_Particles[v.instanceID].phase);
                 //unity_ObjectToWorld = 0.0;
                 //unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
                 //unity_ObjectToWorld._m00_m11_m22 = 0.220875;
@@ -313,9 +316,9 @@ Shader "Unlit/WaterParticle"
                 float4 clipPos = UnityWorldToClipPos(float4(positionWS, 1));
                 float4 distances = tex2D(_DistancesMap, i.uv);//
                 float depthN = (clipPos.z * 1.0) / (clipPos.w * 1.0);
-                depthN = 1.0 - depthN;
+                depthN = max(1,min(1, 1.0 - depthN));
 
-                float4 velocitySurfaceDensityDepth = float4(GRT0.x, GRT0.y, density, GRT0.w);
+                float4 velocitySurfaceDensityDepth = float4(GRT0.x, GRT0.y, density, depthN);
                 GRT0 = velocitySurfaceDensityDepth;
                 GRT1 = density * 4;
 

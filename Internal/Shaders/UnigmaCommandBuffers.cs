@@ -8,6 +8,7 @@ using UnityEngine.Rendering;
 public class UnigmaCommandBuffers : MonoBehaviour
 {
 
+    public bool RayTracingOn = true;
     private GraphicalOcculusion _graphicalOcculusion;
     private int buffersAdded = 0;
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
@@ -191,10 +192,16 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     public bool debugMode = false;
 
+    void Awake()
+    {
+        if (RayTracingOn == true)
+            UnigmaSettings.SetRaytracing();
+        UnigmaSettings.Initialize();
+    }
     // Start is called before the first frame update
     void Start()
     {
-        UnigmaSettings.Initialize();
+
         _rayTracedObjects = new List<Renderer>();
         _graphicalOcculusion = gameObject.AddComponent<GraphicalOcculusion>();
         _unigmaBackgroundMaterial = Resources.Load<Material>("UnigmaBackgroundMaterial");

@@ -16,6 +16,7 @@ struct SpaceTimePoint
 struct UnigmaPhysicsPoints
 {
     float3 position;
+    float strength;
 };
 
 int _NumOfVectors;
@@ -144,7 +145,8 @@ void AttractionField(uint3 id : SV_DispatchThreadID)
         float dist = 1.0f / pow(distance(_UnigmaPhysicsPoints[i].position, _VectorField[vectorIndex].position), 2);
         float3 toObjDir = normalize(_UnigmaPhysicsPoints[i].position - _VectorField[vectorIndex].position);
 
-        _VectorField[vectorIndex].force += toObjDir * 1.0f * min(dist, 1.0f * 20);
+        _VectorField[vectorIndex].force += toObjDir * _UnigmaPhysicsPoints[i].strength * min(dist, 1.0f * 20);
+        
 
     }
 

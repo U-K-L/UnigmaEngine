@@ -134,6 +134,7 @@ Shader "Hidden/FluidComposition"
                 fixed4 unigmaMotion = tex2D(_UnigmaMotionID, i.uv);
                 fixed4 unigmaNormal = tex2D(_UnigmaNormal, i.uv);
 
+                fluidsDepth.z *= 0.25;
                 //return unigmaMotion;
                 //return fluidsNormal;
                 //return curlMap;
@@ -359,11 +360,11 @@ Shader "Hidden/FluidComposition"
                 fresnel = pow(fresnel, _FresnelPower);
                 diffuse += fresnel;
 
-                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, 13.95 * densityMap);
+                float4 waterDeepness = lerp(_ShallowWaterColor, _DeepWaterColor, 13.95 * fluidsDepth.z);
                 float waterDepthDifference = saturate((1.0 - frac(fluids.w)) / _DepthMaxDistance);
                 float4 waterColor = lerp(_ShallowWaterColor, _DeepWaterColor, waterDepthDifference);
-                waterColor = lerp(waterColor, waterDeepness, 1.0 - (densityMap));
-                waterColor = lerp(waterColor, _DeepestWaterColor, 1.0 - smoothstep(0.785, 0.05, densityMap));
+                waterColor = lerp(waterColor, waterDeepness, 1.0 - (fluidsDepth.z));
+                waterColor = lerp(waterColor, _DeepestWaterColor, 1.0 - smoothstep(0.785, 0.05, fluidsDepth.z));
 
 
 
@@ -385,16 +386,16 @@ Shader "Hidden/FluidComposition"
                 //float surfaceNoiseEmit = pow(NdotH+ NdotH, 1.5)*25 * fluidsDepth.y * tex2D(_SurfaceNoise, float2(worldPos.x * 10, worldPos.z *5)).r*10* step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y) * surfaceNoise;
 
                 float noiseHeatMap = length(worldPos)*100 * step(abs(rand(worldPos + noiseUV)).r, 0.978*  fluidsDepth.y*  fluidsDepth.y);
-                /*
+
                 if(curlMap.w == 1)
                     waterColor = float4(0.8, 0.96, 1, 1);
 
                 if(curlMap.w == 3)
                     waterColor = float4(0.75, 0.75, 0.75, 1);
-                */
+
                 float4 waterSpecular =  waterColor + diffuse;
 
-                float atteunuationDensity = min(0.0155,saturate(_DensityThickness * densityMap.z) * (exp(densityMap.z * 75 * fluidsDepth.z) - 1.0));
+                float atteunuationDensity = min(0.0155,saturate(_DensityThickness * fluidsDepth.z) * (exp(fluidsDepth.z * 75 * fluidsDepth.z) - 1.0));
 
                 fixed4 cleanFluidSingleColor = lerp(distortedOriginalImage, _DeepWaterColor * fluidsDepth.w, atteunuationDensity + 0.15);
 
@@ -418,7 +419,7 @@ Shader "Hidden/FluidComposition"
 
                 float4 colorField = float4((particleNormalMap.xyz * 0.5 + 0.5) * fluidsDepth.w, fluidsDepth.w);
                 float4 colorFieldLerp = lerp(distortedOriginalImage * fluidsDepth.w, colorField, atteunuationDensity + 0.35);
-                float4 colorSurfaceFluid = 0.1715*heatMapIntensity + fluidColorFinal + edge + colorFieldLerp * 0.0935 + surface * 0.0756;
+                float4 colorSurfaceFluid = 0.1715*heatMapIntensity + fluidColorFinal + edge*2 + colorFieldLerp * 0.0935 + surface * 0.0756;
 
 
                 float4 causaticLerpTop = lerp(distortedOriginalImage, causticsTex * fluids.w * step(0.0000001, fluidsDepth.y), 0.55);
@@ -453,8 +454,8 @@ Shader "Hidden/FluidComposition"
                 float4 occulusion = lerp( lerp(colorLerping, colorLerping + (heatMapSmoothed)*smoothstep(0.001, 0.6925, fluidsNormal.y), min(1, 0.25 + causticsTexMap.r + smoothstep(0.5, 0.626, causticsTex.r + heatMapSmoothed*0.1))), originalImage, step(fluidsSceneDepth, unigmaDepth.r));
 
                 //return fluidsDepth.z;
-                //if(particleNormalMap.w == 1)
-                    return lerp(originalImage, _ShallowWaterColor, fluidsDepth.z);
+                if(particleNormalMap.w == 1)
+                    return lerp(originalImage, waterColor, _AirVisibility); //return lerp(originalImage, waterColor, fluidsDepth.z*6);
                 //return curlMap;
                 return occulusion;
             }

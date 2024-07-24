@@ -73,7 +73,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _AirVisibility: 1
+    - _AirVisibility: 0.559
     - _BlendSmooth: 8.18
     - _BlurFallOff: 2.89
     - _BlurRadius: 1.51
@@ -98,11 +98,11 @@ Material:
     - _BrightWaterColor: {r: 1, g: 1, b: 1, a: 1}
     - _CausticColor: {r: 1, g: 1, b: 1, a: 1}
     - _DeepWaterColor: {r: 0.4535421, g: 0.76190907, b: 0.9811321, a: 1}
-    - _DeepestWaterColor: {r: 0.6933962, g: 0.016353682, b: 0.67985535, a: 1}
+    - _DeepestWaterColor: {r: 1, g: 0.7704402, b: 0.994497, a: 1}
     - _FoamIntensity: {r: 5.43, g: 0.01, b: 1, a: 3.54}
     - _NoiseScale: {r: 42.27, g: 157.57, b: 12.2, a: -0.16}
     - _NoiseScaleCaustic: {r: 5.97, g: 0.021, b: 0.01, a: 4.75}
-    - _ShallowWaterColor: {r: 0.57547164, g: 0.82838213, b: 1, a: 1}
+    - _ShallowWaterColor: {r: 0.28764677, g: 0.77996284, b: 0.9056604, a: 1}
     - _SurfaceNoiseScroll: {r: 9.77, g: 1, b: 1.08, a: 0.06}
     - _Threshold: {r: 0.53, g: 1, b: 0.88, a: 0.65}
   m_BuildTextureStacks: []

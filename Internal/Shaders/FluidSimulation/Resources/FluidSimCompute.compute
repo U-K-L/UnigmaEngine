@@ -1335,12 +1335,17 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
-    /*
+
+        /*
     float r = rand(_Time.x + id.x);
 
-    //if (r < 0.0035975 * _Particles[id.x].density * 5 || _Particles[id.x].density > 4)
-    //    _Particles[id.x].type = 1;
-    
+    if (r < 0.0035975 * _Particles[id.x].density * 5 || _Particles[id.x].density > 4)
+    {
+        _Particles[id.x].type = 1;
+        _Particles[id.x].phase = 1;
+    }
+
+
     if (r > 0.975)
         _Particles[id.x].type = 0;
     */

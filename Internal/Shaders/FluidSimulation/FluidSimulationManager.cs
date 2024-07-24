@@ -511,7 +511,7 @@ public class FluidSimulationManager : MonoBehaviour
         UpdateNonAcceleratedRayTracer();
         rasterMaterial.SetBuffer("_Particles", _particleBuffer);
 
-        //StartCoroutine(ReactToForces());
+        StartCoroutine(ReactToForces());
     }
 
     void CreateAcceleratedStructure()

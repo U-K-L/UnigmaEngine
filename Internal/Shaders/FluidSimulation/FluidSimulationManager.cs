@@ -413,7 +413,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidNormalBufferTexture.name = "FluidDepthBufferTexture";
         _velocitySurfaceDensityDepthTexture = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _velocitySurfaceDensityDepthTexture.name = "VelocitySurfaceDensityDepthTexture";
-        _UnigmaFluidsFinal = RenderTexture.GetTemporary(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaFluidsFinal = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaFluidsFinal.name = "UnigmaFluidsFinal";
         _particles = new Particles[MaxNumOfParticles];
         _controlParticlesArray = new ControlParticles[MaxNumOfControlParticles];

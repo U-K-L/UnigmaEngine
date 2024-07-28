@@ -4,9 +4,9 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
     {
         _MainTex ("Texture", 2D) = "white" {}
         _BackgroundTexture("Background Texture", 2D) = "white" {}
-        _ScaleOuter("Scale Outer Lines", Range(0,100)) = 1
-        _ScaleInner("Scale Inner Lines", Range(0,100)) = 1
-        _ScaleShadow("Scale Shadow Lines", Range(0,100)) = 1
+        _ScaleOuter("Scale Outer Lines", Range(-100,100)) = 1
+        _ScaleInner("Scale Inner Lines", Range(-100,100)) = 1
+        _ScaleShadow("Scale Shadow Lines", Range(-100,100)) = 1
         _ScaleWhiteOutline("Scale of white outline", Range(0, 100)) = 1
         _DepthThreshold("Depth Threshold", Range(0,2)) = 1
         _PosThreshold("Position Threshold", Range(0,2)) = 1

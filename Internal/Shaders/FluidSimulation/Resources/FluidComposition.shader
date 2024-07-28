@@ -396,7 +396,8 @@ Shader "Hidden/FluidComposition"
                 if(curlMap.w == 3)
                     waterColor = float4(0.75, 0.75, 0.75, 1);
 
-                float4 waterSpecular =  waterColor + diffuse;
+                float kelvin = fluidsDepth.y;
+                float4 waterSpecular =  (waterColor + diffuse) *  max(1, (2.5* kelvin) * step(1, kelvin) );
 
                 float atteunuationDensity = min(0.0155,saturate(_DensityThickness * fluidsDepth.z) * (exp(fluidsDepth.z * 75 * fluidsDepth.z) - 1.0));
 

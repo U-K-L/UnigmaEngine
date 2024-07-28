@@ -19,6 +19,9 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
     private float cohesion = 25.0f;
 
+    public float kelvin = 300.0f;
+    public float gravityStrength = 0.0f;
+    public float gravityRadius = 0.0f;
     //Make this a singleton
     UnigmaSpaceTime SpaceTimeVectorField;
 

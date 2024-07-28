@@ -30,6 +30,8 @@ int _Resolution;
 int biBlock;
 int biDim;
 
+float _GlobalTemperature;
+
 RWStructuredBuffer<SpaceTimePoint> _VectorField;
 RWStructuredBuffer<UnigmaPhysicsPoints> _UnigmaPhysicsPoints;
 
@@ -180,7 +182,10 @@ void ResetVectorField(uint3 id : SV_DispatchThreadID)
                     
                     if (0.01f < distance2 && distance2 < 10)
                     {
-                        kelvinSum += Poly6Kernel(distance2, 20) * _VectorField[hashedNeighborIndex].kelvin;
+                        //newton cooling law.
+                        float k = 0.995;
+                        float Tk = k * (_VectorField[hashedNeighborIndex].kelvin - _VectorField[vectorIndex].kelvin) * 0.01f;
+                        kelvinSum += Poly6Kernel(distance2, 20) * Tk;
                     }
                 }
 
@@ -189,8 +194,9 @@ void ResetVectorField(uint3 id : SV_DispatchThreadID)
     }
         
     //kelvinSum *= 10000; //= 22.0f;
-        
-    _VectorField[vectorIndex].tempVal = kelvinSum;
+    
+    float externalTemperature = 0.000995f * (_GlobalTemperature - _VectorField[vectorIndex].kelvin);
+    _VectorField[vectorIndex].tempVal = kelvinSum + externalTemperature;
 
 }
 
@@ -215,7 +221,10 @@ void AttractionField(uint3 id : SV_DispatchThreadID)
 
         _VectorField[vectorIndex].force += toObjDir * _UnigmaPhysicsPoints[i].strength * min(dist * _UnigmaPhysicsPoints[i].radius, 2);
         
-        //_VectorField[vectorIndex].kelvin += _UnigmaPhysicsPoints[i].kelvin * min(dist, 1.0f * 2);
+        float k = 0.995;
+        float Tk = k * (_UnigmaPhysicsPoints[i].kelvin - _VectorField[vectorIndex].kelvin) * 0.01f;
+        
+        _VectorField[vectorIndex].kelvin += min(dist * _UnigmaPhysicsPoints[i].radius, 2) * Tk;
 
     }
     

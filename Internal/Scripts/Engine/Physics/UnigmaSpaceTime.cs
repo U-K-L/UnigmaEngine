@@ -70,10 +70,28 @@ public class UnigmaSpaceTime : MonoBehaviour
 
     private int _MaxNumOfPoints = 1024;
     public int _NumOfPoints;
+    public float initialFahrenheit = 78.0f;
+    public float GlobalTemperature = 78.0f;
 
-    public GameObject debugObject;
+    public UnigmaPhysicsObject debugObject;
 
     public static UnigmaSpaceTime Instance { get; private set; }
+
+    public float temperatureSample;
+
+    public float FahrenheitToKelvin(float faren)
+    {
+        float K = (faren - 32.0f) * (5.0f / 9.0f) + 273.15f;
+
+        return K;
+    }
+
+    public float KelvinToFahrenheit(float kelvin)
+    {
+        float F = (kelvin - 273.15f) * (9.0f / 5.0f) + 32.0f;
+
+        return F;
+    }
 
     private void Awake()
     {
@@ -96,9 +114,8 @@ public class UnigmaSpaceTime : MonoBehaviour
         {
             VectorField[i].force = Vector3.zero;
             VectorField[i].position = Vector3.zero;
+            VectorField[i].kelvin = FahrenheitToKelvin(initialFahrenheit);
         }
-
-        VectorField[5].kelvin = 2500;
 
         VectorFieldNative.CopyFrom(VectorField);
         ShapeSpaceTime();
@@ -124,6 +141,20 @@ public class UnigmaSpaceTime : MonoBehaviour
             }
             yield return new WaitForSeconds(0.05f);
         }
+    }
+
+    public float GetTemperatureSample()
+    {
+        float temperatureAvg = 0;
+        float ne = 0;
+        for (int i = 0; i < _NumOfVectors; i += SpaceTimeResolution)
+        {
+            temperatureAvg += VectorFieldNative[i].kelvin;
+
+            ne += 1.0f;
+        }
+
+       return KelvinToFahrenheit(temperatureAvg / ne);
     }
 
     void CreateComputeBuffers()
@@ -193,10 +224,10 @@ public class UnigmaSpaceTime : MonoBehaviour
     {
         _NumOfPoints = 4;
         _spaceTimeCompute.SetInt("_NumOfPhysicsPoints", _NumOfPoints);
-        _UnigmaPhysicsPoints[1].strength = 10;
-        _UnigmaPhysicsPoints[1].radius = 2;
+        _UnigmaPhysicsPoints[1].strength = debugObject.gravityStrength;
+        _UnigmaPhysicsPoints[1].radius = debugObject.gravityRadius;
         _UnigmaPhysicsPoints[1].position = debugObject.transform.position;
-        _UnigmaPhysicsPoints[1].kelvin = 250;
+        _UnigmaPhysicsPoints[1].kelvin = debugObject.kelvin;
         _unigmaPhysicsPointsBuffer.SetData(_UnigmaPhysicsPoints);
     }
 
@@ -216,6 +247,7 @@ public class UnigmaSpaceTime : MonoBehaviour
     private void FixedUpdate()
     {
         SetPhysicsPoints();
+        _spaceTimeCompute.SetFloat("_GlobalTemperature", FahrenheitToKelvin(GlobalTemperature));
         _spaceTimeCompute.Dispatch(_hashVectorsKernel, Mathf.CeilToInt(VectorField.Length / _hashVectorsThreadIds.x), (int)_hashVectorsThreadIds.y, (int)_hashVectorsThreadIds.z);
 
         SortVectors();
@@ -232,6 +264,7 @@ public class UnigmaSpaceTime : MonoBehaviour
             
         }
         */
+        temperatureSample = GetTemperatureSample();
     }
 
     void ShapeSpaceTime()
@@ -286,7 +319,7 @@ public class UnigmaSpaceTime : MonoBehaviour
 
                 Gizmos.color = KelvinToRGB(vp.kelvin);
 
-                //Debug.Log("Cell " + vp.index + " position: " + vp.position + " Kelvin: " + vp.kelvin);
+                Debug.Log("Cell " + vp.index + " position: " + vp.position + " Kelvin: " + vp.kelvin);
 
                 Gizmos.DrawCube(vp.position, SpaceTimeSize / (SpaceTimeResolution));
                 //Gizmos.DrawSphere(vp.position, 0.025f);

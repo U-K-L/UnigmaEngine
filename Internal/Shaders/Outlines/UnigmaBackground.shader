@@ -56,13 +56,14 @@ Shader "Unlit/UnigmaBackground"
             {
                 // sample the texture
                 fixed4 fluidFinal = tex2D(_UnigmaFluidsFinal, i.uv);
-				fixed4 compositeCol = tex2D(_UnigmaBackgroundColor, i.uv);
+				fixed4 compositeCol = tex2D(_UnigmaComposite, i.uv);
 				fixed4 skyboxTexture = tex2D(_SkyboxTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
-                float lightedAreas = step(_UnigmaDepthShadows.r, 0.00001);
+                float lightedAreas = step(length(compositeCol.xyz), 0.00001);
                 float unlightAreas = step(lightedAreas, 0.01);
 
                 fixed4 col = tex2D(_UnigmaBackgroundColor, i.uv);
+
                 
                 //return _UnigmaDepthShadows.r;
 				float4 gradientYcolor = float4(0.9, 0.85, 0.92, 1.0);

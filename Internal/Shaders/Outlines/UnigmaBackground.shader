@@ -39,7 +39,7 @@ Shader "Unlit/UnigmaBackground"
                 float4 screenPosition : TEXCOORD1;
             };
 
-            sampler2D _MainTex, _UnigmaDepthShadowsMap, _SkyboxTexture, _DitherTexture, _UnigmaComposite, _UnigmaDepthMap;;
+            sampler2D _MainTex, _UnigmaDepthShadowsMap, _SkyboxTexture, _DitherTexture, _UnigmaComposite, _UnigmaDepthMap, _UnigmaBackgroundColor, _UnigmaFluidsFinal;
             float4 _MainTex_ST, _DitherTexture_TexelSize, _BottomColor, _TopColor;
 			float _Dithering, _Brightness;
 
@@ -55,12 +55,14 @@ Shader "Unlit/UnigmaBackground"
             fixed4 frag (v2f i) : SV_Target
             {
                 // sample the texture
-				fixed4 compositeCol = tex2D(_UnigmaComposite, i.uv);
+                fixed4 fluidFinal = tex2D(_UnigmaFluidsFinal, i.uv);
+				fixed4 compositeCol = tex2D(_UnigmaBackgroundColor, i.uv);
 				fixed4 skyboxTexture = tex2D(_SkyboxTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
                 float lightedAreas = step(_UnigmaDepthShadows.r, 0.00001);
-                float unlightAreas = step(0.00001, compositeCol.r+ compositeCol.g + compositeCol.b);
-                fixed4 col = tex2D(_MainTex, i.uv);
+                float unlightAreas = step(lightedAreas, 0.01);
+
+                fixed4 col = tex2D(_UnigmaBackgroundColor, i.uv);
                 
                 //return _UnigmaDepthShadows.r;
 				float4 gradientYcolor = float4(0.9, 0.85, 0.92, 1.0);
@@ -89,8 +91,13 @@ Shader "Unlit/UnigmaBackground"
 
                 float4 colorDither = (lerp(gradientYcolor, _TopColor, ditherMask2)* _Brightness) + skyboxTexture;
 
-                //return col;
-                return (colorDither *lightedAreas) + col * unlightAreas;
+                //if(_UnigmaDepthShadows.r < 0.0000001)
+                //   return (colorDither *lightedAreas) + col * unlightAreas;
+
+                float4 backGroundColor = col * unlightAreas;
+
+                float4 fluidBg = lerp(colorDither, fluidFinal * 0.9 + colorDither*0.25, min(1, fluidFinal.w*60)) * lightedAreas;
+                return fluidBg + backGroundColor;
             }
             ENDCG
         }
@@ -133,7 +140,8 @@ Shader "Unlit/UnigmaBackground"
             fixed4 frag(v2f i) : SV_Target
             {
                 // sample the texture
-                fixed4 col = tex2D(_MainTex, i.uv);
+                float2 uv = float2(i.uv.x, 1.0-i.uv.y);
+                fixed4 col = tex2D(_MainTex, uv);
                 return col;
             }
             ENDCG

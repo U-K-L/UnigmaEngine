@@ -11,12 +11,15 @@ struct SpaceTimePoint
     float3 position;
     float3 force;
     float kelvin;
+    float tempVal;
 };
 
 struct UnigmaPhysicsPoints
 {
     float3 position;
     float strength;
+    float kelvin;
+    float radius;
 };
 
 int _NumOfVectors;
@@ -35,13 +38,37 @@ RWStructuredBuffer<int> _VectorCellIndices;
 RWStructuredBuffer<int> _VectorCellOffsets;
 
 
+float Poly6Kernel(float distance2, float radius = 1.0f)
+{
+    float result = 0.0;
+    float h = 1 * radius;
+
+    float h9 = pow(h, 9.0f);
+    float constPoly6 = 315.0f / (64.0f * 3.141592653589f * h9);
+    float poly6 = constPoly6 * pow((h * h) - (distance2 * distance2), 3.0f);
+    result = poly6;
+
+    return result;
+}
+
 int3 GetCellVectorField(float3 position)
 {
-    return int3(floor(position.x), floor(position.y), floor(position.z));
+    float3 spacing = (_BoxSize / (_Resolution-1));
+    float3 halfContainerSize = _BoxSize / 2.0f;
+    
+    int3 index = ((position + halfContainerSize) / spacing);
+    /*
+    float3 shiftToCenter = position + halfContainerSize;
+    float3 normalized = (shiftToCenter / _BoxSize);
+        */
+
+    
+    return index;
 }
 
 inline uint HashCellVectorField(in int3 cellIndex)
 {
+    /*
     const uint p1 = 73856093;
     const uint p2 = 19349663;
     const uint p3 = 83492791;
@@ -49,6 +76,9 @@ inline uint HashCellVectorField(in int3 cellIndex)
     uint n = p1 * cellIndex.x ^ p2 * cellIndex.y ^ p3 * cellIndex.z;
     n %= _NumOfVectors;
     return n;
+    */
+    
+    return cellIndex.x * _Resolution * _Resolution + cellIndex.y * _Resolution + cellIndex.z;
 }
 
 [numthreads(256, 1, 1)]
@@ -120,12 +150,47 @@ void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
 void ResetVectorField(uint3 id : SV_DispatchThreadID)
 {
     
-    int3 cell = GetCellVectorField(_VectorField[id.x].index);
+    int3 cell = GetCellVectorField(_VectorField[id.x].position);
     
-    int vectorIndex = HashCellVectorField(cell);
+    int vectorIndex = cell.x * _Resolution * _Resolution + cell.y * _Resolution + cell.z; //HashCellVectorField(cell);
     
     //_VectorField[vectorIndex].previousDirection = _VectorField[vectorIndex].direction;
     _VectorField[vectorIndex].force = float3(0, -9.8f, 0);
+    
+    float kelvinSum = 0.0f;
+    //Diffusion process.
+
+    for (int i = -2; i < 2; ++i)
+    {
+        for (int j = -2; j < 2; ++j)
+        {
+            for (int k = -2; k < 2; ++k)
+            {
+                
+                int3 neighborCell = int3(i, j, k);
+                int hashedNeighborIndex = cell.x * _Resolution * _Resolution + cell.y * _Resolution + cell.z; //HashCellVectorField(neighborCell);
+
+                int linearIndex = i * _Resolution * _Resolution + j * _Resolution + k;
+                
+                hashedNeighborIndex += linearIndex;
+                
+                if (hashedNeighborIndex >= 0 && hashedNeighborIndex < _NumOfVectors)
+                {
+                    float distance2 = distance(_VectorField[vectorIndex].position, _VectorField[hashedNeighborIndex].position);
+                    
+                    if (0.01f < distance2 && distance2 < 10)
+                    {
+                        kelvinSum += Poly6Kernel(distance2, 20) * _VectorField[hashedNeighborIndex].kelvin;
+                    }
+                }
+
+            }
+        }
+    }
+        
+    //kelvinSum *= 10000; //= 22.0f;
+        
+    _VectorField[vectorIndex].tempVal = kelvinSum;
 
 }
 
@@ -133,21 +198,27 @@ void ResetVectorField(uint3 id : SV_DispatchThreadID)
 void AttractionField(uint3 id : SV_DispatchThreadID)
 {
     
-    int3 cell = GetCellVectorField(_VectorField[id.x].index);
+    int3 cell = GetCellVectorField(_VectorField[id.x].position);
     
     int vectorIndex = HashCellVectorField(cell);
     
     //_VectorField[vectorIndex].force = float3(4, -9.8f, 0);
-    
+    //_VectorField[vectorIndex].kelvin *= 0.9775;
+    _VectorField[vectorIndex].kelvin += _VectorField[vectorIndex].tempVal;
     for (int i = 0; i < _NumOfPhysicsPoints; i++)
     {
 
+        //int posCell = HashCellVectorField(GetCellVectorField(_UnigmaPhysicsPoints[i].position));
+        
         float dist = 1.0f / pow(distance(_UnigmaPhysicsPoints[i].position, _VectorField[vectorIndex].position), 2);
         float3 toObjDir = normalize(_UnigmaPhysicsPoints[i].position - _VectorField[vectorIndex].position);
 
-        _VectorField[vectorIndex].force += toObjDir * _UnigmaPhysicsPoints[i].strength * min(dist, 1.0f * 20);
+        _VectorField[vectorIndex].force += toObjDir * _UnigmaPhysicsPoints[i].strength * min(dist * _UnigmaPhysicsPoints[i].radius, 2);
         
+        //_VectorField[vectorIndex].kelvin += _UnigmaPhysicsPoints[i].kelvin * min(dist, 1.0f * 2);
 
     }
+    
+    //_VectorField[vectorIndex].kelvin *= 0.5;
 
 }

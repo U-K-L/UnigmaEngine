@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections;
 using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -15,22 +16,25 @@ public class UnigmaSpaceTime : MonoBehaviour
         public Vector3 position;
         public Vector3 force;
         public float kelvin;
+        public float tempVal;
     }
 
     public struct UnigmaPhysicsPoints
     {
         public Vector3 position;
         public float strength;
+        public float kelvin;
+        public float radius;
     };
 
     ComputeShader _spaceTimeCompute;
 
-    ComputeBuffer _spaceTimePointsBuffer;
+    public ComputeBuffer _spaceTimePointsBuffer;
     ComputeBuffer _vectorIDsBuffer;
     ComputeBuffer _vectorIndicesBuffer;
     ComputeBuffer _vectorCellIndicesBuffer;
     ComputeBuffer _vectorCellOffsets;
-    ComputeBuffer _unigmaPhysicsPointsBuffer;
+    public ComputeBuffer _unigmaPhysicsPointsBuffer;
 
     private int[] _VectorIDs;
     private int[] _VectorIndices;
@@ -39,8 +43,8 @@ public class UnigmaSpaceTime : MonoBehaviour
     private UnigmaPhysicsPoints[] _UnigmaPhysicsPoints;
 
 
-    int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float);
-    int _unigmaPhysicsPointsStride = (sizeof(float) * 3) + sizeof(float);
+    int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float) * 2;
+    int _unigmaPhysicsPointsStride = (sizeof(float) * 3) + sizeof(float)*3;
     int _NumOfVectors;
 
     public Vector3 SpaceTimeSize;
@@ -48,6 +52,7 @@ public class UnigmaSpaceTime : MonoBehaviour
     public int SpaceTimeResolution;
 
     public SpaceTimePoint[] VectorField;
+    public NativeArray<SpaceTimePoint> VectorFieldNative;
 
     int _resetVectorFieldKernel;
     int _hashVectorsKernel;
@@ -68,10 +73,24 @@ public class UnigmaSpaceTime : MonoBehaviour
 
     public GameObject debugObject;
 
+    public static UnigmaSpaceTime Instance { get; private set; }
+
     private void Awake()
     {
+
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this);
+        }
+        else
+        {
+            Instance = this;
+        }
+
         int numOfVectors = Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution);
         VectorField = new SpaceTimePoint[numOfVectors];
+        VectorFieldNative = new NativeArray<SpaceTimePoint>(numOfVectors, Allocator.Persistent);
+
 
         for (int i = 0; i < VectorField.Length; i++)
         {
@@ -79,6 +98,9 @@ public class UnigmaSpaceTime : MonoBehaviour
             VectorField[i].position = Vector3.zero;
         }
 
+        VectorField[5].kelvin = 2500;
+
+        VectorFieldNative.CopyFrom(VectorField);
         ShapeSpaceTime();
         CreateComputeBuffers();
         StartCoroutine(GetVectorFields());
@@ -98,7 +120,7 @@ public class UnigmaSpaceTime : MonoBehaviour
 
             if (request.done)
             {
-                VectorField = request.GetData<SpaceTimePoint>().ToArray();
+                VectorFieldNative.CopyFrom(request.GetData<SpaceTimePoint>());
             }
             yield return new WaitForSeconds(0.05f);
         }
@@ -134,6 +156,7 @@ public class UnigmaSpaceTime : MonoBehaviour
         SetPhysicsPoints();
         _spaceTimeCompute.SetInt("_NumOfVectors", _NumOfVectors);
         _spaceTimeCompute.SetInt("_Resolution", SpaceTimeResolution);
+        _spaceTimeCompute.SetVector("_BoxSize", SpaceTimeSize);
 
         SetBuffers(_resetVectorFieldKernel);
         SetBuffers(_hashVectorsKernel);
@@ -170,8 +193,10 @@ public class UnigmaSpaceTime : MonoBehaviour
     {
         _NumOfPoints = 4;
         _spaceTimeCompute.SetInt("_NumOfPhysicsPoints", _NumOfPoints);
-        _UnigmaPhysicsPoints[1].strength = 100;
+        _UnigmaPhysicsPoints[1].strength = 10;
+        _UnigmaPhysicsPoints[1].radius = 2;
         _UnigmaPhysicsPoints[1].position = debugObject.transform.position;
+        _UnigmaPhysicsPoints[1].kelvin = 250;
         _unigmaPhysicsPointsBuffer.SetData(_UnigmaPhysicsPoints);
     }
 
@@ -196,7 +221,7 @@ public class UnigmaSpaceTime : MonoBehaviour
         SortVectors();
         _spaceTimeCompute.Dispatch(_CalculateCellOffsetsKernelId, Mathf.CeilToInt(VectorField.Length / _calculateCellOffsetsThreadSize.x), 1, 1);
 
-        _spaceTimeCompute.Dispatch(_resetVectorFieldKernel, Mathf.CeilToInt(VectorField.Length / _resetVectorFieldThreadIds.x), (int)_resetVectorFieldThreadIds.y, (int)_resetVectorFieldThreadIds.z);
+        _spaceTimeCompute.Dispatch(_resetVectorFieldKernel, Mathf.CeilToInt( VectorField.Length / _resetVectorFieldThreadIds.x), (int)_resetVectorFieldThreadIds.y, (int)_resetVectorFieldThreadIds.z);
 
         _spaceTimeCompute.Dispatch(_attractionFieldKernelId, Mathf.CeilToInt(VectorField.Length / _resetVectorFieldThreadIds.x), (int)_resetVectorFieldThreadIds.y, (int)_resetVectorFieldThreadIds.z);
         /*
@@ -235,6 +260,12 @@ public class UnigmaSpaceTime : MonoBehaviour
         }
     }
 
+    Vector4 KelvinToRGB(float kelvin)
+    {
+        float temp = kelvin / 1000;
+        return new Vector4(temp * 0.1f, Mathf.Min(temp * 1.8f, 0.7f), Mathf.Min(temp * 5.0f, 0.7f), 1.0f);
+    }
+
     private void OnDrawGizmos()
     {
         //Set int for simulation
@@ -242,15 +273,22 @@ public class UnigmaSpaceTime : MonoBehaviour
         Gizmos.DrawWireCube(Vector3.zero, SpaceTimeSize);
 
         
-        if (VectorField != null)
+        if (VectorFieldNative != null)
         {
             float spacing = (SpaceTimeSize.x / (SpaceTimeResolution - 1)) *0.5f;
-            foreach (SpaceTimePoint vp in VectorField)
+            foreach (SpaceTimePoint vp in VectorFieldNative)
             {
                 Ray ray = new Ray(vp.position, vp.force * spacing);
                 Vector3 normalizedDir = Vector3.Normalize(vp.force) *0.5f + Vector3.one*0.5f;
                 Gizmos.color = new Vector4(normalizedDir.x * vp.force.magnitude*10.0f, normalizedDir.y, normalizedDir.z, 1.0f);
+
                 Gizmos.DrawRay(ray);
+
+                Gizmos.color = KelvinToRGB(vp.kelvin);
+
+                //Debug.Log("Cell " + vp.index + " position: " + vp.position + " Kelvin: " + vp.kelvin);
+
+                Gizmos.DrawCube(vp.position, SpaceTimeSize / (SpaceTimeResolution));
                 //Gizmos.DrawSphere(vp.position, 0.025f);
             }
         }

@@ -234,6 +234,7 @@ public class FluidSimulationManager : MonoBehaviour
         public Vector4 mean;
         public int phase;
         public int type;
+        public float kelvin;
     };
 
     public enum particlePhases
@@ -305,7 +306,7 @@ public class FluidSimulationManager : MonoBehaviour
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
     int _meshObjectStride = (sizeof(float) * 4 * 4 * 4) + sizeof(int) * 4 + sizeof(float) * 3 * 4;
-    int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 3)) + (sizeof(float) * 4 * 4) + sizeof(int)*2;
+    int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 4)) + (sizeof(float) * 4 * 4) + sizeof(int)*2;
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
     int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 2;
@@ -464,7 +465,6 @@ public class FluidSimulationManager : MonoBehaviour
         _CalculateControlDensityKernelId = _fluidSimulationComputeShader.FindKernel("CalculateControlDensity");
         _CalculateControlForcesKernelId = _fluidSimulationComputeShader.FindKernel("CalculateControlForces");
 
-
         _rtTarget.enableRandomWrite = true;
         _rtTarget.Create();
         _densityMapTexture.enableRandomWrite = true;
@@ -512,6 +512,11 @@ public class FluidSimulationManager : MonoBehaviour
         rasterMaterial.SetBuffer("_Particles", _particleBuffer);
 
         StartCoroutine(ReactToForces());
+    }
+
+    private void Start()
+    {
+
     }
 
     void CreateAcceleratedStructure()
@@ -658,6 +663,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     private void Update()
     {
+        UpdateFluidConstants();
         UpdateControlParticles();
 
         Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
@@ -1259,7 +1265,10 @@ public class FluidSimulationManager : MonoBehaviour
             _particleCellOffsets.SetData(_ParticleCellOffsets);
             _particleCountBuffer.SetData(_ParticleCount);
             properties.SetBuffer("_Particles", _particleBuffer);
-            
+
+            Debug.Log("Space Time Compute Buffer: " + UnigmaSpaceTime.Instance._spaceTimePointsBuffer.count);
+            _fluidSimulationComputeShader.SetBuffer(_ComputeForcesKernelId, "_VectorField", UnigmaSpaceTime.Instance._spaceTimePointsBuffer);
+
             _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Particles", _particleBuffer);
             _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "g_AABBs", aabbList);
             _fluidSimulationComputeShader.SetBuffer(_StoreParticleNeighborsKernelId, "_particleNeighbors", _particleNeighbors);
@@ -1670,7 +1679,7 @@ public class FluidSimulationManager : MonoBehaviour
             }
         }
     //Temporarily attach this simulation to camera!!!
-    private void OnRenderImage(RenderTexture source, RenderTexture destination)
+    private void UpdateFluidConstants()
     {
         //Guard clause, ensure there are objects to ray trace.
         if (_rayTracedObjects.Count == 0)
@@ -1718,7 +1727,10 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetBool("_IsOrthographic", _cam.orthographic);
         _fluidSimulationComputeShader.SetVector("_initialPosition", _initialPosition);
         _fluidSimulationComputeShader.SetVector("_initialForce", _initialForce);
-        
+
+        _fluidSimulationComputeShader.SetVector("_BoxSizeSpaceTime", UnigmaSpaceTime.Instance.SpaceTimeSize);
+        _fluidSimulationComputeShader.SetInt("_ResolutionSpaceTime", UnigmaSpaceTime.Instance.SpaceTimeResolution);
+
         properties.SetBuffer("g_AABBs", aabbList);
         Shader.SetGlobalFloat("_SizeOfParticle", SizeOfParticle);
 
@@ -1882,8 +1894,10 @@ public class FluidSimulationManager : MonoBehaviour
         //fluidCommandBuffers.SetRenderTarget(_fluidNormalBufferTexture);
 
         //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-        fluidCommandBuffers.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, _fluidSimMaterialComposite);
-        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterEverything, fluidCommandBuffers);
+        fluidCommandBuffers.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaFluidsFinal, _fluidSimMaterialComposite, 0);
+        fluidCommandBuffers.Blit(_UnigmaFluidsFinal, BuiltinRenderTextureType.CameraTarget, _fluidSimMaterialComposite, 1);
+        //backgroundColorBuffer.Blit(_UnigmaBackgroundColor, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 1);
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterHaloAndLensFlares, fluidCommandBuffers);
         
         //UnityEditor.SceneView.GetAllSceneCameras()[0].AddCommandBuffer(CameraEvent.AfterForwardOpaque, fluidCommandBuffers);
 

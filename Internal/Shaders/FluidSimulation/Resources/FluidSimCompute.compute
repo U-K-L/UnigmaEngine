@@ -66,6 +66,8 @@ float _Alpha = 1.0f;
 float _CDNorm = 1.0f;
 float _CPNorm = 1.0f;
 
+float3 _BoxSizeSpaceTime;
+int _ResolutionSpaceTime;
 
 
 struct MeshObject
@@ -155,6 +157,15 @@ struct ControlParticle
     float3 prevPosition;
 };
 
+struct SpaceTimePoint
+{
+    float3 index;
+    float3 position;
+    float3 force;
+    float kelvin;
+    float tempVal;
+};
+
 RWStructuredBuffer<MeshObject> _MeshObjects;
 StructuredBuffer<Vertex> _Vertices;
 StructuredBuffer<int> _Indices;
@@ -177,6 +188,8 @@ RWStructuredBuffer<uint> _MortonPrefixSumTotalZeroes;
 RWStructuredBuffer<uint> _MortonPrefixSumOffsetZeroes;
 RWStructuredBuffer<uint> _MortonPrefixSumOffsetOnes;
 RWStructuredBuffer<AABB> g_AABBs;
+
+RWStructuredBuffer<SpaceTimePoint> _VectorField;
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -1350,7 +1363,11 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
         _Particles[id.x].type = 0;
     */
     
-    float4 constantForces = float4(GetForces(_Particles[id.x].phase).xyz, 0);
+    //Get cell this particle is currently in.
+    int3 cell = GetCellVectorField(_Particles[id.x].position, _BoxSizeSpaceTime, _ResolutionSpaceTime);
+    int vectorIndex = HashCellVectorField(cell, _ResolutionSpaceTime);
+    
+    float4 constantForces = float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force + constantForces;
     float3 vel = _Particles[id.x].velocity;
@@ -1360,6 +1377,8 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].lastPosition = _Particles[id.x].position;
     _Particles[id.x].predictedPosition = _Particles[id.x].position + vel * _TimeStep;
 
+    //Add heat.
+    _Particles[id.x].kelvin = _VectorField[vectorIndex].kelvin;
 
 
 }

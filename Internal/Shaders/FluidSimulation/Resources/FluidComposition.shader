@@ -79,7 +79,7 @@ Shader "Hidden/FluidComposition"
                 return o;
             }
 
-			sampler2D _UnigmaNormal, _UnigmaMotionID, _UnigmaBackgroundColor, _UnigmaDepthShadowsMap, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _TopTexture;
+			sampler2D _UnigmaNormal, _UnigmaMotionID, _UnigmaComposite, _UnigmaDepthShadowsMap, _SurfaceMap, _CausticTex, _CausticTile, _CausticNoise, _CurlMap, _VelocityMap, _ColorFieldNormalMap, _MainTex, _UnigmaFluids, _UnigmaFluidsDepth, _UnigmaFluidsNormals, _NoiseTex, _DensityMap, _DisplacementTex, _DisplacementTexInner, _TopTexture;
             float2 _UnigmaFluids_TexelSize, _UnigmaFluidsNormals_TexelSize, _MainTex_TexelSize;
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity, _DensityThickness, _OutlineThickness;
 			float _CausticIntensity, _CausticScale, _Speed, _ScaleX, _ScaleY, _SpecularPower, _SpecularIntensity, _FresnelPower;
@@ -122,19 +122,22 @@ Shader "Hidden/FluidComposition"
                 
                 fixed4 fluidsDepth = tex2D(_UnigmaFluidsDepth, distortionBlob);
                 fixed4 fluidsNormal = tex2D(_UnigmaFluidsNormals, distortionBlob);
-                fixed4 originalImage = tex2D(_UnigmaBackgroundColor, i.uv);
-                fixed4 distortedOriginalImage = tex2D(_UnigmaBackgroundColor, distortionGrabPass);
+                fixed4 originalImage = tex2D(_UnigmaComposite, i.uv);
+                fixed4 distortedOriginalImage = tex2D(_UnigmaComposite, distortionGrabPass);
                 fixed4 densityMap = tex2D(_DensityMap, distortionGrabPass2);
                 fixed4 particleNormalMap = tex2D(_ColorFieldNormalMap, i.uv);
                 fixed4 velocityMap = tex2D(_VelocityMap, i.uv);
                 fixed4 surfaceMap = tex2D(_SurfaceMap, i.uv);
                 fixed4 curlMap = tex2D(_CurlMap, i.uv);
                 fixed4 unigmaDepth = tex2D(_UnigmaDepthShadowsMap, i.uv);
-				fixed4 unigmaBackground = tex2D(_UnigmaBackgroundColor, i.uv);
+				fixed4 unigmaBackground = tex2D(_UnigmaComposite, i.uv);
                 fixed4 unigmaMotion = tex2D(_UnigmaMotionID, i.uv);
                 fixed4 unigmaNormal = tex2D(_UnigmaNormal, i.uv);
 
                 fluidsDepth.z *= 0.25;
+
+                //HEAT
+                //return fluidsDepth.y*100;
                 //return unigmaMotion;
                 //return fluidsNormal;
                 //return curlMap;
@@ -366,7 +369,7 @@ Shader "Hidden/FluidComposition"
                 waterColor = lerp(waterColor, waterDeepness, 1.0 - (fluidsDepth.z));
                 waterColor = lerp(waterColor, _DeepestWaterColor, 1.0 - smoothstep(0.785, 0.05, fluidsDepth.z));
 
-
+                //waterColor *= 10;
 
                 float3 halfVector = normalize(_WorldSpaceLightPos0 + viewDir);
                 float NdotH = dot(worldNormalVec, halfVector);
@@ -457,9 +460,54 @@ Shader "Hidden/FluidComposition"
                 if(particleNormalMap.w == 1)
                     return lerp(originalImage, waterColor, _AirVisibility); //return lerp(originalImage, waterColor, fluidsDepth.z*6);
                 //return curlMap;
-                return occulusion;
+                return float4(occulusion.xyz, fluidsDepth.w);
             }
 
+            ENDCG
+        }
+
+          
+         Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            // make fog work
+            #pragma multi_compile_fog
+
+            #include "UnityCG.cginc"
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
+            };
+
+            struct v2f
+            {
+                float2 uv : TEXCOORD0;
+                UNITY_FOG_COORDS(1)
+                float4 vertex : SV_POSITION;
+            };
+
+            sampler2D _MainTex, _UnigmaComposite;
+            float4 _MainTex_ST;
+
+            v2f vert(appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                UNITY_TRANSFER_FOG(o,o.vertex);
+                return o;
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+                // sample the texture
+                fixed4 col = tex2D(_MainTex, i.uv);
+                return col;
+            }
             ENDCG
         }
     }

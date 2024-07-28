@@ -19,6 +19,7 @@ struct Particle
     float4 mean;
     int phase;
     int type;
+    float kelvin;
 };
 
 float GetMass(int type)
@@ -53,6 +54,26 @@ float GetRadius(int type)
     float radiuses[2] = { 0.0838125, 0.17525f };
     
     return radiuses[type];
+}
+
+int3 GetCellVectorField(float3 position, float3 _BoxSize, float3 _Resolution)
+{
+    float3 spacing = (_BoxSize / (_Resolution - 1));
+    float3 halfContainerSize = _BoxSize / 2.0f;
+    
+    int3 index = ((position + halfContainerSize) / spacing);
+    /*
+    float3 shiftToCenter = position + halfContainerSize;
+    float3 normalized = (shiftToCenter / _BoxSize);
+        */
+
+    
+    return index;
+}
+
+inline uint HashCellVectorField(in int3 cellIndex, float3 _Resolution)
+{   
+    return cellIndex.x * _Resolution * _Resolution + cellIndex.y * _Resolution + cellIndex.z;
 }
 
 #endif

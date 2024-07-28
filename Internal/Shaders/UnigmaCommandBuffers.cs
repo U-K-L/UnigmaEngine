@@ -1043,17 +1043,25 @@ public class UnigmaCommandBuffers : MonoBehaviour
     void CreateBackground()
     {
 
+        CommandBuffer blitMainTextBuffer = new CommandBuffer();
+        blitMainTextBuffer.name = "BlitFinalPass";
+        blitMainTextBuffer.SetGlobalTexture("_UnigmaBackgroundColor", _UnigmaBackgroundColor);
+
+        blitMainTextBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaBackgroundColor, _unigmaBackgroundMaterial, 1);
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterImageEffects, blitMainTextBuffer);
+
+
         backgroundColorBuffer = new CommandBuffer();
         backgroundColorBuffer.name = "UnigmaBackgroundColor";
-        backgroundColorBuffer.SetGlobalTexture("_UnigmaBackgroundColor", _UnigmaBackgroundColor);
+
 
         //blit with UnigmaBackgroundMaterial
-        backgroundColorBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaBackgroundColor, _unigmaBackgroundMaterial, 0);
+        backgroundColorBuffer.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 0);
         //backgroundColorBuffer.Blit(_UnigmaBackgroundColor, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 1);
 
 
 
-        GetComponent<Camera>().AddCommandBuffer(CameraEvent.BeforeImageEffects, backgroundColorBuffer);
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterEverything, backgroundColorBuffer);
 
     }
 

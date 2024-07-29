@@ -196,7 +196,7 @@ void ResetVectorField(uint3 id : SV_DispatchThreadID)
     //kelvinSum *= 10000; //= 22.0f;
     
     float externalTemperature = 0.000995f * (_GlobalTemperature - _VectorField[vectorIndex].kelvin);
-    _VectorField[vectorIndex].tempVal = kelvinSum + externalTemperature;
+    _VectorField[vectorIndex].tempVal += kelvinSum + externalTemperature;
 
 }
 
@@ -211,6 +211,7 @@ void AttractionField(uint3 id : SV_DispatchThreadID)
     //_VectorField[vectorIndex].force = float3(4, -9.8f, 0);
     //_VectorField[vectorIndex].kelvin *= 0.9775;
     _VectorField[vectorIndex].kelvin += _VectorField[vectorIndex].tempVal;
+    _VectorField[vectorIndex].tempVal = 0;
     for (int i = 0; i < _NumOfPhysicsPoints; i++)
     {
 

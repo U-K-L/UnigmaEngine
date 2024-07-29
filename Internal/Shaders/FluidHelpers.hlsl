@@ -20,6 +20,7 @@ struct Particle
     int phase;
     int type;
     float kelvin;
+    float tempKelvin;
 };
 
 float GetMass(int type)

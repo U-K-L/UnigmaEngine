@@ -17,6 +17,7 @@ public class FluidContainer : MonoBehaviour
     private bool SimCreated = false;
     public FluidSimulationManager.particlePhases phase;
     public FluidSimulationManager.particleTypes type;
+    public float kelvin = 273.0f;
     void Start()
     {
         _fluidSimManager = FindObjectOfType<FluidSimulationManager>();
@@ -27,7 +28,7 @@ public class FluidContainer : MonoBehaviour
     {
         if (!SimCreated)
         {
-            _fluidSimManager.AddParticles(transform.position, numOfParticles, containerSize, (int)containerType, (int)phase, (int)type);
+            _fluidSimManager.AddParticles(transform.position, numOfParticles, containerSize, (int)containerType, (int)phase, (int)type, kelvin);
             SimCreated = true;
         }
     }

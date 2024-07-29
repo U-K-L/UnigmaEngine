@@ -10,6 +10,7 @@ public class FluidEmitter : MonoBehaviour
     public Vector3 radius = Vector3.one;
     public FluidSimulationManager.particlePhases phase = 0;
     public FluidSimulationManager.particleTypes type = 0;
+    public float kelvin = 273.0f;
     // Start is called before the first frame update
     void Start()
     {
@@ -21,7 +22,7 @@ public class FluidEmitter : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.Z))
         {
-            _fluidSimManager.ShootParticles(transform.position, numOfParticlesSpawned, force, radius, (int)phase, (int)type);
+            _fluidSimManager.ShootParticles(transform.position, numOfParticlesSpawned, force, radius, (int)phase, (int)type, kelvin);
         }
     }
 }

@@ -45,7 +45,7 @@ public class UnigmaSpaceTime : MonoBehaviour
 
     int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float) * 2;
     int _unigmaPhysicsPointsStride = (sizeof(float) * 3) + sizeof(float)*3;
-    int _NumOfVectors;
+    public int _NumOfVectors;
 
     public Vector3 SpaceTimeSize;
 

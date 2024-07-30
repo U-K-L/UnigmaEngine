@@ -1449,7 +1449,7 @@ public class FluidSimulationManager : MonoBehaviour
             if (_renderMethod == RenderMethod.RayTracing)
                 CreateBVHTree();
 
-            //DebugParticlesBVH();
+            DebugParticlesBVH();
             if (NumOfControlParticles > 0)
             {
                 //ControlDensity();
@@ -1683,6 +1683,11 @@ public class FluidSimulationManager : MonoBehaviour
             _particleIDsBuffer.GetData(_ParticleIDs);
             _BVHNodesBuffer.GetData(_BVHNodes);
             _particleBuffer.GetData(_particles);
+
+            for (int i = 0; i < NumOfParticles; i++)
+            {
+                Debug.Log(" Particle Density: " + _particles[i].density + " Particle Kelvin: " + _particles[i].kelvin + " Particle position Delta: " + _particles[i].positionDelta + " Particle lambda: " + _particles[i].lambda + " Particle velocity: " + _particles[i].velocity);
+            }
             /*
             for (int i = 0; i < NumOfParticles; i++)
             {
@@ -1690,7 +1695,7 @@ public class FluidSimulationManager : MonoBehaviour
                 Debug.Log(" Particle IDs: " + _ParticleIDs[i] + " Current Node: " + i + " Parent Node: " + _BVHNodes[i].parent + " Left Child: " + _BVHNodes[i].leftChild + " Right Child: " + _BVHNodes[i].rightChild + " Nodes Contained: " + _BVHNodes[i].primitiveOffset + "-" + (_BVHNodes[i].primitiveCount + _BVHNodes[i].primitiveOffset) + " Hit: " + _BVHNodes[i].hit + " Miss: " + _BVHNodes[i].miss + " AABB Max: " + _BVHNodes[i].aabbMax + " AABB Min: " + _BVHNodes[i].aabbMin + " IsLeaf: " + _BVHNodes[i].isLeaf + " Left Child: " + _BVHNodes[i].leftChildLeaf + " Right Child: " + _BVHNodes[i].rightChildLeaf + " Morton Code: " + _MortonCodes[i].mortonCode.ToString("F7")  + " Position: " + _particles[_ParticleIDs[i]].position + " Index Node " + _BVHNodes[i].indexedId);
             }
             */
-            PrintNeighborData();
+            //PrintNeighborData();
 
             /*
             using (StreamWriter sw = new StreamWriter("Assets/Debug/FluidSim/ParticlePositions" + Time.timeAsDouble + ".txt"))

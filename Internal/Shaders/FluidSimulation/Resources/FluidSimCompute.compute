@@ -1350,9 +1350,10 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 		return;
 	}
 
+    float r = rand(_Time.x + id.x);
+
 
         /*
-    float r = rand(_Time.x + id.x);
 
     if (r < 0.0035975 * _Particles[id.x].density * 5 || _Particles[id.x].density > 4)
     {
@@ -1371,7 +1372,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     
     float4 constantForces = float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    float4 forces = _Particles[id.x].force + constantForces;
+    float4 forces = _Particles[id.x].force + constantForces * min(1, GetMass(_Particles[id.x].phase) * 6);
     float3 vel = _Particles[id.x].velocity;
     vel += forces.xyz * _TimeStep;
     _Particles[id.x].force = forces;
@@ -1387,12 +1388,12 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     float externalTemp = Tk;
     float internalTemp = k2 * (_Particles[id.x].tempKelvin - _Particles[id.x].kelvin);
     
-    _Particles[id.x].kelvin += externalTemp * 0.5f + internalTemp * 0.5f;
+    _Particles[id.x].kelvin += externalTemp * 0.5f + internalTemp * 0.5f + sqrt(length(vel)) * 0.5f;
     
     _Particles[id.x].tempKelvin = _Particles[id.x].kelvin;
     
     
-    if (_Particles[id.x].kelvin > 400)
+    if (_Particles[id.x].kelvin / 370.0f > r*100 + 1)
     {
         _Particles[id.x].type = 0;
         _Particles[id.x].phase = 0;
@@ -1930,6 +1931,7 @@ void ComputeVelocity(uint3 id : SV_DispatchThreadID)
     _Particles[id.x].velocity = vel * velDamping;
     
     _Particles[id.x].predictedPosition = positionDelta;
+
 }
 
 [numthreads(64, 1, 1)]

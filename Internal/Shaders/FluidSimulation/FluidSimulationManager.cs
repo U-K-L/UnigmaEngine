@@ -137,36 +137,25 @@ public class FluidSimulationManager : MonoBehaviour
 
     private int ResolutionDivider = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
     public int DistanceResolutionDivider = 0;
-    public int NumOfParticles;
-    public int NumOfControlParticles;
-    public int MaxNumOfParticles;
-    public int MaxNumOfControlParticles;
-
-    //Todo remove from final product.
-    public int BoxViewDebug = 0;
-    public int ChosenParticle = 0;
+    private int NumOfParticles;
+    private int NumOfControlParticles;
+    public int MaxNumOfParticles = 1024;
+    public int MaxNumOfControlParticles = 512;
+    public float SizeOfParticle;
 
     public float DepthMaxDistance = 100;
     public float BlurFallOff = 0.25f;
     public float BlurRadius = 5.0f;
-    public float Smoothness = 0.25f;
-    public float SizeOfParticle = 0.125f;
-    public float MassOfParticle = 1.0f;
-    public float GasConstant = 1.0f;
     public float Viscosity = 1.0f;
     public float TimeStep = 0.02f;
     public float BoundsDamping = 9.8f;
-    public float Radius = 0.125f;
-    public float RestDensity = 1.0f;
-    public int MaxNeighbors = 50;
-    public float TimeStepConstantModifier = 1.0f;
 
-    public float _ControlAlpha = 019723175f;
-    public float _CDHRadius = 24.0f;
-    public float _CLHRadius = 24.0f;
+    private float _ControlAlpha = 0.9355f;
+    private float _CDHRadius = 0.17525f;
+    private float _CLHRadius = 1;
 
-    public float _CPNorm = 1000.0f;
-    public float _CDNorm = 1.0f;
+    private float _CPNorm = 1000.0f;
+    private float _CDNorm = 50.0f;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     public Dictionary<string, FluidControl> fluidControlledObjects;
@@ -1030,7 +1019,6 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetInt("_NumOfControlParticles", NumOfControlParticles);
         _fluidSimulationComputeShader.SetInt("_MaxNumOfParticles", MaxNumOfParticles);
         _fluidSimulationComputeShader.SetInt("_MaxNumOfControlParticles", MaxNumOfControlParticles);
-        _fluidSimulationComputeShader.SetInt("MaxNeighbors", MaxNeighbors);
         //PrintBVH();
 
     }
@@ -1740,24 +1728,15 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetMatrix("_CameraWorldToLocal", _cam.transform.worldToLocalMatrix);
         _fluidSimulationComputeShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _fluidSimulationComputeShader.SetVector("_DepthScale", DepthScale);
-        _fluidSimulationComputeShader.SetFloat("_Smoothness", Smoothness);
-        //_fluidSimulationComputeShader.SetVector("_LightSource", _LightSouce.position);
-        //_fluidSimulationComputeShader.SetVector("_LightScale", _LightScale.position);
-        //_fluidSimulationComputeShader.SetFloat("_SizeOfParticle", SizeOfParticle);
-        _fluidSimulationComputeShader.SetFloat("_Radius", Radius);
-        _fluidSimulationComputeShader.SetFloat("_Mass", MassOfParticle);
-        _fluidSimulationComputeShader.SetFloat("_GasConstant", GasConstant);
         _fluidSimulationComputeShader.SetFloat("_Viscosity", Viscosity);
-        _fluidSimulationComputeShader.SetFloat("_TimeStep", TimeStep * TimeStepConstantModifier);
+        _fluidSimulationComputeShader.SetFloat("_TimeStep", TimeStep);
         _fluidSimulationComputeShader.SetFloat("_Alpha", _ControlAlpha);
         _fluidSimulationComputeShader.SetFloat("_CDHRadius", _CDHRadius);
         _fluidSimulationComputeShader.SetFloat("_CLHRadius",  _CLHRadius);
         _fluidSimulationComputeShader.SetFloat("_CPNorm", _CPNorm);
         _fluidSimulationComputeShader.SetFloat("_CDNorm", _CDNorm);
         _fluidSimulationComputeShader.SetFloat("_BoundsDamping", BoundsDamping);
-        _fluidSimulationComputeShader.SetFloat("_RestDensity", RestDensity);
         _fluidSimulationComputeShader.SetVector("_BoxSize", _BoxSize);
-        _fluidSimulationComputeShader.SetInt("_ChosenParticle", ChosenParticle);
         _fluidSimulationComputeShader.SetBool("_IsOrthographic", _cam.orthographic);
         _fluidSimulationComputeShader.SetVector("_initialPosition", _initialPosition);
         _fluidSimulationComputeShader.SetVector("_initialForce", _initialForce);

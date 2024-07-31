@@ -35,7 +35,6 @@ float4x4 _ParentTransformToLocal;
 float _Mass = 0.5;
 float epsilon = 0.00001;
 float _SizeOfParticle;
-float _Smoothness;
 float4 _DepthScale = 1;
 float3 _LightSource;
 float3 _LightScale;

@@ -12,29 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4493bc8ae0bb40643b9b58946f040ccc, type: 3}
   m_Name: DefaultSettings
   m_EditorClassIdentifier: 
-  DistanceResolutionDivider: 0
-  NumOfParticles: 0
-  NumOfControlParticles: 0
-  MaxNumOfParticles: 0
-  MaxNumOfControlParticles: 0
-  BoxViewDebug: 0
-  ChosenParticle: 0
-  DepthMaxDistance: 100
-  BlurFallOff: 0.25
+  MaxNumOfParticles: 131072
+  MaxNumOfControlParticles: 32768
+  BlurFallOff: 0.025
   BlurRadius: 5
-  Smoothness: 0.25
-  SizeOfParticle: 0.125
-  MassOfParticle: 1
-  GasConstant: 1
-  Viscosity: 1
-  TimeStep: 0.02
-  BoundsDamping: 9.8
-  Radius: 0.125
-  RestDensity: 1
-  MaxNeighbors: 50
-  TimeStepConstantModifier: 1
-  _ControlAlpha: 19723176
-  _CDHRadius: 24
-  _CLHRadius: 24
-  _CPNorm: 1000
-  _CDNorm: 1
+  Viscosity: 0
+  TimeStep: 0.012
+  BoundsDamping: -0.3
+  SizeOfParticle: 0.08552188

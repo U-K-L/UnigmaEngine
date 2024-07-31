@@ -461,7 +461,7 @@ Shader "Hidden/FluidComposition"
 
                 //return fluidsDepth.z;
                 if(particleNormalMap.w == 1)
-                    return lerp(originalImage, waterColor, _AirVisibility); //return lerp(originalImage, waterColor, fluidsDepth.z*6);
+                    return lerp(originalImage, waterColor, fluidsDepth.z*6);//return lerp(originalImage, waterColor, _AirVisibility); //
                 //return curlMap;
                 return float4(occulusion.xyz, fluidsDepth.w);
             }

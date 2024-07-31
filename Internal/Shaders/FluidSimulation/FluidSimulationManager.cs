@@ -126,29 +126,27 @@ public class FluidSimulationManager : MonoBehaviour
 
     //public Transform _LightSouce;
     //public Transform _LightScale;
+    public FluidSettings fluidSettings;
     public Material _fluidSimMaterialComposite;
     public Material _fluidObjectsMaterial;
 
     public Vector2 BlurScale;
     public Vector3 _BoxSize = Vector3.one;
     public Vector4 DepthScale = default;
-    public Color DeepWaterColor = Color.white;
-    public Color ShallowWaterColor = Color.white;
 
     private int ResolutionDivider = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
-    public int DistanceResolutionDivider = 0;
+    private int DistanceResolutionDivider = 0;
     private int NumOfParticles;
     private int NumOfControlParticles;
-    public int MaxNumOfParticles = 1024;
-    public int MaxNumOfControlParticles = 512;
-    public float SizeOfParticle;
+    private int MaxNumOfParticles = 1024;
+    private int MaxNumOfControlParticles = 512;
+    private float SizeOfParticle;
 
-    public float DepthMaxDistance = 100;
-    public float BlurFallOff = 0.25f;
-    public float BlurRadius = 5.0f;
-    public float Viscosity = 1.0f;
-    public float TimeStep = 0.02f;
-    public float BoundsDamping = 9.8f;
+    private float BlurFallOff = 0.25f;
+    private float BlurRadius = 5.0f;
+    private float Viscosity = 1.0f;
+    private float TimeStep = 0.02f;
+    private float BoundsDamping = 9.8f;
 
     private float _ControlAlpha = 0.9355f;
     private float _CDHRadius = 0.17525f;
@@ -330,6 +328,14 @@ public class FluidSimulationManager : MonoBehaviour
     public Camera secondCam;
     private void Awake()
     {
+        //Set fluid settings.
+        Viscosity = fluidSettings.Viscosity;
+        BlurFallOff = fluidSettings.BlurFallOff;
+        BlurRadius = fluidSettings.BlurRadius;
+        BoundsDamping = fluidSettings.BoundsDamping;
+        MaxNumOfParticles = fluidSettings.MaxNumOfParticles;
+        MaxNumOfControlParticles = fluidSettings.MaxNumOfControlParticles;
+        SizeOfParticle = fluidSettings.SizeOfParticle;
         if (Instance != null && Instance != this)
         {
             Destroy(this);
@@ -1768,12 +1774,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimMaterialDepthVert.SetFloat("_BlurFallOff", BlurFallOff);
         _fluidSimMaterialDepthVert.SetFloat("_BlurRadius", BlurRadius);
 
-        _fluidSimMaterialComposite.SetColor("_DeepWaterColor", DeepWaterColor);
-        _fluidSimMaterialComposite.SetColor("_ShallowWaterColor", ShallowWaterColor);
-        _fluidSimMaterialComposite.SetFloat("_DepthMaxDistance", DepthMaxDistance);
-        //_fluidSimMaterialComposite.SetTexture("_DensityMap", _densityMapTexture);
         _fluidSimMaterialComposite.SetTexture("_ColorFieldNormalMap", _normalMapTexture);
-        //_fluidSimMaterialComposite.SetTexture("_VelocityMap", _velocityMapTexture);
         _fluidSimMaterialComposite.SetTexture("_CurlMap", _curlMapTexture);
 
         //aabbList.GetData(aabbs);

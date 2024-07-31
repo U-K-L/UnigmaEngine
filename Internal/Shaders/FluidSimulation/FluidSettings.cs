@@ -13,4 +13,5 @@ public class FluidSettings : ScriptableObject
     public float Viscosity = 1.0f;
     public float TimeStep = 0.02f;
     public float BoundsDamping = -0.3f;
+    public float SizeOfParticle = 0.08552188f;
 }

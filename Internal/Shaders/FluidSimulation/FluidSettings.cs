@@ -5,6 +5,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "UnigmaFluidSettings", menuName = "Unigma/Engine/Fluid/FluidSettings", order = 1)]
 public class FluidSettings : ScriptableObject
 {
+    public Mesh rasterMesh;
     public int MaxNumOfParticles;
     public int MaxNumOfControlParticles;
 
@@ -14,4 +15,7 @@ public class FluidSettings : ScriptableObject
     public float TimeStep = 0.02f;
     public float BoundsDamping = -0.3f;
     public float SizeOfParticle = 0.08552188f;
+    public Vector2 BlurScale;
+    public Vector3 _BoxSize = Vector3.one;
+    public int SolveIterations = 3;
 }

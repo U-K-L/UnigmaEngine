@@ -20,3 +20,5 @@ MonoBehaviour:
   TimeStep: 0.012
   BoundsDamping: -0.3
   SizeOfParticle: 0.08552188
+  BlurScale: {x: 1.13, y: 1.13}
+  _BoxSize: {x: 100, y: 400, z: 100}

@@ -14,7 +14,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
     private List<Renderer> _OutlineNullObjects = default; //Objects not part of this render.
     private List<UnigmaWater> _WaterObjects = default; //Objects that consist of water.
-    public int _temporalReservoirsCount = 1;
+    int _temporalReservoirsCount = 2;
     private Camera mainCam;
     public int ResolutionDivider = 0;
     public int RayTracingResolutionDivider = 0;
@@ -166,24 +166,24 @@ public class UnigmaCommandBuffers : MonoBehaviour
     RenderTexture _UnigmaGlobalIllumination;
 
     //Unigma G buffers albedo, normal and motion ID, global illumination
-    public RenderTexture _UnigmaAlbedo;
-    public RenderTexture _UnigmaNormal;
-    public RenderTexture _UnigmaMotionID;
-    public RenderTexture _UnigmaGlobalIlluminationTemporal;
-    public RenderTexture _UnigmaAlbedoTemporal;
-    public RenderTexture _UnigmaNormalTemporal;
-    public RenderTexture _UnigmaMotionIDTemporal;
-    public RenderTexture _UnigmaDenoisedGlobalIllumination;
-    public RenderTexture _UnigmaDenoisedGlobalIlluminationTemporal;
-    public RenderTexture _UnigmaDenoisedGlobalIlluminationTemp;
-    public RenderTexture _UnigmaSpecularLights;
-    public RenderTexture _UnigmaIdsTexture;
-    public RenderTexture _UnigmaWaterNormals;
-    public RenderTexture _UnigmaWaterPosition;
-    public RenderTexture _UnigmaWaterReflections;
-    public RenderTexture _UnigmaShadowColors;
-    public RenderTexture _UnigmaBackgroundColor;
-    public RenderTexture _UnigmaComposite;
+    RenderTexture _UnigmaAlbedo;
+    RenderTexture _UnigmaNormal;
+    RenderTexture _UnigmaMotionID;
+    RenderTexture _UnigmaGlobalIlluminationTemporal;
+    RenderTexture _UnigmaAlbedoTemporal;
+    RenderTexture _UnigmaNormalTemporal;
+    RenderTexture _UnigmaMotionIDTemporal;
+    RenderTexture _UnigmaDenoisedGlobalIllumination;
+    RenderTexture _UnigmaDenoisedGlobalIlluminationTemporal;
+    RenderTexture _UnigmaDenoisedGlobalIlluminationTemp;
+    RenderTexture _UnigmaSpecularLights;
+    RenderTexture _UnigmaIdsTexture;
+    RenderTexture _UnigmaWaterNormals;
+    RenderTexture _UnigmaWaterPosition;
+    RenderTexture _UnigmaWaterReflections;
+    RenderTexture _UnigmaShadowColors;
+    RenderTexture _UnigmaBackgroundColor;
+    RenderTexture _UnigmaComposite;
     public Texture2D _UnigmaBlueNoise;
 
     private List<Renderer> _rayTracedObjects = default;

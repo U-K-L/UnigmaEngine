@@ -301,6 +301,7 @@ public class UnigmaSpaceTime : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        /*
         //Set int for simulation
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireCube(Vector3.zero, SpaceTimeSize);
@@ -325,6 +326,7 @@ public class UnigmaSpaceTime : MonoBehaviour
                 //Gizmos.DrawSphere(vp.position, 0.025f);
             }
         }
+        */
     }
 
     void ReleaseBuffers()

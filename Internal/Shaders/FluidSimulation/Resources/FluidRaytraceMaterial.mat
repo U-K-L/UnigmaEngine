@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Custom_StandardRayTraceTest
+  m_Name: FluidRaytraceMaterial
   m_Shader: {fileID: 4800000, guid: 1b6eebdf6e9ad664d9049f7ca910cff2, type: 3}
   m_ValidKeywords: []
   m_InvalidKeywords: []

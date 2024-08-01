@@ -11,14 +11,10 @@ public class FluidSimulationManager : MonoBehaviour
 
     public static FluidSimulationManager Instance { get; private set; }
 
-    [SerializeField]
     Material rasterMaterial;
-    [SerializeField]
     Material rayTracingMaterial;
 
-    [SerializeField]
     Mesh rasterMesh;
-    Mesh rayTracingMesh;
 
     ComputeShader _fluidSimulationComputeShader;
     GraphicsBuffer aabbList = null;
@@ -127,12 +123,11 @@ public class FluidSimulationManager : MonoBehaviour
     //public Transform _LightSouce;
     //public Transform _LightScale;
     public FluidSettings fluidSettings;
-    public Material _fluidSimMaterialComposite;
-    public Material _fluidObjectsMaterial;
+    private Material _fluidSimCompositeLiquid;
 
-    public Vector2 BlurScale;
-    public Vector3 _BoxSize = Vector3.one;
-    public Vector4 DepthScale = default;
+    private Vector2 BlurScale;
+    private Vector3 _BoxSize = Vector3.one;
+    private Vector4 DepthScale = default;
 
     private int ResolutionDivider = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
     private int DistanceResolutionDivider = 0;
@@ -179,7 +174,7 @@ public class FluidSimulationManager : MonoBehaviour
     private Vector3 _initialPosition;
 
     Vector3 controlParticlePosition;
-    public Vector3[] controlParticlesPositions;
+    private Vector3[] controlParticlesPositions;
 
     int buffersAdded = 0;
     bool buffersInitialized = false;
@@ -303,12 +298,12 @@ public class FluidSimulationManager : MonoBehaviour
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
-    public int _SolveIterations = 1;
+    int _SolveIterations = 1;
     int nodesUsed = 1;
     
     Bounds bounds;
 
-    public int RayTracinghandle;
+    int RayTracinghandle;
     
     public enum RenderMethod
     {
@@ -328,14 +323,7 @@ public class FluidSimulationManager : MonoBehaviour
     public Camera secondCam;
     private void Awake()
     {
-        //Set fluid settings.
-        Viscosity = fluidSettings.Viscosity;
-        BlurFallOff = fluidSettings.BlurFallOff;
-        BlurRadius = fluidSettings.BlurRadius;
-        BoundsDamping = fluidSettings.BoundsDamping;
-        MaxNumOfParticles = fluidSettings.MaxNumOfParticles;
-        MaxNumOfControlParticles = fluidSettings.MaxNumOfControlParticles;
-        SizeOfParticle = fluidSettings.SizeOfParticle;
+        GetSettings();
         if (Instance != null && Instance != this)
         {
             Destroy(this);
@@ -344,23 +332,6 @@ public class FluidSimulationManager : MonoBehaviour
 
         Instance = this;
 
-        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.High)
-            ResolutionDivider = 4;
-        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.Mid)
-            ResolutionDivider = 2;
-        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.Low)
-            ResolutionDivider = 1;
-
-        if (UnigmaSettings.GetIsRTXEnabled())
-            _renderMethod = RenderMethod.RayTracingAccelerated;
-        else
-            _renderMethod = RenderMethod.Rasterization;
-
-
-        if (_renderMethod == RenderMethod.Rasterization)
-            _fluidSimMaterialComposite.shader = Resources.Load<Shader>("FluidCompositionRaster");
-        else
-            _fluidSimMaterialComposite.shader = Resources.Load<Shader>("FluidComposition");
 
         fluidControlledObjects = new Dictionary<string, FluidControl>();
         //Application.targetFrameRate = 30;
@@ -513,6 +484,47 @@ public class FluidSimulationManager : MonoBehaviour
         //StartCoroutine(ReactToForces());
     }
 
+    void GetSettings()
+    {
+        //Set fluid settings.
+        Viscosity = fluidSettings.Viscosity;
+        BlurFallOff = fluidSettings.BlurFallOff;
+        BlurRadius = fluidSettings.BlurRadius;
+        BoundsDamping = fluidSettings.BoundsDamping;
+        MaxNumOfParticles = fluidSettings.MaxNumOfParticles;
+        MaxNumOfControlParticles = fluidSettings.MaxNumOfControlParticles;
+        SizeOfParticle = fluidSettings.SizeOfParticle;
+        BlurScale = fluidSettings.BlurScale;
+        _BoxSize = fluidSettings._BoxSize;
+        rasterMesh = fluidSettings.rasterMesh;
+        _SolveIterations = fluidSettings.SolveIterations;
+
+        //Get the materials needed.
+        rasterMaterial = Resources.Load<Material>("Unlit_WaterParticle");
+        rayTracingMaterial = Resources.Load<Material>("FluidRaytraceMaterial");
+
+
+        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.High)
+            ResolutionDivider = 4;
+        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.Mid)
+            ResolutionDivider = 2;
+        if (UnigmaSettings.QualityPresets == UnigmaSettings.QualityPreset.Low)
+            ResolutionDivider = 1;
+
+        if (UnigmaSettings.GetIsRTXEnabled())
+            _renderMethod = RenderMethod.RayTracingAccelerated;
+        else
+            _renderMethod = RenderMethod.Rasterization;
+
+        _fluidSimCompositeLiquid = Resources.Load<Material>("Hidden_FluidCompositionLiquids");
+
+        if (_renderMethod == RenderMethod.Rasterization)
+            _fluidSimCompositeLiquid.shader = Resources.Load<Shader>("FluidCompositionRaster");
+        else
+            _fluidSimCompositeLiquid.shader = Resources.Load<Shader>("FluidComposition");
+
+    }
+
     private void Start()
     {
 
@@ -521,7 +533,7 @@ public class FluidSimulationManager : MonoBehaviour
     void CreateAcceleratedStructure()
     {
         if (_RayTracingShaderAccelerated == null)
-            _RayTracingShaderAccelerated = Resources.Load<RayTracingShader>("AcceleratedRayTracer");
+            _RayTracingShaderAccelerated = Resources.Load<RayTracingShader>("FluidRaytracer");
 
         //Create GPU accelerated structure.
         var settings = new RayTracingAccelerationStructure.RASSettings();
@@ -1774,8 +1786,8 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimMaterialDepthVert.SetFloat("_BlurFallOff", BlurFallOff);
         _fluidSimMaterialDepthVert.SetFloat("_BlurRadius", BlurRadius);
 
-        _fluidSimMaterialComposite.SetTexture("_ColorFieldNormalMap", _normalMapTexture);
-        _fluidSimMaterialComposite.SetTexture("_CurlMap", _curlMapTexture);
+        _fluidSimCompositeLiquid.SetTexture("_ColorFieldNormalMap", _normalMapTexture);
+        _fluidSimCompositeLiquid.SetTexture("_CurlMap", _curlMapTexture);
 
         //aabbList.GetData(aabbs);
         //aabbList.SetData(aabbs);
@@ -1909,8 +1921,8 @@ public class FluidSimulationManager : MonoBehaviour
         //fluidCommandBuffers.SetRenderTarget(_fluidNormalBufferTexture);
 
         //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-        fluidCommandBuffers.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaFluidsFinal, _fluidSimMaterialComposite, 0);
-        fluidCommandBuffers.Blit(_UnigmaFluidsFinal, BuiltinRenderTextureType.CameraTarget, _fluidSimMaterialComposite, 1);
+        fluidCommandBuffers.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaFluidsFinal, _fluidSimCompositeLiquid, 0);
+        fluidCommandBuffers.Blit(_UnigmaFluidsFinal, BuiltinRenderTextureType.CameraTarget, _fluidSimCompositeLiquid, 1);
         //backgroundColorBuffer.Blit(_UnigmaBackgroundColor, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 1);
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterHaloAndLensFlares, fluidCommandBuffers);
         

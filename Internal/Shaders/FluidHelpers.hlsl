@@ -37,7 +37,7 @@ float GetRest(int type)
 
 float GetSize(int type)
 {
-    float sizes[2] = { 0.030552188, 0.08552188 };
+    float sizes[2] = { 0.030552188, 0.11552188f };
     return sizes[type];
 }
 
@@ -52,7 +52,7 @@ float3 GetForces(int type)
 
 float GetRadius(int type)
 {
-    float radiuses[2] = { 0.0838125, 0.17525f };
+    float radiuses[2] = { 0.0838125, 0.1525f };
     
     return radiuses[type];
 }

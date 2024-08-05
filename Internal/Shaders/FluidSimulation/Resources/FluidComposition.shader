@@ -136,6 +136,7 @@ Shader "Hidden/FluidComposition"
 
                 fluidsDepth.z *= 0.25;
 
+                //return particleNormalMap;
                 //HEAT
                 //return fluidsDepth.y*100;
                 //return unigmaMotion;

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4493bc8ae0bb40643b9b58946f040ccc, type: 3}
   m_Name: DefaultSettings
   m_EditorClassIdentifier: 
+  rasterMesh: {fileID: 0}
   MaxNumOfParticles: 131072
   MaxNumOfControlParticles: 32768
   BlurFallOff: 0.025
@@ -19,6 +20,7 @@ MonoBehaviour:
   Viscosity: 0
   TimeStep: 0.012
   BoundsDamping: -0.3
-  SizeOfParticle: 0.08552188
+  SizeOfParticle: 0.11552188
   BlurScale: {x: 1.13, y: 1.13}
   _BoxSize: {x: 100, y: 400, z: 100}
+  SolveIterations: 7

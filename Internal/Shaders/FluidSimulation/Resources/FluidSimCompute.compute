@@ -355,6 +355,7 @@ Ray CreateCameraRay(float2 uv)
 
 int4 GetCell(float3 position, float w=0)
 {
+    w = 1;
     float rad = GetRadius(w);
     float3 halfS = _BoxSize / 2;
     return int4((position.x + halfS.x) / rad, (position.y + halfS.y) / rad, (position.z + halfS.z) / rad, (w + halfS.z) / rad);
@@ -362,12 +363,13 @@ int4 GetCell(float3 position, float w=0)
 
 inline uint HashCell(in int4 cellIndex)
 {
+    cellIndex.w = 1;
 	const uint p1 = 73856093;
 	const uint p2 = 19349663;
 	const uint p3 = 83492791;
     const uint p4 = 93863251;
     
-	uint n = p1 * cellIndex.x ^ p2 * cellIndex.y ^ p3 * cellIndex.z ^ p4 * cellIndex.w;
+    uint n = p1 * cellIndex.x ^ p2 * cellIndex.y ^ p3 * cellIndex.z ^ p4 * cellIndex.w;
 	n %= _NumOfParticles;
     return n;
 }
@@ -1369,9 +1371,9 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     int3 cell = GetCellVectorField(_Particles[id.x].position, _BoxSizeSpaceTime, _ResolutionSpaceTime);
     int vectorIndex = HashCellVectorField(cell, _ResolutionSpaceTime);
     
-    float4 constantForces = float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
+    float4 constantForces = float4(0, -9.8f, 0, 0)*0; //float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    float4 forces = _Particles[id.x].force + constantForces * min(1, GetMass(_Particles[id.x].phase) * 6);
+    float4 forces = _Particles[id.x].force + constantForces;// * min(1, GetMass(_Particles[id.x].phase) * 6);
     float3 vel = _Particles[id.x].velocity;
     vel += forces.xyz * _TimeStep;
     _Particles[id.x].force = forces;
@@ -2549,12 +2551,14 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
             float distance2 = distance(controlParticle.position, neighbour.predictedPosition);
             float3 pressureGradDir = controlParticle.position - neighbour.predictedPosition;
             
+            float restDensity = GetRest(1);
+            float mass = GetMass(1);
             if (0.001f < distance2 && distance2 < _CDHRadius * 2)
             {
                 //Poly6
-                densitySum += Poly6Kernel(distance2, _CLHRadius) * _Mass; //pi to be used to get constraint.
+                densitySum += Poly6Kernel(distance2, _CLHRadius) * mass; //pi to be used to get constraint.
                 //Spiky
-                float3 spiky = SpikyKernelGradient(distance2, pressureGradDir, _CLHRadius) / _RestDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
+                float3 spiky = SpikyKernelGradient(distance2, pressureGradDir, _CLHRadius) / restDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
                 
@@ -2565,8 +2569,8 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
         }
     }
 
-
-    float constraint = (densitySum / _RestDensity) - 1; //Ci constraint.
+    float restDensity = GetRest(1);
+    float constraint = (densitySum / restDensity) - 1; //Ci constraint.
     dNorm += dot(spiky_i, spiky_i);
 
     float epis = _CDNorm;
@@ -2611,12 +2615,12 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
         
         //Do calculation.
 		float dist = distance(fluidParticle.predictedPosition, controlParticle.position);
-        
+        float restDensity = GetRest(1);
         if (0.001f < dist && dist < _CDHRadius * 2)
         {
             float3 pressureGradDir = controlParticle.position - fluidParticle.predictedPosition;
             
-            innerDisplacement += controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir, _CLHRadius) / _RestDensity;
+            innerDisplacement += controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir, _CLHRadius) / restDensity;
 
             //Calculate velocity displacement.
             float3 pressureGradDirVel = fluidParticle.predictedPosition - controlParticle.position;

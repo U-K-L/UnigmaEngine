@@ -64,6 +64,7 @@ Shader "Unlit/UnigmaBackground"
 
                 fixed4 col = tex2D(_UnigmaBackgroundColor, i.uv);
 
+                return col;
                 
                 //return _UnigmaDepthShadows.r;
 				float4 gradientYcolor = float4(0.9, 0.85, 0.92, 1.0);

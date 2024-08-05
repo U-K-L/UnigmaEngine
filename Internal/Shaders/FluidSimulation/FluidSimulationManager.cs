@@ -143,12 +143,12 @@ public class FluidSimulationManager : MonoBehaviour
     private float TimeStep = 0.02f;
     private float BoundsDamping = 9.8f;
 
-    private float _ControlAlpha = 0.9355f;
-    private float _CDHRadius = 0.17525f;
-    private float _CLHRadius = 1;
+    public float _ControlAlpha = 0.9355f;
+    public float _CDHRadius = 0.525f;
+    public float _CLHRadius = 2;
 
     private float _CPNorm = 1000.0f;
-    private float _CDNorm = 50.0f;
+    public float _CDNorm = 18.0f;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     public Dictionary<string, FluidControl> fluidControlledObjects;
@@ -1458,8 +1458,8 @@ public class FluidSimulationManager : MonoBehaviour
             DebugParticlesBVH();
             if (NumOfControlParticles > 0)
             {
-                //ControlDensity();
-                //ControlForces();
+                ControlDensity();
+                ControlForces();
             }
             for (int i = 0; i < _SolveIterations; i++)
             {

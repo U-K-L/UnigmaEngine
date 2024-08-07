@@ -283,7 +283,7 @@ float4x4 translate(float3 p)
         p.x, p.y, p.z, 1.0);
 }
 
-float Poly6Kernel(float distance2, float radius = 1.0f)
+float Poly6Kernel(float distance2, float radius = 1.350f)
 {
     float result = 0.0;
     float h = 1 * radius;
@@ -309,7 +309,7 @@ float3 Poly6GradientKernel(float distance2, float3 direction)
 }
 
 
-float3 SpikyKernelGradient(float distance2, float3 direction, float radius = 1.0f)
+float3 SpikyKernelGradient(float distance2, float3 direction, float radius = 1.350f)
 {
     float3 result = 0.0;
     float h = 1* radius;
@@ -1371,7 +1371,19 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     int3 cell = GetCellVectorField(_Particles[id.x].position, _BoxSizeSpaceTime, _ResolutionSpaceTime);
     int vectorIndex = HashCellVectorField(cell, _ResolutionSpaceTime);
     
-    float4 constantForces = float4(0, -9.8f, 0, 0)*0; //float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
+    float forceConst = 1.0f;
+    
+    if (_Particles[id.x].force.w < 0)
+    {
+        //forceConst = 0;
+        _Particles[id.x].force.w = 0;
+        //_Particles[id.x].force *= 0.1f;
+        
+    }
+
+    
+
+    float4 constantForces = float4(0, -9.8f, 0, 0); //float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force + constantForces;// * min(1, GetMass(_Particles[id.x].phase) * 6);
     float3 vel = _Particles[id.x].velocity;
@@ -1389,17 +1401,17 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     float externalTemp = Tk;
     float internalTemp = k2 * (_Particles[id.x].tempKelvin - _Particles[id.x].kelvin);
     
-    _Particles[id.x].kelvin += externalTemp * 0.5f + internalTemp * 0.5f + sqrt(length(vel)) * 0.5f;
+    _Particles[id.x].kelvin += externalTemp * 0.005f + internalTemp * 0.05f + sqrt(length(vel)) * 0.5f;
     
     _Particles[id.x].tempKelvin = _Particles[id.x].kelvin;
     
-    
+    /*
     if (_Particles[id.x].kelvin / 370.0f > r*100 + 1)
     {
         _Particles[id.x].type = 0;
         _Particles[id.x].phase = 0;
     }
-
+    */
 
 }
 
@@ -1509,7 +1521,7 @@ void GetDensityGrid(uint3 id)
             {
                 float mass = GetMass(_Particles[particleIndexB].phase);
                 //Poly6
-                densitySum += Poly6Kernel(distance2) * mass;
+                densitySum += Poly6Kernel(distance2) * mass - (1.0f / _Particles[particleIndexB].kelvin)*100;
                 //Spiky
                 float3 spiky = SpikyKernelGradient(distance2, pressureGradDir) / GetRest(_Particles[particleIndexB].phase);
                 spiky_i += spiky;
@@ -2562,6 +2574,16 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
                 
+                if (dot(spiky, spiky) > 0.0)
+                {
+                    float force = float4(0, -9.18f, 0, 0);
+                    float vel = force * _TimeStep;
+
+                    //_Particles[particleIndexB].force = force;
+                    //_Particles[particleIndexB].velocity = vel;
+                    //_Particles[particleIndexB].predictedPosition = neighbour.position + vel * _TimeStep;
+                }
+
             }
 
             cell = clearBit(cell, index);
@@ -2663,7 +2685,8 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 
 	float3 densityDisplacement = -alpha * innerDisplacement;
 
-    _Particles[particleIndex].predictedPosition += (densityDisplacement + springDelta + velocityDelta);
+    if (length(innerDisplacement) > 0)
+        _Particles[particleIndex].predictedPosition = (densityDisplacement + springDelta + velocityDelta) + _Particles[particleIndex].position;
     
 }
 
@@ -2822,7 +2845,7 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
 
         if (0.001f < dist && dist < HRadius * 2.0f)
         {
-
+            neighbour.force.w = -9;
             _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ] = setBit(_particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ], index);
         }
     }

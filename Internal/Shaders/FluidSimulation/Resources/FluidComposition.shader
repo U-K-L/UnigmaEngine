@@ -41,6 +41,11 @@ Shader "Hidden/FluidComposition"
         _AirVisibility("Air visibility", Range(0, 1)) = 0
         _EdgeNormalThreshold("Edge Normal Threshold", Range(0, 1)) = 0.8
 
+
+        _BrightFlame("Bright Flame Color", Color) = (1.0, 1.0, 1.0, 1.0)
+        _MidFlame("Mid Flame Color", Color) = (1.0, 1.0, 1.0, 1.0)
+        _LowFlame("Low Flame Color", Color) = (1.0, 1.0, 1.0, 1.0)
+
     }
     SubShader
     {
@@ -84,7 +89,7 @@ Shader "Hidden/FluidComposition"
 			float _BlurFallOff, _BlurRadius, _DepthMaxDistance, _BlendSmooth, _Spread, _EdgeWidth, _Intensity, _DensityThickness, _OutlineThickness;
 			float _CausticIntensity, _CausticScale, _Speed, _ScaleX, _ScaleY, _SpecularPower, _SpecularIntensity, _FresnelPower;
             float4x4 _ProjectionToWorld, _CameraInverseProjection;
-            float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor, _DeepestWaterColor, _NoiseScaleCaustic, _CausticColor, _BrightWaterColor, _Threshold;
+            float4 _DeepWaterColor, _NoiseScale, _ShallowWaterColor, _DeepestWaterColor, _NoiseScaleCaustic, _CausticColor, _BrightWaterColor, _Threshold, _BrightFlame, _MidFlame, _LowFlame;
             
             sampler2D _SurfaceNoise;
             float4 _SurfaceNoise_ST;
@@ -138,7 +143,25 @@ Shader "Hidden/FluidComposition"
 
                 //return particleNormalMap;
                 //HEAT
-                //return fluidsDepth.y*100;
+                //Heat Colors
+                float4 highHeat = smoothstep(8, 12, fluidsDepth.y) * _BrightFlame;
+                float4 midHeat = smoothstep(3, 5, fluidsDepth.y) * _MidFlame;
+                float4 lowHeat = smoothstep(1, 2, fluidsDepth.y) * _LowFlame;
+                float4 laFlame = 0;
+
+                if(smoothstep(8, 12, fluidsDepth.y) > 0)
+                    return _BrightFlame*10;
+
+                if(smoothstep(3, 5, fluidsDepth.y) > 0)
+                    return _MidFlame*5;
+
+                
+                if(smoothstep(1, 2, fluidsDepth.y) > 0)
+                    return lowHeat*10;
+
+                return midHeat + highHeat + lowHeat;
+                return highHeat;
+                return float4(0.75, 0.1, 0.1, 1) * fluidsDepth.y;
                 //return unigmaMotion;
                 //return fluidsNormal;
                 //return curlMap;

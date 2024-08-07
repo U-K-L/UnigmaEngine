@@ -25,19 +25,19 @@ struct Particle
 
 float GetMass(int type)
 {
-    float masses[2] = { 0.001, 0.1575 };
+    float masses[2] = { 0.001, 0.52575 };
     return masses[type];
 }
 
 float GetRest(int type)
 {
-    float rests[2] = { 1, 25 };
+    float rests[2] = { 1, 20 };
     return rests[type];
 }
 
 float GetSize(int type)
 {
-    float sizes[2] = { 0.030552188, 0.11552188f };
+    float sizes[2] = { 0.0915522f, 0.0915522f };
     return sizes[type];
 }
 
@@ -52,7 +52,7 @@ float3 GetForces(int type)
 
 float GetRadius(int type)
 {
-    float radiuses[2] = { 0.0838125, 0.1525f };
+    float radiuses[2] = { 0.0838125, 0.3125f };
     
     return radiuses[type];
 }

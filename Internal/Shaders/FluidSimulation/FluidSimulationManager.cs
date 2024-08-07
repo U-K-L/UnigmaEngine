@@ -126,13 +126,13 @@ public class FluidSimulationManager : MonoBehaviour
     private Material _fluidSimCompositeLiquid;
 
     private Vector2 BlurScale;
-    private Vector3 _BoxSize = Vector3.one;
+    public Vector3 _BoxSize = Vector3.one;
     private Vector4 DepthScale = default;
 
     private int ResolutionDivider = 0; // (1 / t + 1) How much to divide the text size by. This lowers the resolution of the final image, but massively aids in performance.
     private int DistanceResolutionDivider = 0;
-    private int NumOfParticles;
-    private int NumOfControlParticles;
+    public int NumOfParticles;
+    public int NumOfControlParticles;
     private int MaxNumOfParticles = 1024;
     private int MaxNumOfControlParticles = 512;
     private float SizeOfParticle;
@@ -147,7 +147,7 @@ public class FluidSimulationManager : MonoBehaviour
     public float _CDHRadius = 0.525f;
     public float _CLHRadius = 2;
 
-    private float _CPNorm = 1000.0f;
+    private float _CPNorm = 300.0f;
     public float _CDNorm = 18.0f;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
@@ -1455,7 +1455,7 @@ public class FluidSimulationManager : MonoBehaviour
             if (_renderMethod == RenderMethod.RayTracing)
                 CreateBVHTree();
 
-            DebugParticlesBVH();
+            //DebugParticlesBVH();
             if (NumOfControlParticles > 0)
             {
                 ControlDensity();
@@ -1621,7 +1621,8 @@ public class FluidSimulationManager : MonoBehaviour
     void StoreParticleNeighbors()
     {
         _fluidSimulationComputeShader.Dispatch(_StoreParticleNeighborsKernelId, Mathf.CeilToInt((NumOfParticles*27) / _storeParticleNeighborsThreadSize.x), 1, 1);
-        _fluidSimulationComputeShader.Dispatch(_StoreControlParticleNeighborsKernelId, Mathf.CeilToInt((NumOfControlParticles * 27) / _storeControlParticleNeighborsThreadSize.x), 1, 1);
+        if(NumOfControlParticles > 0)
+            _fluidSimulationComputeShader.Dispatch(_StoreControlParticleNeighborsKernelId, Mathf.CeilToInt((NumOfControlParticles * 27) / _storeControlParticleNeighborsThreadSize.x), 1, 1);
     }
 
     void ComputeDensity()

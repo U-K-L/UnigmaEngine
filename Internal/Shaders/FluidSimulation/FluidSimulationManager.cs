@@ -150,6 +150,8 @@ public class FluidSimulationManager : MonoBehaviour
     private float _CPNorm = 300.0f;
     public float _CDNorm = 18.0f;
 
+    public float DebugKelvin;
+
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     public Dictionary<string, FluidControl> fluidControlledObjects;
     private MeshObject[] _meshObjects;
@@ -284,6 +286,7 @@ public class FluidSimulationManager : MonoBehaviour
         public float density;
         public float lambda;
         public Vector3 prevPosition;
+        public float kelvin;
     };
 
     private MortonCode[] _MortonCodes;
@@ -294,7 +297,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 5)) + (sizeof(float) * 4 * 4) + sizeof(int)*2;
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
-    int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 2;
+    int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 3;
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -498,6 +501,7 @@ public class FluidSimulationManager : MonoBehaviour
         _BoxSize = fluidSettings._BoxSize;
         rasterMesh = fluidSettings.rasterMesh;
         _SolveIterations = fluidSettings.SolveIterations;
+        TimeStep = fluidSettings.TimeStep;
 
         //Get the materials needed.
         rasterMaterial = Resources.Load<Material>("Unlit_WaterParticle");
@@ -868,6 +872,8 @@ public class FluidSimulationManager : MonoBehaviour
         {
             _controlParticlesArray[i].prevPosition = controlParticlesPositions[i];
             _controlParticlesArray[i].position = controlParticlesPositions[i];
+
+            _controlParticlesArray[i].kelvin = DebugKelvin;
         }
         _controlParticlesBuffer.SetData(_controlParticlesArray);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_ControlParticles", _controlParticlesBuffer);

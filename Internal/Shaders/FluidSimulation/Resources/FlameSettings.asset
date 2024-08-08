@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4493bc8ae0bb40643b9b58946f040ccc, type: 3}
-  m_Name: DefaultSettings
+  m_Name: FlameSettings
   m_EditorClassIdentifier: 
   rasterMesh: {fileID: 0}
   MaxNumOfParticles: 131072
@@ -22,5 +22,5 @@ MonoBehaviour:
   BoundsDamping: -0.003
   SizeOfParticle: 0.0915522
   BlurScale: {x: 1.13, y: 1.13}
-  _BoxSize: {x: 9, y: 15, z: 9}
+  _BoxSize: {x: 11.14, y: 17.62, z: 0.5}
   SolveIterations: 7

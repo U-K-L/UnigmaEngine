@@ -17,6 +17,7 @@ public class FluidControllerObject : FluidControl
     [SerializeField] new public SkinnedMeshRenderer renderer;
     protected Renderer _renderer;
     protected MaterialPropertyBlock block;
+    public float kelvin = 273;
     private void Start()
     {
 

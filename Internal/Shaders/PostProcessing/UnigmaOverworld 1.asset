@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 556797029e73b2347956b6579e77e05b, type: 3}
   m_Name: DepthOfField
   m_EditorClassIdentifier: 
-  active: 0
+  active: 1
   enabled:
     overrideState: 1
     value: 1
@@ -21,10 +21,10 @@ MonoBehaviour:
     value: 11.03
   aperture:
     overrideState: 1
-    value: 14.3
+    value: 14.1
   focalLength:
     overrideState: 1
-    value: 24
+    value: 1
   kernelSize:
     overrideState: 1
     value: 3
@@ -136,7 +136,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: adb84e30e02715445aeb9959894e3b4d, type: 3}
   m_Name: ColorGrading
   m_EditorClassIdentifier: 
-  active: 0
+  active: 1
   enabled:
     overrideState: 1
     value: 1
@@ -195,12 +195,12 @@ MonoBehaviour:
     value: 0
   postExposure:
     overrideState: 1
-    value: -0.1
+    value: -0.21
   contrast:
     overrideState: 0
     value: 10
   mixerRedOutRedIn:
-    overrideState: 0
+    overrideState: 1
     value: 100
   mixerRedOutGreenIn:
     overrideState: 0
@@ -228,7 +228,7 @@ MonoBehaviour:
     value: 100
   lift:
     overrideState: 1
-    value: {x: 0.5554457, y: 0.64733225, z: 1, w: 0.09848115}
+    value: {x: 0.5861671, y: 0.5873134, z: 1, w: 0.09848115}
   gamma:
     overrideState: 1
     value: {x: 0.552691, y: 0.79749864, z: 1, w: 0}
@@ -1578,10 +1578,10 @@ MonoBehaviour:
     value: 1
   intensity:
     overrideState: 1
-    value: 0.19
+    value: 0.889
   size:
     overrideState: 1
-    value: 0.5
+    value: 1.13
   lumContrib:
     overrideState: 1
     value: 0.762

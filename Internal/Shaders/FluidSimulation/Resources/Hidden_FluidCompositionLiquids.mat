@@ -95,17 +95,18 @@ Material:
     - _Spread: 0.18
     - _SurfaceNoiseCutoff: 0.063
     m_Colors:
-    - _BrightFlame: {r: 1, g: 0.4784314, b: 0, a: 1}
+    - _BrightFlame: {r: 0.06918234, g: 0.03452853, b: 0, a: 1}
     - _BrightWaterColor: {r: 1, g: 1, b: 1, a: 1}
     - _CausticColor: {r: 1, g: 1, b: 1, a: 1}
     - _DeepWaterColor: {r: 0.4535421, g: 0.76190907, b: 0.9811321, a: 1}
     - _DeepestWaterColor: {r: 1, g: 0.7704402, b: 0.994497, a: 1}
     - _FoamIntensity: {r: 5.43, g: 0.01, b: 1, a: 3.54}
-    - _LowFlame: {r: 0.088050246, g: 0, b: 0.004358948, a: 1}
+    - _LowFlame: {r: 0.31446534, g: 0.0643955, b: 0, a: 1}
     - _MidFlame: {r: 1, g: 0.050925925, b: 0, a: 1}
     - _NoiseScale: {r: 42.27, g: 157.57, b: 12.2, a: -0.16}
     - _NoiseScaleCaustic: {r: 5.97, g: 0.021, b: 0.01, a: 4.75}
     - _ShallowWaterColor: {r: 0.28764677, g: 0.77996284, b: 0.9056604, a: 1}
+    - _SmokeFlame: {r: 0.13836467, g: 0.0021755311, b: 0.016025294, a: 0.36862746}
     - _SurfaceNoiseScroll: {r: 9.77, g: 1, b: 1.08, a: 0.06}
     - _Threshold: {r: 0.53, g: 1, b: 0.88, a: 0.65}
   m_BuildTextureStacks: []

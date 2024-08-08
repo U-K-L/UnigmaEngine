@@ -156,6 +156,7 @@ struct ControlParticle
     float density;
     float lambda;
     float3 prevPosition;
+    float kelvin;
 };
 
 struct SpaceTimePoint
@@ -1385,7 +1386,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 
     float4 constantForces = float4(0, -9.8f, 0, 0); //float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
-    float4 forces = _Particles[id.x].force + constantForces;// * min(1, GetMass(_Particles[id.x].phase) * 6);
+    float4 forces = _Particles[id.x].force + constantForces;// + float4(0, _Particles[id.x].kelvin / 270, 0, 0); // * min(1, GetMass(_Particles[id.x].phase) * 6);
     float3 vel = _Particles[id.x].velocity;
     vel += forces.xyz * _TimeStep;
     _Particles[id.x].force = forces;
@@ -1401,7 +1402,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     float externalTemp = Tk;
     float internalTemp = k2 * (_Particles[id.x].tempKelvin - _Particles[id.x].kelvin);
     
-    _Particles[id.x].kelvin += externalTemp * 0.005f + internalTemp * 0.05f + sqrt(length(vel)) * 0.5f;
+    _Particles[id.x].kelvin += externalTemp * 0.5f + internalTemp * 0.5f + sqrt(length(vel)) * 0.5f;
     
     _Particles[id.x].tempKelvin = _Particles[id.x].kelvin;
     
@@ -1521,14 +1522,14 @@ void GetDensityGrid(uint3 id)
             {
                 float mass = GetMass(_Particles[particleIndexB].phase);
                 //Poly6
-                densitySum += Poly6Kernel(distance2) * mass - (1.0f / _Particles[particleIndexB].kelvin)*100;
+                densitySum += Poly6Kernel(distance2) * mass;// - (1.0f / _Particles[particleIndexB].kelvin)*100;
                 //Spiky
                 float3 spiky = SpikyKernelGradient(distance2, pressureGradDir) / GetRest(_Particles[particleIndexB].phase);
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
                 colorField += mass * (1 / _Particles[particleIndexB].density) * Poly6GradientKernel(distance2, pressureGradDir);
                 
-                float k = 0.0995f;
+                float k = 0.10995f;
                 float Tk = k * (_Particles[particleIndexB].kelvin - _Particles[particleIndex].kelvin);
                 kelvinSum += Poly6Kernel(distance2) * mass * Tk;
                 
@@ -1552,7 +1553,7 @@ void GetDensityGrid(uint3 id)
 
     //_Particles[id.x].debugVector = float3(1, 1, 0);
     
-    float k = 0.00995f;
+    float k = 0.995f;
     float Tk = k * (kelvinSum - _Particles[particleIndex].kelvin);
     
     _Particles[particleIndex].tempKelvin += kelvinSum;
@@ -2075,7 +2076,7 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
 
 
     float3 n_hat = 0;
-    float voritictyEps = 0.1f;
+    float voritictyEps = 25.0f;
     if (length(nVisc) > epsilon)
     {
         n_hat = normalize(nVisc); //(nVisc / length(nVisc));
@@ -2684,9 +2685,8 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
     float3 velocityDelta = gamma * _TimeStep * (velocityDisplacement - fluidParticle.velocity);
 
 	float3 densityDisplacement = -alpha * innerDisplacement;
-
-    if (length(innerDisplacement) > 0)
-        _Particles[particleIndex].predictedPosition = (densityDisplacement + springDelta + velocityDelta) + _Particles[particleIndex].position;
+    
+    _Particles[particleIndex].predictedPosition += (densityDisplacement + springDelta + velocityDelta);
     
 }
 
@@ -2845,7 +2845,7 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
 
         if (0.001f < dist && dist < HRadius * 2.0f)
         {
-            neighbour.force.w = -9;
+            _Particles[particleIndexB].kelvin = currentParticle.kelvin;
             _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ] = setBit(_particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ], index);
         }
     }

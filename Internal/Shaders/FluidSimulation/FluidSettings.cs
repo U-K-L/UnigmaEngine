@@ -18,4 +18,5 @@ public class FluidSettings : ScriptableObject
     public Vector2 BlurScale;
     public Vector3 _BoxSize = Vector3.one;
     public int SolveIterations = 3;
+    public float VoritictyEps = 25.0f;
 }

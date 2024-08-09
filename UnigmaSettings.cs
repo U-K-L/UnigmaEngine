@@ -60,6 +60,12 @@ public static class UnigmaSettings
     public static void Initialize()
     {
         ScreenResolution();
+        FrameRateLock();
+    }
+
+    static void FrameRateLock()
+    {
+        Application.targetFrameRate = 30;
     }
 
     static void ScreenResolution()

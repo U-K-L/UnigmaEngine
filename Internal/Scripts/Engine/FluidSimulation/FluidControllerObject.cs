@@ -29,8 +29,22 @@ public class FluidControllerObject : FluidControl
 
         FluidSimulationManager.Instance.fluidControlledObjects.Add(transform.name, this);
 
-        SetUpSkinnedMesh();
+        if (isSkinnedMesh)
+            SetUpSkinnedMesh();
+        else
+            SetUpMesh();
 
+    }
+    void SetUpMesh()
+    {
+        Mesh localMesh = mesh.mesh;
+
+        Voxels = GPUVoxelizer.Voxelize(voxelizer, localMesh, voxelResolution, (meshType == MeshType.Volume));
+        var pointMesh = BuildPoints(Voxels);
+        particleBuffer = new ComputeBuffer(pointMesh.vertexCount, Marshal.SizeOf(typeof(VParticle_t)));
+
+
+        Compute(setupKernel, Voxels, Time.deltaTime);
     }
 
     void SetUpSkinnedMesh()
@@ -73,7 +87,7 @@ public class FluidControllerObject : FluidControl
         }
         else
         {
-            //MeshToPoints(Voxels);
+            MeshToPoints(Voxels);
         }
     }
 

@@ -37,7 +37,7 @@ float GetRest(int type)
 
 float GetSize(int type)
 {
-    float sizes[2] = { 0.0915522f, 0.0915522f };
+    float sizes[2] = { 0.0915522f, 0.135522f };
     return sizes[type];
 }
 

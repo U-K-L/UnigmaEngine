@@ -147,10 +147,11 @@ public class FluidSimulationManager : MonoBehaviour
     public float _CDHRadius = 0.525f;
     public float _CLHRadius = 2;
 
-    private float _CPNorm = 300.0f;
+    public float _CPNorm = 300.0f;
     public float _CDNorm = 18.0f;
 
     public float DebugKelvin;
+    private float _VoritictyEps = 25.0f;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
     public Dictionary<string, FluidControl> fluidControlledObjects;
@@ -502,6 +503,7 @@ public class FluidSimulationManager : MonoBehaviour
         rasterMesh = fluidSettings.rasterMesh;
         _SolveIterations = fluidSettings.SolveIterations;
         TimeStep = fluidSettings.TimeStep;
+        _VoritictyEps = fluidSettings.VoritictyEps;
 
         //Get the materials needed.
         rasterMaterial = Resources.Load<Material>("Unlit_WaterParticle");
@@ -1754,6 +1756,7 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetMatrix("_CameraInverseProjection", _cam.projectionMatrix.inverse);
         _fluidSimulationComputeShader.SetVector("_DepthScale", DepthScale);
         _fluidSimulationComputeShader.SetFloat("_Viscosity", Viscosity);
+        _fluidSimulationComputeShader.SetFloat("_VoritictyEps", _VoritictyEps);
         _fluidSimulationComputeShader.SetFloat("_TimeStep", TimeStep);
         _fluidSimulationComputeShader.SetFloat("_Alpha", _ControlAlpha);
         _fluidSimulationComputeShader.SetFloat("_CDHRadius", _CDHRadius);

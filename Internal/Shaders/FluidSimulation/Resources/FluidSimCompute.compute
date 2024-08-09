@@ -65,6 +65,7 @@ float _CLHRadius = 1.0f;
 float _Alpha = 1.0f;
 float _CDNorm = 1.0f;
 float _CPNorm = 1.0f;
+float _VoritictyEps;
 
 float3 _BoxSizeSpaceTime;
 int _ResolutionSpaceTime;
@@ -1353,7 +1354,12 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
 	}
 
     float r = rand(_Time.x + id.x);
-
+    /*
+    if (r > abs(_Particles[id.x].density) + 0.95f + length(_Particles[id.x].velocity))
+    {
+        _Particles[id.x].phase = 0;
+    }
+    */
 
         /*
 
@@ -1373,15 +1379,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     int vectorIndex = HashCellVectorField(cell, _ResolutionSpaceTime);
     
     float forceConst = 1.0f;
-    
-    if (_Particles[id.x].force.w < 0)
-    {
-        //forceConst = 0;
-        _Particles[id.x].force.w = 0;
-        //_Particles[id.x].force *= 0.1f;
-        
-    }
-
+   
     
 
     float4 constantForces = float4(0, -9.8f, 0, 0); //float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
@@ -2076,14 +2074,13 @@ void CalculateVorticity(uint3 id : SV_DispatchThreadID)
 
 
     float3 n_hat = 0;
-    float voritictyEps = 25.0f;
     if (length(nVisc) > epsilon)
     {
         n_hat = normalize(nVisc); //(nVisc / length(nVisc));
 
     }
 
-    float3 f_vc = voritictyEps * cross(n_hat, _Particles[particleIndex].curl) * _TimeStep;
+    float3 f_vc = _VoritictyEps * cross(n_hat, _Particles[particleIndex].curl) * _TimeStep;
     
     
     _Particles[particleIndex].velocity += (_Viscosity * velocities * _TimeStep) + f_vc * _TimeStep;
@@ -2845,6 +2842,9 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
 
         if (0.001f < dist && dist < HRadius * 2.0f)
         {
+            _Particles[particleIndexB].force = 0;
+            float3 vel = 0.25f*_Particles[particleIndexB].velocity;
+            _Particles[particleIndexB].predictedPosition = _Particles[particleIndexB].position + vel * _TimeStep;
             _Particles[particleIndexB].kelvin = currentParticle.kelvin;
             _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ] = setBit(_particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ], index);
         }

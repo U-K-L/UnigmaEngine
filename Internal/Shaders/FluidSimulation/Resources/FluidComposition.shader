@@ -494,8 +494,8 @@ Shader "Hidden/FluidComposition"
                 float4 occulusion = lerp( lerp(colorLerping, colorLerping + (heatMapSmoothed)*smoothstep(0.001, 0.6925, fluidsNormal.y), min(1, 0.25 + causticsTexMap.r + smoothstep(0.5, 0.626, causticsTex.r + heatMapSmoothed*0.1))), originalImage, step(fluidsSceneDepth, unigmaDepth.r));
 
                 //return fluidsDepth.z;
-                if(particleNormalMap.w == 1)
-                    return lerp(originalImage, waterColor, fluidsDepth.z*6);//return lerp(originalImage, waterColor, _AirVisibility); //
+                //if(particleNormalMap.w == 1)
+                //    return lerp(originalImage, waterColor, fluidsDepth.z*6);//return lerp(originalImage, waterColor, _AirVisibility); //
                 //return curlMap;
                 return float4(occulusion.xyz, fluidsDepth.w);
             }

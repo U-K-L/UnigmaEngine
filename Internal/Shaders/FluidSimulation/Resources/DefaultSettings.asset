@@ -17,10 +17,11 @@ MonoBehaviour:
   MaxNumOfControlParticles: 32768
   BlurFallOff: 0.025
   BlurRadius: 5
-  Viscosity: -0.3
-  TimeStep: 0.012
-  BoundsDamping: -0.003
-  SizeOfParticle: 0.0915522
+  Viscosity: -0.03
+  TimeStep: 0.033
+  BoundsDamping: -0.03
+  SizeOfParticle: 0.135522
   BlurScale: {x: 1.13, y: 1.13}
-  _BoxSize: {x: 9, y: 15, z: 9}
+  _BoxSize: {x: 16.47, y: 156.27, z: 16.47}
   SolveIterations: 7
+  VoritictyEps: 5

@@ -901,7 +901,6 @@ public class FluidSimulationManager : MonoBehaviour
 
         //Add fluid objects.
         _fluidObjectsBuffer.SetData(_fluidObjectsArray);
-        _fluidObjectsArray[0].kelvin = 10000; //Quick Test Delete.
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_FluidObjects", _fluidObjectsBuffer);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_FluidObjects", _fluidObjectsBuffer);
         _fluidSimulationComputeShader.SetBuffer(_StoreControlParticleNeighborsKernelId, "_FluidObjects", _fluidObjectsBuffer);

@@ -46,19 +46,19 @@ public class FluidControl : MonoBehaviour
         {
             //First we get the total count of all the voxels from the buffer. We want to save on performance by checking if this needs a new array or not.
             int voxelCount = voxelData.Buffer.count;
-            if (voxels_t == null && !isSkinnedMesh)
-            {
-                voxels_t = new Voxel_t[voxelCount];
-                points = new Vector3[voxelCount];
-            }
-            else
-            {
-                voxels_t = new Voxel_t[voxelCount];
-                points = new Vector3[voxelCount];
-            }
+            voxels_t = new Voxel_t[voxelCount];
+            points = new Vector3[voxelCount];
 
             //Once we have the size, we can call on the GPU to get the voxel data off the GPU to the CPU.
             voxelData.Buffer.GetData(voxels_t);
+        }
+    }
+
+    protected virtual void TransformPoints(GPUVoxelData voxelData)
+    {
+        if (fluidOn)
+        {
+            int voxelCount = voxelData.Buffer.count;
             Matrix4x4 localToWorld = transform.localToWorldMatrix;
             for (int i = 0; i < voxelCount; i++)
             {

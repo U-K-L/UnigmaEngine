@@ -45,6 +45,7 @@ public class FluidControllerObject : FluidControl
 
 
         Compute(setupKernel, Voxels, Time.deltaTime);
+        MeshToPoints(Voxels);
     }
 
     void SetUpSkinnedMesh()
@@ -69,12 +70,16 @@ public class FluidControllerObject : FluidControl
 
     private void Update()
     {
-        UpdateControlPoints();
+        CreateControlPoints();
+        TransformControlPoints();
         
     }
 
-    void UpdateControlPoints()
+    void CreateControlPoints()
     {
+        //Checks if a mesh is being used.
+        //If animated skinnedMesh update each frame the skinned mesh.
+        //If normal static mesh do not update unless deformed.
         if (isSkinnedMesh)
         {
             Voxels.Dispose();
@@ -85,10 +90,11 @@ public class FluidControllerObject : FluidControl
             Compute(updateKernel, Voxels, Time.deltaTime);
             MeshToPoints(Voxels);
         }
-        else
-        {
-            MeshToPoints(Voxels);
-        }
+    }
+
+    void TransformControlPoints()
+    {
+        TransformPoints(Voxels);
     }
 
     Mesh Sample()

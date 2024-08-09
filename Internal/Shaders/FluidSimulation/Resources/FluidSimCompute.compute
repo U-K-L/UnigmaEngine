@@ -157,6 +157,11 @@ struct ControlParticle
     float density;
     float lambda;
     float3 prevPosition;
+    int objectId;
+};
+
+struct FluidObject
+{
     float kelvin;
 };
 
@@ -184,6 +189,7 @@ RWStructuredBuffer<BVHNode> _BVHNodes;
 RWStructuredBuffer<int> _ParticleIDs;
 RWStructuredBuffer<uint> _particleNeighbors;
 RWStructuredBuffer<ControlParticle> _ControlParticles;
+RWStructuredBuffer<FluidObject> _FluidObjects;
 uint numOfStructs, sizeOfStrides, numOfParticles, sizeOfParticlesStrides;
 float density = 0.0;
 int _BoxViewDebug;
@@ -2845,7 +2851,7 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
             _Particles[particleIndexB].force = 0;
             float3 vel = 0.25f*_Particles[particleIndexB].velocity;
             _Particles[particleIndexB].predictedPosition = _Particles[particleIndexB].position + vel * _TimeStep;
-            _Particles[particleIndexB].kelvin = currentParticle.kelvin;
+            _Particles[particleIndexB].kelvin = _FluidObjects[currentParticle.objectId].kelvin;
             _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ] = setBit(_particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ], index);
         }
     }

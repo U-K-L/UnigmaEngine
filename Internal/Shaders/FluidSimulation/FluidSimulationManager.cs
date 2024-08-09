@@ -40,6 +40,7 @@ public class FluidSimulationManager : MonoBehaviour
     ComputeBuffer _particleNeighbors;
     ComputeBuffer _controlNeighborsBuffer; //The control particles that are neighbors of the particles.
     ComputeBuffer _controlParticlesBuffer;
+    ComputeBuffer _fluidObjectsBuffer;
 
     //Todo refactor some of these compute kernels out.
     int _UpdateParticlesKernelId;
@@ -160,7 +161,6 @@ public class FluidSimulationManager : MonoBehaviour
     private List<int> _indices = new List<int>();
     private Particles[] _particles;
     private Vector3[] _particlesPositions;
-    private ControlParticles[] _controlParticlesArray;
     private uint[] _particleNeighborsArray;
 
     private int[] _ParticleIDs;
@@ -287,8 +287,21 @@ public class FluidSimulationManager : MonoBehaviour
         public float density;
         public float lambda;
         public Vector3 prevPosition;
+        public int objectId;
+    };
+
+    public struct FluidObject
+    {
         public float kelvin;
     };
+
+    //Arrays to hold data on the CPU side and initialize data.
+    private ControlParticles[] _controlParticlesArray;
+    private FluidObject[] _fluidObjectsArray;
+
+    //Maximum size of these arrays. Constants.
+    public int _maxNumOfFluidObjects;
+
 
     private MortonCode[] _MortonCodes;
     private MortonCode[] _MortonCodesTemp;
@@ -299,6 +312,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
     int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 3;
+    int _fluidObjectStride = sizeof(float);
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -388,8 +402,11 @@ public class FluidSimulationManager : MonoBehaviour
         _velocitySurfaceDensityDepthTexture.name = "VelocitySurfaceDensityDepthTexture";
         _UnigmaFluidsFinal = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaFluidsFinal.name = "UnigmaFluidsFinal";
+
+        //Initialize Arrays.
         _particles = new Particles[MaxNumOfParticles];
         _controlParticlesArray = new ControlParticles[MaxNumOfControlParticles];
+        _fluidObjectsArray = new FluidObject[_maxNumOfFluidObjects];
         _particlesPositions = new Vector3[MaxNumOfParticles];
         _ParticleIDs = new int[MaxNumOfParticles];
         _particleIDsBuffer = new ComputeBuffer(_ParticleIDs.Length, 4);
@@ -412,6 +429,8 @@ public class FluidSimulationManager : MonoBehaviour
         controlParticlesPositions = new Vector3[MaxNumOfControlParticles];
 
         _controlParticlesBuffer = new ComputeBuffer(MaxNumOfControlParticles, _controlParticleStride);
+
+        _fluidObjectsBuffer = new ComputeBuffer(_maxNumOfFluidObjects, _fluidObjectStride);
 
         _UpdateParticlesKernelId = _fluidSimulationComputeShader.FindKernel("UpdateParticles");
         _HashParticlesKernelId = _fluidSimulationComputeShader.FindKernel("HashParticles");
@@ -874,13 +893,18 @@ public class FluidSimulationManager : MonoBehaviour
         {
             _controlParticlesArray[i].prevPosition = controlParticlesPositions[i];
             _controlParticlesArray[i].position = controlParticlesPositions[i];
-
-            _controlParticlesArray[i].kelvin = DebugKelvin;
         }
         _controlParticlesBuffer.SetData(_controlParticlesArray);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_ControlParticles", _controlParticlesBuffer);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_ControlParticles", _controlParticlesBuffer);
         _fluidSimulationComputeShader.SetBuffer(_StoreControlParticleNeighborsKernelId, "_ControlParticles", _controlParticlesBuffer);
+
+        //Add fluid objects.
+        _fluidObjectsBuffer.SetData(_fluidObjectsArray);
+        _fluidObjectsArray[0].kelvin = 10000; //Quick Test Delete.
+        _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_FluidObjects", _fluidObjectsBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_FluidObjects", _fluidObjectsBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_StoreControlParticleNeighborsKernelId, "_FluidObjects", _fluidObjectsBuffer);
 
     }
 
@@ -2041,6 +2065,8 @@ public class FluidSimulationManager : MonoBehaviour
             _controlNeighborsBuffer.Release();
         if (_controlParticlesBuffer != null)
             _controlParticlesBuffer.Release();
+        if (_fluidObjectsBuffer != null)
+            _fluidObjectsBuffer.Release();
 
 
         _rtTarget.Release();

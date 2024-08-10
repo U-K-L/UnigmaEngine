@@ -160,6 +160,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     RayTracingAccelerationStructure _AccelerationStructure;
 
     public LayerMask RayTracingLayers;
+    public LayerMask OutlineLayers;
     RenderTexture _DepthShadowsTexture;
     RenderTexture _UnigmaScreenSpaceShadows;
     RenderTexture _ReflectionsTexture;
@@ -476,9 +477,13 @@ public class UnigmaCommandBuffers : MonoBehaviour
             return;
         foreach (Renderer r in _rayTracedObjects)
         {
-            uint stencilValue = (uint)r.material.GetInt("_StencilRef");
-            if (stencilValue == 0)
-                stencilValue = 255;
+            uint stencilValue = 0;
+            if (r.material.HasInt("_StencilRef"))
+            {
+                stencilValue = (uint)r.material.GetInt("_StencilRef");
+                if (stencilValue == 0)
+                    stencilValue = 255;
+            }
             _AccelerationStructure.UpdateInstanceTransform(r);
             _AccelerationStructure.UpdateInstanceMask(r, stencilValue);
         }
@@ -845,10 +850,14 @@ public class UnigmaCommandBuffers : MonoBehaviour
         uint index = 0;
         foreach (Renderer r in _rayTracedObjects)
         {
-            uint stencilValue = (uint)r.material.GetInt("_StencilRef");
-            if (stencilValue == 0)
+            uint stencilValue = 0;
+            if (r.material.HasInt("_StencilRef"))
             {
-                stencilValue = 255;
+                stencilValue = (uint)r.material.GetInt("_StencilRef");
+                if (stencilValue == 0)
+                {
+                    stencilValue = 255;
+                }
             }
             _AccelerationStructure.AddInstance(r, id:index, mask:stencilValue);
             _AccelerationStructure.UpdateInstanceTransform(r); 
@@ -1350,10 +1359,18 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _OutlineRenderObjects.Clear();
         _OutlineNullObjects.Clear();
         for (int i = 0; i < sceneRenderers.Length; i++)
-            if (sceneRenderers[i].GetComponent(component))
+        {
+            bool addOutline = false;
+            if (((1 << sceneRenderers[i].gameObject.layer) & OutlineLayers) != 0)
+            {
+                addOutline = true;
+            }
+
+            if (sceneRenderers[i].GetComponent(component) && addOutline)
                 _OutlineRenderObjects.Add(sceneRenderers[i].gameObject.GetComponent(component) as UnigmaPostProcessingObjects);
             else
                 _OutlineNullObjects.Add(sceneRenderers[i]);
+        }
     }
 
     void FindWaterObjects()

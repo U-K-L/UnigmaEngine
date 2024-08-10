@@ -13,13 +13,21 @@ using VoxelSystem.Demo;
 
 public class FluidControllerObject : FluidControl
 {
-    [SerializeField] new protected MeshFilter mesh;
+    public bool isSkinnedMesh = false;
+    public bool useMesh = true;
+    [SerializeField] new protected MeshFilter _meshFilter;
     [SerializeField] new public SkinnedMeshRenderer renderer;
     protected Renderer _renderer;
     protected MaterialPropertyBlock block;
-    public float kelvin = 273;
+
+
+    [SerializeField] protected MeshType meshType = MeshType.Volume;
+    protected ComputeShader voxelizer, particleUpdate;
+    [SerializeField] protected int voxelResolution = 12;
+    protected ComputeBuffer particleBuffer;
     private void Start()
     {
+        FluidSimulationManager.Instance.fluidControlledObjects.Add(this);
 
         voxelizer = Resources.Load<ComputeShader>("Voxelizer/Shaders/Voxelizer");
         particleUpdate = Resources.Load<ComputeShader>("Voxelizer/Demo/Shaders/GPUVoxelParticleSystem/GPUVoxelSkinnedMesh");
@@ -27,17 +35,21 @@ public class FluidControllerObject : FluidControl
         setupKernel = new Kernel(particleUpdate, kSetupKernelKey);
         updateKernel = new Kernel(particleUpdate, kUpdateKernelKey);
 
-        FluidSimulationManager.Instance.fluidControlledObjects.Add(transform.name, this);
-
         if (isSkinnedMesh)
             SetUpSkinnedMesh();
         else
             SetUpMesh();
 
+        UpdateFluidObjectValues();
+
     }
     void SetUpMesh()
     {
-        Mesh localMesh = mesh.mesh;
+        //Find mesh filter.
+        if (_meshFilter == null)
+            _meshFilter = GetComponent<MeshFilter>();
+
+        Mesh localMesh = _meshFilter.mesh;
 
         Voxels = GPUVoxelizer.Voxelize(voxelizer, localMesh, voxelResolution, (meshType == MeshType.Volume));
         var pointMesh = BuildPoints(Voxels);
@@ -56,14 +68,16 @@ public class FluidControllerObject : FluidControl
         var pointMesh = BuildPoints(Voxels);
         particleBuffer = new ComputeBuffer(pointMesh.vertexCount, Marshal.SizeOf(typeof(VParticle_t)));
 
-        GetComponent<MeshFilter>().sharedMesh = pointMesh;
-
+        //GetComponent<MeshFilter>().sharedMesh = pointMesh;
+        /*
         block = new MaterialPropertyBlock();
         _renderer = GetComponent<Renderer>();
         _renderer.GetPropertyBlock(block);
 
+
         block.SetBuffer(kParticleBufferKey, particleBuffer);
         _renderer.SetPropertyBlock(block);
+        */
 
         Compute(setupKernel, Voxels, Time.deltaTime);
     }
@@ -72,7 +86,8 @@ public class FluidControllerObject : FluidControl
     {
         CreateControlPoints();
         TransformControlPoints();
-        
+        UpdateFluidObjectValues();
+
     }
 
     void CreateControlPoints()

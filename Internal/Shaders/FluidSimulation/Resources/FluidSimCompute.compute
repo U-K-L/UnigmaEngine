@@ -162,7 +162,11 @@ struct ControlParticle
 
 struct FluidObject
 {
-    float kelvin;
+    float kelvin;   
+    float controlRadius;  
+    float smoothingRadius;
+    float controlStrength;
+    float controlNorm;
 };
 
 struct SpaceTimePoint
@@ -2535,7 +2539,9 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
     int4 cellIndex = GetCell(_ControlParticles[controlParticleIndex].position, 0);
     float3 nVisc = 0;
     float3 velocities = 0;
-    float HRadius = _CDHRadius;
+    int objectId = _ControlParticles[controlParticleIndex].objectId;
+    float HRadius = _FluidObjects[objectId].controlRadius;
+    float LRadius = _FluidObjects[objectId].smoothingRadius;
     
     uint index = 0;
 	ControlParticle controlParticle = _ControlParticles[controlParticleIndex];
@@ -2569,12 +2575,12 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
             
             float restDensity = GetRest(1);
             float mass = GetMass(1);
-            if (0.001f < distance2 && distance2 < _CDHRadius * 2)
+            if (0.001f < distance2 && distance2 < HRadius * 2)
             {
                 //Poly6
-                densitySum += Poly6Kernel(distance2, _CLHRadius) * mass; //pi to be used to get constraint.
+                densitySum += Poly6Kernel(distance2, LRadius) * mass; //pi to be used to get constraint.
                 //Spiky
-                float3 spiky = SpikyKernelGradient(distance2, pressureGradDir, _CLHRadius) / restDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
+                float3 spiky = SpikyKernelGradient(distance2, pressureGradDir, LRadius) / restDensity; // delta_p W(Pi, Pj, H) equation 7 denominator.
                 spiky_i += spiky;
                 dNorm += dot(spiky, spiky);
                 
@@ -2599,7 +2605,7 @@ void CalculateControlDensity(uint3 id : SV_DispatchThreadID)
     float constraint = (densitySum / restDensity) - 1; //Ci constraint.
     dNorm += dot(spiky_i, spiky_i);
 
-    float epis = _CDNorm;
+    float epis = _FluidObjects[objectId].controlNorm;
     float lambda = -constraint / (dNorm + epis);
     //End calculations.
 	_ControlParticles[controlParticleIndex].lambda = lambda;
@@ -2620,8 +2626,6 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 	float3 innerDisplacement = 0.0f;
     float3 velocityDisplacement = 0.0f;
     float springDelta = 0.0f;
-    
-    float HRadius = _CLHRadius;
 
 	int ri = -1; //contraint particle reference.
     float smallestDist = 999999;
@@ -2629,12 +2633,16 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 	float tDamp = 0.15f;
 	float aLog = 0.41f;
 	float bLog = 0.11f;
-    float alpha = _Alpha;
+    float alpha = 0.0f;
     float stiffness = 0.001f;
     float gamma = 0.001f;
     //for each control particle.
     float3 velocityDisplacementTop = 1.0f;
     float3 velocityDisplacmentBottom = 1.0f;
+    
+    float kelvinSum = 0.0f;
+    
+    int sumCount = 1;
     for (int i = 0; i < _NumOfControlParticles; i++)
     {
 		ControlParticle controlParticle = _ControlParticles[i];
@@ -2642,15 +2650,20 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
         //Do calculation.
 		float dist = distance(fluidParticle.predictedPosition, controlParticle.position);
         float restDensity = GetRest(1);
-        if (0.001f < dist && dist < _CDHRadius * 2)
+        
+        int objectId = controlParticle.objectId;
+        float HRadius = _FluidObjects[objectId].controlRadius;
+        float LRadius = _FluidObjects[objectId].smoothingRadius;
+        
+        if (0.001f < dist && dist < HRadius * 2)
         {
             float3 pressureGradDir = controlParticle.position - fluidParticle.predictedPosition;
             
-            innerDisplacement += controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir, _CLHRadius) / restDensity;
+            innerDisplacement += controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir, LRadius) / restDensity;
 
             //Calculate velocity displacement.
             float3 pressureGradDirVel = fluidParticle.predictedPosition - controlParticle.position;
-            float3 velocityGradient = SpikyKernelGradient(dist, pressureGradDirVel, _CLHRadius);
+            float3 velocityGradient = SpikyKernelGradient(dist, pressureGradDirVel, LRadius);
             float3 controlParticleVel = (controlParticle.position - controlParticle.prevPosition) / _TimeStep;
             velocityDisplacementTop += velocityGradient*controlParticleVel;
             velocityDisplacmentBottom += velocityGradient;
@@ -2665,6 +2678,20 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
                 ri = i;
                 fluidParticle.spring = lifeTime;
             }
+            
+            //Add kelvin.
+                            
+            float k = 0.10995f;
+            float Tk = k * (_FluidObjects[objectId].kelvin - _Particles[particleIndex].kelvin);
+            kelvinSum += Poly6Kernel(dist, LRadius) * Tk;
+            
+            //Add alpha values for control strength.
+            
+            alpha += _FluidObjects[objectId].controlStrength;
+            
+            //increment count.
+            sumCount += 1;
+
         }
     }
     
@@ -2683,11 +2710,19 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 	}
 
 	//End calculations.
+    
+    alpha /= sumCount;
     velocityDisplacement = velocityDisplacementTop / (velocityDisplacmentBottom);
 
     float3 velocityDelta = gamma * _TimeStep * (velocityDisplacement - fluidParticle.velocity);
 
 	float3 densityDisplacement = -alpha * innerDisplacement;
+    
+    //Now add gathered data to this particle.
+    float k = 0.090995f;
+    float Tk = k * (kelvinSum - _Particles[particleIndex].kelvin);
+    
+    _Particles[particleIndex].tempKelvin += Tk;
     
     _Particles[particleIndex].predictedPosition += (densityDisplacement + springDelta + velocityDelta);
     
@@ -2804,7 +2839,7 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
         return;
     }
     
-    float HRadius = _CDHRadius;
+    float HRadius = _FluidObjects[_ControlParticles[id.x].objectId].controlRadius; //_CDHRadius;
 
     
     int numOfParticles = _NumOfParticles;
@@ -2851,7 +2886,6 @@ void StoreControlParticleNeighbors(uint3 id : SV_DispatchThreadID)
             _Particles[particleIndexB].force = 0;
             float3 vel = 0.25f*_Particles[particleIndexB].velocity;
             _Particles[particleIndexB].predictedPosition = _Particles[particleIndexB].position + vel * _TimeStep;
-            _Particles[particleIndexB].kelvin = _FluidObjects[currentParticle.objectId].kelvin;
             _particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ] = setBit(_particleNeighbors[particleIndex * 27 + (j * 3) + (i * 9) + k ], index);
         }
     }

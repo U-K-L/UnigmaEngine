@@ -2,17 +2,23 @@ using Deform;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using UnityEngine;
 using VoxelSystem;
 using VoxelSystem.Demo;
 using static UnityEngine.ParticleSystem;
 
+//General fluid control, can be used instead of a mesh based system.
 public class FluidControl : MonoBehaviour
 {
-    public bool isSkinnedMesh = false;
+
     public bool DebugModeOn = false;
-    public bool useMesh = true;
     public bool fluidOn = true;
+    public float controlStrength = 0.025155f;
+    public float controlRadius = 0.1208333f;
+    public float smoothingRadius = 1.25f;
+    public float controlNorm = 0.75f;
+    public float kelvin = 273;
 
     public Voxel_t[] voxels_t;
     public Vector3[] points;
@@ -25,17 +31,28 @@ public class FluidControl : MonoBehaviour
     protected const string kParticleBufferKey = "_ParticleBuffer", kParticleCountKey = "_ParticleCount";
     protected const string kUnitLengthKey = "_UnitLength";
 
+
     protected enum MeshType
     {
         Volume, Surface
     };
 
-    [SerializeField] protected MeshType meshType = MeshType.Volume;
-    protected ComputeShader voxelizer, particleUpdate;
-    [SerializeField] protected int voxelResolution = 12;
-    protected ComputeBuffer particleBuffer;
     void Start()
     {
+        FluidSimulationManager.Instance.fluidControlledObjects.Add(this);
+
+        UpdateFluidObjectValues();
+    }
+
+    protected virtual void UpdateFluidObjectValues()
+    {
+        int keyIndex = FluidSimulationManager.Instance.fluidControlledObjects.IndexOf(this);
+        //Set Values
+        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].kelvin = kelvin;
+        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlRadius = controlRadius;
+        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlStrength = controlStrength;
+        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].smoothingRadius = smoothingRadius;
+        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlNorm = controlNorm;
 
     }
 
@@ -69,10 +86,11 @@ public class FluidControl : MonoBehaviour
         }
     }
 
+
     // Update is called once per frame
     void Update()
     {
-
+        UpdateFluidObjectValues();
     }
 
     private void OnDrawGizmos()

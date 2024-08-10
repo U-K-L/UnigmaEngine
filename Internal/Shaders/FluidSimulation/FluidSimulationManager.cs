@@ -155,7 +155,7 @@ public class FluidSimulationManager : MonoBehaviour
     private float _VoritictyEps = 25.0f;
 
     private List<Renderer> _rayTracedObjects = new List<Renderer>();
-    public Dictionary<string, FluidControl> fluidControlledObjects;
+    public List<FluidControl> fluidControlledObjects;
     private MeshObject[] _meshObjects;
     private List<Vertex> _vertices = new List<Vertex>();
     private List<int> _indices = new List<int>();
@@ -293,11 +293,17 @@ public class FluidSimulationManager : MonoBehaviour
     public struct FluidObject
     {
         public float kelvin;
+        public float controlRadius;
+        public float smoothingRadius;
+        public float controlStrength;
+        public float controlNorm;
+
     };
 
     //Arrays to hold data on the CPU side and initialize data.
     private ControlParticles[] _controlParticlesArray;
-    private FluidObject[] _fluidObjectsArray;
+    [HideInInspector]
+    public FluidObject[] _fluidObjectsArray;
 
     //Maximum size of these arrays. Constants.
     public int _maxNumOfFluidObjects;
@@ -312,7 +318,7 @@ public class FluidSimulationManager : MonoBehaviour
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
     int _controlParticleStride = sizeof(float) * 3 * 2 + sizeof(float) * 3;
-    int _fluidObjectStride = sizeof(float);
+    int _fluidObjectStride = sizeof(float) * 5;
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
@@ -351,7 +357,7 @@ public class FluidSimulationManager : MonoBehaviour
         Instance = this;
 
 
-        fluidControlledObjects = new Dictionary<string, FluidControl>();
+        fluidControlledObjects = new List<FluidControl>();
         //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
         Debug.Log("Particle Stride size is: " + _particleStride);
@@ -1519,15 +1525,12 @@ public class FluidSimulationManager : MonoBehaviour
 
     private void UpdateControlParticles()
     {
-        string[] keys = fluidControlledObjects.Keys.ToArray();
-
-        Debug.Log("The amount of keys" + keys.Length);
         int currentIndex = 0;
-        for (int i = 0; i < keys.Count(); i++)
+        for (int i = 0; i < fluidControlledObjects.Count; i++)
         {
-            FluidControl fluidControl = fluidControlledObjects[keys[i]];
+            FluidControl fluidControl = fluidControlledObjects[i];
 
-            AddControlParticles(fluidControl, currentIndex);
+            AddControlParticles(fluidControl, currentIndex, i);
 
             currentIndex += fluidControl.points.Length;
         }
@@ -1536,11 +1539,15 @@ public class FluidSimulationManager : MonoBehaviour
         NumOfControlParticles = Mathf.Min(currentIndex, MaxNumOfControlParticles);
     }
 
-    void AddControlParticles(FluidControl fluidControl, int startIndex)
+    void AddControlParticles(FluidControl fluidControl, int startIndex, int objectId)
     {
         for (int i = 0; i < fluidControl.points.Length; i++)
         {
-            controlParticlesPositions[i + startIndex] = fluidControl.points[i];
+            int index = i + startIndex;
+            controlParticlesPositions[index] = fluidControl.points[i];
+
+            //Set various other properties.
+            _controlParticlesArray[index].objectId = objectId;
         }
     }
 

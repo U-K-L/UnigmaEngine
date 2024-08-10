@@ -9,63 +9,179 @@
 		_Emission("Emission", Range(0,100)) = 1
 		_InnerStr("Inner Radius", Range(-1,1)) = 0.5
 		_OutterStr("Outter Radius", Range(0,2)) = 1
-
+        [IntRange] _StencilRef("Stencil Ref Value", Range(0,255)) = 0
     }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
         LOD 200
 
-        CGPROGRAM
-        // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard fullforwardshadows
-
-        // Use shader model 3.0 target, to get nicer looking lighting
-        #pragma target 3.0
-
-        sampler2D _MainTex;
-
-        struct Input
+        Stencil
         {
-            float2 uv_MainTex;
-			float3 worldNormal;
-			float3 viewDir;
-			INTERNAL_DATA
-        };
-
-        half _Glossiness;
-        half _Metallic;
-        fixed4 _Color;
-		float _Emission;
-		float _InnerStr;
-		float _OutterStr;
-
-        // Add instancing support for this shader. You need to check 'Enable Instancing' on materials that use the shader.
-        // See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
-        // #pragma instancing_options assumeuniformscaling
-        UNITY_INSTANCING_BUFFER_START(Props)
-            // put more per-instance properties here
-        UNITY_INSTANCING_BUFFER_END(Props)
-
-        void surf (Input IN, inout SurfaceOutputStandard o)
-        {
-            // Albedo comes from a texture tinted by color
-            fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color;
-            o.Albedo = c.rgb;
-            // Metallic and smoothness come from slider variables
-            o.Metallic = _Metallic;
-            o.Smoothness = _Glossiness;
-            o.Alpha = c.a;
-
-			//Apply effect of fresnal.
-			_Emission *= _Emission * _Emission;
-			float fresnel = ((-_Emission+ (_Emission*_InnerStr)) - (dot(IN.worldNormal, IN.viewDir) *(_Emission +  (_Emission* _OutterStr) )));
-			//fresnel = saturate(1-fresnel); //Clamps value between 0 and 1.
-			o.Emission = (_Emission + fresnel)*(_Color*3);
+            Ref[_StencilRef]
+            Comp Equal
         }
-        ENDCG
+        Pass
+        {
 
-                UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            // make fog work
+            #pragma multi_compile_fog
+
+            #include "UnityCG.cginc"
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
+                float3 normal : NORMAL;
+				float3 tangent : TANGENT;
+
+            };
+
+            struct v2f
+            {
+                float2 uv : TEXCOORD0;
+                UNITY_FOG_COORDS(1)
+                float4 vertex : SV_POSITION;
+                float3 normal : TEXCOORD1;
+                float3 worldPos : TEXCOORD2;
+                float4 screenSpace : TEXCOORD3;
+                float3 viewDir : TEXCOORD4;
+                float3 T : TEXCOORD5;
+                float3 B : TEXCOORD6;
+                float3 N : TEXCOORD7;
+            };
+
+            half _Glossiness;
+            half _Metallic;
+            fixed4 _Color;
+		    float _Emission;
+		    float _InnerStr;
+		    float _OutterStr;
+
+            v2f vert(appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
+
+                o.screenSpace = ComputeScreenPos(o.vertex);
+                o.viewDir = WorldSpaceViewDir(v.vertex);
+
+                o.normal = UnityObjectToWorldNormal(v.normal);
+
+
+                float3 worldNormal = mul((float3x3)unity_ObjectToWorld, v.normal);
+                float3 worldTangent = mul((float3x3)unity_ObjectToWorld, v.tangent);
+
+                float3 binormal = cross(v.normal, v.tangent.xyz); // *input.tangent.w;
+                float3 worldBinormal = mul((float3x3)unity_ObjectToWorld, binormal);
+
+                // and, set them
+                o.N = normalize(worldNormal);
+                o.T = normalize(worldTangent);
+                o.B = normalize(worldBinormal);
+
+                return o;
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+
+			    //Apply effect of fresnal.
+			    _Emission *= _Emission * _Emission;
+			    float fresnel = ((-_Emission+ (_Emission*_InnerStr)) - (dot(i.N, i.viewDir) *(_Emission +  (_Emission* _OutterStr) )));
+			    //fresnel = saturate(1-fresnel); //Clamps value between 0 and 1.
+			    return (_Emission + fresnel)*(_Color*3) + 0.001;
+            }
+
+            ENDCG
+        }
+
+                Pass
+        {
+
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            // make fog work
+            #pragma multi_compile_fog
+
+            #include "UnityCG.cginc"
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
+                float3 normal : NORMAL;
+				float3 tangent : TANGENT;
+
+            };
+
+            struct v2f
+            {
+                float2 uv : TEXCOORD0;
+                UNITY_FOG_COORDS(1)
+                float4 vertex : SV_POSITION;
+                float3 normal : TEXCOORD1;
+                float3 worldPos : TEXCOORD2;
+                float4 screenSpace : TEXCOORD3;
+                float3 viewDir : TEXCOORD4;
+                float3 T : TEXCOORD5;
+                float3 B : TEXCOORD6;
+                float3 N : TEXCOORD7;
+            };
+
+            half _Glossiness;
+            half _Metallic;
+            fixed4 _Color;
+		    float _Emission;
+		    float _InnerStr;
+		    float _OutterStr;
+
+            v2f vert(appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.worldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)).xyz;
+
+                o.screenSpace = ComputeScreenPos(o.vertex);
+                o.viewDir = WorldSpaceViewDir(v.vertex);
+
+                o.normal = UnityObjectToWorldNormal(v.normal);
+
+
+                float3 worldNormal = mul((float3x3)unity_ObjectToWorld, v.normal);
+                float3 worldTangent = mul((float3x3)unity_ObjectToWorld, v.tangent);
+
+                float3 binormal = cross(v.normal, v.tangent.xyz); // *input.tangent.w;
+                float3 worldBinormal = mul((float3x3)unity_ObjectToWorld, binormal);
+
+                // and, set them
+                o.N = normalize(worldNormal);
+                o.T = normalize(worldTangent);
+                o.B = normalize(worldBinormal);
+
+                return o;
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+
+			    //Apply effect of fresnal.
+			    _Emission *= _Emission * _Emission;
+			    float fresnel = ((-_Emission+ (_Emission*_InnerStr)) - (dot(i.N, i.viewDir) *(_Emission +  (_Emission* _OutterStr) )));
+			    //fresnel = saturate(1-fresnel); //Clamps value between 0 and 1.
+			    return (_Emission + fresnel)*(_Color*3) + 0.001;
+            }
+
+            ENDCG
+        }
+
+        UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
 
         Pass
         {
@@ -144,9 +260,26 @@
 
             ENDHLSL
         }
+
+        
+        Pass
+        {
+            Tags{ "LightMode" = "ShadowCaster" }
+            CGPROGRAM
+            #pragma vertex VSMain
+            #pragma fragment PSMain
+
+            float4 VSMain(float4 vertex:POSITION) : SV_POSITION
+            {
+                return UnityObjectToClipPos(vertex);
+            }
+
+            float4 PSMain(float4 vertex:SV_POSITION) : SV_TARGET
+            {
+                return 0;
+            }
+
+            ENDCG
+        }
     }
-    FallBack "Diffuse"
-
-
-
 }

@@ -322,6 +322,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     //Items to add to the raytracer.
     public LayerMask RayTracingLayers;
+    public LayerMask FluidInteractionLayers;
     int _SolveIterations = 1;
     int nodesUsed = 1;
     
@@ -742,8 +743,11 @@ public class FluidSimulationManager : MonoBehaviour
             //Check if object in the RaytracingLayers.
             if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
             {
-                Debug.Log(obj.name);
-                _rayTracedObjects.Add(obj);
+                if (((1 << obj.gameObject.layer) & FluidInteractionLayers) != 0)
+                {
+                    Debug.Log(obj.name);
+                    _rayTracedObjects.Add(obj);
+                }
             }
         }
     }

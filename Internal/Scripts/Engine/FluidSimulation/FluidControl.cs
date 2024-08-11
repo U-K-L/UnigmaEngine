@@ -48,11 +48,22 @@ public class FluidControl : MonoBehaviour
     {
         int keyIndex = FluidSimulationManager.Instance.fluidControlledObjects.IndexOf(this);
         //Set Values
-        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].kelvin = kelvin;
-        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlRadius = controlRadius;
-        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlStrength = controlStrength;
-        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].smoothingRadius = smoothingRadius;
-        FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlNorm = controlNorm;
+        if (fluidOn)
+        {
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].kelvin = kelvin;
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlRadius = controlRadius;
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlStrength = controlStrength;
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].smoothingRadius = smoothingRadius;
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlNorm = controlNorm;
+        }
+        else
+        {
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].kelvin = UnigmaSpaceTime.Instance.GlobalTemperature; // Set room temperature.
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlRadius = 0;
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlStrength = 0;
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].smoothingRadius = 0;
+            FluidSimulationManager.Instance._fluidObjectsArray[keyIndex].controlNorm = 1;
+        }
 
     }
 

@@ -496,7 +496,8 @@ public class FluidSimulationManager : MonoBehaviour
 
         //material.SetBuffer("_Particles", _particleBuffer);
         bounds = new Bounds(Vector3.zero, _BoxSize);
-        
+
+        InitializeControlParticles();
         GetThreadSizes();
         AddObjectsToList();
         if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
@@ -704,13 +705,13 @@ public class FluidSimulationManager : MonoBehaviour
     private void FixedUpdate()
     {
         UpdateNonAcceleratedRayTracer();
-
+        UpdateFluidConstants();
+        UpdateControlParticles();
     }
 
     private void Update()
     {
-        UpdateFluidConstants();
-        UpdateControlParticles();
+
 
         Matrix4x4 VP = GL.GetGPUProjectionMatrix(secondCam.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         Shader.SetGlobalMatrix("_Perspective_Matrix_VP", VP);
@@ -898,12 +899,14 @@ public class FluidSimulationManager : MonoBehaviour
         _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_MeshObjects", _meshObjectBuffer);
         _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_MeshObjects", _meshObjectBuffer);
 
+        /*
         //Add control particles.
         for (int i = 0; i < NumOfControlParticles; i++)
         {
             _controlParticlesArray[i].prevPosition = controlParticlesPositions[i];
             _controlParticlesArray[i].position = controlParticlesPositions[i];
         }
+        */
         _controlParticlesBuffer.SetData(_controlParticlesArray);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_ControlParticles", _controlParticlesBuffer);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_ControlParticles", _controlParticlesBuffer);
@@ -1527,6 +1530,13 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
+    private void InitializeControlParticles()
+    {
+        for (int i = 0; i < MaxNumOfControlParticles; i++)
+            controlParticlesPositions[i] = new Vector3(999999999, 999999999, 999999999);
+
+    }
+
     private void UpdateControlParticles()
     {
         int currentIndex = 0;
@@ -1548,7 +1558,8 @@ public class FluidSimulationManager : MonoBehaviour
         for (int i = 0; i < fluidControl.points.Length; i++)
         {
             int index = i + startIndex;
-            controlParticlesPositions[index] = fluidControl.points[i];
+            _controlParticlesArray[index].prevPosition = _controlParticlesArray[index].position;
+            _controlParticlesArray[index].position = fluidControl.points[i];
 
             //Set various other properties.
             _controlParticlesArray[index].objectId = objectId;

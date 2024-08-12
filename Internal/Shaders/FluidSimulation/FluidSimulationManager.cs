@@ -20,9 +20,6 @@ public class FluidSimulationManager : MonoBehaviour
     GraphicsBuffer aabbList = null;
     AABB[] aabbs;
 
-    ComputeBuffer _meshObjectBuffer;
-    ComputeBuffer _verticesObjectBuffer;
-    ComputeBuffer _indicesObjectBuffer;
     ComputeBuffer _particleBuffer;
     ComputeBuffer _particlePositionsBuffer;
     ComputeBuffer _pNodesBuffer;
@@ -154,11 +151,7 @@ public class FluidSimulationManager : MonoBehaviour
     public float DebugKelvin;
     private float _VoritictyEps = 25.0f;
 
-    private List<Renderer> _rayTracedObjects = new List<Renderer>();
     public List<FluidControl> fluidControlledObjects;
-    private MeshObject[] _meshObjects;
-    private List<Vertex> _vertices = new List<Vertex>();
-    private List<int> _indices = new List<int>();
     private Particles[] _particles;
     private Vector3[] _particlesPositions;
     private uint[] _particleNeighborsArray;
@@ -181,28 +174,6 @@ public class FluidSimulationManager : MonoBehaviour
 
     int buffersAdded = 0;
     bool buffersInitialized = false;
-    struct MeshObject
-    {
-        public Matrix4x4 localToWorld;
-        public int indicesOffset;
-        public int indicesCount;
-        public Vector3 position;
-        public Vector3 AABBMin;
-        public Vector3 AABBMax;
-        public Vector3 color;
-        public Matrix4x4 collisionForcesHigh;
-        public Matrix4x4 collisionForcesLow;
-        public uint id;
-        public Matrix4x4 absorbtionMatrix;
-        public int emitterType;
-    }
-    
-    struct Vertex
-    {
-        public Vector3 position;
-        public Vector3 normal;
-        public Vector2 uv;
-    };
 
     struct Particles
     {
@@ -313,7 +284,6 @@ public class FluidSimulationManager : MonoBehaviour
     private MortonCode[] _MortonCodesTemp;
     private uint _MortonPrefixSumTotalZeroes = 0, _MortonPrefixSumOffsetZeroes = 0, _MortonPrefixSumOffsetOnes = 0;
 
-    int _meshObjectStride = (sizeof(float) * 4 * 4 * 4) + sizeof(int) * 4 + sizeof(float) * 3 * 4;
     int _particleStride = (sizeof(float) * 4*2) + ((sizeof(float) * 3) * 7 + (sizeof(float) * 5)) + (sizeof(float) * 4 * 4) + sizeof(int)*2;
     int _MortonCodeStride = sizeof(uint) + sizeof(int);
     int _BVHStride = sizeof(float) * 3 * 2 + sizeof(int) * 12 + sizeof(float)*14;
@@ -363,7 +333,6 @@ public class FluidSimulationManager : MonoBehaviour
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
         Debug.Log("Particle Stride size is: " + _particleStride);
         Debug.Log("BVH Stride size is: " + _BVHStride);
-        Debug.Log("Mesh Object Stride size is: " + _meshObjectStride);
         Debug.Log("Morton Code Stride size is: " + _MortonCodeStride);
 
         aabbs = new AABB[MaxNumOfParticles];
@@ -499,7 +468,6 @@ public class FluidSimulationManager : MonoBehaviour
 
         InitializeControlParticles();
         GetThreadSizes();
-        AddObjectsToList();
         if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
         {
             CreateAcceleratedStructure();
@@ -737,22 +705,6 @@ public class FluidSimulationManager : MonoBehaviour
         }
     }
 
-    void AddObjectsToList()
-    {
-        foreach (var obj in FindObjectsOfType<Renderer>())
-        {
-            //Check if object in the RaytracingLayers.
-            if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
-            {
-                if (((1 << obj.gameObject.layer) & FluidInteractionLayers) != 0)
-                {
-                    Debug.Log(obj.name);
-                    _rayTracedObjects.Add(obj);
-                }
-            }
-        }
-    }
-
     void CreateNonAcceleratedStructure()
     {
         BuildTriangleList();
@@ -760,6 +712,7 @@ public class FluidSimulationManager : MonoBehaviour
 
     void BuildTriangleList()
     {
+        /*
         _vertices.Clear();
         _indices.Clear();
 
@@ -800,25 +753,21 @@ public class FluidSimulationManager : MonoBehaviour
                 indexMeshObject++;
             }
         }
-        if (_meshObjects.Length > 0)
+        */
+        if (UnigmaPhysicsManager.Instance.MeshObjects.Length > 0)
         {
-            _meshObjectBuffer = new ComputeBuffer(_meshObjects.Length, _meshObjectStride);
-            _verticesObjectBuffer = new ComputeBuffer(_vertices.Count, 32);
-            _indicesObjectBuffer = new ComputeBuffer(_indices.Count, 4);
-            _verticesObjectBuffer.SetData(_vertices);
-            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Vertices", _verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Vertices", _verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Vertices", _verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Vertices", _verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Vertices", _verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_Vertices", _verticesObjectBuffer);
-            _indicesObjectBuffer.SetData(_indices);
-            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Indices", _indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Indices", _indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Indices", _indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Indices", _indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Indices", _indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_Indices", _indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
         }
 
     }
@@ -826,7 +775,7 @@ public class FluidSimulationManager : MonoBehaviour
     void UpdateNonAcceleratedRayTracer()
     {
         //Build the BVH
-        CreateMeshes();
+        SetFluidBuffers();
         UpdateParticles();
         BuildBVH();
         //if(Time.realtimeSinceStartup < 10)
@@ -837,76 +786,18 @@ public class FluidSimulationManager : MonoBehaviour
 
     }
 
-    void CreateMeshes()
+    void SetFluidBuffers()
     {
-        for (int i = 0; i < _rayTracedObjects.Count; i++)
-        {
-            MeshObject meshobj = new MeshObject();
-            UnigmaPhysicsObject uPObj = _rayTracedObjects[i].GetComponent<UnigmaPhysicsObject>();
-            RayTracingObject rto = _rayTracedObjects[i].GetComponent<RayTracingObject>();
-            meshobj.localToWorld = _rayTracedObjects[i].GetComponent<Renderer>().localToWorldMatrix;
-            meshobj.indicesOffset = _meshObjects[i].indicesOffset;
-            meshobj.indicesCount = _meshObjects[i].indicesCount;
-            meshobj.position = _rayTracedObjects[i].transform.position;
-            meshobj.AABBMin = _rayTracedObjects[i].bounds.min;
-            meshobj.AABBMax = _rayTracedObjects[i].bounds.max;
-            meshobj.id = (uint)i;
-            meshobj.emitterType = -1;
-            //Set matrix4x4 to all zeroes.
-            meshobj.collisionForcesHigh = Matrix4x4.zero;
-            meshobj.collisionForcesLow = Matrix4x4.zero;
-            if (rto)
-            {
-                meshobj.color = new Vector3(rto.color.r, rto.color.g, rto.color.b);
-            }
 
-            if (uPObj)
-            {
-                meshobj.emitterType = uPObj.emitterType;
-            }
+        _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
 
-            BoxCollider boxCollide = _rayTracedObjects[(int)_meshObjects[i].id].GetComponent<BoxCollider>();
-            Rigidbody rb = _rayTracedObjects[(int)_meshObjects[i].id].GetComponent<Rigidbody>();
-            if (boxCollide != null && rb != null)
-            {
-                Vector3 minPoint = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, -boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-                Vector3 maxPoint = _rayTracedObjects[(int)_meshObjects[i].id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, boxCollide.size.y, boxCollide.size.z) * 0.5f);
-
-                meshobj.AABBMin = minPoint;
-                meshobj.AABBMax = maxPoint;
-            }
-                _meshObjects[i] = meshobj;
-        }
-        
-        if (_meshObjectBuffer.count > 0)
-        {
-            _meshObjectBuffer.SetData(_meshObjects);
-            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_MeshObjects", _meshObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_MeshObjects", _meshObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_MeshObjects", _meshObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_MeshObjects", _meshObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_MeshObjects", _meshObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_MeshObjects", _meshObjectBuffer);
-        }
-
-        _meshObjectBuffer.SetData(_meshObjects);
-        _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_MeshObjects", _meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_MeshObjects", _meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_MeshObjects", _meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_MeshObjects", _meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_MeshObjects", _meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_MeshObjects", _meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_MeshObjects", _meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_MeshObjects", _meshObjectBuffer);
-
-        /*
-        //Add control particles.
-        for (int i = 0; i < NumOfControlParticles; i++)
-        {
-            _controlParticlesArray[i].prevPosition = controlParticlesPositions[i];
-            _controlParticlesArray[i].position = controlParticlesPositions[i];
-        }
-        */
         _controlParticlesBuffer.SetData(_controlParticlesArray);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_ControlParticles", _controlParticlesBuffer);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_ControlParticles", _controlParticlesBuffer);
@@ -1566,95 +1457,6 @@ public class FluidSimulationManager : MonoBehaviour
         }
     }
 
-    private IEnumerator ReactToForces()
-    {
-        
-        //_meshObjectBuffer.GetData(_meshObjects);
-
-        while (true)
-        {
-            AsyncGPUReadbackRequest request = AsyncGPUReadback.Request(_meshObjectBuffer);
-            while (!request.done)
-            {
-                yield return null;
-            }
-
-            if (request.done)
-            {
-                _meshObjects = request.GetData<MeshObject>().ToArray();
-
-                for (int i = 0; i < _meshObjects.Length; i++)
-                {
-                    MeshObject mObj = _meshObjects[i];
-                    PushObjectsWithForce(mObj);
-                    GetAbsorbtion(mObj);
-                }
-
-            }
-            yield return new WaitForSeconds(0.05f);
-        }
-
-        //Set data back on GPU.
-        //_meshObjectBuffer.SetData(_meshObjects);
-    }
-
-    void GetAbsorbtion(MeshObject meshObject)
-    {
-        UnigmaHelpers.PrintOutMatrix(meshObject.absorbtionMatrix);
-    }
-
-    void PushObjectsWithForce(MeshObject meshObject)
-    {
-        BoxCollider boxCollide = _rayTracedObjects[(int)meshObject.id].GetComponent<BoxCollider>();
-        Rigidbody rb = _rayTracedObjects[(int)meshObject.id].GetComponent<Rigidbody>();
-        UnigmaPhysicsObject uobj = _rayTracedObjects[(int)meshObject.id].GetComponent<UnigmaPhysicsObject>();
-        if (boxCollide != null && rb != null)
-        {
-            Debug.Log("Gizmos is being drawn");
-            Vector3 sizeVecs = boxCollide.size;
-
-            Debug.Log("Size of vecs " + sizeVecs);
-            //Get the 4 corners and center
-
-            Vector3 point0 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, -boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-            Vector3 point1 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-            Vector3 point2 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, -boxCollide.size.y, boxCollide.size.z) * 0.5f);
-            Vector3 point3 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-            Vector3 point4 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, -boxCollide.size.y, boxCollide.size.z) * 0.5f);
-            Vector3 point5 = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, boxCollide.size.y, boxCollide.size.z) * 0.5f);
-
-            Vector3 minPoint = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(-boxCollide.size.x, -boxCollide.size.y, -boxCollide.size.z) * 0.5f);
-            Vector3 maxPoint = _rayTracedObjects[(int)meshObject.id].transform.TransformPoint(boxCollide.center + new Vector3(boxCollide.size.x, boxCollide.size.y, boxCollide.size.z) * 0.5f);
-
-            float forceConstant = 24.5f;
-
-            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesHigh.GetRow(0) * Time.deltaTime, point0);
-            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesHigh.GetRow(1) * Time.deltaTime, point1);
-            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesHigh.GetRow(2) * Time.deltaTime, point2);
-            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesHigh.GetRow(3) * Time.deltaTime, point3);
-
-            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesLow.GetRow(0) * Time.deltaTime, point4);
-            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesLow.GetRow(1) * Time.deltaTime, point5);
-            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesLow.GetRow(2) * Time.deltaTime, minPoint);
-            rb.AddForceAtPosition(forceConstant * meshObject.collisionForcesLow.GetRow(3) * Time.deltaTime, maxPoint);
-
-            //Debug.Log("Right top corner: " + rightTopCorner);
-
-            if (uobj != null)
-            {
-                uobj.netForce += (meshObject.collisionForcesHigh.GetRow(0) +
-                                 meshObject.collisionForcesHigh.GetRow(1) +
-                                 meshObject.collisionForcesHigh.GetRow(2) +
-                                 meshObject.collisionForcesHigh.GetRow(3) +
-                                 meshObject.collisionForcesLow.GetRow(0) +
-                                 meshObject.collisionForcesLow.GetRow(1) +
-                                 meshObject.collisionForcesLow.GetRow(2) +
-                                 meshObject.collisionForcesLow.GetRow(3)) * Time.deltaTime * forceConstant;
-            }
-
-        }
-    }
-
     void ComputeForces()
     {
         _fluidSimulationComputeShader.Dispatch(_ComputeForcesKernelId, Mathf.CeilToInt(NumOfParticles / _computeForcesThreadSize.x), 1, 1);
@@ -1776,9 +1578,8 @@ public class FluidSimulationManager : MonoBehaviour
     private void UpdateFluidConstants()
     {
         //Guard clause, ensure there are objects to ray trace.
-        if (_rayTracedObjects.Count == 0)
+        if (UnigmaPhysicsManager.Instance._physicsRenderers.Count == 0)
         {
-            Debug.LogWarning("No objects to ray trace. Please add objects to the RayTracingLayers.");
             return;
         }
 
@@ -1843,21 +1644,6 @@ public class FluidSimulationManager : MonoBehaviour
 
         _fluidSimCompositeLiquid.SetTexture("_ColorFieldNormalMap", _normalMapTexture);
         _fluidSimCompositeLiquid.SetTexture("_CurlMap", _curlMapTexture);
-
-        //aabbList.GetData(aabbs);
-        //aabbList.SetData(aabbs);
-        //uint threadsX, threadsY, threadsZ;
-        //_fluidSimulationCompute.GetKernelThreadGroupSizes(0, out threadsX, out threadsY, out threadsZ);
-        //_fluidSimulationCompute.Dispatch(0, Mathf.CeilToInt(Screen.width / threadsX), Mathf.CeilToInt(Screen.width / threadsY), (int)threadsZ);
-
-        //Execute shaders on render target.
-        //Graphics.Blit(_rtTarget, _fluidDepthBuffer, _fluidSimMaterialDepth);
-        //Graphics.Blit(source, _rtTarget, _fluidSimMaterialDepthHori);
-        //if (UnigmaSettings.GetIsRTXEnabled() && _renderMethod == RenderMethod.RayTracingAccelerated)
-        //    DispatchAcceleratedRayTrace();
-        //Graphics.Blit(source, destination, _fluidSimMaterialComposite);
-
-
     }
 
     void CreateFluidCommandBuffers()
@@ -1899,7 +1685,7 @@ public class FluidSimulationManager : MonoBehaviour
         {
             //fluidCommandBuffers.SetRenderTarget(_unigmaDepthTexture);
             //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-            foreach (Renderer r in _rayTracedObjects)
+            foreach (Renderer r in UnigmaPhysicsManager.Instance._physicsRenderers)
             {
                 /*
                 int stencil = 0;//r.material.GetInt("_StencilRef");
@@ -1938,7 +1724,7 @@ public class FluidSimulationManager : MonoBehaviour
 
         if (_renderMethod == RenderMethod.RayTracingAccelerated)
         {
-            foreach (Renderer r in _rayTracedObjects)
+            foreach (Renderer r in UnigmaPhysicsManager.Instance._physicsRenderers)
             {
                 _MeshAccelerationStructure.AddInstance(r);
             }
@@ -2036,12 +1822,6 @@ public class FluidSimulationManager : MonoBehaviour
     //Release all buffers and memory
     void ReleaseBuffers()
     {
-        if (_verticesObjectBuffer != null)
-            _verticesObjectBuffer.Release();
-        if (_indicesObjectBuffer != null)
-            _indicesObjectBuffer.Release();
-        if (_meshObjectBuffer != null)
-            _meshObjectBuffer.Release();
         if (_particleBuffer != null)
             _particleBuffer.Release();
         if (_particlePositionsBuffer != null)

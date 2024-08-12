@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class UnigmaPhysicsObject : MonoBehaviour
 {
+
+
     public Vector3 velocity;
     public Vector3 acceleration;
 

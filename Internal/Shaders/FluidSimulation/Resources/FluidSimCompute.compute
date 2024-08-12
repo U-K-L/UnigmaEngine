@@ -1392,7 +1392,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
    
     
 
-    float4 constantForces = float4(0, -9.8f, 0, 0); //float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
+    float4 constantForces = float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
     float4 forces = _Particles[id.x].force + constantForces;// + float4(0, _Particles[id.x].kelvin / 270, 0, 0); // * min(1, GetMass(_Particles[id.x].phase) * 6);
     float3 vel = _Particles[id.x].velocity;
@@ -2657,9 +2657,12 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
         
         if (0.001f < dist && dist < HRadius * 2)
         {
+            //Add alpha values for control strength.
+            
+            alpha = _FluidObjects[objectId].controlStrength;
             float3 pressureGradDir = controlParticle.position - fluidParticle.predictedPosition;
             
-            innerDisplacement += controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir, LRadius) / restDensity;
+            innerDisplacement += -alpha * controlParticle.lambda * SpikyKernelGradient(dist, pressureGradDir, LRadius) / restDensity;
 
             //Calculate velocity displacement.
             float3 pressureGradDirVel = fluidParticle.predictedPosition - controlParticle.position;
@@ -2685,9 +2688,7 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
             float Tk = k * (_FluidObjects[objectId].kelvin - _Particles[particleIndex].kelvin);
             kelvinSum += Poly6Kernel(dist, LRadius) * Tk;
             
-            //Add alpha values for control strength.
-            
-            alpha += _FluidObjects[objectId].controlStrength;
+
             
             //increment count.
             sumCount += 1;
@@ -2710,13 +2711,11 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
 	}
 
 	//End calculations.
-    
-    alpha /= sumCount;
     velocityDisplacement = velocityDisplacementTop / (velocityDisplacmentBottom);
 
     float3 velocityDelta = gamma * _TimeStep * (velocityDisplacement - fluidParticle.velocity);
 
-	float3 densityDisplacement = -alpha * innerDisplacement;
+	float3 densityDisplacement = innerDisplacement;
     
     //Now add gathered data to this particle.
     float k = 0.090995f;

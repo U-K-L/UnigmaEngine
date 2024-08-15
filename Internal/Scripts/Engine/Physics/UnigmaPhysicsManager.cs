@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using static UnigmaPhysicsManager;
@@ -21,6 +22,17 @@ public class UnigmaPhysicsManager : MonoBehaviour
         public uint id;
         public Matrix4x4 absorbtionMatrix;
         public int emitterType;
+    };
+
+    public struct PhysicsObject
+    {
+        public int objectId;
+        public float3 position;
+        public float3 force;
+        public Matrix4x4 absorbtionMatrix;
+        public Matrix4x4 collisionForcesHigh;
+        public Matrix4x4 collisionForcesLow;
+
     };
     int _meshObjectStride = (sizeof(float) * 4 * 4 * 4) + sizeof(int) * 4 + sizeof(float) * 3 * 4;
 

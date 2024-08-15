@@ -23,18 +23,20 @@ public class UnigmaPhysicsManager : MonoBehaviour
         public Matrix4x4 absorbtionMatrix;
         public int emitterType;
     };
-
+    int _meshObjectStride = (sizeof(float) * 4 * 4 * 4) + sizeof(int) * 4 + sizeof(float) * 3 * 4;
+    
     public struct PhysicsObject
     {
         public int objectId;
         public float3 position;
-        public float3 force;
-        public Matrix4x4 absorbtionMatrix;
-        public Matrix4x4 collisionForcesHigh;
-        public Matrix4x4 collisionForcesLow;
+        public float strength;
+        public float kelvin;
+        public float radius;
 
     };
-    int _meshObjectStride = (sizeof(float) * 4 * 4 * 4) + sizeof(int) * 4 + sizeof(float) * 3 * 4;
+    int _physicsObjectsStride = sizeof(int) * 1 + sizeof(float) * 3 * 1 + sizeof(float) * 3;
+    
+
 
     public struct Vertex
     {
@@ -56,6 +58,8 @@ public class UnigmaPhysicsManager : MonoBehaviour
     public List<Vertex> _vertices = new List<Vertex>();
     public List<int> _indices = new List<int>();
 
+    public List<PhysicsObject> PhysicsObjectsArray { get; private set; } = default;
+
     //Compute Buffers.
     [HideInInspector]
     public ComputeBuffer _meshObjectBuffer { get; private set; }
@@ -63,6 +67,8 @@ public class UnigmaPhysicsManager : MonoBehaviour
     public ComputeBuffer _verticesObjectBuffer { get; private set; }
     [HideInInspector]
     public ComputeBuffer _indicesObjectBuffer { get; private set; }
+    [HideInInspector]
+    public ComputeBuffer _physicsObjectsBuffer { get; private set; }
 
 
     public static UnigmaPhysicsManager Instance;
@@ -78,17 +84,28 @@ public class UnigmaPhysicsManager : MonoBehaviour
         }
 
         Instance = this;
+        PhysicsObjectsArray = new List<PhysicsObject>();
 
-        Debug.Log("Mesh Object Stride size is: " + _meshObjectStride);
         AddObjectsToList();
         BuildTriangleList();
         CreateMeshes();
     }
 
+    private void Start()
+    {
+        _physicsObjectsBuffer = new ComputeBuffer(PhysicsObjectsArray.Count, _physicsObjectsStride);
+    }
+
     private void Update()
     {
+        SetPhysicsObjects();
         BuildTriangleList();
         CreateMeshes();
+    }
+
+    void SetPhysicsObjects()
+    {
+        _physicsObjectsBuffer.SetData(PhysicsObjectsArray);
     }
 
     void AddObjectsToList()
@@ -295,6 +312,19 @@ public class UnigmaPhysicsManager : MonoBehaviour
                                  meshObject.collisionForcesLow.GetRow(3)) * Time.deltaTime * forceConstant;
             }
 
+        }
+    }
+
+    public void AddPhysicsObject(PhysicsObject pobj)
+    {
+        PhysicsObjectsArray.Add(pobj);
+    }
+
+    public void UodatePhysicsArray(int objectId, PhysicsObject pobj)
+    {
+        if (PhysicsObjectsArray.Count > objectId && objectId >= 0)
+        {
+            PhysicsObjectsArray[objectId] = pobj;
         }
     }
 

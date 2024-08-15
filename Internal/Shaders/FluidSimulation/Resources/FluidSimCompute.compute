@@ -2721,7 +2721,7 @@ void CalculateControlForces(uint3 id : SV_DispatchThreadID)
     float k = 0.090995f;
     float Tk = k * (kelvinSum - _Particles[particleIndex].kelvin);
     
-    _Particles[particleIndex].tempKelvin += Tk;
+    //_Particles[particleIndex].tempKelvin += Tk;
     
     _Particles[particleIndex].predictedPosition += (densityDisplacement + springDelta + velocityDelta);
     

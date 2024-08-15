@@ -14,6 +14,7 @@ struct SpaceTimePoint
     float tempVal;
 };
 
+/*
 struct UnigmaPhysicsPoints
 {
     float3 position;
@@ -21,9 +22,20 @@ struct UnigmaPhysicsPoints
     float kelvin;
     float radius;
 };
+*/
+
+struct PhysicsObject
+{
+    int objectId;
+    float3 position;
+    float strength;
+    float kelvin;
+    float radius;
+
+};
 
 int _NumOfVectors;
-int _NumOfPhysicsPoints;
+int _NumOfPhysicsObjects;
 float3 _BoxSize;
 int _Resolution;
 
@@ -33,7 +45,7 @@ int biDim;
 float _GlobalTemperature;
 
 RWStructuredBuffer<SpaceTimePoint> _VectorField;
-RWStructuredBuffer<UnigmaPhysicsPoints> _UnigmaPhysicsPoints;
+RWStructuredBuffer<PhysicsObject> _PhysicsObjects;
 
 RWStructuredBuffer<int> _VectorIndices;
 RWStructuredBuffer<int> _VectorCellIndices;
@@ -212,20 +224,20 @@ void AttractionField(uint3 id : SV_DispatchThreadID)
     //_VectorField[vectorIndex].kelvin *= 0.9775;
     _VectorField[vectorIndex].kelvin += _VectorField[vectorIndex].tempVal;
     _VectorField[vectorIndex].tempVal = 0;
-    for (int i = 0; i < _NumOfPhysicsPoints; i++)
+    for (int i = 0; i < _NumOfPhysicsObjects; i++)
     {
 
         //int posCell = HashCellVectorField(GetCellVectorField(_UnigmaPhysicsPoints[i].position));
         
-        float dist = 1.0f / pow(distance(_UnigmaPhysicsPoints[i].position, _VectorField[vectorIndex].position), 2);
-        float3 toObjDir = normalize(_UnigmaPhysicsPoints[i].position - _VectorField[vectorIndex].position);
+        float dist = 1.0f / pow(distance(_PhysicsObjects[i].position, _VectorField[vectorIndex].position), 2);
+        float3 toObjDir = normalize(_PhysicsObjects[i].position - _VectorField[vectorIndex].position);
 
-        _VectorField[vectorIndex].force += toObjDir * _UnigmaPhysicsPoints[i].strength * min(dist * _UnigmaPhysicsPoints[i].radius, 2);
+        _VectorField[vectorIndex].force += toObjDir * _PhysicsObjects[i].strength * min(dist * _PhysicsObjects[i].radius, 2);
         
         float k = 0.995;
-        float Tk = k * (_UnigmaPhysicsPoints[i].kelvin - _VectorField[vectorIndex].kelvin) * 0.01f;
+        float Tk = k * (_PhysicsObjects[i].kelvin - _VectorField[vectorIndex].kelvin) * 0.01f;
         
-        _VectorField[vectorIndex].kelvin += min(dist * _UnigmaPhysicsPoints[i].radius, 2) * Tk;
+        _VectorField[vectorIndex].kelvin += min(dist * _PhysicsObjects[i].radius, 2) * Tk;
 
     }
     

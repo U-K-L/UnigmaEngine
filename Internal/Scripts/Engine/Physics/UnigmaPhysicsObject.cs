@@ -5,7 +5,8 @@ using UnityEngine;
 public class UnigmaPhysicsObject : MonoBehaviour
 {
 
-
+    public bool influenceSpaceTime = false;
+    public int ObjectId = -1;
     public Vector3 velocity;
     public Vector3 acceleration;
 
@@ -29,15 +30,50 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
     bool ObjectSetup = false;
 
+    private UnigmaPhysicsManager.PhysicsObject physicsObject;
+
     private void Awake()
     {
         SetUpObject();
+        if(influenceSpaceTime)
+            SetUpBuffers();
+    }
+
+    private void Start()
+    {
+
+    }
+
+    void SetUpBuffers()
+    {
+        physicsObject = new UnigmaPhysicsManager.PhysicsObject();
+        UpdatePhysicsBuffers();
+        UnigmaPhysicsManager.Instance.AddPhysicsObject(physicsObject);
+        ObjectId = UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Count - 1;
+
+
     }
 
     private void Update()
     {
         UpdatePhysics();
+        
+        if(influenceSpaceTime)
+            UpdatePhysicsBuffers();
     }
+
+    void UpdatePhysicsBuffers()
+    {
+        //Tie this with a universal game object manager array.
+        physicsObject.objectId = ObjectId;
+        physicsObject.position = transform.position;
+        physicsObject.strength = gravityStrength;
+        physicsObject.radius = gravityRadius;
+        physicsObject.kelvin = kelvin;
+
+        UnigmaPhysicsManager.Instance.UodatePhysicsArray(ObjectId, physicsObject);
+    }
+    
     public virtual void UpdatePhysics()
     {
         if (!ObjectSetup)

@@ -19,6 +19,7 @@ public class UnigmaSpaceTime : MonoBehaviour
         public float tempVal;
     }
 
+    /*
     public struct UnigmaPhysicsPoints
     {
         public Vector3 position;
@@ -26,7 +27,8 @@ public class UnigmaSpaceTime : MonoBehaviour
         public float kelvin;
         public float radius;
     };
-
+    */
+    
     ComputeShader _spaceTimeCompute;
 
     public ComputeBuffer _spaceTimePointsBuffer;
@@ -40,7 +42,7 @@ public class UnigmaSpaceTime : MonoBehaviour
     private int[] _VectorIndices;
     private int[] _VectorCellIndices;
     private int[] _VectorCellOffsets;
-    private UnigmaPhysicsPoints[] _UnigmaPhysicsPoints;
+    //private UnigmaPhysicsPoints[] _UnigmaPhysicsPoints;
 
 
     int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float) * 2;
@@ -120,6 +122,11 @@ public class UnigmaSpaceTime : MonoBehaviour
         VectorFieldNative.CopyFrom(VectorField);
         ShapeSpaceTime();
         CreateComputeBuffers();
+    }
+
+    private void Start()
+    {
+        CreatePhysicsBuffers();
         StartCoroutine(GetVectorFields());
     }
 
@@ -170,7 +177,7 @@ public class UnigmaSpaceTime : MonoBehaviour
         _VectorIndices = new int[_NumOfVectors];
         _VectorCellIndices = new int[_NumOfVectors];
         _VectorCellOffsets = new int[_NumOfVectors];
-        _UnigmaPhysicsPoints = new UnigmaPhysicsPoints[_MaxNumOfPoints];
+        //_UnigmaPhysicsPoints = new UnigmaPhysicsPoints[_MaxNumOfPoints];
 
         _vectorIndicesBuffer = new ComputeBuffer(_NumOfVectors, sizeof(int));
         _vectorCellIndicesBuffer = new ComputeBuffer(_NumOfVectors, sizeof(int));
@@ -211,17 +218,33 @@ public class UnigmaSpaceTime : MonoBehaviour
         _attractionFieldThreadSize = new Vector3(threadsX, threadsY, threadsZ);
     }
 
+    void CreatePhysicsBuffers()
+    {
+        SetPhysicsBuffers(_resetVectorFieldKernel);
+        SetPhysicsBuffers(_hashVectorsKernel);
+        SetPhysicsBuffers(_sortVectorsKernelId);
+        SetPhysicsBuffers(_CalculateCellOffsetsKernelId);
+        SetPhysicsBuffers(_attractionFieldKernelId);
+    }
+
+    void SetPhysicsBuffers(int kernelId)
+    {
+        _spaceTimeCompute.SetBuffer(kernelId, "_PhysicsObjects", UnigmaPhysicsManager.Instance._physicsObjectsBuffer);
+    }
+
     void SetBuffers(int kernelId)
     {
         _spaceTimeCompute.SetBuffer(kernelId, "_VectorField", _spaceTimePointsBuffer);
         _spaceTimeCompute.SetBuffer(kernelId, "_VectorIndices", _vectorIndicesBuffer);
         _spaceTimeCompute.SetBuffer(kernelId, "_VectorCellIndices", _vectorIndicesBuffer);
         _spaceTimeCompute.SetBuffer(kernelId, "_VectorCellOffsets", _vectorCellIndicesBuffer);
-        _spaceTimeCompute.SetBuffer(kernelId, "_UnigmaPhysicsPoints", _unigmaPhysicsPointsBuffer);
+
     }
 
     void SetPhysicsPoints()
     {
+        _spaceTimeCompute.SetInt("_NumOfPhysicsObjects", UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Count);
+        /*
         _NumOfPoints = 4;
         _spaceTimeCompute.SetInt("_NumOfPhysicsPoints", _NumOfPoints);
         _UnigmaPhysicsPoints[1].strength = debugObject.gravityStrength;
@@ -229,6 +252,7 @@ public class UnigmaSpaceTime : MonoBehaviour
         _UnigmaPhysicsPoints[1].position = debugObject.transform.position;
         _UnigmaPhysicsPoints[1].kelvin = debugObject.kelvin;
         _unigmaPhysicsPointsBuffer.SetData(_UnigmaPhysicsPoints);
+        */
     }
 
     void SortVectors()

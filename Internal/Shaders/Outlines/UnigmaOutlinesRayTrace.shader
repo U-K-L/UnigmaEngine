@@ -203,9 +203,11 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 
                 shadowFiniteDifference3 = shadow1.r - shadow0.r;
                 shadowFiniteDifference4 = shadow3.r - shadow2.r;
-                float edgeUnigmaDepth = sqrt(pow(shadowFiniteDifference3, 2) + pow(shadowFiniteDifference4, 2)) * 100;
+                float edgeUnigmaDepth = sqrt(pow(shadowFiniteDifference3, 2) + pow(shadowFiniteDifference4, 2)) * 100000;
                 depthThresholdShadow = _DepthThreshold * shadow0;
                 edgeUnigmaDepth = edgeUnigmaDepth > 0.999 ? 1 : 0;
+
+                //return edgeUnigmaDepth;
                 
                 float edge = max(edgeDepth, edgePos);
                 //Delete where edge is present.

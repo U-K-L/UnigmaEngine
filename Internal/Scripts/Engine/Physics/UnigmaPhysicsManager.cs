@@ -84,16 +84,22 @@ public class UnigmaPhysicsManager : MonoBehaviour
         }
 
         Instance = this;
+    }
+
+    public void Initialize()
+    {
         PhysicsObjectsArray = new List<PhysicsObject>();
 
         AddObjectsToList();
         BuildTriangleList();
         CreateMeshes();
+
+        _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Count, 1), _physicsObjectsStride);
     }
 
     private void Start()
     {
-        _physicsObjectsBuffer = new ComputeBuffer(PhysicsObjectsArray.Count, _physicsObjectsStride);
+
     }
 
     private void Update()
@@ -102,12 +108,6 @@ public class UnigmaPhysicsManager : MonoBehaviour
         BuildTriangleList();
         CreateMeshes();
     }
-
-    void SetPhysicsObjects()
-    {
-        _physicsObjectsBuffer.SetData(PhysicsObjectsArray);
-    }
-
     void AddObjectsToList()
     {
         foreach (var obj in FindObjectsOfType<Renderer>())
@@ -314,6 +314,13 @@ public class UnigmaPhysicsManager : MonoBehaviour
 
         }
     }
+
+    void SetPhysicsObjects()
+    {
+        if(PhysicsObjectsArray.Count > 0)
+            _physicsObjectsBuffer.SetData(PhysicsObjectsArray);
+    }
+
 
     public void AddPhysicsObject(PhysicsObject pobj)
     {

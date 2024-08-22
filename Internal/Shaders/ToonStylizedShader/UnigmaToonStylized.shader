@@ -27,6 +27,12 @@ Shader "Unigma/UnigmaToonStylized"
         [KeywordEnum(CelShaded, ToonShaded, DistShaded)] _ColorDistModel("Color BRDF", Float) = 0
 		_RimControl("Rim Control", Range(-1,1)) = 0
         [IntRange] _StencilRef("Stencil Ref Value", Range(0,255)) = 0
+
+        //For components.
+        _OutlineColor("Outline Color", Color) = (0,0,0,1)
+        _OutlineInnerColor("Inner Outline Color", Color) = (0,0,0,1)
+        _ThicknessTexture("Thickness of the line texture", 2D) = "black" {}
+        _ThicknessTexture_ST("Thickness Vector", Vector) = (1, 1, 1, 1)
         
     }
     SubShader

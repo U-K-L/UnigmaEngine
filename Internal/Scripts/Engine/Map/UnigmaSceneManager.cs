@@ -17,6 +17,9 @@ public class UnigmaSceneManager : MonoBehaviour
     public UnigmaScene[] unigmaScenes;
     public Dictionary<string, UnigmaScene> unigmaScenesDictionary;
     public Queue<string> unigmaSceneQueue;
+
+    [HideInInspector]
+    public CameraController unigmaCamera;
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -27,6 +30,9 @@ public class UnigmaSceneManager : MonoBehaviour
 
         Instance = this;
         unigmaSceneQueue = new Queue<string>();
+        unigmaScenesDictionary = new Dictionary<string, UnigmaScene>();
+
+        unigmaCamera = Camera.main.GetComponent<CameraController>();
     }
 
     public void LoadScene(string sceneName)
@@ -55,6 +61,7 @@ public class UnigmaSceneManager : MonoBehaviour
         //Sets this scene to current scene.
         currentScene = unigmaScenesDictionary[sceneName];
         currentScene.LaunchScene(); //Launches the scene which does any effects needed to start it.
+        unigmaCamera.simplePivot = currentScene.PivotPoint;
     }
 
     bool UpdateQueue(string sceneName)

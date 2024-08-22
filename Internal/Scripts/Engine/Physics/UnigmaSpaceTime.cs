@@ -75,8 +75,6 @@ public class UnigmaSpaceTime : MonoBehaviour
     public float initialFahrenheit = 78.0f;
     public float GlobalTemperature = 78.0f;
 
-    public UnigmaPhysicsObject debugObject;
-
     public static UnigmaSpaceTime Instance { get; private set; }
 
     public float temperatureSample;
@@ -107,29 +105,37 @@ public class UnigmaSpaceTime : MonoBehaviour
             Instance = this;
         }
 
-        int numOfVectors = Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution);
-        VectorField = new SpaceTimePoint[numOfVectors];
-        VectorFieldNative = new NativeArray<SpaceTimePoint>(numOfVectors, Allocator.Persistent);
+    }
+
+    public void Initialize()
+    {
+            int numOfVectors = Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution);
+            VectorField = new SpaceTimePoint[numOfVectors];
+            VectorFieldNative = new NativeArray<SpaceTimePoint>(numOfVectors, Allocator.Persistent);
 
 
-        for (int i = 0; i < VectorField.Length; i++)
-        {
-            VectorField[i].force = Vector3.zero;
-            VectorField[i].position = Vector3.zero;
-            VectorField[i].kelvin = FahrenheitToKelvin(initialFahrenheit);
-        }
+            for (int i = 0; i < VectorField.Length; i++)
+            {
+                VectorField[i].force = Vector3.zero;
+                VectorField[i].position = Vector3.zero;
+                VectorField[i].kelvin = FahrenheitToKelvin(initialFahrenheit);
+            }
 
-        VectorFieldNative.CopyFrom(VectorField);
-        ShapeSpaceTime();
-        CreateComputeBuffers();
+            VectorFieldNative.CopyFrom(VectorField);
+            ShapeSpaceTime();
+            CreateComputeBuffers();
     }
 
     private void Start()
     {
+
+    }
+
+    public void StartSpaceTime()
+    {
         CreatePhysicsBuffers();
         StartCoroutine(GetVectorFields());
     }
-
 
     private IEnumerator GetVectorFields()
     {

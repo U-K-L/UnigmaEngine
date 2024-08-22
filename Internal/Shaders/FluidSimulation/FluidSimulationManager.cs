@@ -326,8 +326,10 @@ public class FluidSimulationManager : MonoBehaviour
         }
 
         Instance = this;
+    }
 
-
+    public void Initialize()
+    {
         fluidControlledObjects = new List<FluidControl>();
         //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
@@ -343,10 +345,10 @@ public class FluidSimulationManager : MonoBehaviour
         _distanceTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(DistanceResolutionDivider)))), Screen.width), 32);
         _distanceTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(DistanceResolutionDivider)))), Screen.height), 32);
         _fluidSimulationComputeShader = Resources.Load<ComputeShader>("FluidSimCompute");
-        
+
         _fluidNormalShader = Resources.Load<Shader>("FluidNormalBuffer");
         _fluidDepthShader = Resources.Load<Shader>("FluidBilateralFilter");
-        
+
         //Create the material for the fluid simulation.
         _fluidSimMaterialDepthHori = new Material(_fluidDepthShader);
         _fluidSimMaterialDepthVert = new Material(_fluidDepthShader);
@@ -396,7 +398,7 @@ public class FluidSimulationManager : MonoBehaviour
         _MortonCodesTemp = new MortonCode[MaxNumOfParticles];
 
         _BVHNodesBuffer = new ComputeBuffer(_BVHNodes.Length, _BVHStride);
-        _particleNeighbors = new ComputeBuffer((MaxNumOfParticles+MaxNumOfControlParticles)*27, 4);
+        _particleNeighbors = new ComputeBuffer((MaxNumOfParticles + MaxNumOfControlParticles) * 27, 4);
         //_controlNeighborsBuffer = new ComputeBuffer(MaxNumOfParticles * 27, 4);
         _particleNeighborsArray = new uint[(MaxNumOfParticles + MaxNumOfControlParticles) * 27];
         Debug.Log(_particleNeighborsArray.Length);

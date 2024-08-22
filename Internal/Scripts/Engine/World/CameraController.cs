@@ -28,7 +28,7 @@ public class CameraController : MonoBehaviour
     public PerspectiveCameraLerp perpCam;
     public bool originalCamIsPerp = true;
     public float AxisSlider = 1;
-    public GameObject simplePivot;
+    public Transform simplePivot;
 
     public enum CameraState
     {
@@ -61,7 +61,7 @@ public class CameraController : MonoBehaviour
     {
         UpdateStates();
         updateInputMouse();
-        //updateInputController();
+        updateInputController();
        //UpdateChildCameraPosition();
         //UpdateCameraAlongAxis();
     }
@@ -93,7 +93,7 @@ public class CameraController : MonoBehaviour
         }
         else if (_camState == CameraController.CameraState.Simple)
         {
-            SetPivot(simplePivot.transform.position);
+            SetPivot(simplePivot.position);
         }
     }
 
@@ -206,6 +206,52 @@ public class CameraController : MonoBehaviour
             _prevCamDelta = mouseAxis;
         }
 
+        if (Input.GetKey(KeyCode.Q))
+        {
+            _camState = CameraState.Rotating;
+            Vector3 rot = new Vector3(0 * 5f * _rotationSpeed, 10 * 10f * _rotationSpeed, 0);
+            rotateCameraByController(rot);
+        }
+
+        if (Input.GetKey(KeyCode.W))
+        {
+            _camState = CameraState.Rotating;
+            Vector3 rot = new Vector3(0 * 5f * _rotationSpeed, -10 * 10f * _rotationSpeed, 0);
+            rotateCameraByController(rot);
+        }
+
+        if (Input.GetKey(KeyCode.E))
+        {
+            _camState = CameraState.Rotating;
+            Vector3 rot = new Vector3(10 * 5f * _rotationSpeed, 0 * 10f * _rotationSpeed, 0);
+            rotateCameraByController(rot);
+        }
+
+        if (Input.GetKey(KeyCode.R))
+        {
+            _camState = CameraState.Rotating;
+            Vector3 rot = new Vector3(-10 * 5f * _rotationSpeed, 0 * 10f * _rotationSpeed, 0);
+            rotateCameraByController(rot);
+        }
+
+        if (Input.GetKey(KeyCode.U))
+        {
+            //Look up!
+            _camState = CameraState.Rotating;
+            transform.Rotate(50 * _rotationSpeed * Time.deltaTime, 0, 0);
+        }
+
+        if (Input.GetKey(KeyCode.J))
+        {
+            //Look down!
+            _camState = CameraState.Rotating;
+            transform.Rotate(-50 * _rotationSpeed * Time.deltaTime, 0, 0);
+        }
+
+        if (Input.GetKey(KeyCode.K))
+            Camera.main.orthographicSize -= 5*_rotationSpeed*Time.deltaTime;
+        if (Input.GetKey(KeyCode.L))
+            Camera.main.orthographicSize += 5*_rotationSpeed * Time.deltaTime;
     }
 
     public void Dolly()
@@ -290,9 +336,11 @@ public class CameraController : MonoBehaviour
             Mathf.Max(MinRots.z, parentCombRot.z));
         */
 
-        gameObject.transform.RotateAround(_pivot, new Vector3(0, rot.y,0), Time.deltaTime * 20 * 10.25f * _rotationSpeed);
-        Quaternion fromParent = Quaternion.Euler(gameObject.transform.eulerAngles);
-        Quaternion toParent = Quaternion.Euler(gameObject.transform.eulerAngles.x + rot.x*15, gameObject.transform.eulerAngles.y, gameObject.transform.eulerAngles.z);
+        gameObject.transform.RotateAround(_pivot, new Vector3(0, rot.y, rot.x), Time.deltaTime * 20 * 10.25f * _rotationSpeed);
+        //Set z rotation to 0.
+        gameObject.transform.rotation = Quaternion.Euler(new Vector3(gameObject.transform.eulerAngles.x, gameObject.transform.eulerAngles.y, 0));
+        //Quaternion fromParent = Quaternion.Euler(gameObject.transform.eulerAngles);
+        //Quaternion toParent = Quaternion.Euler(gameObject.transform.eulerAngles.x + rot.x*15, gameObject.transform.eulerAngles.y, gameObject.transform.eulerAngles.z);
         //Vector3 parentEuler = Quaternion.Slerp(fromParent, toParent, _camSpeed * rotationDelta * 1000).eulerAngles;
         //gameObject.transform.rotation = Quaternion.Euler(toParent.eulerAngles.x, gameObject.transform.eulerAngles.y, gameObject.transform.eulerAngles.z);
     }

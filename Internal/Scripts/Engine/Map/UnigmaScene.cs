@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class UnigmaScene : MonoBehaviour
 {
+    public Transform PivotPoint; //Point that is center for camera.
     public string sceneName;
     public bool loaded = false;
     public UnigmaGameObject[] unigmaGameObjects;

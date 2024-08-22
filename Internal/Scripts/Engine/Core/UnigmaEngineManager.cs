@@ -12,6 +12,7 @@ public class UnigmaEngineManager : MonoBehaviour
     public UnigmaRendererManager unigmaRendererManager;
     [HideInInspector]
     public UnigmaSceneManager unigmaSceneManager;
+
     public static UnigmaEngineManager Instance;
     private void Awake()
     {
@@ -26,6 +27,11 @@ public class UnigmaEngineManager : MonoBehaviour
         unigmaPhysicsManager = gameObject.AddComponent<UnigmaPhysicsManager>() as UnigmaPhysicsManager;
         unigmaRendererManager = gameObject.AddComponent<UnigmaRendererManager>() as UnigmaRendererManager;
         unigmaSceneManager = gameObject.AddComponent<UnigmaSceneManager>() as UnigmaSceneManager;
+
+        //Disable until initialized
+        unigmaPhysicsManager.enabled = false;
+        unigmaRendererManager.enabled = false;
+        unigmaSceneManager.enabled = false;
     }
 
     void Start()

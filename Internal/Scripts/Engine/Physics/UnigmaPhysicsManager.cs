@@ -49,8 +49,8 @@ public class UnigmaPhysicsManager : MonoBehaviour
     public MeshObject[] MeshObjects;
 
 
-    public FluidSimulationManager UnigmaFluids;
-    public UnigmaSpaceTime UnigmaSpaceTime;
+    public FluidSimulationManager unigmaFluids;
+    public UnigmaSpaceTime unigmaSpaceTime;
 
     //Lists
     public List<Renderer> _physicsRenderers = new List<Renderer>();
@@ -95,6 +95,9 @@ public class UnigmaPhysicsManager : MonoBehaviour
         CreateMeshes();
 
         _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Count, 1), _physicsObjectsStride);
+
+        unigmaSpaceTime = gameObject.AddComponent<UnigmaSpaceTime>() as UnigmaSpaceTime;
+        unigmaFluids = gameObject.AddComponent<FluidSimulationManager>() as FluidSimulationManager;
     }
 
     private void Start()

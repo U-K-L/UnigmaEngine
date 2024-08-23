@@ -7,8 +7,9 @@ public class GraphicalOcculusion : MonoBehaviour
     //List of objects within this buffer to be tested for occulusion.
     public List<GameObject> wallObjects = new List<GameObject>();
     public List<GameObject> objectsToView = new List<GameObject>(); //Objects we are trying to see. Player is added in this by default, but could add more.
-    public void Awake()
+    public void Start()
     {
+        SetUpWallsAndObjects();
     }
 
     public void Update()
@@ -16,8 +17,41 @@ public class GraphicalOcculusion : MonoBehaviour
         CheckWallOcculudeObjects();
     }
 
+    void SetUpWallsAndObjects()
+    {
+        //Add any object with a wall tag to _graphicalOcculusion.wallObjects list.
+        GameObject[] walls = GameObject.FindGameObjectsWithTag("Wall");
+        foreach (GameObject wall in walls)
+        {
+            wallObjects.Add(wall);
+        }
+        //Do the same for players
+        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+        foreach (GameObject player in players)
+        {
+            objectsToView.Add(player);
+        }
+        //Do the same for pivots
+        GameObject[] pivots = GameObject.FindGameObjectsWithTag("PivotPoint");
+        foreach (GameObject pivot in pivots)
+        {
+            objectsToView.Add(pivot);
+        }
+        GameObject[] ceilings = GameObject.FindGameObjectsWithTag("Ceiling");
+        foreach (GameObject ceiling in ceilings)
+        {
+            //Get _StencilRef from isometricDepth.
+            int stencilValue = ceiling.GetComponent<Renderer>().material.GetInt("_StencilRef");
+            ceiling.GetComponent<IsometricDepthNormalObject>().material.SetInt("_StencilRef", stencilValue);
+            ceiling.GetComponent<OutlineColor>().material.SetInt("_StencilRef", stencilValue);
+            //ceiling.GetComponent<IsometricDepthNormalObject>().materials["FluidPositions"].SetInt("_StencilRef", stencilValue);
+        }
+
+    }
+
     public void CheckWallOcculudeObjects()
     {
+        Debug.Log("Check walls ray cast");
         foreach (GameObject wall in wallObjects)
         {
             //Clear all.
@@ -38,11 +72,12 @@ public class GraphicalOcculusion : MonoBehaviour
 
         //Do a large sphere cast to get all possible objects.
         RaycastHit[] hits = Physics.SphereCastAll(Camera.main.transform.position, 1.0f, gameObject.transform.forward, 100);
+
+        Debug.Log("All objects hit by raycast: " + hits.Length);
         float distancePlayerToCamera = Vector3.Distance(obj.transform.position, Camera.main.transform.position);
         foreach (RaycastHit hit in hits)
         {
-            //Check tag to see if it is a Wall.
-            if (hit.collider.gameObject.tag == "Player")
+            if (hit.collider.gameObject.tag == "PivotPoint" || hit.collider.gameObject.tag == "Player")
             {
                 distancePlayerToCamera = hit.distance;
             }

@@ -32,6 +32,8 @@ public class UnigmaEngineManager : MonoBehaviour
         unigmaPhysicsManager.enabled = false;
         unigmaRendererManager.enabled = false;
         unigmaSceneManager.enabled = false;
+
+        unigmaSceneManager.Initialize();
     }
 
     void Start()

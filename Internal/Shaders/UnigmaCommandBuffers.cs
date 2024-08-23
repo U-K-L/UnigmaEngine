@@ -9,7 +9,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
 {
 
     public bool RayTracingOn = true;
-    private GraphicalOcculusion _graphicalOcculusion;
     private int buffersAdded = 0;
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
     private List<Renderer> _OutlineNullObjects = default; //Objects not part of this render.
@@ -204,38 +203,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
     {
 
         _rayTracedObjects = new List<Renderer>();
-        _graphicalOcculusion = gameObject.AddComponent<GraphicalOcculusion>();
         _unigmaBackgroundMaterial = Resources.Load<Material>("UnigmaBackgroundMaterial");
-        SetUpWallsAndObjects();
+        //SetUpWallsAndObjects();
         UpdateRenderTextures();
         SetUpOutline();
     }
 
-    void SetUpWallsAndObjects()
-    {
-        //Add any object with a wall tag to _graphicalOcculusion.wallObjects list.
-        GameObject[] walls = GameObject.FindGameObjectsWithTag("Wall");
-        foreach (GameObject wall in walls)
-        {
-            _graphicalOcculusion.wallObjects.Add(wall);
-        }
-        //Do the same for players
-        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
-        foreach (GameObject player in players)
-        {
-            _graphicalOcculusion.objectsToView.Add(player);
-        }
-        GameObject[] ceilings = GameObject.FindGameObjectsWithTag("Ceiling");
-        foreach (GameObject ceiling in ceilings)
-        {
-            //Get _StencilRef from isometricDepth.
-            int stencilValue = ceiling.GetComponent<Renderer>().material.GetInt("_StencilRef");
-            ceiling.GetComponent<IsometricDepthNormalObject>().material.SetInt("_StencilRef", stencilValue);
-            ceiling.GetComponent<OutlineColor>().material.SetInt("_StencilRef", stencilValue);
-            //ceiling.GetComponent<IsometricDepthNormalObject>().materials["FluidPositions"].SetInt("_StencilRef", stencilValue);
-        }
-        
-    }
 
     void SetUpOutline()
     {

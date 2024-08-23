@@ -31,8 +31,17 @@ public class UnigmaSceneManager : MonoBehaviour
         Instance = this;
         unigmaSceneQueue = new Queue<string>();
         unigmaScenesDictionary = new Dictionary<string, UnigmaScene>();
+    }
 
-        unigmaCamera = Camera.main.GetComponent<CameraController>();
+    public void Initialize()
+    {
+        Debug.Log("Initializing scene manager");
+
+        //Initialize Camera.
+        GameObject camPrefab = Resources.Load<GameObject>("Cameras/UnigmaCamera");
+        GameObject cameraObj = Instantiate(camPrefab) as GameObject;
+        unigmaCamera = cameraObj.GetComponent<CameraController>();
+        unigmaCamera.gameObject.AddComponent<GraphicalOcculusion>();
     }
 
     public void LoadScene(string sceneName)

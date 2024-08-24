@@ -193,7 +193,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
     float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
     float3 xNDirection = Sx2Payload.direction;
-    int maxBounces = 1;
+    int maxBounces = 2;
     float radianceIndirect = Sx2Payload.color.w;
     RayDesc SxNRay;
     Payload SxNPayload;
@@ -208,7 +208,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
         radianceIndirect += SxNPayload.color.w;
         SxNRay.Origin = xNOrigin;
         SxNRay.Direction = xNDirection;
-        //CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
+        CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
     }
 
     //return SxNPayload.color * SxNPayload.color.w;
@@ -371,14 +371,14 @@ void RestirGlobalIllumantionRayGen()
     for(int i = 0; i < numSamples; i++)
     {
         
-        targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples*0.5;
+        targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples*0.425;
         float4 indirectSample = SampleIndirect(payload, ray)*inverseSamples;
         float4x4 saturation = saturationMatrix(3.6);
         float4x4 constrast = contrastMatrix(0.60);
         indirectSample = mul(indirectSample, saturation);
         indirectSample = mul(indirectSample, constrast);
-        //indirectSample *= 0.5;
-        //targetResult += indirectSample;
+        indirectSample *= 0.35;
+        targetResult += indirectSample;
         payload.pixel += _Time.xy + float2(i, i*i+i);
     }
 

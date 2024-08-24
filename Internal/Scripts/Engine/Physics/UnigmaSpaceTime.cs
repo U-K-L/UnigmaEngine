@@ -10,6 +10,10 @@ using static UnityStandardAssets.ImageEffects.BloomOptimized;
 
 public class UnigmaSpaceTime : MonoBehaviour
 {
+    //Needs to be set.
+    public Vector3 SpaceTimeSize;
+    public int SpaceTimeResolution;
+
     public struct SpaceTimePoint
     {
         public Vector3 index;
@@ -48,10 +52,6 @@ public class UnigmaSpaceTime : MonoBehaviour
     int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float) * 2;
     int _unigmaPhysicsPointsStride = (sizeof(float) * 3) + sizeof(float)*3;
     public int _NumOfVectors;
-
-    public Vector3 SpaceTimeSize;
-
-    public int SpaceTimeResolution;
 
     public SpaceTimePoint[] VectorField;
     public NativeArray<SpaceTimePoint> VectorFieldNative;
@@ -107,28 +107,31 @@ public class UnigmaSpaceTime : MonoBehaviour
 
     }
 
-    public void Initialize()
+    public void Initialize(Vector3 boxSize, int resolution, float temperature)
     {
-            int numOfVectors = Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution);
-            VectorField = new SpaceTimePoint[numOfVectors];
-            VectorFieldNative = new NativeArray<SpaceTimePoint>(numOfVectors, Allocator.Persistent);
+        SpaceTimeSize = boxSize;
+        SpaceTimeResolution = resolution;
+        GlobalTemperature = temperature;
+        int numOfVectors = Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution) * Mathf.CeilToInt(SpaceTimeResolution);
+        VectorField = new SpaceTimePoint[numOfVectors];
+        VectorFieldNative = new NativeArray<SpaceTimePoint>(numOfVectors, Allocator.Persistent);
 
 
-            for (int i = 0; i < VectorField.Length; i++)
-            {
-                VectorField[i].force = Vector3.zero;
-                VectorField[i].position = Vector3.zero;
-                VectorField[i].kelvin = FahrenheitToKelvin(initialFahrenheit);
-            }
+        for (int i = 0; i < VectorField.Length; i++)
+        {
+            VectorField[i].force = Vector3.zero;
+            VectorField[i].position = Vector3.zero;
+            VectorField[i].kelvin = FahrenheitToKelvin(initialFahrenheit);
+        }
 
-            VectorFieldNative.CopyFrom(VectorField);
-            ShapeSpaceTime();
-            CreateComputeBuffers();
+        VectorFieldNative.CopyFrom(VectorField);
+        ShapeSpaceTime();
+        CreateComputeBuffers();
     }
 
     private void Start()
     {
-
+        StartSpaceTime();
     }
 
     public void StartSpaceTime()

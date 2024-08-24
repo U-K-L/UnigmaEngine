@@ -14,6 +14,9 @@ public class UnigmaEngineManager : MonoBehaviour
     public UnigmaSceneManager unigmaSceneManager;
 
     public static UnigmaEngineManager Instance;
+
+    public LayerMask RayTracingLayers;
+    public LayerMask FluidInteractionLayers;
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -45,5 +48,6 @@ public class UnigmaEngineManager : MonoBehaviour
     {
         Debug.Log("Starting Unigma Engine");
         unigmaSceneManager.LoadScene(InitialScene);
+        //unigmaPhysicsManager.Initialize(UnigmaSceneManager.currentScene);
     }
 }

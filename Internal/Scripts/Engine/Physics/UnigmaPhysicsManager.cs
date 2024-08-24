@@ -73,8 +73,6 @@ public class UnigmaPhysicsManager : MonoBehaviour
 
     public static UnigmaPhysicsManager Instance;
 
-    public LayerMask RayTracingLayers;
-    public LayerMask FluidInteractionLayers;
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -86,7 +84,7 @@ public class UnigmaPhysicsManager : MonoBehaviour
         Instance = this;
     }
 
-    public void Initialize()
+    public void Initialize(UnigmaScene uScene)
     {
         PhysicsObjectsArray = new List<PhysicsObject>();
 
@@ -97,7 +95,15 @@ public class UnigmaPhysicsManager : MonoBehaviour
         _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Count, 1), _physicsObjectsStride);
 
         unigmaSpaceTime = gameObject.AddComponent<UnigmaSpaceTime>() as UnigmaSpaceTime;
-        unigmaFluids = gameObject.AddComponent<FluidSimulationManager>() as FluidSimulationManager;
+        //unigmaFluids = gameObject.AddComponent<FluidSimulationManager>() as FluidSimulationManager;
+        unigmaSpaceTime.Initialize(uScene.SpaceTimeBoxSize, uScene.SpaceTimeResolution, uScene.Temperature);
+
+        //Add physics objects.
+        UnigmaPhysicsObject[] physicsObjects = GetComponentsInChildren<UnigmaPhysicsObject>();
+        for (int i = 0; i < physicsObjects.Length; i++)
+        {
+            AddPhysicsObject(physicsObjects[i].physicsObject);
+        }
     }
 
     private void Start()
@@ -116,9 +122,9 @@ public class UnigmaPhysicsManager : MonoBehaviour
         foreach (var obj in FindObjectsOfType<Renderer>())
         {
             //Check if object in the RaytracingLayers.
-            if (((1 << obj.gameObject.layer) & RayTracingLayers) != 0)
+            if (((1 << obj.gameObject.layer) & UnigmaEngineManager.Instance.RayTracingLayers) != 0)
             {
-                if (((1 << obj.gameObject.layer) & FluidInteractionLayers) != 0)
+                if (((1 << obj.gameObject.layer) & UnigmaEngineManager.Instance.FluidInteractionLayers) != 0)
                 {
                     Debug.Log(obj.name);
                     _physicsRenderers.Add(obj);

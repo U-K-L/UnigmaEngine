@@ -172,7 +172,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 
     if(Sx2Payload.distance >= 99990)
     {
-        Sx2Payload.color.w = 1;
+        Sx2Payload.color = (1,1,1,1);
     }
 
     float visible = step(0.0001, Sx2Payload.color.w);
@@ -293,9 +293,9 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
 
     //If it hit nothing return early.
-    if(Sx2Payload.distance > 9999)
+    if(Sx2Payload.distance > 99990)
 	{
-		//return 0;//return float4(0.85,0.77,0.8,1)*0.85;
+		Sx2Payload.color.w = 1;//return 0;//return float4(0.85,0.77,0.8,1)*0.85;
 	}
 
     //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
@@ -303,7 +303,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float3 xNDirection = Sx2Payload.direction;
     
     //return Sx2Payload.color;
-    int maxBounces = 1;
+    int maxBounces = 2;
     float radianceIndirect = Sx2Payload.color.w;
     RayDesc SxNRay;
     Payload SxNPayload;
@@ -315,27 +315,29 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
         TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxNRay, SxNPayload);
         xNOrigin = SxNRay.Origin + (SxNRay.Direction * SxNPayload.distance) + (SxNPayload.normal * distanceFromPoint);
         xNDirection = SxNPayload.direction;
-        radianceIndirect += SxNPayload.color.w;
+        radianceIndirect += SxNPayload.color.w* (1.0f / (float)maxBounces);
         SxNRay.Origin = xNOrigin;
         SxNRay.Direction = xNDirection;
-        //CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
+        CreateSample(SxNRay, SxNPayload,  xNOrigin, xNDirection); //Start at that new surface from bounce...
     }
-    //return SxNPayload.color;
+    //return radianceIndirect;
     //----------------------------------
     //------------------------------------ALGORITHM 2 Initial Sampling------------------------------//
 
     //Create a surface based on secondary surface.
     Surface Ssurface;
-    CreateSurface(Ssurface, xNOrigin, SxNPayload.normal, normalize(xNOrigin - x2Origin), SxNPayload.color.xyz, SxNPayload.color.w);
+    CreateSurface(Ssurface, xNOrigin, SxNPayload.normal, normalize(xNOrigin - x2Origin), SxNPayload.color.xyz, radianceIndirect);
     
     ReservoirPath currentReservoirPath;
-    InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, SxNPayload.color.w); 
+    InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, radianceIndirect); 
     
     float3 outgoingRadiance = GetTargetFunctionSurface(Ssurface, currentReservoirPath.position, currentReservoirPath.radiance);
+    //return float4(outgoingRadiance, 1);
 
     InitiateReservoirPath(currentReservoirPath, xNOrigin, SxNPayload.normal.xyz, outgoingRadiance);
     
-    
+
+
     //return SxNPayload.color.w;
     //----------------------------------
     //------------------------------------ALGORITHM Temporal Sampling------------------------------//
@@ -379,7 +381,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float pHat = selectedPdf;
     //currentReservoirPath.wSum =  (targetNumer == 0.0) ? 0.0 : (currentReservoirPath.wSum * targetNumer) / targetDenom;
     currentReservoirPath.wSum = pHat == 0.f ? 0.f : currentReservoirPath.wSum / (currentReservoirPath.M * pHat);
-
+    //return float4(currentReservoirPath.wSum, currentReservoirPath.wSum , currentReservoirPath.wSum , 1);
     //(inout ReservoirPath reservoir, float3 position, float3 normal, float3 radiance)
     //Initalizing the current reservoir we will use.
     /*
@@ -410,8 +412,8 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     //Store reservoir.
     _reservoirPaths[storageReservoirIndex] = currentReservoirPath;
     
-    return 0;//float4(visibility*currentReservoirPath.radiance * currentReservoirPath.wSum, 1);
-
+    //return float4(currentReservoirPath.radiance * currentReservoirPath.wSum, 1);
+    return 0; //float4(visibility*currentReservoirPath.radiance * currentReservoirPath.wSum, 1);
 }
 
 //Just a basic unbiased direct lighter for one light.

@@ -268,6 +268,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 
                 float lightedAreas = step(0.00001, _UnigmaDepthShadows.r);
 				edgeUnigmaDepth *= step(lightedAreas, 0.00001) * step(edge, 0.00001);
+
                 //return lightedAreas;
                 //return FinalColor + specularHighlights;
                 //return reflectMaskInv* reflections*0.25;
@@ -278,7 +279,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(FinalColor + edgeUnigmaDepth, FinalColor* _GlobalIlluminationWeights.x + GlobalIlluminationDenoised * _GlobalIlluminationWeights.y + reflections * _GlobalIlluminationWeights.z, 0.5* lightedAreas) + specularHighlights* _GlobalIlluminationWeights.w;
+                return lerp(FinalColor + edgeUnigmaDepth*8, FinalColor* _GlobalIlluminationWeights.x + GlobalIlluminationDenoised * _GlobalIlluminationWeights.y + reflections * _GlobalIlluminationWeights.z, 0.5* lightedAreas) + specularHighlights* _GlobalIlluminationWeights.w;
                 //return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 //return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));

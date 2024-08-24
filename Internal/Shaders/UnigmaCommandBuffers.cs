@@ -1,12 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
 public class UnigmaCommandBuffers : MonoBehaviour
 {
+    public Material compositeMaterial;
 
     public bool RayTracingOn = true;
     private int buffersAdded = 0;
@@ -1155,7 +1157,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
         compositeBuffer.name = "CompositeBuffer";
 
         //Get Composite Material.
-        Material compositeMaterial = null;
         if (UnigmaSettings.GetIsRTXEnabled())
         {
             compositeMaterial = Resources.Load<Material>("UnigmaCompositeRayTrace" + UnigmaSettings.CurrentPreset());

@@ -9,6 +9,11 @@ public class UnigmaScene : MonoBehaviour
     public bool loaded = false;
     public UnigmaGameObject[] unigmaGameObjects;
 
+    //Space Time attributes.
+    public Vector3 SpaceTimeBoxSize;
+    public int SpaceTimeResolution;
+    public float Temperature;
+
     public void LaunchScene()
     {
         loaded = true;

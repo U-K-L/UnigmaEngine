@@ -98,7 +98,7 @@ Shader "Unlit/UnigmaBackground"
 
                 float4 backGroundColor = col * unlightAreas;
 
-                float4 fluidBg = lerp(colorDither, fluidFinal * 0.9 + colorDither*0.25, min(1, fluidFinal.w*60)) * lightedAreas;
+                float4 fluidBg = colorDither* lightedAreas;//lerp(colorDither, fluidFinal * 0.9 + colorDither*0.25, min(1, fluidFinal.w*60)) * lightedAreas;
                 return fluidBg + backGroundColor;
             }
             ENDCG

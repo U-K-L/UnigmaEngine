@@ -30,7 +30,7 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
     bool ObjectSetup = false;
 
-    private UnigmaPhysicsManager.PhysicsObject physicsObject;
+    public UnigmaPhysicsManager.PhysicsObject physicsObject;
 
     private void Awake()
     {
@@ -48,10 +48,6 @@ public class UnigmaPhysicsObject : MonoBehaviour
     {
         physicsObject = new UnigmaPhysicsManager.PhysicsObject();
         UpdatePhysicsBuffers();
-        UnigmaPhysicsManager.Instance.AddPhysicsObject(physicsObject);
-        ObjectId = UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Count - 1;
-
-
     }
 
     private void Update()

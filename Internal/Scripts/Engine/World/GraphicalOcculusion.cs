@@ -51,7 +51,6 @@ public class GraphicalOcculusion : MonoBehaviour
 
     public void CheckWallOcculudeObjects()
     {
-        Debug.Log("Check walls ray cast");
         foreach (GameObject wall in wallObjects)
         {
             //Clear all.
@@ -73,7 +72,6 @@ public class GraphicalOcculusion : MonoBehaviour
         //Do a large sphere cast to get all possible objects.
         RaycastHit[] hits = Physics.SphereCastAll(Camera.main.transform.position, 1.0f, gameObject.transform.forward, 100);
 
-        Debug.Log("All objects hit by raycast: " + hits.Length);
         float distancePlayerToCamera = Vector3.Distance(obj.transform.position, Camera.main.transform.position);
         foreach (RaycastHit hit in hits)
         {
@@ -92,7 +90,6 @@ public class GraphicalOcculusion : MonoBehaviour
             {
                 //Checks to see if distance from this wall to camera is less than the object to camera.
                 //float distanceWallToCamera = Vector3.Distance(hit.point, Camera.main.transform.position);
-                Debug.Log(hit.distance + " " + distancePlayerToCamera);
                 if (hit.distance < distancePlayerToCamera)
                     ChangeStencilBuffer(1, hit.collider.gameObject);
             }

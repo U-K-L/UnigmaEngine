@@ -115,8 +115,9 @@ void DepthShadowsRaygenShader()
     }
 
     //Store payload normal for the reflections later on.
+    float3 originalColor = payload.direction;
     float3 reflectionNormal = payload.normal;
-    float4 prevColor = payload.color;
+    float4 prevColor = payload.color; //float4(1, 1, _Smoothness, InstanceID()); Of the object to which reflections will be casted on.
     
     //Find the shadow.
 
@@ -147,8 +148,8 @@ void DepthShadowsRaygenShader()
     float3 worldDirection = normalize(worldPosPixel - _WorldSpaceCameraPos);
     float3 worldSpaceViewForward = -UNITY_MATRIX_I_V._m02_m12_m22;
         
-    float3 reflectedDirection = reflectUnigma(worldDirection, reflectionNormal);
-    reflectedDirection = lerp(reflectionNormal,reflectedDirection, prevColor.z);
+    float3 reflectedDirection = reflectionNormal;//reflectUnigma(worldDirection, reflectionNormal);
+    //reflectedDirection = lerp(reflectionNormal,reflectedDirection, prevColor.z);
     ray.Origin = position;
     ray.Direction = reflectedDirection;
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);

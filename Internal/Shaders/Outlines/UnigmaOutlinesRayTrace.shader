@@ -275,7 +275,10 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 //reflections = reflectMaskInv * reflections * 0.75;
 				//reflections += reflectMask;
                 //return reflections;
-                FinalColor = lerp(FinalColor, FinalColor*(min(1,reflections.w*0.975)) + reflections*0.25, reflectMaskInv*min(1, reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
+                float4 reflectionsHigh = ((FinalColor * reflections) * max(0.8, 1.0 - reflections.w) + (FinalColor + reflections) * min(0.2, reflections.w)) * 1.15;
+                
+                float4 reflectionsLow = (FinalColor*0.35 + (FinalColor * reflections) * min(0.15, reflections.w)  + (FinalColor + reflections) * max(0.45, 1.0 - reflections.w)) * step(reflections.w, 0.5);
+                FinalColor = lerp(FinalColor, reflectionsHigh, reflectMaskInv*min(1, reflections.w* reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;

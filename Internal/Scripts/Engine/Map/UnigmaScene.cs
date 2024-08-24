@@ -14,6 +14,13 @@ public class UnigmaScene : MonoBehaviour
     public int SpaceTimeResolution;
     public float Temperature;
 
+    //Graphical Settings.
+    public UnigmaSceneGraphicalSettings daySettings;
+    public UnigmaSceneGraphicalSettings nightSettings;
+
+    [HideInInspector]
+    public UnigmaSceneGraphicalSettings currentGraphicalSettings;
+
     public void LaunchScene()
     {
         loaded = true;
@@ -21,6 +28,7 @@ public class UnigmaScene : MonoBehaviour
 
     public void LoadScene()
     {
+        UpdateGraphicalSettings();
         CreateGameObjectBuffers();
     }
 
@@ -44,5 +52,10 @@ public class UnigmaScene : MonoBehaviour
                 unigmaGameObjects[i] = uObjs[i];
             }
         }
+    }
+
+    void UpdateGraphicalSettings()
+    {
+        currentGraphicalSettings = daySettings;
     }
 }

@@ -252,7 +252,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float2 motionVector = _CameraMotionVectorsTextureReSTIR[id.xy];
     float2 prevUV = UV - motionVector;
     float2 invPrevUV = UV + motionVector;
-    int MHistoryLength = 20;
+    int MHistoryLength = 5;
         
     //if(_PassCount > 0)
     //    prevUV = UV;

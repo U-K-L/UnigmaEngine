@@ -44,6 +44,15 @@ public class UnigmaSceneManager : MonoBehaviour
         unigmaCamera.gameObject.AddComponent<GraphicalOcculusion>();
     }
 
+    private void Start()
+    {
+        SetCameraGraphicalSettings();
+    }
+
+    private void Update()
+    {
+        SetCameraGraphicalSettings();
+    }
     public void LoadScene(string sceneName)
     {
         Debug.Log("Begin loading Scene: " + sceneName);
@@ -93,5 +102,15 @@ public class UnigmaSceneManager : MonoBehaviour
         unigmaSceneQueue.Enqueue(sceneName);
 
         return true;
+    }
+
+    void SetCameraGraphicalSettings()
+    {
+        UnigmaCommandBuffers unigmaGraphics = unigmaCamera.gameObject.GetComponent<UnigmaCommandBuffers>();
+        if (UnigmaSettings.GetIsRayTracingEnabled())
+        {
+            Debug.Log("Graphics being Set from Settings");
+            unigmaGraphics.compositeMaterial.SetVector("_GlobalIlluminationWeights", currentScene.currentGraphicalSettings.GlobalIlluminationWeights);
+        }
     }
 }

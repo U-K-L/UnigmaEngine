@@ -116,7 +116,8 @@ void DepthShadowsRaygenShader()
 
     //Store payload normal for the reflections later on.
     float3 originalColor = payload.direction;
-    float3 reflectionNormal = payload.normal;
+    float3 reflectionNormal = payload.normal.xyz; //Normal.w has _ReceiveShadow information.
+    float receiveShadow = payload.normal.w;
     float4 prevColor = payload.color; //float4(1, 1, _Smoothness, InstanceID()); Of the object to which reflections will be casted on.
     
     //Find the shadow.
@@ -129,7 +130,7 @@ void DepthShadowsRaygenShader()
     ray.Direction = toLightDir; 
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
-    _UnigmaDepthShadowsMap[id.xy] = float4(depth, payload.color.r*payload.pixel.y, payload.color.g*payload.pixel.y, 1);
+    _UnigmaDepthShadowsMap[id.xy] = float4(depth, payload.color.r*payload.pixel.y * receiveShadow, payload.color.g*payload.pixel.y * receiveShadow, 1);
 
     _UnigmaShadowColors[id.xy] = float4(payload.uv.x, payload.uv.y, payload.pixel.x, payload.pixel.y);
 

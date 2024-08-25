@@ -27,6 +27,7 @@ Shader "Unigma/UnigmaToonStylized"
         [KeywordEnum(CelShaded, ToonShaded, DistShaded)] _ColorDistModel("Color BRDF", Float) = 0
 		_RimControl("Rim Control", Range(-1,1)) = 0
         [IntRange] _StencilRef("Stencil Ref Value", Range(0,255)) = 0
+         _ReceiveShadow("Receive Shadow", Range(0,1)) = 1
 
         //For components.
         _OutlineColor("Outline Color", Color) = (0,0,0,1)
@@ -347,7 +348,7 @@ Shader "Unigma/UnigmaToonStylized"
             float4 _Shadow;
             float4 _Highlight;
             float4 _Thresholds;
-            float _Smoothness, _LightAbsorbtion;
+            float _Smoothness, _LightAbsorbtion, _ReceiveShadow;
             float4 _ShadowColors;
             
             [shader("closesthit")]
@@ -415,7 +416,7 @@ Shader "Unigma/UnigmaToonStylized"
 
                 float lightAbsorbed = _LightAbsorbtion < ruv.x;
 
-                payload.normal = float4(specular, 1);
+                payload.normal = float4(specular, _ReceiveShadow);
 
 
                 float3 position = WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.00001);

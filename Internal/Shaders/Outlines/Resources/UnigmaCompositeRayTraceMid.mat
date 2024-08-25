@@ -47,7 +47,7 @@ Material:
     - _ScaleShadow: 1.6
     - _ScaleWhiteOutline: 22.9
     m_Colors:
-    - _GlobalIlluminationWeights: {r: 0.9, g: 0.9, b: 0.21, a: 0.56}
+    - _GlobalIlluminationWeights: {r: 1.9, g: 0.9, b: 0.21, a: 0.56}
     - _InnerLines: {r: 0.1273585, g: 0.7536071, b: 1, a: 1}
     - _OuterLines: {r: 0.25, g: 0.4642856, b: 1, a: 1}
     - _ShadowOutlineColor: {r: 0.9764706, g: 0.7607843, b: 1, a: 0.90588236}

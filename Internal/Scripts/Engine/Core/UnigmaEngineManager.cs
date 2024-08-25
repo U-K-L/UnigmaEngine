@@ -34,7 +34,7 @@ public class UnigmaEngineManager : MonoBehaviour
         //Disable until initialized
         unigmaPhysicsManager.enabled = false;
         unigmaRendererManager.enabled = false;
-        unigmaSceneManager.enabled = false;
+        unigmaSceneManager.enabled = true;
 
         unigmaSceneManager.Initialize();
     }

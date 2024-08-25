@@ -1214,6 +1214,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         computeOutlineColors.SetTexture(0, "_TempTexture", tempRt);
         outlineColorBuffer.DispatchCompute(computeOutlineColors, 0, Mathf.CeilToInt(Screen.width / 8), Mathf.CeilToInt(Screen.height / 8), 1);
         outlineColorBuffer.CopyTexture(tempRt, rt);
+        //outlineColorBuffer.DispatchCompute(computeOutlineColors, 1, Mathf.CeilToInt(Screen.width / 8), Mathf.CeilToInt(Screen.height / 8), 1);
 
         //Now set inner colors.
         outlineColorBuffer.SetRenderTarget(innerRT);

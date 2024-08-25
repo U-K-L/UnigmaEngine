@@ -110,7 +110,8 @@ public class UnigmaSceneManager : MonoBehaviour
         if (UnigmaSettings.GetIsRayTracingEnabled())
         {
             Debug.Log("Graphics being Set from Settings");
-            unigmaGraphics.compositeMaterial.SetVector("_GlobalIlluminationWeights", currentScene.currentGraphicalSettings.GlobalIlluminationWeights);
+            if(unigmaGraphics.compositeMaterial != null)
+                unigmaGraphics.compositeMaterial.SetVector("_GlobalIlluminationWeights", currentScene.currentGraphicalSettings.GlobalIlluminationWeights);
         }
     }
 }

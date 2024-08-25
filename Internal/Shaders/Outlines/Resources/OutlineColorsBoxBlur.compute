@@ -1,8 +1,9 @@
 #pragma kernel BoxBlur
+#pragma kernel BoxBlurCollapse
 
 RWTexture2D<float4> _IsometricOutlineColor;
 RWTexture2D<float4> _TempTexture;
-
+RWTexture2D<float4> _UnigmaDenoisedGlobalIllumination;
 int ScreenWidth;
 int ScreenHeight;
 
@@ -23,5 +24,25 @@ void BoxBlur (uint3 id : SV_DispatchThreadID)
 	//_TempTexture[id.xy] = KernelSum;
 	float alpha = max(0, KernelSum.w);
 	_TempTexture[id.xy] = float4(KernelSum.xyz, alpha);
-	
+}
+
+[numthreads(8, 8, 1)]
+void BoxBlurCollapse(uint3 id : SV_DispatchThreadID)
+{
+
+	float4 KernelSum = float4(0, 0, 0, 0);
+	int size = 5;
+	for (int x = -size; x <= size; x++)
+	{
+		for (int y = -size; y <= size; y++)
+		{
+			//Expands the box.
+			KernelSum = max(KernelSum, _UnigmaDenoisedGlobalIllumination[id.xy + int2(x, y)]);
+		}
+	}
+	//_TempTexture[id.xy] = KernelSum;
+	float alpha = max(0, KernelSum.w);
+	float cuttOff = 0.025;
+	_UnigmaDenoisedGlobalIllumination[id.xy] = step(cuttOff, length(KernelSum) / (5*5));
+	//_UnigmaDenoisedGlobalIllumination[id.xy] = float4(KernelSum.xyz, alpha);
 }

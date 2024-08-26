@@ -107,11 +107,6 @@ public class UnigmaSceneManager : MonoBehaviour
     void SetCameraGraphicalSettings()
     {
         UnigmaCommandBuffers unigmaGraphics = unigmaCamera.gameObject.GetComponent<UnigmaCommandBuffers>();
-        if (UnigmaSettings.GetIsRayTracingEnabled())
-        {
-            Debug.Log("Graphics being Set from Settings");
-            if(unigmaGraphics.compositeMaterial != null)
-                unigmaGraphics.compositeMaterial.SetVector("_GlobalIlluminationWeights", currentScene.currentGraphicalSettings.GlobalIlluminationWeights);
-        }
+        unigmaGraphics.UpdateBufferValues(currentScene.currentGraphicalSettings);
     }
 }

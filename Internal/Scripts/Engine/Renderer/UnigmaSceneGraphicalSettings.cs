@@ -7,4 +7,9 @@ public class UnigmaSceneGraphicalSettings : ScriptableObject
 {
     [Tooltip("Control the influence of graphical factors. X = Albedo Map, Y = Global Illumination, Z = Reflections, W = Specular Map.")]
     public Vector4 GlobalIlluminationWeights; //X = Albedo Map, Y = Global Illumination, Z = Reflections, W = Specular Map.
+
+    [Tooltip("The sky light for global illumination.")]
+    public Color SkyLight;
+
+    public float SkyLightStrength = 1;
 }

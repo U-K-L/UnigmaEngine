@@ -291,6 +291,11 @@ float4x4 saturationMatrix(float saturation)
         0, 0, 0, 1);
 }
 
+float Luminance(float3 rgb)
+{
+    return dot(rgb, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
 float4x4 contrastMatrix(float contrast)
 {
     float t = (1.0 - contrast) / 2.0;

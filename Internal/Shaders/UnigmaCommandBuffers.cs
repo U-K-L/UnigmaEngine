@@ -194,6 +194,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     public bool debugMode = false;
 
+    public Vector4 _SkyLight;
+
     void Awake()
     {
         if (RayTracingOn == true)
@@ -443,6 +445,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         AddLightsToList();
         AddCommandBuffers();
         UpdateRenderTextures();
+        UpdateBufferVariables();
         SaveRenderTexture();
     }
 
@@ -527,6 +530,30 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             CreateRenderTextures();
         }
+
+    }
+
+    void UpdateBufferVariables()
+    {
+        //Update values that change per frame...
+        
+    }
+
+    public void UpdateBufferValues(UnigmaSceneGraphicalSettings sceneGraphics)
+    {
+        //Raytracing Parameters
+        if (UnigmaSettings.GetIsRayTracingEnabled())
+        {
+            if (compositeMaterial != null)
+                compositeMaterial.SetVector("_GlobalIlluminationWeights", sceneGraphics.GlobalIlluminationWeights);
+
+            if (_RestirGlobalIllumRayTracingShaderAccelerated != null)
+            {
+                _RestirGlobalIllumRayTracingShaderAccelerated.SetVector("_SkyLight", sceneGraphics.SkyLight * sceneGraphics.SkyLightStrength);
+                _RestirSpatialShaderAccelerated.SetVector("_SkyLight", sceneGraphics.SkyLight * sceneGraphics.SkyLightStrength);
+            }
+        }
+
     }
 
     void CreateRenderTextures()
@@ -586,7 +613,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         if (!UnigmaSettings.GetIsRTXEnabled())
             return;
 
-        _UnigmaAlbedoTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaAlbedoTemporal = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 32, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaAlbedoTemporal.enableRandomWrite = true;
         _UnigmaAlbedoTemporal.Create();
 
@@ -598,7 +625,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         _UnigmaMotionIDTemporal.enableRandomWrite = true;
         _UnigmaMotionIDTemporal.Create();
         
-        _UnigmaAlbedo = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 16, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        _UnigmaAlbedo = new RenderTexture(_renderTextureWidth, _renderTextureHeight, 32, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         _UnigmaAlbedo.enableRandomWrite = true;
         _UnigmaAlbedo.Create();
 
@@ -1231,6 +1258,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
             if (iso != null)
                 if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
                 {
+                    //This is drawing with the current object's material ie UnigmaToonStylized.
                     outlineDepthBuffer.DrawRenderer(r.renderer, r.renderer.material, 0, 1);
                 }
         }

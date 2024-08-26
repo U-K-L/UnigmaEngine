@@ -8,6 +8,7 @@
 RWTexture2D<float4> _UnigmaGlobalIllumination;
 Texture2D<float4> _CameraMotionVectorsTextureReSTIR;
 Texture2D<float4> _UnigmaDepthShadowsMap;
+Texture2D<float4> _UnigmaAlbedo;
 
 RWStructuredBuffer<UnigmaLight> _unigmaLights;
 RWStructuredBuffer<Sample> _samples;
@@ -19,6 +20,8 @@ int _UnigmaFrameCount;
 int _NumberOfLights;
 int _TemporalReservoirsCount;
 int _PassCount;
+
+float4 _SkyLight;
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
 #pragma max_recursion_depth 8
@@ -194,6 +197,14 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
     float3 xNDirection = Sx2Payload.direction;
     int maxBounces = 2;
+    //If it hit nothing return early.
+    if(Sx2Payload.distance > 99990)
+	{
+		Sx2Payload.color = _SkyLight;//return 0;//return float4(0.85,0.77,0.8,1)*0.85;
+        maxBounces = 0;
+
+	}
+
     float radianceIndirect = Sx2Payload.color.w;
     RayDesc SxNRay;
     Payload SxNPayload;
@@ -234,6 +245,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     int _NumberOfNeighbors = 15;
     int _NeighborsRadius = 8;
     float numberOfTimes = 0;
+
     for(int i = 0; i < _NumberOfNeighbors; i++)
     {
         //Sample neighbors in a grid fashion to get index of what neighbor to sample from.
@@ -252,7 +264,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
         
         Surface neighborSurface;
         //(inout Surface surface, float3 position, float3 normal, float3 viewDir, float3 color, float emittance)
-        CreateSurface(neighborSurface, neighborReservoirPath.position, neighborReservoirPath.normal, normalize(neighborReservoirPath.position - xNOrigin), neighborReservoirPath.radiance.xyz, neighborReservoirPath.radiance.r);
+        CreateSurface(neighborSurface, neighborReservoirPath.position, neighborReservoirPath.normal, normalize(neighborReservoirPath.position - xNOrigin), _UnigmaAlbedo[neighborIndex], Luminance(neighborReservoirPath.radiance));
 
         // Check geometric similarity.
         float4 neighborNormalDepth = _UnigmaDepthShadowsMap[neighborIndex];//unpackNormalDepth(prevNormalDepth[neighborID]);
@@ -266,10 +278,10 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
         isSelected = addReservoirSamplePath(spatialReservoirPath, neighborReservoirPath, neighborOutgoingRadiance, neighborReservoirPath.M, randSeed);
         ambientColor += step(0.001, neighborOutgoingRadiance.r) * SxNPayload.color;
         numberOfTimes++;
-        selectedPdf = spatialReservoirPath.radiance;
+        selectedPdf = Luminance(spatialReservoirPath.radiance);
         if(isSelected)
         {
-            selectedPdf = neighborOutgoingRadiance;
+            selectedPdf = Luminance(neighborOutgoingRadiance);
             break;
         }
     }
@@ -278,7 +290,11 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     ambientColor /= (float)numberOfTimes;
     float pHat = selectedPdf;
     //currentReservoirPath.wSum =  (targetNumer == 0.0) ? 0.0 : (currentReservoirPath.wSum * targetNumer) / targetDenom;
-    spatialReservoirPath.wSum = pHat == 0.f ? 0.f : spatialReservoirPath.wSum / (spatialReservoirPath.M * pHat);
+    //spatialReservoirPath.wSum = pHat == 0.f ? 0.f : spatialReservoirPath.wSum / (spatialReservoirPath.M * pHat);
+    
+    float simpleTarget = pHat * spatialReservoirPath.M;
+
+    spatialReservoirPath.wSum = (simpleTarget == 0.0) ? 0.0 : (spatialReservoirPath.wSum * 1.0) / simpleTarget;
     //return pHat;
         
     float visibility = 1.0;
@@ -368,21 +384,28 @@ void RestirGlobalIllumantionRayGen()
     float inverseSamples = 1.0f / (float)numSamples;
     float4 targetResult = 0;
 
+    float4 directLighting = 0;
+    float4 indirectLighting = 0;
     for(int i = 0; i < numSamples; i++)
     {
         
-        targetResult += ShadePixelRestirDI(payload, ray)*inverseSamples*0.425;
-        float4 indirectSample = SampleIndirect(payload, ray)*inverseSamples;
+        directLighting += ShadePixelRestirDI(payload, ray)*inverseSamples*0.5;
+        indirectLighting = SampleIndirect(payload, ray)*inverseSamples;
         float4x4 saturation = saturationMatrix(3.6);
         float4x4 constrast = contrastMatrix(0.60);
-        indirectSample = mul(indirectSample, saturation);
-        indirectSample = mul(indirectSample, constrast);
-        indirectSample *= 0.35;
-        targetResult += indirectSample;
+        indirectLighting = mul(indirectLighting, saturation);
+        indirectLighting = mul(indirectLighting, constrast);
+
+        indirectLighting *= 0.4;
         payload.pixel += _Time.xy + float2(i, i*i+i);
+
     }
 
-    _UnigmaGlobalIllumination[dispatchIdx] += targetResult;
+    //Combine the two samples depending on how bright the pixel is.
+
+    float4 globalIllum = lerp(directLighting+indirectLighting, directLighting*indirectLighting, min(1, length(directLighting+indirectLighting) / 4) );
+
+    _UnigmaGlobalIllumination[dispatchIdx] += globalIllum;
 
 
     //_UnigmaGlobalIllumination[dispatchIdx] += float4(radiance, hitObject)*inverseFrameSamples;//payload.color;

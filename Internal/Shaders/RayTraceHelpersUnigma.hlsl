@@ -614,7 +614,7 @@ float4 ComputeBRDFGI(Surface surface, float3 samplePosition)
 
     //remove for surface material later.
 	float3 kMinRoughness = 0.01;
-    float roughness = 1.02;
+    float roughness = 0.52;
 
     float3 specular = GGX_times_NdotL(V, L, surface.normal, max(roughness, kMinRoughness), roughness);
 

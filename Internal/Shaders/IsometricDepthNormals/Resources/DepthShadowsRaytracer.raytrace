@@ -12,6 +12,7 @@ Texture2D<float4> _UnigmaWaterNormals;
 Texture2D<float4> _UnigmaWaterPosition;
 RWTexture2D<float4> _UnigmaWaterReflections;
 
+float4 _SkyLight;
 #pragma max_recursion_depth 8
 
 RaytracingAccelerationStructure _RaytracingAccelerationStructure;
@@ -159,6 +160,12 @@ void DepthShadowsRaygenShader()
     //Attenutate based on distance of ray.
     float distance = length(ray.Origin - position);
     float attenuation = 1 / (distance * distance);
+
+    //If it missed everything. Set to sky light since it hit the sky!
+    if(payload.distance > ray.TMax -1)
+    {
+        payload.direction = _SkyLight;
+    }
     
     _UnigmaDepthReflectionsMap[id.xy] = lerp(0, float4(payload.direction, 1),  prevColor.z);
 

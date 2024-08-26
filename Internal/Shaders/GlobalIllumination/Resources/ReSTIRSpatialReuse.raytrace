@@ -275,7 +275,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
 
         float3 neighborOutgoingRadiance = GetTargetFunctionSurface(Ssurface, neighborReservoirPath.position, neighborReservoirPath.radiance);
 
-        isSelected = addReservoirSamplePath(spatialReservoirPath, neighborReservoirPath, neighborOutgoingRadiance, neighborReservoirPath.M, randSeed);
+        isSelected = addReservoirSamplePath(spatialReservoirPath, neighborReservoirPath, Luminance(neighborOutgoingRadiance), neighborReservoirPath.M, randSeed);
         ambientColor += step(0.001, neighborOutgoingRadiance.r) * SxNPayload.color;
         numberOfTimes++;
         selectedPdf = Luminance(spatialReservoirPath.radiance);

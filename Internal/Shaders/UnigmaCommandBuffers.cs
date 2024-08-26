@@ -552,6 +552,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 _RestirGlobalIllumRayTracingShaderAccelerated.SetVector("_SkyLight", sceneGraphics.SkyLight * sceneGraphics.SkyLightStrength);
                 _RestirSpatialShaderAccelerated.SetVector("_SkyLight", sceneGraphics.SkyLight * sceneGraphics.SkyLightStrength);
             }
+
+            if (_DepthShadowsRayTracingShaderAccelerated)
+            {
+                _DepthShadowsRayTracingShaderAccelerated.SetVector("_SkyLight", sceneGraphics.SkyLight * sceneGraphics.SkyLightStrength*1.5f);
+            }
         }
 
     }

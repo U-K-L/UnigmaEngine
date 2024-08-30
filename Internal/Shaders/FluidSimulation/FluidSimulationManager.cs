@@ -277,7 +277,7 @@ public class FluidSimulationManager : MonoBehaviour
     public FluidObject[] _fluidObjectsArray;
 
     //Maximum size of these arrays. Constants.
-    public int _maxNumOfFluidObjects;
+    public int _maxNumOfFluidObjects = 1000;
 
 
     private MortonCode[] _MortonCodes;
@@ -318,7 +318,7 @@ public class FluidSimulationManager : MonoBehaviour
     public Camera secondCam;
     private void Awake()
     {
-        GetSettings();
+
         if (Instance != null && Instance != this)
         {
             Destroy(this);
@@ -330,6 +330,8 @@ public class FluidSimulationManager : MonoBehaviour
 
     public void Initialize()
     {
+        GetSettings();
+        secondCam = Camera.main.GetComponent<PerspectiveCameraLerp>().perpCam;
         fluidControlledObjects = new List<FluidControl>();
         //Application.targetFrameRate = 30;
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
@@ -1767,7 +1769,7 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaFluidsFinal, _fluidSimCompositeLiquid, 0);
         fluidCommandBuffers.Blit(_UnigmaFluidsFinal, BuiltinRenderTextureType.CameraTarget, _fluidSimCompositeLiquid, 1);
         //backgroundColorBuffer.Blit(_UnigmaBackgroundColor, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 1);
-        GetComponent<Camera>().AddCommandBuffer(CameraEvent.BeforeForwardAlpha, fluidCommandBuffers);
+        _cam.AddCommandBuffer(CameraEvent.BeforeForwardAlpha, fluidCommandBuffers);
         
         //UnityEditor.SceneView.GetAllSceneCameras()[0].AddCommandBuffer(CameraEvent.AfterForwardOpaque, fluidCommandBuffers);
 
@@ -1872,17 +1874,26 @@ public class FluidSimulationManager : MonoBehaviour
             _fluidObjectsBuffer.Release();
 
 
-        _rtTarget.Release();
-        _densityMapTexture.Release();
-        _velocityMapTexture.Release();
-        _normalMapTexture.Release();
-        _curlMapTexture.Release();
-        _tempTarget.Release();
-        _fluidNormalBufferTexture.Release();
-        _fluidDepthBufferTexture.Release();
-        _velocitySurfaceDensityDepthTexture.Release();
-        _surfaceMapTexture.Release();
-        _tempTarget.Release();
+        if(_rtTarget)
+            _rtTarget.Release();
+        if(_densityMapTexture)
+            _densityMapTexture.Release();
+        if(_velocityMapTexture)
+            _velocityMapTexture.Release();
+        if(_normalMapTexture)
+            _normalMapTexture.Release();
+        if(_curlMapTexture)
+            _curlMapTexture.Release();
+        if(_tempTarget)
+            _tempTarget.Release();
+        if(_fluidNormalBufferTexture)
+            _fluidNormalBufferTexture.Release();
+        if(_fluidDepthBufferTexture)
+            _fluidDepthBufferTexture.Release();
+        if(_velocitySurfaceDensityDepthTexture)
+            _velocitySurfaceDensityDepthTexture.Release();
+        if(_surfaceMapTexture)
+            _surfaceMapTexture.Release();
 
         Debug.Log("Buffers Released");
 

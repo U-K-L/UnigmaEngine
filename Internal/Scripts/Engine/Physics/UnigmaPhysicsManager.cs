@@ -104,8 +104,15 @@ public class UnigmaPhysicsManager : MonoBehaviour
         _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Count, 1), _physicsObjectsStride);
 
         unigmaSpaceTime = gameObject.AddComponent<UnigmaSpaceTime>() as UnigmaSpaceTime;
-        //unigmaFluids = gameObject.AddComponent<FluidSimulationManager>() as FluidSimulationManager;
+        unigmaFluids = gameObject.AddComponent<FluidSimulationManager>() as FluidSimulationManager;
+        Debug.Log("Loading Unigma Fluids + " + unigmaFluids);
         unigmaSpaceTime.Initialize(uScene.SpaceTimeBoxSize, uScene.SpaceTimeResolution, uScene.Temperature);
+
+        //Setup fluids.
+        unigmaFluids.fluidSettings = Resources.Load<FluidSettings>("DefaultFluidSettings");
+        unigmaFluids.Initialize();
+        unigmaFluids.enabled = true;
+
     }
 
     private void Start()

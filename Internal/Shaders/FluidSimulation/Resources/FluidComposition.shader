@@ -141,7 +141,7 @@ Shader "Hidden/FluidComposition"
                 fixed4 unigmaNormal = tex2D(_UnigmaNormal, i.uv);
 
                 fluidsDepth.z *= 0.25;
-
+                fluidsDepth.y = 0;
                 //return particleNormalMap;
                 //HEAT
                 //Heat Colors
@@ -491,6 +491,7 @@ Shader "Hidden/FluidComposition"
 
                 //return causticsTex;
 
+                //return originalImage;
                 float4 occulusion = lerp( lerp(colorLerping, colorLerping + (heatMapSmoothed)*smoothstep(0.001, 0.6925, fluidsNormal.y), min(1, 0.25 + causticsTexMap.r + smoothstep(0.5, 0.626, causticsTex.r + heatMapSmoothed*0.1))), originalImage, step(fluidsSceneDepth, unigmaDepth.r));
 
                 //return fluidsDepth.z;

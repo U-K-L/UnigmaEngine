@@ -198,7 +198,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
     void Awake()
     {
         if (RayTracingOn == true)
+        {
             UnigmaSettings.SetRaytracing();
+        }
         UnigmaSettings.Initialize();
     }
     // Start is called before the first frame update
@@ -540,12 +542,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     public void UpdateBufferValues(UnigmaSceneGraphicalSettings sceneGraphics)
     {
+        if (compositeMaterial != null)
+            compositeMaterial.SetVector("_GlobalIlluminationWeights", sceneGraphics.GlobalIlluminationWeights);
+
         //Raytracing Parameters
         if (UnigmaSettings.GetIsRayTracingEnabled())
         {
-            if (compositeMaterial != null)
-                compositeMaterial.SetVector("_GlobalIlluminationWeights", sceneGraphics.GlobalIlluminationWeights);
-
             if (_RestirGlobalIllumRayTracingShaderAccelerated != null)
             {
                 _RestirGlobalIllumRayTracingShaderAccelerated.SetVector("_SkyLight", sceneGraphics.SkyLight * sceneGraphics.SkyLightStrength);
@@ -1208,8 +1210,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
         //Blit material to current camera target.
 
-        compositeBuffer.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, compositeMaterial);
-        compositeBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaComposite, compositeMaterial, 0); //Refactor this such that second pass only calculates outlines.
+        compositeBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaComposite, compositeMaterial);
+        compositeBuffer.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, compositeMaterial, 0); //Refactor this such that second pass only calculates outlines.
 
         //This happens right before post processing.
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, compositeBuffer);

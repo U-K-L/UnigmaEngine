@@ -51,6 +51,7 @@ Shader "Unigma/UnigmaToonStylized"
             
         Pass
         {
+            Name "SpecularRoughnessPass"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -96,6 +97,7 @@ Shader "Unigma/UnigmaToonStylized"
             float _RimThreshold;
             float _UseRim;
             float _RimControl;
+            float _Smoothness;
 
             v2f vert(appdata v)
             {
@@ -186,19 +188,14 @@ Shader "Unigma/UnigmaToonStylized"
                 if (_UseRim < 0.1)
                     return 0;
 
-                return (specular + rimIntensity + rimDot);
-
-                float4 xzCol = _Shadow * step(_Thresholds.x, abs(normals).r);
-                float4 zxCol = _MainColor * step(_Thresholds.z, abs(normals).b);
-                float4 zyCol = _Highlight * step(_Thresholds.z, abs(normals).g);
-
-                return col;//zyCol+ xzCol + zxCol;
+                return float4((specular + rimIntensity + rimDot).xyz, _Smoothness);
 
             }
             ENDCG
         }
         Pass
         {
+            Name "AlbedoPass"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -582,6 +579,7 @@ Shader "Unigma/UnigmaToonStylized"
         Pass
         {
             Tags{ "LightMode" = "ShadowCaster" }
+            Name "ShadowCast"
             CGPROGRAM
             #pragma vertex VSMain
             #pragma fragment PSMain
@@ -593,7 +591,7 @@ Shader "Unigma/UnigmaToonStylized"
 
             float4 PSMain(float4 vertex:SV_POSITION) : SV_TARGET
             {
-                return 0;
+                return 1;
             }
 
             ENDCG

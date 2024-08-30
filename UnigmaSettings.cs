@@ -59,7 +59,7 @@ public static class UnigmaSettings
 
     public static void Initialize()
     {
-        //ScreenResolution();
+        ScreenResolution();
         FrameRateLock();
     }
 
@@ -68,7 +68,7 @@ public static class UnigmaSettings
         //Application.targetFrameRate = 30;
     }
 
-    /*
+
     static void ScreenResolution()
     {
 
@@ -91,6 +91,5 @@ public static class UnigmaSettings
             Screen.SetResolution(2048, 2048, true);
 
     }
-    */
 
 }

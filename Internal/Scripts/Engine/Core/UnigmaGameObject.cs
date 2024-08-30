@@ -8,6 +8,8 @@ public class UnigmaGameObject : MonoBehaviour
 
     public int id { get; set; }
 
+    //Goes in "Editor" folder.
+    /*
     //Creates this item from the editor and calls the function under this declartion.
     [MenuItem("GameObject/Unigma/Unigma Game Object", false, 10)]
     static void CreateUnigmaObject(MenuCommand menuCommand)
@@ -41,7 +43,7 @@ public class UnigmaGameObject : MonoBehaviour
 
         }
     }
-
+    */
     private void Awake()
     {
         AddUnigmaComponent<UnigmaPhysicsObject>(gameObject);

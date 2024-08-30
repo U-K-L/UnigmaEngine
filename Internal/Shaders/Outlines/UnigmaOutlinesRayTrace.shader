@@ -54,7 +54,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 return o;
             }
             sampler2D _UnigmaFluidsFinal, _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections, _UnigmaShadowColors;
-            sampler2D _UnigmaGlobalIllumination, _BackgroundTexture, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
+            sampler2D _UnigmaGlobalIllumination, _UnigmaBackgroundColor, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
             float _ScaleOuter, _ScaleWhiteOutline, _ScaleShadow, _DepthThreshold, _NormalThreshold, _ScaleInner, _LineBreakage, _PosThreshold;
@@ -66,7 +66,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 fixed4 originalImage = tex2D(_MainTex, i.uv);
 			    fixed4 GlobalIlluminationDenoised = tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
                 fixed4 GlobalIllumination = tex2D(_UnigmaGlobalIllumination, i.uv);//tex2D(_UnigmaDenoisedGlobalIllumination, i.uv);
-                fixed4 BackgroundTexture = tex2D(_BackgroundTexture, i.uv);
+                fixed4 BackgroundTexture = tex2D(_UnigmaBackgroundColor, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
                 fixed4 motionVectors = tex2D(_CameraMotionVectorsTexture, i.uv);
 				fixed4 normalMap = tex2D(_UnigmaNormal, i.uv);
@@ -80,6 +80,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 				fixed4 ShadowColors = tex2D(_UnigmaShadowColors, i.uv);
 				fixed4 fluids = tex2D(_UnigmaFluidsFinal, i.uv);
                 
+
                 //originalImage = _UnigmaFluidsFinal;
                 //return GlobalIllumination;
                 //return ShadowColors;
@@ -211,7 +212,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 
                 float edge = max(edgeDepth, edgePos);
                 //Delete where edge is present.
-                edgeUnigmaDepth = edgeUnigmaDepth * step(edge, 0.01);
+                edgeUnigmaDepth = edgeUnigmaDepth;
                 float4 FinalColor = mainTex;
 
                 //Order matters here.
@@ -267,7 +268,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float4 reflectMaskInv = step(0.01, reflections.r) * 1;
 
                 float lightedAreas = step(0.00001, _UnigmaDepthShadows.r);
-				edgeUnigmaDepth *= step(lightedAreas, 0.00001) * step(edge, 0.00001);
+				//edgeUnigmaDepth *= step(lightedAreas, 0.01);
 
                 //return lightedAreas;
                 //return FinalColor + specularHighlights;
@@ -282,7 +283,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 //return FinalColor + reflections;
                 //return FinalColor;
                 //return FinalColor + GlobalIllumination;
-                return lerp(edgeUnigmaDepth*6, FinalColor* _GlobalIlluminationWeights.x + GlobalIlluminationDenoised * _GlobalIlluminationWeights.y + reflections * _GlobalIlluminationWeights.z, 0.5* lightedAreas) + specularHighlights* _GlobalIlluminationWeights.w;
+                return lerp(edgeUnigmaDepth*3 +BackgroundTexture, 0.5*(FinalColor* _GlobalIlluminationWeights.x + GlobalIlluminationDenoised * _GlobalIlluminationWeights.y + reflections * _GlobalIlluminationWeights.z), lightedAreas) + specularHighlights* _GlobalIlluminationWeights.w;
                 //return lerp(FinalColor, FinalColor*0.75 + GlobalIllumination *0.62, 0.541+GlobalIllumination.w*0.712+(0.182 * (1.0-shadows))) + specularHighlights;
                 //return originalImage;
                 //return lerp(FinalColor, (FinalColor*0.5) + GlobalIllumination*2, min(1, GlobalIllumination.w));

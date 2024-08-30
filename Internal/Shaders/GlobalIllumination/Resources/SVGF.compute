@@ -10,9 +10,9 @@ Texture2D<float4> _UnigmaGlobalIllumination;
 Texture2D<float4> _UnigmaCameraDepthTexture;
 
 RWTexture2D<float4> _UnigmaDenoisedGlobalIllumination;
-RWTexture2D<float4> _UnigmaAlbedo;
-RWTexture2D<float4> _UnigmaNormal;
-RWTexture2D<float4> _UnigmaMotionID;
+Texture2D<float4> _UnigmaAlbedo;
+Texture2D<float4> _UnigmaNormal;
+Texture2D<float4> _UnigmaMotionID;
 
 //Temporal buffers.
 RWTexture2D<float4> _UnigmaDenoisedGlobalIlluminationTemporal;

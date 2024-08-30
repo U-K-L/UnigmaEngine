@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -216,8 +215,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void SetUpOutline()
     {
-        _nullMaterial = new Material(Shader.Find("Unigma/IsometricNull"));
-        computeOutlineColors = Resources.Load("OutlineColorsBoxBlur") as ComputeShader;
+        _nullMaterial = Resources.Load<Material>("IsometricNull");
+        computeOutlineColors = Resources.Load<ComputeShader>("OutlineColorsBoxBlur");
 
         Camera cam = GetComponent<Camera>();
         Camera.main.depthTextureMode = DepthTextureMode.MotionVectors;
@@ -852,12 +851,18 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     void AddObjectsToAccerleration()
     {
+        Debug.Log("Adding acceleration items");
+        Debug.Log("Ray traced objects are: " + _rayTracedObjects);
+        Debug.Log("Acceleration structure is: " + _AccelerationStructure);
         if (!UnigmaSettings.GetIsRTXEnabled())
             return;
         uint index = 0;
         foreach (Renderer r in _rayTracedObjects)
         {
             uint stencilValue = 0;
+            Debug.Log("R material is: " + r.material);
+            if (r.material == null)
+                continue;
             if (r.material.HasInt("_StencilRef"))
             {
                 stencilValue = (uint)r.material.GetInt("_StencilRef");
@@ -1063,21 +1068,22 @@ public class UnigmaCommandBuffers : MonoBehaviour
         blitMainTextBuffer.name = "BlitFinalPass";
         blitMainTextBuffer.SetGlobalTexture("_UnigmaBackgroundColor", _UnigmaBackgroundColor);
 
-        blitMainTextBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaBackgroundColor, _unigmaBackgroundMaterial, 1);
-        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterImageEffects, blitMainTextBuffer);
+        //blitMainTextBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaBackgroundColor, _unigmaBackgroundMaterial, 1);
+        //GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterImageEffects, blitMainTextBuffer);
 
 
         backgroundColorBuffer = new CommandBuffer();
         backgroundColorBuffer.name = "UnigmaBackgroundColor";
+        backgroundColorBuffer.SetGlobalTexture("_UnigmaBackgroundColor", _UnigmaBackgroundColor);
 
 
         //blit with UnigmaBackgroundMaterial
-        backgroundColorBuffer.Blit(BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 0);
+        backgroundColorBuffer.Blit(null, _UnigmaBackgroundColor, _unigmaBackgroundMaterial, 0);
         //backgroundColorBuffer.Blit(_UnigmaBackgroundColor, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 1);
 
 
 
-        GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterEverything, backgroundColorBuffer);
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.BeforeForwardOpaque, backgroundColorBuffer);
 
     }
 

@@ -92,18 +92,20 @@ public class UnigmaPhysicsManager : MonoBehaviour
         BuildTriangleList();
         CreateMeshes();
 
-        _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Count, 1), _physicsObjectsStride);
-
-        unigmaSpaceTime = gameObject.AddComponent<UnigmaSpaceTime>() as UnigmaSpaceTime;
-        //unigmaFluids = gameObject.AddComponent<FluidSimulationManager>() as FluidSimulationManager;
-        unigmaSpaceTime.Initialize(uScene.SpaceTimeBoxSize, uScene.SpaceTimeResolution, uScene.Temperature);
-
         //Add physics objects.
         UnigmaPhysicsObject[] physicsObjects = GetComponentsInChildren<UnigmaPhysicsObject>();
         for (int i = 0; i < physicsObjects.Length; i++)
         {
             AddPhysicsObject(physicsObjects[i].physicsObject);
+            physicsObjects[i].Initialize();
         }
+
+
+        _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Count, 1), _physicsObjectsStride);
+
+        unigmaSpaceTime = gameObject.AddComponent<UnigmaSpaceTime>() as UnigmaSpaceTime;
+        //unigmaFluids = gameObject.AddComponent<FluidSimulationManager>() as FluidSimulationManager;
+        unigmaSpaceTime.Initialize(uScene.SpaceTimeBoxSize, uScene.SpaceTimeResolution, uScene.Temperature);
     }
 
     private void Start()
@@ -114,7 +116,7 @@ public class UnigmaPhysicsManager : MonoBehaviour
     private void Update()
     {
         SetPhysicsObjects();
-        BuildTriangleList();
+        //BuildTriangleList();
         CreateMeshes();
     }
     void AddObjectsToList()

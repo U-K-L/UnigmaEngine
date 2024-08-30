@@ -32,7 +32,7 @@ public class UnigmaEngineManager : MonoBehaviour
         unigmaSceneManager = gameObject.AddComponent<UnigmaSceneManager>() as UnigmaSceneManager;
 
         //Disable until initialized
-        unigmaPhysicsManager.enabled = false;
+        unigmaPhysicsManager.enabled = true;
         unigmaRendererManager.enabled = false;
         unigmaSceneManager.enabled = true;
 
@@ -48,6 +48,6 @@ public class UnigmaEngineManager : MonoBehaviour
     {
         Debug.Log("Starting Unigma Engine");
         unigmaSceneManager.LoadScene(InitialScene);
-        //unigmaPhysicsManager.Initialize(UnigmaSceneManager.currentScene);
+        unigmaPhysicsManager.Initialize(UnigmaSceneManager.currentScene);
     }
 }

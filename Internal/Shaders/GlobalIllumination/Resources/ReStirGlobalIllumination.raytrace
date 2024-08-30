@@ -84,7 +84,6 @@ float4 areaSampleLights(inout Payload payload, inout RayDesc ray, inout Reservoi
     return float4(BRDF, 1.0);
 }
 
-//Just a basic unbiased direct lighter for one light.
 float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
 {
 

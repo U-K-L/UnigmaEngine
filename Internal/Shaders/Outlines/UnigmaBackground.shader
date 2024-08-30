@@ -17,7 +17,7 @@ Shader "Unlit/UnigmaBackground"
 
         Pass
         {
-
+            Name "CreateBackgroundPass"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -55,11 +55,12 @@ Shader "Unlit/UnigmaBackground"
             fixed4 frag (v2f i) : SV_Target
             {
                 // sample the texture
+                fixed4 originalImage = tex2D(_MainTex, i.uv);
                 fixed4 fluidFinal = tex2D(_UnigmaFluidsFinal, i.uv);
 				fixed4 compositeCol = tex2D(_UnigmaComposite, i.uv);
 				fixed4 skyboxTexture = tex2D(_SkyboxTexture, i.uv);
                 fixed4 _UnigmaDepthShadows = tex2D(_UnigmaDepthShadowsMap, i.uv);
-                float lightedAreas = step(length(compositeCol.xyz), 0.00001);
+                float lightedAreas = step(length(compositeCol.xyz), 0.01);
                 float unlightAreas = step(lightedAreas, 0.01);
 
                 fixed4 col = tex2D(_UnigmaBackgroundColor, i.uv);
@@ -99,13 +100,14 @@ Shader "Unlit/UnigmaBackground"
                 float4 backGroundColor = col * unlightAreas;
 
                 float4 fluidBg = colorDither* lightedAreas;//lerp(colorDither, fluidFinal * 0.9 + colorDither*0.25, min(1, fluidFinal.w*60)) * lightedAreas;
-                return fluidBg + backGroundColor;
+                return colorDither;//fluidBg + backGroundColor;
             }
             ENDCG
         }
         
          Pass
         {
+            Name "DisplayBackgroundPass"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag

@@ -34,14 +34,19 @@ public class UnigmaPhysicsObject : MonoBehaviour
 
     private void Awake()
     {
-        SetUpObject();
-        if(influenceSpaceTime)
-            SetUpBuffers();
+
     }
 
     private void Start()
     {
 
+    }
+
+    public void Initialize()
+    {
+        SetUpObject();
+        if (influenceSpaceTime)
+            SetUpBuffers();
     }
 
     void SetUpBuffers()

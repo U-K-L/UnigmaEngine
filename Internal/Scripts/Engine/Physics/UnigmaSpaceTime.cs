@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
+using UnityEditor;
 using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -24,6 +25,7 @@ namespace UnigmaEngine
             public float kelvin;
             public float tempVal;
             public float conductivity;
+            public uint particlesCount;
         }
 
         /*
@@ -52,7 +54,7 @@ namespace UnigmaEngine
         //private UnigmaPhysicsPoints[] _UnigmaPhysicsPoints;
 
 
-        int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float) * 3;
+        int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float) * 3 + sizeof(int);
         int _unigmaPhysicsPointsStride = (sizeof(float) * 3) + sizeof(float) * 3;
         public int _NumOfVectors;
 
@@ -365,8 +367,9 @@ namespace UnigmaEngine
             if (VectorFieldNative != null)
             {
                 float spacing = (SpaceTimeSize.x / (SpaceTimeResolution - 1)) * 0.5f;
-                foreach (SpaceTimePoint vp in VectorFieldNative)
+                for (int i = 0; i < VectorFieldNative.Length; i++)
                 {
+                    SpaceTimePoint vp = VectorFieldNative[i];
                     Ray ray = new Ray(vp.position, vp.force * spacing);
                     Vector3 normalizedDir = Vector3.Normalize(vp.force) * 0.5f + Vector3.one * 0.5f;
                     Gizmos.color = new Vector4(normalizedDir.x * vp.force.magnitude * 10.0f, normalizedDir.y, normalizedDir.z, 1.0f);
@@ -379,6 +382,7 @@ namespace UnigmaEngine
 
                     //Gizmos.DrawCube(vp.position, SpaceTimeSize / (SpaceTimeResolution));
                     Gizmos.DrawSphere(vp.position, 0.25f);
+                    Handles.Label( vp.position + Vector3.up*0.5f, "Particle: " + i + " | " + "Kelvin: " + vp.kelvin + " | Particles Count: " + vp.particlesCount);
                 }
             }
 

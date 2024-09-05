@@ -26,6 +26,7 @@
 
 #include "../../ShaderHelpers.hlsl"
 #include "../../FluidHelpers.hlsl"
+#include "../../PhysicsHelpers.hlsl"
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
 float4x4 _ParentTransform;
@@ -167,16 +168,6 @@ struct FluidObject
     float smoothingRadius;
     float controlStrength;
     float controlNorm;
-};
-
-struct SpaceTimePoint
-{
-    float3 index;
-    float3 position;
-    float3 force;
-    float kelvin;
-    float tempVal;
-    float conductivity;
 };
 
 RWStructuredBuffer<MeshObject> _MeshObjects;
@@ -1391,7 +1382,6 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     
     float forceConst = 1.0f;
    
-    
 
     float4 constantForces = float4(_VectorField[vectorIndex].force, 0); //float4(GetForces(_Particles[id.x].phase).xyz, 0);
     _Particles.GetDimensions(numOfParticles, sizeOfParticlesStrides);
@@ -1422,6 +1412,8 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
         _Particles[id.x].phase = 0;
     }
     */
+    
+    InterlockedAdd(_VectorField[vectorIndex].particlesCount, 1);
 
 }
 

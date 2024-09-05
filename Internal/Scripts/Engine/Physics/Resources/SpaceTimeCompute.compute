@@ -1,40 +1,12 @@
 // Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel ResetVectorField;
-#pragma kernel HashVectors;
-#pragma kernel BitonicSort;
-#pragma kernel CalculateCellOffsets;
-#pragma kernel AttractionField;
-#pragma kernel GatherSpaceTime;
+#pragma kernel ResetVectorField
+#pragma kernel HashVectors
+#pragma kernel BitonicSort
+#pragma kernel CalculateCellOffsets
+#pragma kernel AttractionField
+#pragma kernel GatherSpaceTime
 
-struct SpaceTimePoint
-{
-    float3 index;
-    float3 position;
-    float3 force;
-    float kelvin;
-    float tempVal;
-    float conductivity;
-};
-
-/*
-struct UnigmaPhysicsPoints
-{
-    float3 position;
-    float strength;
-    float kelvin;
-    float radius;
-};
-*/
-
-struct PhysicsObject
-{
-    uint objectId;
-    float3 position;
-    float strength;
-    float kelvin;
-    float radius;
-
-};
+#include "../../../../Shaders/PhysicsHelpers.hlsl"
 
 int _NumOfVectors;
 int _NumOfPhysicsObjects;
@@ -165,7 +137,7 @@ void CalculateCellOffsets(uint3 id : SV_DispatchThreadID)
 [numthreads(256, 1, 1)]
 void ResetVectorField(uint3 id : SV_DispatchThreadID)
 {
-    
+
     int3 cell = GetCellVectorField(_VectorField[id.x].position);
     
     int vectorIndex = cell.x * _Resolution * _Resolution + cell.y * _Resolution + cell.z; //HashCellVectorField(cell);
@@ -209,6 +181,7 @@ void ResetVectorField(uint3 id : SV_DispatchThreadID)
     
     float externalTemperature = 0.000995f * (_GlobalTemperature - _VectorField[vectorIndex].kelvin);
     _VectorField[vectorIndex].tempVal += kelvinSum;// + externalTemperature;
+    _VectorField[id.x].particlesCount = 0;
 
 }
 

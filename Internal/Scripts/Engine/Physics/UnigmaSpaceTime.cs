@@ -23,6 +23,7 @@ namespace UnigmaEngine
             public Vector3 force;
             public float kelvin;
             public float tempVal;
+            public float conductivity;
         }
 
         /*
@@ -51,7 +52,7 @@ namespace UnigmaEngine
         //private UnigmaPhysicsPoints[] _UnigmaPhysicsPoints;
 
 
-        int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float) * 2;
+        int _spaceTimePointStride = (sizeof(float) * 3) * 3 + sizeof(float) * 3;
         int _unigmaPhysicsPointsStride = (sizeof(float) * 3) + sizeof(float) * 3;
         public int _NumOfVectors;
 
@@ -59,6 +60,7 @@ namespace UnigmaEngine
         public NativeArray<SpaceTimePoint> VectorFieldNative;
 
         int _resetVectorFieldKernel;
+        int _gatherSpaceTimeKernel;
         int _hashVectorsKernel;
         int _sortVectorsKernelId;
         int _CalculateCellOffsetsKernelId;
@@ -66,7 +68,8 @@ namespace UnigmaEngine
 
         uint threadsX, threadsY, threadsZ;
 
-        Vector3 _resetVectorFieldThreadIds;
+        Vector3 _resetVectorFieldThreadSize;
+        Vector3 _gatherSpaceTimeThreadSize;
         Vector3 _hashVectorsThreadIds;
         Vector3 _sortVectorsThreadSize;
         Vector3 _calculateCellOffsetsThreadSize;
@@ -124,6 +127,8 @@ namespace UnigmaEngine
                 VectorField[i].force = Vector3.zero;
                 VectorField[i].position = Vector3.zero;
                 VectorField[i].kelvin = FahrenheitToKelvin(initialFahrenheit);
+                VectorField[i].conductivity = 0.995f;
+
             }
 
             VectorFieldNative.CopyFrom(VectorField);
@@ -186,6 +191,7 @@ namespace UnigmaEngine
             _spaceTimeCompute = Resources.Load<ComputeShader>("SpaceTimeCompute");
 
             _resetVectorFieldKernel = _spaceTimeCompute.FindKernel("ResetVectorField");
+            _gatherSpaceTimeKernel = _spaceTimeCompute.FindKernel("GatherSpaceTime");
             _hashVectorsKernel = _spaceTimeCompute.FindKernel("HashVectors");
             _sortVectorsKernelId = _spaceTimeCompute.FindKernel("BitonicSort");
             _CalculateCellOffsetsKernelId = _spaceTimeCompute.FindKernel("CalculateCellOffsets");
@@ -214,13 +220,17 @@ namespace UnigmaEngine
             _spaceTimeCompute.SetVector("_BoxSize", SpaceTimeSize);
 
             SetBuffers(_resetVectorFieldKernel);
+            SetBuffers(_gatherSpaceTimeKernel);
             SetBuffers(_hashVectorsKernel);
             SetBuffers(_sortVectorsKernelId);
             SetBuffers(_CalculateCellOffsetsKernelId);
             SetBuffers(_attractionFieldKernelId);
 
             _spaceTimeCompute.GetKernelThreadGroupSizes(_resetVectorFieldKernel, out threadsX, out threadsY, out threadsZ);
-            _resetVectorFieldThreadIds = new Vector3(threadsX, threadsY, threadsZ);
+            _resetVectorFieldThreadSize = new Vector3(threadsX, threadsY, threadsZ);
+
+            _spaceTimeCompute.GetKernelThreadGroupSizes(_gatherSpaceTimeKernel, out threadsX, out threadsY, out threadsZ);
+            _gatherSpaceTimeThreadSize = new Vector3(threadsX, threadsY, threadsZ);
 
             _spaceTimeCompute.GetKernelThreadGroupSizes(_hashVectorsKernel, out threadsX, out threadsY, out threadsZ);
             _hashVectorsThreadIds = new Vector3(threadsX, threadsY, threadsZ);
@@ -238,6 +248,7 @@ namespace UnigmaEngine
         void CreatePhysicsBuffers()
         {
             SetPhysicsBuffers(_resetVectorFieldKernel);
+            SetPhysicsBuffers(_gatherSpaceTimeKernel);
             SetPhysicsBuffers(_hashVectorsKernel);
             SetPhysicsBuffers(_sortVectorsKernelId);
             SetPhysicsBuffers(_CalculateCellOffsetsKernelId);
@@ -294,9 +305,11 @@ namespace UnigmaEngine
             SortVectors();
             _spaceTimeCompute.Dispatch(_CalculateCellOffsetsKernelId, Mathf.CeilToInt(VectorField.Length / _calculateCellOffsetsThreadSize.x), 1, 1);
 
-            _spaceTimeCompute.Dispatch(_resetVectorFieldKernel, Mathf.CeilToInt(VectorField.Length / _resetVectorFieldThreadIds.x), (int)_resetVectorFieldThreadIds.y, (int)_resetVectorFieldThreadIds.z);
+            _spaceTimeCompute.Dispatch(_resetVectorFieldKernel, Mathf.CeilToInt(VectorField.Length / _resetVectorFieldThreadSize.x), (int)_resetVectorFieldThreadSize.y, (int)_resetVectorFieldThreadSize.z);
 
-            _spaceTimeCompute.Dispatch(_attractionFieldKernelId, Mathf.CeilToInt(VectorField.Length / _resetVectorFieldThreadIds.x), (int)_resetVectorFieldThreadIds.y, (int)_resetVectorFieldThreadIds.z);
+            _spaceTimeCompute.Dispatch(_attractionFieldKernelId, Mathf.CeilToInt(VectorField.Length / _attractionFieldThreadSize.x), (int)_attractionFieldThreadSize.y, (int)_attractionFieldThreadSize.z);
+
+            _spaceTimeCompute.Dispatch(_gatherSpaceTimeKernel, Mathf.CeilToInt(VectorField.Length / _gatherSpaceTimeThreadSize.x), (int)_gatherSpaceTimeThreadSize.y, (int)_gatherSpaceTimeThreadSize.z);
             /*
             for (int i = 0; i < VectorField.Length; i++)
             {
@@ -365,7 +378,7 @@ namespace UnigmaEngine
                     //Debug.Log("Cell " + vp.index + " position: " + vp.position + " Kelvin: " + vp.kelvin);
 
                     //Gizmos.DrawCube(vp.position, SpaceTimeSize / (SpaceTimeResolution));
-                    //Gizmos.DrawSphere(vp.position, 0.025f);
+                    Gizmos.DrawSphere(vp.position, 0.25f);
                 }
             }
 

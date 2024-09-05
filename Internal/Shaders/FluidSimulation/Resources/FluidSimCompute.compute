@@ -176,6 +176,7 @@ struct SpaceTimePoint
     float3 force;
     float kelvin;
     float tempVal;
+    float conductivity;
 };
 
 RWStructuredBuffer<MeshObject> _MeshObjects;

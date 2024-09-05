@@ -1,9 +1,10 @@
 // Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel ResetVectorField
-#pragma kernel HashVectors
-#pragma kernel BitonicSort
+#pragma kernel ResetVectorField;
+#pragma kernel HashVectors;
+#pragma kernel BitonicSort;
 #pragma kernel CalculateCellOffsets;
 #pragma kernel AttractionField;
+#pragma kernel GatherSpaceTime;
 
 struct SpaceTimePoint
 {
@@ -12,6 +13,7 @@ struct SpaceTimePoint
     float3 force;
     float kelvin;
     float tempVal;
+    float conductivity;
 };
 
 /*
@@ -192,23 +194,21 @@ void ResetVectorField(uint3 id : SV_DispatchThreadID)
                 {
                     float distance2 = distance(_VectorField[vectorIndex].position, _VectorField[hashedNeighborIndex].position);
                     
-                    if (0.01f < distance2 && distance2 < 10)
+                    if (0.01f < distance2 && distance2 < _Resolution*2)
                     {
                         //newton cooling law.
-                        float k = 0.995;
+                        float k = _VectorField[vectorIndex].conductivity;;
                         float Tk = k * (_VectorField[hashedNeighborIndex].kelvin - _VectorField[vectorIndex].kelvin) * 0.01f;
-                        kelvinSum += Poly6Kernel(distance2, 20) * Tk;
+                        kelvinSum += Poly6Kernel(distance2, _Resolution*2) * Tk;
                     }
                 }
 
             }
         }
     }
-        
-    //kelvinSum *= 10000; //= 22.0f;
     
     float externalTemperature = 0.000995f * (_GlobalTemperature - _VectorField[vectorIndex].kelvin);
-    _VectorField[vectorIndex].tempVal += kelvinSum + externalTemperature;
+    _VectorField[vectorIndex].tempVal += kelvinSum;// + externalTemperature;
 
 }
 
@@ -220,10 +220,6 @@ void AttractionField(uint3 id : SV_DispatchThreadID)
     
     int vectorIndex = HashCellVectorField(cell);
     
-    //_VectorField[vectorIndex].force = float3(4, -9.8f, 0);
-    //_VectorField[vectorIndex].kelvin *= 0.9775;
-    _VectorField[vectorIndex].kelvin += _VectorField[vectorIndex].tempVal;
-    _VectorField[vectorIndex].tempVal = 0;
     for (int i = 0; i < _NumOfPhysicsObjects; i++)
     {
 
@@ -235,13 +231,26 @@ void AttractionField(uint3 id : SV_DispatchThreadID)
 
         _VectorField[vectorIndex].force += toObjDir * _PhysicsObjects[i].strength * dist * _PhysicsObjects[i].radius;
         
-        float k = 0.995;
+        float k = _VectorField[vectorIndex].conductivity;
         float Tk = k * (_PhysicsObjects[i].kelvin - _VectorField[vectorIndex].kelvin) * 0.01f;
         
-        _VectorField[vectorIndex].kelvin += dist * _PhysicsObjects[i].radius * Tk;
+        _VectorField[vectorIndex].tempVal += dist * _PhysicsObjects[i].radius * Tk;
 
     }
-    
+   
     //_VectorField[vectorIndex].kelvin *= 0.5;
+
+}
+
+[numthreads(256, 1, 1)]
+void GatherSpaceTime(uint3 id : SV_DispatchThreadID)
+{
+    
+    int3 cell = GetCellVectorField(_VectorField[id.x].position);
+    
+    int vectorIndex = HashCellVectorField(cell);
+
+    _VectorField[vectorIndex].kelvin += _VectorField[vectorIndex].tempVal;
+    _VectorField[vectorIndex].tempVal = 0;
 
 }

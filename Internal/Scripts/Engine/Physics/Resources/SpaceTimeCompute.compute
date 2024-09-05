@@ -26,7 +26,7 @@ struct UnigmaPhysicsPoints
 
 struct PhysicsObject
 {
-    int objectId;
+    uint objectId;
     float3 position;
     float strength;
     float kelvin;
@@ -230,14 +230,15 @@ void AttractionField(uint3 id : SV_DispatchThreadID)
         //int posCell = HashCellVectorField(GetCellVectorField(_UnigmaPhysicsPoints[i].position));
         
         float dist = 1.0f / pow(distance(_PhysicsObjects[i].position, _VectorField[vectorIndex].position), 2);
+        dist = min(dist, 2);
         float3 toObjDir = normalize(_PhysicsObjects[i].position - _VectorField[vectorIndex].position);
 
-        _VectorField[vectorIndex].force += toObjDir * _PhysicsObjects[i].strength * min(dist * _PhysicsObjects[i].radius, 2);
+        _VectorField[vectorIndex].force += toObjDir * _PhysicsObjects[i].strength * dist * _PhysicsObjects[i].radius;
         
         float k = 0.995;
         float Tk = k * (_PhysicsObjects[i].kelvin - _VectorField[vectorIndex].kelvin) * 0.01f;
         
-        _VectorField[vectorIndex].kelvin += min(dist * _PhysicsObjects[i].radius, 2) * Tk;
+        _VectorField[vectorIndex].kelvin += dist * _PhysicsObjects[i].radius * Tk;
 
     }
     

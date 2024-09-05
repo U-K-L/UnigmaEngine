@@ -2,60 +2,64 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class UnigmaScene : MonoBehaviour
+namespace UnigmaEngine
 {
-    public Transform PivotPoint; //Point that is center for camera.
-    public string sceneName;
-    public bool loaded = false;
-    public UnigmaGameObject[] unigmaGameObjects;
-
-    //Space Time attributes.
-    public Vector3 SpaceTimeBoxSize;
-    public int SpaceTimeResolution;
-    public float Temperature;
-
-    //Graphical Settings.
-    public UnigmaSceneGraphicalSettings daySettings;
-    public UnigmaSceneGraphicalSettings nightSettings;
-
-    [HideInInspector]
-    public UnigmaSceneGraphicalSettings currentGraphicalSettings;
-
-    public void LaunchScene()
+    public class UnigmaScene : MonoBehaviour
     {
-        loaded = true;
-    }
+        public Transform PivotPoint; //Point that is center for camera.
+        public string sceneName;
+        public bool loaded = false;
+        public UnigmaGameObject[] unigmaGameObjects;
 
-    public void LoadScene()
-    {
-        UpdateGraphicalSettings();
-        CreateGameObjectBuffers();
-    }
+        //Space Time attributes.
+        public Vector3 SpaceTimeBoxSize;
+        public int SpaceTimeResolution;
+        public float Temperature;
 
-    public void UnloadScene()
-    {
-        loaded = false;
-    }
+        //Graphical Settings.
+        public UnigmaSceneGraphicalSettings daySettings;
+        public UnigmaSceneGraphicalSettings nightSettings;
 
-    public void CreateGameObjectBuffers()
-    {
-        if (loaded == false)
+        [HideInInspector]
+        public UnigmaSceneGraphicalSettings currentGraphicalSettings;
+
+        public void LaunchScene()
         {
-            //Find all Unigma Game Objects parented under this.
-            UnigmaGameObject[] uObjs = this.GetComponentsInChildren<UnigmaGameObject>();
-            unigmaGameObjects = new UnigmaGameObject[uObjs.Length];
+            loaded = true;
+        }
 
-            //Assign each their IDs and perform checks.
-            for (int i = 0; i < uObjs.Length; i++)
+        public void LoadScene()
+        {
+            UpdateGraphicalSettings();
+            CreateGameObjectBuffers();
+        }
+
+        public void UnloadScene()
+        {
+            loaded = false;
+        }
+
+        public void CreateGameObjectBuffers()
+        {
+            if (loaded == false)
             {
-                uObjs[i].id = i;
-                unigmaGameObjects[i] = uObjs[i];
+                //Find all Unigma Game Objects parented under this.
+                UnigmaGameObject[] uObjs = this.GetComponentsInChildren<UnigmaGameObject>();
+                unigmaGameObjects = new UnigmaGameObject[uObjs.Length];
+
+                //Assign each their IDs and perform checks.
+                for (uint i = 0; i < uObjs.Length; i++)
+                {
+                    uObjs[i].id = i;
+                    unigmaGameObjects[i] = uObjs[i];
+                    unigmaGameObjects[i].unigmaGameObject.objectId = i;
+                }
             }
         }
-    }
 
-    void UpdateGraphicalSettings()
-    {
-        currentGraphicalSettings = daySettings;
+        void UpdateGraphicalSettings()
+        {
+            currentGraphicalSettings = daySettings;
+        }
     }
 }

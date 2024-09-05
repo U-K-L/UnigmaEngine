@@ -5,7 +5,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
-
+using UnigmaEngine;
 public class FluidSimulationManager : MonoBehaviour
 {
 
@@ -758,20 +758,20 @@ public class FluidSimulationManager : MonoBehaviour
             }
         }
         */
-        if (UnigmaPhysicsManager.Instance.MeshObjects.Length > 0)
+        if (UnigmaRendererManager.Instance.unigmaRendererObjects.Length > 0)
         {
-            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_Vertices", UnigmaPhysicsManager.Instance._verticesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
-            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_Indices", UnigmaPhysicsManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Vertices", UnigmaRendererManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Vertices", UnigmaRendererManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Vertices", UnigmaRendererManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Vertices", UnigmaRendererManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Vertices", UnigmaRendererManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_Vertices", UnigmaRendererManager.Instance._verticesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_Indices", UnigmaRendererManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_Indices", UnigmaRendererManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_Indices", UnigmaRendererManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_Indices", UnigmaRendererManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_Indices", UnigmaRendererManager.Instance._indicesObjectBuffer);
+            _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_Indices", UnigmaRendererManager.Instance._indicesObjectBuffer);
         }
 
     }
@@ -793,14 +793,14 @@ public class FluidSimulationManager : MonoBehaviour
     void SetFluidBuffers()
     {
 
-        _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
-        _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_MeshObjects", UnigmaPhysicsManager.Instance._meshObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CreateGridKernelId, "_MeshObjects", UnigmaRendererManager.Instance._unigmaRendererObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CreateDistancesKernelId, "_MeshObjects", UnigmaRendererManager.Instance._unigmaRendererObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_UpdateParticlesKernelId, "_MeshObjects", UnigmaRendererManager.Instance._unigmaRendererObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_UpdatePositionsKernelId, "_MeshObjects", UnigmaRendererManager.Instance._unigmaRendererObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_MeshObjects", UnigmaRendererManager.Instance._unigmaRendererObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateControlForcesKernelId, "_MeshObjects", UnigmaRendererManager.Instance._unigmaRendererObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateCurlKernelId, "_MeshObjects", UnigmaRendererManager.Instance._unigmaRendererObjectBuffer);
+        _fluidSimulationComputeShader.SetBuffer(_CalculateVelocityKernelId, "_MeshObjects", UnigmaRendererManager.Instance._unigmaRendererObjectBuffer);
 
         _controlParticlesBuffer.SetData(_controlParticlesArray);
         _fluidSimulationComputeShader.SetBuffer(_CalculateControlDensityKernelId, "_ControlParticles", _controlParticlesBuffer);
@@ -1385,6 +1385,7 @@ public class FluidSimulationManager : MonoBehaviour
         if (NumOfParticles > 0)
         {
             ComputeForces();
+
             HashParticles();
             //quick morton code debug.log.
 
@@ -1411,9 +1412,8 @@ public class FluidSimulationManager : MonoBehaviour
             ComputeCurl();
             ComputeVorticity();
             ComputePositions();
-            ComputeSpatialDiffusion();
+            //ComputeSpatialDiffusion();
             //DebugParticlesBVH();
-
             //Set Particle positions to script.
             //NOT NEEDED. MOVE ENTIRE BVH TO GPU!!!!
             //_particleBuffer.GetData(_particles);
@@ -1581,11 +1581,13 @@ public class FluidSimulationManager : MonoBehaviour
     //Temporarily attach this simulation to camera!!!
     private void UpdateFluidConstants()
     {
+        /*
         //Guard clause, ensure there are objects to ray trace.
-        if (UnigmaPhysicsManager.Instance._physicsRenderers.Count == 0)
+        if (UnigmaPhysicsManager.Instance._physicsObjects.Count == 0)
         {
             return;
         }
+        */
 
         _renderTextureWidth = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.width * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.width), 32);
         _renderTextureHeight = Mathf.Max(Mathf.Min(Mathf.CeilToInt(Screen.height * (1.0f / (1.0f + Mathf.Abs(ResolutionDivider)))), Screen.height), 32);
@@ -1689,8 +1691,8 @@ public class FluidSimulationManager : MonoBehaviour
         {
             //fluidCommandBuffers.SetRenderTarget(_unigmaDepthTexture);
             //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));
-            foreach (Renderer r in UnigmaPhysicsManager.Instance._physicsRenderers)
-            {
+            //foreach (Renderer r in UnigmaPhysicsManager.Instance._physicsObjects)
+            //{
                 /*
                 int stencil = 0;//r.material.GetInt("_StencilRef");
                 float ssj = 0.01f;
@@ -1701,7 +1703,7 @@ public class FluidSimulationManager : MonoBehaviour
                 Material m = r.GetComponent<IsometricDepthNormalObject>().materials["FluidPositions"];
                 */
                 //fluidCommandBuffers.DrawRenderer(r, m);
-            }
+            //}
             //fluidCommandBuffers.DispatchCompute(_fluidSimulationComputeShader, _CreateDistancesKernelId, Mathf.CeilToInt(_distanceTextureWidth / _createDistancesThreadSize.x), Mathf.CeilToInt(_distanceTextureHeight / _createDistancesThreadSize.y), (int)_createDistancesThreadSize.z);
             //fluidCommandBuffers.SetRenderTarget(_rtTarget);
         }
@@ -1728,9 +1730,9 @@ public class FluidSimulationManager : MonoBehaviour
 
         if (_renderMethod == RenderMethod.RayTracingAccelerated)
         {
-            foreach (Renderer r in UnigmaPhysicsManager.Instance._physicsRenderers)
+            foreach (UnigmaRendererObject r in UnigmaRendererManager.Instance._renderObjects)
             {
-                _MeshAccelerationStructure.AddInstance(r);
+                _MeshAccelerationStructure.AddInstance(r._renderer);
             }
             //_AccelerationStructure.UpdateInstanceTransform(handle, 
             //fluidCommandBuffers.ClearRenderTarget(true, true, new Vector4(0, 0, 0, 0));

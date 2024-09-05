@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+using UnigmaEngine;
 public class UnigmaGravityAttractor : MonoBehaviour
 {
     public float strength;

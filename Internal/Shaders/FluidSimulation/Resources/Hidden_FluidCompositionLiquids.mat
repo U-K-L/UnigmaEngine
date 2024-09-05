@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Hidden_FluidCompositionLiquids
-  m_Shader: {fileID: 4800000, guid: a4cb5657f5e28b24a838b49c1773d9d8, type: 3}
+  m_Shader: {fileID: 4800000, guid: 874bb354187a80f49a25a86bf8b26db8, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []

@@ -2,52 +2,56 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class UnigmaEngineManager : MonoBehaviour
+namespace UnigmaEngine
 {
-    public string InitialScene; //The name of the initial scene to be loaded.
-
-    [HideInInspector]
-    public UnigmaPhysicsManager unigmaPhysicsManager;
-    [HideInInspector]
-    public UnigmaRendererManager unigmaRendererManager;
-    [HideInInspector]
-    public UnigmaSceneManager unigmaSceneManager;
-
-    public static UnigmaEngineManager Instance;
-
-    public LayerMask RayTracingLayers;
-    public LayerMask FluidInteractionLayers;
-    private void Awake()
+    public class UnigmaEngineManager : MonoBehaviour
     {
-        if (Instance != null && Instance != this)
+        public string InitialScene; //The name of the initial scene to be loaded.
+
+        [HideInInspector]
+        public UnigmaPhysicsManager unigmaPhysicsManager;
+        [HideInInspector]
+        public UnigmaRendererManager unigmaRendererManager;
+        [HideInInspector]
+        public UnigmaSceneManager unigmaSceneManager;
+
+        public static UnigmaEngineManager Instance;
+
+        public LayerMask RayTracingLayers;
+        public LayerMask PhysicsLayers;
+        private void Awake()
         {
-            Destroy(this);
-            return;
+            if (Instance != null && Instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+
+            Instance = this;
+
+            unigmaPhysicsManager = gameObject.AddComponent<UnigmaPhysicsManager>() as UnigmaPhysicsManager;
+            unigmaRendererManager = gameObject.AddComponent<UnigmaRendererManager>() as UnigmaRendererManager;
+            unigmaSceneManager = gameObject.AddComponent<UnigmaSceneManager>() as UnigmaSceneManager;
+
+            //Disable until initialized
+            unigmaPhysicsManager.enabled = true;
+            unigmaRendererManager.enabled = true;
+            unigmaSceneManager.enabled = true;
+
+            unigmaSceneManager.Initialize();
         }
 
-        Instance = this;
+        void Start()
+        {
+            StartUnigmaEngine();
+        }
 
-        unigmaPhysicsManager = gameObject.AddComponent<UnigmaPhysicsManager>() as UnigmaPhysicsManager;
-        unigmaRendererManager = gameObject.AddComponent<UnigmaRendererManager>() as UnigmaRendererManager;
-        unigmaSceneManager = gameObject.AddComponent<UnigmaSceneManager>() as UnigmaSceneManager;
-
-        //Disable until initialized
-        unigmaPhysicsManager.enabled = true;
-        unigmaRendererManager.enabled = false;
-        unigmaSceneManager.enabled = true;
-
-        unigmaSceneManager.Initialize();
-    }
-
-    void Start()
-    {
-        StartUnigmaEngine();
-    }
-
-    void StartUnigmaEngine()
-    {
-        Debug.Log("Starting Unigma Engine");
-        unigmaSceneManager.LoadScene(InitialScene);
-        unigmaPhysicsManager.Initialize(UnigmaSceneManager.currentScene);
+        void StartUnigmaEngine()
+        {
+            Debug.Log("Starting Unigma Engine");
+            unigmaSceneManager.LoadScene(InitialScene);
+            unigmaRendererManager.Initialize(UnigmaSceneManager.currentScene);
+            unigmaPhysicsManager.Initialize(UnigmaSceneManager.currentScene);
+        }
     }
 }

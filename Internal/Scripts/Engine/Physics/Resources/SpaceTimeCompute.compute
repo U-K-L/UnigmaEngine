@@ -182,6 +182,7 @@ void ResetVectorField(uint3 id : SV_DispatchThreadID)
     float externalTemperature = 0.000995f * (_GlobalTemperature - _VectorField[vectorIndex].kelvin);
     _VectorField[vectorIndex].tempVal += kelvinSum;// + externalTemperature;
     _VectorField[id.x].particlesCount = 0;
+    
 
 }
 

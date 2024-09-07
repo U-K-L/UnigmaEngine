@@ -1412,7 +1412,7 @@ public class FluidSimulationManager : MonoBehaviour
             ComputeCurl();
             ComputeVorticity();
             ComputePositions();
-            //ComputeSpatialDiffusion();
+            ComputeSpatialDiffusion();
             //DebugParticlesBVH();
             //Set Particle positions to script.
             //NOT NEEDED. MOVE ENTIRE BVH TO GPU!!!!

@@ -1401,7 +1401,7 @@ void ComputeForces(uint3 id : SV_DispatchThreadID)
     float externalTemp = Tk;
     float internalTemp = k2 * (_Particles[id.x].tempKelvin - _Particles[id.x].kelvin);
     
-    _Particles[id.x].kelvin += externalTemp * 0.5f + internalTemp * 0.5f + sqrt(length(vel)) * 0.5f;
+    _Particles[id.x].kelvin += externalTemp * 0.5f + internalTemp * 0.5f + sqrt(length(vel)) * 0.0005f;
     
     _Particles[id.x].tempKelvin = _Particles[id.x].kelvin;
     
@@ -2954,8 +2954,9 @@ void CalculateSpatialDiffusion(uint3 id : SV_DispatchThreadID)
             if (0.0001f < dist && dist < rad * 2)
             {
                 //newton cooling law.
-                float k = 223.995;
-                kelvinSum += Poly6Kernel(dist) * k;
+                //float k = 223.995;
+                float k = _Particles[particleIndexB].kelvin;
+                kelvinSum += k;
                 count += 1;
 
             }
@@ -2967,10 +2968,13 @@ void CalculateSpatialDiffusion(uint3 id : SV_DispatchThreadID)
     }
     
     kelvinSum /= count;
+    
+    //Pressure calculation.
+    kelvinSum += _VectorField[id.x].particlesCount * 0.001f;
         
     //We've summed up all of the particles kelvins now add to spatial unit.
     float summedEnergy = 0.0f;
-    float k = 0.995f;
+    float k = _VectorField[id.x].conductivity;
     float Tk = k * (kelvinSum - _VectorField[id.x].kelvin);
     summedEnergy += Poly6Kernel(minDist + 0.01f, 12) * Tk;
     

@@ -40,7 +40,7 @@ namespace EggGame
                 mean += lambda;
             }
 
-            transform.position = mean;
+            transform.position = Vector3.Lerp(transform.position, mean, Time.deltaTime);
         }
     }
 }

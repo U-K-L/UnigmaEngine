@@ -21,12 +21,19 @@ namespace UnigmaEngine
         public int emitterType;
     };
 
+    struct AABB
+    {
+        public Vector3 min;
+        public Vector3 max;
+    }
+
     public class UnigmaRendererManager : MonoBehaviour
     {
 
 
         public static readonly int UnigmaRendererStride = (sizeof(float) * 4 * 4 * 4) + sizeof(int) * 4 + sizeof(float) * 3 * 4;
         public static UnigmaRendererManager Instance;
+        Dictionary<string, AABB> AABBs; 
         public struct Vertex
         {
             public Vector3 position;
@@ -42,6 +49,8 @@ namespace UnigmaEngine
         public List<int> _indices = new List<int>();
 
         public List<UnigmaRendererObject> _renderObjects = new List<UnigmaRendererObject>();
+
+        public Dictionary<string, List<UnigmaRendererObject>> renderContainers;
 
         //Compute Buffers.
         [HideInInspector]
@@ -60,12 +69,15 @@ namespace UnigmaEngine
             }
 
             Instance = this;
+            AABBs = new Dictionary<string, AABB>();
+            renderContainers = new Dictionary<string, List<UnigmaRendererObject>>();
         }
 
         public void Initialize(UnigmaScene uScene)
         {
             AddObjectsToList(uScene);
             BuildTriangleList();
+            CreateContainers(uScene);
         }
 
         void AddObjectsToList(UnigmaScene uScene)
@@ -82,6 +94,10 @@ namespace UnigmaEngine
         private void Update()
         {
             UpdateRendererObject();
+
+            string[] keys = renderContainers.Keys.ToArray();
+            foreach(string key in keys)
+                CombineAABB(key);
         }
 
         void UpdateRendererObject()
@@ -153,6 +169,82 @@ namespace UnigmaEngine
                 _indicesObjectBuffer.Release();
             if (_unigmaRendererObjectBuffer != null)
                 _unigmaRendererObjectBuffer.Release();
+        }
+
+        void CreateContainers(UnigmaScene uscene)
+        {
+
+            renderContainers.Clear();
+            //Find the container. Then get all the game objects under it.
+            foreach (UnigmaGameObject uobj in UnigmaSceneManager.currentScene.unigmaGameObjects)
+            {
+                if (uobj.isContainer)
+                {
+                    List<UnigmaRendererObject> gobjsToMerge = new List<UnigmaRendererObject>();
+                    UnigmaGameObject[] uobjInContainer = uobj.GetComponentsInChildren<UnigmaGameObject>();
+
+                    foreach (UnigmaGameObject uobjC in uobjInContainer)
+                    {
+                        UnigmaRendererObject urobj = GetComponent<UnigmaRendererObject>();
+                        if (uobjC.GroupingTag == uobj.GroupingId && !uobjC.isContainer && urobj != null)
+                        {
+                            gobjsToMerge.Add(urobj);
+                            break;
+                        }
+                    }
+                    renderContainers.Add(uobj.GroupingId, gobjsToMerge);
+                }
+            }
+        }
+
+        void CombineAABB(string containerId)
+        {
+            List<UnigmaRendererObject> gobjsToMerge = renderContainers[containerId];
+            AABB finalMergedAABB = new AABB();
+            finalMergedAABB.min = Vector3.positiveInfinity;
+            finalMergedAABB.max = Vector3.negativeInfinity;
+
+            //Check if they have the same grouping Id, if so merge.
+            foreach (UnigmaRendererObject urobj in gobjsToMerge)
+            {
+                finalMergedAABB = MergeAABB(finalMergedAABB.min, finalMergedAABB.max, urobj.unigmaRendererObject.AABBMin, urobj.unigmaRendererObject.AABBMax);
+            }
+
+            if (AABBs.ContainsKey(containerId))
+            {
+                AABBs[containerId] = finalMergedAABB;
+            }
+            else
+                AABBs.Add(containerId, finalMergedAABB);
+        }
+
+        AABB MergeAABB(Vector3 amin, Vector3 amax, Vector3 bmin, Vector3 bmax) {
+
+            AABB result = new AABB();
+            result.min.x = Mathf.Min(amin.x, bmin.x); 
+            result.min.y = Mathf.Min(amin.y, bmin.y); 
+            result.min.z = Mathf.Min(amin.z, bmin.z); 
+            result.max.x = Mathf.Max(amax.x, bmax.x); 
+            result.max.y = Mathf.Max(amax.y, bmax.y);
+            result.max.z = Mathf.Max(amax.z, bmax.z);
+            return result;
+        }
+
+        private void OnDrawGizmos()
+        {
+            Gizmos.color = Color.magenta;
+            if (AABBs.ContainsKey("SunnyHome"))
+            {
+                AABB aabb = AABBs["SunnyHome"];
+
+                Debug.Log("Contains sunny room: " + aabb.min + " | " + aabb.max);
+
+                // Assuming min and max are part of the AABB class or structure
+                Vector3 center = (aabb.min + aabb.max) / 2; // Calculate the center
+                Vector3 size = aabb.max - aabb.min;         // Calculate the size
+
+                Gizmos.DrawWireCube(center, size);
+            }
         }
 
     }

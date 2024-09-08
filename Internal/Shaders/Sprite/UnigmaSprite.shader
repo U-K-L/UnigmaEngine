@@ -108,6 +108,7 @@ Shader "Unigma/UnigmaSprite"
             {
                 // sample the texture
                 fixed4 col = tex2D(_MainTex, i.uv);
+                //discard;
                 return col;
             }
             ENDCG

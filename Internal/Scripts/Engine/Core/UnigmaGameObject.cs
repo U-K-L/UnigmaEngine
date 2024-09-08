@@ -9,6 +9,9 @@ namespace UnigmaEngine
     {
 
         public uint id { get; set; }
+        public bool isContainer = false;
+        public string GroupingId;
+        public string GroupingTag;
 
         public struct UnigmaGameObjectStruct
         {
@@ -58,8 +61,22 @@ namespace UnigmaEngine
         }
         private void Awake()
         {
+            if (isContainer)
+            {
+                GroupIds();
+                return;
+            }
+
             AddUnigmaComponent<UnigmaPhysicsObject>(gameObject);
             AddUnigmaComponent<UnigmaRendererObject>(gameObject);
+        }
+
+        void GroupIds()
+        {
+            foreach (UnigmaGameObject uobj in GetComponentsInChildren<UnigmaGameObject>())
+            {
+                uobj.GroupingTag = GroupingId;
+            }
         }
 
         public void Initialize()

@@ -5,6 +5,7 @@ struct appdata
     float4 vertex : POSITION;
     float2 uv : TEXCOORD0;
     float3 normal : NORMAL;
+    float4 color : COLOR;
 
 };
 
@@ -16,6 +17,7 @@ struct v2f
     float3 worldPos : TEXCOORD2;
     float4 screenSpace : TEXCOORD3;
     float3 viewDir : TEXCOORD4;
+    float4 color : COLOR0;
 };
 
 sampler2D _UnigmaGlobalIllumination;
@@ -47,7 +49,7 @@ v2f ToonAlbedoVert (appdata v)
 
     o.uv = TRANSFORM_TEX(v.uv, _MainTex);
     o.normal = UnityObjectToWorldNormal(v.normal);
-    UNITY_TRANSFER_FOG(o,o.vertex);
+    o.color = v.color;
     return o;
 }
 
@@ -112,8 +114,7 @@ fixed4 ToonAlbedoFrag(v2f i) : SV_Target
                 
     //if (_UseRim < 0.1)
     //    return finalColor;
-
-
+    
     return finalColor;
                 
 }

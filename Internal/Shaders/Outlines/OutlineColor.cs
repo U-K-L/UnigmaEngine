@@ -51,20 +51,34 @@ public class OutlineColor : UnigmaPostProcessingObjects
 
     private void SetPropertiesViaScript()
     {
-        material.SetColor("_OutlineColor", _outlineColor);
-        material.SetColor("_OutlineInnerColor", _outlineInnerColor);
-        material.SetTexture("_ThicknessTexture", _thicknessTexture);
-        material.SetVector("_ThicknessTexture_ST", _ThicknessTexture_ST);
+        if (material.HasColor("_OutlineColor"))
+            material.SetColor("_OutlineColor", _outlineColor);
+
+        if (material.HasColor("_OutlineInnerColor"))
+            material.SetColor("_OutlineInnerColor", _outlineInnerColor);
+
+        if (material.HasTexture("_ThicknessTexture"))
+            material.SetTexture("_ThicknessTexture", _thicknessTexture);
+
+        if (material.HasVector("_ThicknessTexture_ST"))
+            material.SetVector("_ThicknessTexture_ST", _ThicknessTexture_ST);
     }
 
     private void SetPropertiesViaMaterial()
     {
         if (currentMaterial != null)
         {
-            material.SetColor("_OutlineColor", currentMaterial.GetColor("_OutlineColor"));
-            material.SetColor("_OutlineInnerColor", currentMaterial.GetColor("_OutlineInnerColor"));
-            material.SetTexture("_ThicknessTexture", currentMaterial.GetTexture("_ThicknessTexture"));
-            material.SetVector("_ThicknessTexture_ST", currentMaterial.GetVector("_ThicknessTexture_ST"));
+            if(currentMaterial.HasColor("_OutlineColor"))
+                material.SetColor("_OutlineColor", currentMaterial.GetColor("_OutlineColor"));
+
+            if (currentMaterial.HasColor("_OutlineInnerColor"))
+                material.SetColor("_OutlineInnerColor", currentMaterial.GetColor("_OutlineInnerColor"));
+
+            if (currentMaterial.HasTexture("_ThicknessTexture"))
+                material.SetTexture("_ThicknessTexture", currentMaterial.GetTexture("_ThicknessTexture"));
+
+            if (currentMaterial.HasVector("_ThicknessTexture_ST"))
+                material.SetVector("_ThicknessTexture_ST", currentMaterial.GetVector("_ThicknessTexture_ST"));
         }
         else
             currentMaterial = GetComponent<Renderer>().sharedMaterial;

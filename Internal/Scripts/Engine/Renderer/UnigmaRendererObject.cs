@@ -15,6 +15,12 @@ namespace UnigmaEngine
             OutlineColor outlineObj = gameObject.AddComponent<OutlineColor>();
 
             outlineObj.useShader = true;
+
+            //Set Shader passes.
+            _renderer.sharedMaterial.SetShaderPassEnabled("SpecularRoughnessPass", false);
+            _renderer.sharedMaterial.SetShaderPassEnabled("AlbedoPass", false);
+            _renderer.sharedMaterial.SetShaderPassEnabled("DepthShadowsRaytracingShaderPass", false);
+            _renderer.sharedMaterial.SetShaderPassEnabled("GlobalIlluminationRaytracingShaderPass", false);
         }
 
         public UnigmaRendererObjectStruct unigmaRendererObject;

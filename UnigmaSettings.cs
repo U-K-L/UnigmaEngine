@@ -59,8 +59,14 @@ public static class UnigmaSettings
 
     public static void Initialize()
     {
+        DeviceInfo();
         ScreenResolution();
         FrameRateLock();
+    }
+
+    static void DeviceInfo()
+    {
+
     }
 
     static void FrameRateLock()

@@ -16,18 +16,23 @@ Material:
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 5000
   stringTagMap: {}
-  disabledShaderPasses: []
+  disabledShaderPasses:
+  - SpecularRoughnessPass
+  - AlbedoPass
+  - DepthShadowsRaytracingShaderPass
+  - GlobalIlluminationRaytracingShaderPass
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 9d7e00b48a6592e429047b51eb45313b, type: 3}
+        m_Texture: {fileID: 2800000, guid: 5ab3fae71eee17c45a3353477256f20d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
-    m_Floats: []
+    m_Floats:
+    - _StencilRef: 1
     m_Colors: []
   m_BuildTextureStacks: []

@@ -1771,7 +1771,7 @@ public class FluidSimulationManager : MonoBehaviour
         fluidCommandBuffers.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaFluidsFinal, _fluidSimCompositeLiquid, 0);
         fluidCommandBuffers.Blit(_UnigmaFluidsFinal, BuiltinRenderTextureType.CameraTarget, _fluidSimCompositeLiquid, 1);
         //backgroundColorBuffer.Blit(_UnigmaBackgroundColor, BuiltinRenderTextureType.CameraTarget, _unigmaBackgroundMaterial, 1);
-        _cam.AddCommandBuffer(CameraEvent.BeforeForwardAlpha, fluidCommandBuffers);
+        _cam.AddCommandBuffer(CameraEvent.AfterForwardAlpha, fluidCommandBuffers);
         
         //UnityEditor.SceneView.GetAllSceneCameras()[0].AddCommandBuffer(CameraEvent.AfterForwardOpaque, fluidCommandBuffers);
 

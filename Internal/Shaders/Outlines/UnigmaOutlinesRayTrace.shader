@@ -53,7 +53,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 o.uv = v.uv;
                 return o;
             }
-            sampler2D _UnigmaFluidsFinal, _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaWaterNormals, _UnigmaWaterPosition, _UnigmaWaterReflections, _UnigmaShadowColors;
+            sampler2D _UnigmaFluidsFinal, _CameraMotionVectorsTexture, _UnigmaIds, _UnigmaShadowColors;
             sampler2D _UnigmaGlobalIllumination, _UnigmaBackgroundColor, _MainTex, _IsometricDepthNormal, _LineBreak, _IsometricOutlineColor, _IsometricInnerOutlineColor, _IsometricPositions, _UnigmaDepthShadowsMap, _UnigmaAlbedo, _UnigmaDenoisedGlobalIllumination, _UnigmaNormal, _UnigmaSpecularLights, _UnigmaDepthReflectionsMap;
             float4 _MainTex_TexelSize, _OuterLines, _InnerLines, _ShadowOutlineColor;
             sampler2D _CameraDepthNormalsTexture;
@@ -74,9 +74,6 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 				fixed4 albedo = tex2D(_UnigmaAlbedo, i.uv);
 				fixed4 reflections = tex2D(_UnigmaDepthReflectionsMap, i.uv);
 				fixed4 IdsTexture = tex2D(_UnigmaIds, i.uv);
-				fixed4 WaterNormals = tex2D(_UnigmaWaterNormals, i.uv);
-				fixed4 WaterPositions = tex2D(_UnigmaWaterPosition, i.uv);
-				fixed4 WaterReflections = tex2D(_UnigmaWaterReflections, i.uv);
 				fixed4 ShadowColors = tex2D(_UnigmaShadowColors, i.uv);
 				fixed4 fluids = tex2D(_UnigmaFluidsFinal, i.uv);
                 
@@ -92,7 +89,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float3 noiseUV = float3(i.uv.x + _Time.y * flowDirection.x, i.uv.y + _Time.y * flowDirection.y, i.uv.y + _Time.y * flowDirection.z);
 
 				float4 lineBreak = tex2D(_LineBreak, noiseUV);
-				float4 mainTex = tex2D(_MainTex, i.uv);
+				float4 mainTex = albedo;//tex2D(_MainTex, i.uv);
                 
 				float OuterScale = OutterLineColors.a * 5 + _ScaleOuter;
                 float scaleFloor = floor(OuterScale * 0.5);

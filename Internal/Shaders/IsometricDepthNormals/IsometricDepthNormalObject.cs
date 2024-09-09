@@ -21,11 +21,12 @@ public class IsometricDepthNormalObject : UnigmaPostProcessingObjects
         if (mat != null)
         {
             Debug.Log("_UNIGMA Material Loaded ISOMETRICDEPTHNORMALS");
-            material = Instantiate(mat);
-            material.name = material.name + " " + gameObject.name;
-            materials.Add("IsometricDepthNormals", material);
+            //material = Instantiate(mat);
+            //material.name = material.name + " " + gameObject.name;
+            //materials.Add("IsometricDepthNormals", material);
             renderer = GetComponent<Renderer>();
 
+            material = renderer.material;
             //Add to this component to all children
             foreach (Transform child in transform)
             {

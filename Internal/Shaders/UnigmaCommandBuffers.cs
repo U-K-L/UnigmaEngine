@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnigmaEngine;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -12,6 +13,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     public bool RayTracingOn = true;
     private int buffersAdded = 0;
     private List<UnigmaPostProcessingObjects> _OutlineRenderObjects; //Objects part of this render.
+    private List<UnigmaSprite> _UnigmaSprites;
     private List<Renderer> _OutlineNullObjects = default; //Objects not part of this render.
     private List<UnigmaWater> _WaterObjects = default; //Objects that consist of water.
     int _temporalReservoirsCount = 2;
@@ -144,6 +146,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
     private ComputeShader svgfComputeShader;
     private CommandBuffer outlineDepthBuffer;
     private CommandBuffer backgroundColorBuffer;
+    private CommandBuffer spritesBuffer;
     private CommandBuffer compositeBuffer;
     private Material _nullMaterial = default;
 
@@ -483,10 +486,13 @@ public class UnigmaCommandBuffers : MonoBehaviour
             //Create isometric depth normals.
             _OutlineRenderObjects = new List<UnigmaPostProcessingObjects>();
             _OutlineNullObjects = new List<Renderer>();
+            _UnigmaSprites = new List<UnigmaSprite>();
+
             //Create Water Objects.
             _WaterObjects = new List<UnigmaWater>();
             FindObjects("IsometricDepthNormalObject");
             FindWaterObjects();
+            FindSpriteObjects();
             AddObjectsToList();
 
             AddObjectsToAccerleration();
@@ -507,6 +513,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             CreateOutlineColorBuffers();
             CreateCompositeBuffer();
+            DrawSprites();
 
             buffersAdded += 1;
         }
@@ -1089,6 +1096,19 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     }
 
+    void DrawSprites()
+    {
+
+        spritesBuffer = new CommandBuffer();
+        spritesBuffer.name = "UnigmaSpriteBuffer";
+
+        //spritesBuffer.GetTemporaryRT(_prePassRenderTexID, Screen.width, Screen.height, 16, FilterMode.Bilinear, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, QualitySettings.antiAliasing);
+        DrawSpriteAlbedo(spritesBuffer);
+
+        GetComponent<Camera>().AddCommandBuffer(CameraEvent.BeforeImageEffects, spritesBuffer);
+
+    }
+
 
     void CreateDepthNormalBuffers()
     {
@@ -1124,12 +1144,12 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineDepthBuffer.SetRenderTarget(_UnigmaNormal);
 
         outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
-        DrawIsometricDepthNormals(outlineDepthBuffer, 0);
+        DrawNormalsToScreen(outlineDepthBuffer, 0);
 
         //Second pass
         outlineDepthBuffer.SetRenderTarget(_UnigmaMotionID);
         outlineDepthBuffer.ClearRenderTarget(true, true, Vector4.zero);
-        DrawIsometricDepthNormals(outlineDepthBuffer, 1);
+        DrawPositionsToScreen(outlineDepthBuffer, 1);
 
         if (!UnigmaSettings.GetIsRTXEnabled() || UnigmaSettings.GetIsRayTracingEnabled())
         {
@@ -1247,7 +1267,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         outlineColorBuffer.ClearRenderTarget(true, true, Vector4.zero);
 
         //Set outter colors
-        DrawIsometricOutlineColor(outlineColorBuffer, 0);
+        DrawIsometricThicknessOutline(outlineColorBuffer, 0);
 
         outlineColorBuffer.CopyTexture(rt, tempRt);
         computeOutlineColors.SetTexture(0, "_IsometricOutlineColor", rt);
@@ -1263,32 +1283,6 @@ public class UnigmaCommandBuffers : MonoBehaviour
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.AfterForwardOpaque, outlineColorBuffer);
     }
 
-    void DrawIsometricAlbedo(CommandBuffer outlineDepthBuffer)
-    {
-        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
-        {
-            IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
-            if (iso != null)
-                if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
-                {
-                    //This is drawing with the current object's material ie UnigmaToonStylized.
-                    outlineDepthBuffer.DrawRenderer(r.renderer, r.renderer.material, 0, 1);
-                }
-        }
-    }
-
-    void DrawSpecularLight(CommandBuffer outlineDepthBuffer)
-    {
-        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
-        {
-            IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
-            if (iso != null)
-                if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
-                {
-                    outlineDepthBuffer.DrawRenderer(r.renderer, r.renderer.material, 0, 0);
-                }
-        }
-    }
 
     void DrawWaterNormals(CommandBuffer outlineDepthBuffer)
     {
@@ -1308,6 +1302,22 @@ public class UnigmaCommandBuffers : MonoBehaviour
         }
     }
 
+    void DrawIsometricAlbedo(CommandBuffer outlineDepthBuffer)
+    {
+        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
+        {
+            IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
+            if (iso != null)
+                if (r.renderer.enabled == true && iso._writeToTexture)
+                {
+                    Material mat = GetMaterialPass(r.renderer);
+
+                    //This is drawing with the current object's material ie UnigmaToonStylized.
+                    outlineDepthBuffer.DrawRenderer(r.renderer, mat, 0, mat.FindPass("AlbedoPass"));
+                }
+        }
+    }
+
     void DrawIds(CommandBuffer outlineDepthBuffer, int pass)
     {
         int i = 0;
@@ -1315,11 +1325,13 @@ public class UnigmaCommandBuffers : MonoBehaviour
         {
             IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
             if (iso != null)
-                if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
+                if (r.renderer.enabled == true && iso._writeToTexture)
                 {
-                    Debug.Log("_UNIGMA Reading materials " + r.materials.ContainsKey("IsometricDepthNormals") + " UnigmaCommandBuffers");
-                    r.materials["IsometricDepthNormals"].SetInt("_ObjectID", i);
-                    outlineDepthBuffer.DrawRenderer(r.renderer, r.materials["IsometricDepthNormals"], 0, pass);
+
+                    Material mat = GetMaterialPass(r.renderer);
+
+                    mat.SetInt("_ObjectID", i);
+                    outlineDepthBuffer.DrawRenderer(r.renderer, mat, 0, mat.FindPass("IDsPass"));
                 }
             i++;
         }
@@ -1329,16 +1341,21 @@ public class UnigmaCommandBuffers : MonoBehaviour
             if (r.enabled == true)
                 outlineDepthBuffer.DrawRenderer(r, _nullMaterial, 0, -1);
         }
+
     }
 
-    void DrawIsometricDepthNormals(CommandBuffer outlineDepthBuffer, int pass)
+    void DrawNormalsToScreen(CommandBuffer outlineDepthBuffer, int pass)
     {
         foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
         {
             IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
             if (iso != null)
-                if (r.materials.ContainsKey("IsometricDepthNormals") && r.renderer.enabled == true && iso._writeToTexture)
-                    outlineDepthBuffer.DrawRenderer(r.renderer, r.materials["IsometricDepthNormals"], 0, pass);
+                if (r.renderer.enabled == true && iso._writeToTexture)
+                {
+                    Material mat = GetMaterialPass(r.renderer);
+
+                    outlineDepthBuffer.DrawRenderer(r.renderer, mat, 0, mat.FindPass("ScreenNormalsPass"));
+                }
         }
 
         foreach (Renderer r in _OutlineNullObjects)
@@ -1348,14 +1365,69 @@ public class UnigmaCommandBuffers : MonoBehaviour
         }
     }
 
-    void DrawIsometricOutlineColor(CommandBuffer outlineColor, int pass)
+    void DrawPositionsToScreen(CommandBuffer outlineDepthBuffer, int pass)
+    {
+        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
+        {
+            IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
+            if (iso != null)
+                if (r.renderer.enabled == true && iso._writeToTexture)
+                {
+                    Material mat = GetMaterialPass(r.renderer);
+
+                    outlineDepthBuffer.DrawRenderer(r.renderer, mat, 0, mat.FindPass("ScreenWorldPostionsPass"));
+                }
+        }
+
+        foreach (Renderer r in _OutlineNullObjects)
+        {
+            if (r.enabled == true)
+                outlineDepthBuffer.DrawRenderer(r, _nullMaterial, 0, -1);
+        }
+    }
+
+
+    void DrawSpriteAlbedo(CommandBuffer cmdBuffer)
+    {
+        foreach (UnigmaSprite r in _UnigmaSprites)
+        {
+            UnigmaRendererObject renderObj = r.GetComponent<UnigmaRendererObject>();
+            if (renderObj != null)
+            {
+                Material mat = GetMaterialPass(renderObj._renderer);
+
+                cmdBuffer.DrawRenderer(renderObj._renderer, mat, 0, mat.FindPass("PostProcessedAlbedo"));
+            }
+        }
+    }
+
+    void DrawSpecularLight(CommandBuffer outlineDepthBuffer)
+    {
+        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
+        {
+            IsometricDepthNormalObject iso = r.gameObject.GetComponent<IsometricDepthNormalObject>();
+            if (iso != null)
+                if (r.renderer.enabled == true && iso._writeToTexture)
+                {
+                    Material mat = GetMaterialPass(r.renderer);
+
+                    outlineDepthBuffer.DrawRenderer(r.renderer, mat, 0, mat.FindPass("SpecularRoughnessPass"));
+                }
+        }
+    }
+
+    void DrawIsometricThicknessOutline(CommandBuffer outlineColor, int pass)
     {
         foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
         {
             OutlineColor cr = r.gameObject.GetComponent<OutlineColor>();
             if (cr != null)
-                if (cr.materials.ContainsKey("OutlineColors") && cr.renderer.enabled == true)
-                    outlineColor.DrawRenderer(cr.renderer, cr.materials["OutlineColors"], 0, pass);
+                if (cr.renderer.enabled == true)
+                {
+                    Material mat = GetMaterialPass(r.renderer);
+
+                    outlineColor.DrawRenderer(r.renderer, mat, 0, mat.FindPass("OutlineThicknessPass"));
+                }
         }
 
         foreach (Renderer r in _OutlineNullObjects)
@@ -1363,6 +1435,37 @@ public class UnigmaCommandBuffers : MonoBehaviour
             if (r.enabled == true)
                 outlineColor.DrawRenderer(r, _nullMaterial, 0, -1);
         }
+    }
+
+    void DrawIsometricOutlineColor(CommandBuffer outlineColor, int pass)
+    {
+        foreach (UnigmaPostProcessingObjects r in _OutlineRenderObjects)
+        {
+            OutlineColor cr = r.gameObject.GetComponent<OutlineColor>();
+            if (cr != null)
+                if (cr.renderer.enabled == true)
+                {
+                    Material mat = GetMaterialPass(r.renderer);
+                    outlineColor.DrawRenderer(r.renderer, mat, 0, mat.FindPass("OutlineColorsPass"));
+                }
+        }
+
+        foreach (Renderer r in _OutlineNullObjects)
+        {
+            if (r.enabled == true)
+                outlineColor.DrawRenderer(r, _nullMaterial, 0, -1);
+        }
+    }
+
+    Material GetMaterialPass(Renderer r)
+    {
+        Material mat = new Material(r.material);
+        string shaderName = r.material.shader.name + "Passes";
+        mat.shader = Shader.Find(shaderName);
+
+        Debug.Log("Loading This Shader (UnigmaCommandBuffers): " + shaderName + " Did we find it? " + mat.shader);
+
+        return mat;
     }
 
     // Find and store visible renderers to a list
@@ -1386,6 +1489,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
                 _OutlineRenderObjects.Add(sceneRenderers[i].gameObject.GetComponent(component) as UnigmaPostProcessingObjects);
             else
                 _OutlineNullObjects.Add(sceneRenderers[i]);
+
         }
     }
 
@@ -1400,6 +1504,19 @@ public class UnigmaCommandBuffers : MonoBehaviour
         for (int i = 0; i < sceneRenderers.Length; i++)
             if (sceneRenderers[i].GetComponent(component))
                 _WaterObjects.Add(sceneRenderers[i].gameObject.GetComponent(component) as UnigmaWater);
+    }
+
+    void FindSpriteObjects()
+    {
+        string component = "UnigmaSprite";
+        // Retrieve all renderers in scene
+        Renderer[] sceneRenderers = FindObjectsOfType<Renderer>();
+
+        // Store only visible renderers
+        _UnigmaSprites.Clear();
+        for (int i = 0; i < sceneRenderers.Length; i++)
+            if (sceneRenderers[i].GetComponent(component))
+                _UnigmaSprites.Add(sceneRenderers[i].gameObject.GetComponent(component) as UnigmaSprite);
     }
 
     //Release all buffers and memory

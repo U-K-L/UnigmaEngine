@@ -34,13 +34,17 @@ Shader "Unigma/UnigmaToonStylized"
         _OutlineInnerColor("Inner Outline Color", Color) = (0,0,0,1)
         _ThicknessTexture("Thickness of the line texture", 2D) = "black" {}
         _ThicknessTexture_ST("Thickness Vector", Vector) = (1, 1, 1, 1)
+
+        //GBuffer settings.
+        _Fade("Fade camera", Range(0,100000)) = 1
+		_NormalAmount("Normal amount", Range(0,50)) = 1
+		_DepthAmount("Depth amount", Range(0,50)) = 1
+		_ObjectID("Object ID", Int) = 0
         
     }
     SubShader
     {
         Cull Off
-        Tags { "RenderType" = "Transparent"
-        "LightMode" = "ForwardBase" }
         LOD 100
 
         Stencil
@@ -48,48 +52,13 @@ Shader "Unigma/UnigmaToonStylized"
             Ref[_StencilRef]
             Comp Equal
         }
-        
-        ///----------------------SPECULAR PASS ------------------------------
-        //
-        //---------
-        Pass
-        {
-            Name "SpecularRoughnessPass"
-            CGPROGRAM
-            #pragma vertex ToonSpecularVert
-            #pragma fragment ToonSpecularFrag
-            // make fog work
-            #pragma multi_compile_fog
 
-            #include "UnityCG.cginc"
 
-            #include "UnigmaToonSpecular.cginc"
-            ENDCG
-        }
-
-        ///----------------------ALBEDO PASS ------------------------------
-        //
-        //---------
-
-        Pass
-        {
-            Name "AlbedoPass"
-            CGPROGRAM
-            #pragma vertex ToonAlbedoVert
-            #pragma fragment ToonAlbedoFrag
-            // make fog work
-            #pragma multi_compile_fog 
-            #pragma multi_compile _COLORDISTMODEL_CELSHADED _COLORDISTMODEL_TOONSHADED _COLORDISTMODEL_DISTSHADED
-
-            #include "UnityCG.cginc"
-            #include "../ShaderHelpers.hlsl"
-            #include "UnigmaToonAlbedo.cginc"
-
-            ENDCG
-        }
 
         UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
 
+
+        //Raytracing should always be in the base shader.
         
         ///----------------------DEPTH SHADOW PASS ------------------------------
         //
@@ -146,6 +115,28 @@ Shader "Unigma/UnigmaToonStylized"
             {
                 return 1;
             }
+
+            ENDCG
+        }
+
+        //For editor visualization place at bottom because Unity too dumb to specify which passes to run -_-
+        ///----------------------ALBEDO PASS ------------------------------
+        //
+        //---------
+
+        Pass
+        {
+            Name "AlbedoPass"
+            CGPROGRAM
+            #pragma vertex ToonAlbedoVert
+            #pragma fragment ToonAlbedoFrag
+            // make fog work
+            #pragma multi_compile_fog 
+            #pragma multi_compile _COLORDISTMODEL_CELSHADED _COLORDISTMODEL_TOONSHADED _COLORDISTMODEL_DISTSHADED
+
+            #include "UnityCG.cginc"
+            #include "../ShaderHelpers.hlsl"
+            #include "UnigmaToonAlbedo.cginc"
 
             ENDCG
         }

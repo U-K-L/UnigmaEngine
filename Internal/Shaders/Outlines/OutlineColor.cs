@@ -21,10 +21,12 @@ public class OutlineColor : UnigmaPostProcessingObjects
     {
         Material currentMaterial = GetComponent<Renderer>().sharedMaterial;
         Material mat = Resources.Load("Materials/OutlineColors/OutlineColors") as Material;
-        material = Instantiate(mat);
-        material.name = material.name + " " + gameObject.name;
-        materials.Add("OutlineColors", material);
+        //material = Instantiate(mat);
+        //material.name = material.name + " " + gameObject.name;
+        //materials.Add("OutlineColors", material);
         renderer = GetComponent<Renderer>();
+
+        material = renderer.material;
 
         //Add to this component to all children
         foreach (Transform child in transform)

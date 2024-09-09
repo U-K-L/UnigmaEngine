@@ -71,7 +71,7 @@ public static class UnigmaSettings
 
     static void FrameRateLock()
     {
-        Application.targetFrameRate = 30;
+        //Application.targetFrameRate = 30;
     }
 
 

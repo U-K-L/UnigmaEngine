@@ -29,7 +29,7 @@ namespace UnigmaEngine
             {
                 xAngle = Mathf.Lerp(Teuler.x, Ceuler.x, Time.deltaTime);
             }
-            Vector3 swizzle = new Vector3(xAngle, Ceuler.y, Ceuler.z) + offset;
+            Vector3 swizzle = new Vector3(xAngle, Ceuler.y, Teuler.z) + offset;
             gameObject.transform.rotation = Quaternion.Euler(swizzle);
         }
     }

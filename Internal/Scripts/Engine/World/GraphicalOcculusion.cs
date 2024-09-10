@@ -43,7 +43,7 @@ public class GraphicalOcculusion : MonoBehaviour
             //Get _StencilRef from isometricDepth.
             int stencilValue = ceiling.GetComponent<Renderer>().material.GetInt("_StencilRef");
             ceiling.GetComponent<IsometricDepthNormalObject>().material.SetInt("_StencilRef", stencilValue);
-            ceiling.GetComponent<OutlineColor>().material.SetInt("_StencilRef", stencilValue);
+            ceiling.GetComponent<OutlineColor>()._originalMaterial.SetInt("_StencilRef", stencilValue);
             //ceiling.GetComponent<IsometricDepthNormalObject>().materials["FluidPositions"].SetInt("_StencilRef", stencilValue);
         }
 
@@ -109,7 +109,7 @@ public class GraphicalOcculusion : MonoBehaviour
         OutlineColor outlineColors = wall.GetComponent<OutlineColor>();
         if (outlineColors != null)
         {
-            outlineColors.material.SetInt("_StencilRef", value);
+            outlineColors._originalMaterial.SetInt("_StencilRef", value);
         }
     }
 }

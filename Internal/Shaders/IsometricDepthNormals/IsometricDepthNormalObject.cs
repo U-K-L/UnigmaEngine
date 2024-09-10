@@ -47,9 +47,11 @@ public class IsometricDepthNormalObject : UnigmaPostProcessingObjects
 
     private void Update()
     {
+        /*
         material.SetFloat("_Fade", _fadeThreshold);
         material.SetFloat("_NormalAmount", _normalAmp);
         material.SetFloat("_DepthAmount", _depthAmp);
         material.SetTexture("_MainTex", normalMap);
+        */
     }
 }

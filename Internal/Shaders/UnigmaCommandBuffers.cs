@@ -1102,8 +1102,11 @@ public class UnigmaCommandBuffers : MonoBehaviour
         spritesBuffer = new CommandBuffer();
         spritesBuffer.name = "UnigmaSpriteBuffer";
 
+        spritesBuffer.SetRenderTarget(_UnigmaAlbedo);
+        spritesBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaAlbedo);
         //spritesBuffer.GetTemporaryRT(_prePassRenderTexID, Screen.width, Screen.height, 16, FilterMode.Bilinear, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, QualitySettings.antiAliasing);
         DrawSpriteAlbedo(spritesBuffer);
+        spritesBuffer.Blit(_UnigmaAlbedo, BuiltinRenderTextureType.CameraTarget);
 
         GetComponent<Camera>().AddCommandBuffer(CameraEvent.BeforeImageEffects, spritesBuffer);
 
@@ -1537,6 +1540,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
             svgfBuffer.Release();
         if (outlineDepthBuffer != null)
             outlineDepthBuffer.Release();
+        if (spritesBuffer != null)
+            spritesBuffer.Release();
         CommandBuffer[] buffers = mainCam.GetCommandBuffers(CameraEvent.AfterForwardOpaque);
         foreach (CommandBuffer buffer in buffers)
         {

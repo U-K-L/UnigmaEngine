@@ -82,82 +82,14 @@ Shader "Unigma/UnigmaToonStylizedPasses"
         {
             Name "ScreenNormalsPass"
             CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
+            #pragma vertex ScreenNormalsVert
+            #pragma fragment ScreenNormalsFrag
             // make fog work
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
+            #include "../IsometricDepthNormals/UnigmaScreenNormalsPass.cginc"
 
-
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-				float3 normal : NORMAL;
-				float3 tangent : TANGENT;
-            };
-
-            struct v2f
-            {
-                float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
-                float4 vertex : SV_POSITION;
-				float depthGen : TEXCOORD1;
-				float3 normal : TEXCOORD2;
-                float3 T : TEXCOORD3;
-                float3 B : TEXCOORD4;
-                float3 N : TEXCOORD5;
-				float3 worldNormal : TEXCOORD6;
-            };
-
-            sampler2D _MainTex, _UnigmaNormal, _NormalMap;
-            float4 _MainTex_ST;
-			float _Fade, _NormalAmount, _DepthAmount;
-            int _StencilRef;
-
-            v2f vert (appdata v)
-            {
-                v2f o;
-                float4 vertexProgjPos = mul(UNITY_MATRIX_MV, v.vertex);
-                o.depthGen = saturate((-vertexProgjPos.z - _ProjectionParams.y) / (_Fade + 0.001));
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                o.normal = v.normal;//UnityObjectToWorldNormal(v.normal);
-                o.worldNormal = UnityObjectToWorldNormal(v.normal);
-
-                float3 worldNormal = mul((float3x3)unity_ObjectToWorld, v.normal);
-                float3 worldTangent = mul((float3x3)unity_ObjectToWorld, v.tangent);
-
-                float3 binormal = cross(v.normal, v.tangent.xyz); // *input.tangent.w;
-                float3 worldBinormal = mul((float3x3)unity_ObjectToWorld, binormal);
-
-                // and, set them
-                o.N = normalize(worldNormal);
-                o.T = normalize(worldTangent);
-                o.B = normalize(worldBinormal);
-                return o;
-            }
-
-            //Make entire shader a shader pass in the future.
-            fixed4 frag(v2f i) : SV_Target
-            {
-                //Get texture data
-                return float4(i.worldNormal, 1.0);
-                float3 tangentNormal = tex2D(_NormalMap, i.uv).xyz;
-                float3 rgbNormalMap = tangentNormal.xzy * 2 - 1;
-                rgbNormalMap = UnityObjectToWorldNormal(rgbNormalMap);
-                return float4(rgbNormalMap, 1);
-                return float4(i.worldNormal, 1.0);
-                tangentNormal = normalize(tangentNormal * 2 - 1);
-                float3x3 TBN = float3x3(normalize(i.T), normalize(i.B), normalize(i.N));
-                TBN = transpose(TBN);
-                float3 worldNormal = mul(TBN, tangentNormal);
-                if (tex2D(_NormalMap, i.uv).w <= 0)
-                    return float4(i.worldNormal, 1.0);
-
-				return float4(worldNormal, 1);
-            }
             ENDCG
         }
 
@@ -169,39 +101,16 @@ Shader "Unigma/UnigmaToonStylizedPasses"
         {
             Name "ScreenWorldPostionsPass"
             CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
+            #pragma vertex worldPosVert
+            #pragma fragment worldPosFrag
             // make fog work
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
             #include "../ShaderHelpers.hlsl"
-
-            struct appdata
-            {
-                float4 vertex : POSITION;
-            };
-
-            struct v2f
-            {
-                float4 vertex : SV_POSITION;
-				float3 worldPos : TEXCOORD3;
-            };
+            #include "../IsometricDepthNormals/UnigmaWorldPositionPass.cginc"
 
 
-            v2f vert(appdata v)
-            {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-                return o;
-            }
-
-            fixed4 frag(v2f i) : SV_Target
-            {
-				float4 finalColor = float4(i.worldPos, 1.0);
-                return finalColor;
-            }
             ENDCG
         }
 
@@ -211,58 +120,15 @@ Shader "Unigma/UnigmaToonStylizedPasses"
         {
             Name "IDsPass"
             CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
+            #pragma vertex IDsVert
+            #pragma fragment IDsFrag
             // make fog work
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
             #include "../ShaderHelpers.hlsl"
+            #include "../IsometricDepthNormals/UnigmaIDsPass.cginc"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-                float3 normal : NORMAL;
-            };
-
-            struct v2f
-            {
-                float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
-                float4 vertex : SV_POSITION;
-                float depthGen : TEXCOORD1;
-                float3 normal : TEXCOORD2;
-                float3 worldPos : TEXCOORD3;
-                float4 projPos : TEXCOORD4;
-                float3 camRelativeWorldPos : TEXCOORD5;
-            };
-
-            sampler2D _MainTex;
-            float4 _MainTex_ST;
-            float _Fade, _NormalAmount, _DepthAmount;
-			int _ObjectID;
-            UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
-
-            v2f vert(appdata v)
-            {
-                v2f o;
-                float4 vertexProgjPos = mul(UNITY_MATRIX_MV, v.vertex);
-                o.depthGen = saturate((-vertexProgjPos.z - _ProjectionParams.y) / (_Fade + 0.001));
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.projPos = ComputeScreenPos(o.vertex);
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                o.normal = UnityObjectToWorldNormal(v.normal);
-                o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-                o.camRelativeWorldPos = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0)).xyz - _WorldSpaceCameraPos;
-                UNITY_TRANSFER_FOG(o,o.vertex);
-                return o;
-            }
-
-            fixed4 frag(v2f i) : SV_Target
-            {
-                return float4(rand(_ObjectID), rand(_ObjectID + 1), rand(_ObjectID + 2), 1);
-            }
             ENDCG
         }
 
@@ -270,46 +136,14 @@ Shader "Unigma/UnigmaToonStylizedPasses"
         {
             Name "OutlineThicknessPass"
             CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
+            #pragma vertex OutlineThicknessVert
+            #pragma fragment OutlineThicknessFrag
             // make fog work
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
+            #include "../IsometricDepthNormals/UnigmaOutlineThicknessPass.cginc"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
-            {
-                float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
-                float4 vertex : SV_POSITION;
-            };
-
-            float4 _OutlineColor, _ThicknessTexture_ST;
-
-            v2f vert (appdata v)
-            {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-				o.uv = TRANSFORM_TEX(v.uv, _ThicknessTexture);
-                UNITY_TRANSFER_FOG(o,o.vertex);
-                return o;
-            }
-
-            sampler2D _ThicknessTexture;
-
-            fixed4 frag(v2f i) : SV_Target
-            {
-				float4 texcol = tex2D(_ThicknessTexture, i.uv);
-                float thickness = 1;//dot(texcol, texcol) / 3.0;
-                float4 finalOutput = float4(_OutlineColor.xyz, thickness);
-				return finalOutput* thickness;
-            }
             ENDCG
         }
 
@@ -317,40 +151,14 @@ Shader "Unigma/UnigmaToonStylizedPasses"
         {
             Name "OutlineColorsPass"
             CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
+            #pragma vertex OutlineColorsVert
+            #pragma fragment OutlineColorsFrag
             // make fog work
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
+            #include "../IsometricDepthNormals/UnigmaOutlineColorsPass.cginc"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
-            {
-                float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
-                float4 vertex : SV_POSITION;
-            };
-
-            float4 _OutlineInnerColor, _OutlineColor;
-
-            v2f vert(appdata v)
-            {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                UNITY_TRANSFER_FOG(o,o.vertex);
-                return o;
-            }
-
-            fixed4 frag(v2f i) : SV_Target
-            {
-                return _OutlineInnerColor;
-            }
             ENDCG
         }
 

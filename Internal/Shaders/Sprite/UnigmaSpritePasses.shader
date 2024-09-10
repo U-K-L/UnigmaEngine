@@ -1,4 +1,4 @@
-Shader "Unigma/UnigmaSprite"
+Shader "Unigma/UnigmaSpritePasses"
 {
     Properties
     {
@@ -11,6 +11,193 @@ Shader "Unigma/UnigmaSprite"
         Tags { "Queue" = "Transparent+500" "LightMode" = "ForwardBase" }
         LOD 100
         Blend SrcAlpha OneMinusSrcAlpha
+
+                //PASSES FOR OUTLINES.
+
+
+        Pass
+        {
+            Name "ScreenNormalsPass"
+            CGPROGRAM
+            #pragma multi_compile_fog
+            #include "UnityCG.cginc"
+
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_fog
+            struct appdata
+            {
+                float4 vertex : POSITION;
+            };
+
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+            };
+            v2f vert (appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                discard;
+                return 0;
+
+            }
+
+            ENDCG
+        }
+
+                  
+	    //Pass 2.
+        Pass
+        {
+            Name "ScreenWorldPostionsPass"
+            CGPROGRAM
+
+            #pragma multi_compile_fog
+            #include "UnityCG.cginc"
+
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_fog
+            struct appdata
+            {
+                float4 vertex : POSITION;
+            };
+
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+            };
+            v2f vert (appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                discard;
+                return 0;
+            }
+
+            ENDCG
+        }
+
+
+        //Pass 3. Object IDs
+        Pass
+        {
+            Name "IDsPass"
+            CGPROGRAM
+            #pragma multi_compile_fog
+            #include "UnityCG.cginc"
+
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_fog
+            struct appdata
+            {
+                float4 vertex : POSITION;
+            };
+
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+            };
+            v2f vert (appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                discard;
+                return 0;
+
+            }
+
+            ENDCG
+        }
+
+        Pass
+        {
+            Name "OutlineThicknessPass"
+            CGPROGRAM
+            #pragma multi_compile_fog
+            #include "UnityCG.cginc"
+
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_fog
+            struct appdata
+            {
+                float4 vertex : POSITION;
+            };
+
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+            };
+            v2f vert (appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                discard;
+                return 0;
+
+            }
+
+            ENDCG
+        }
+
+        Pass
+        {
+            Name "OutlineColorsPass"
+            CGPROGRAM
+            #pragma multi_compile_fog
+            #include "UnityCG.cginc"
+
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_fog
+            struct appdata
+            {
+                float4 vertex : POSITION;
+            };
+
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+            };
+            v2f vert (appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                discard;
+                return 0;
+
+            }
+
+            ENDCG
+        }
 
 
          ///----------------------SPECULAR PASS ------------------------------
@@ -185,7 +372,6 @@ Shader "Unigma/UnigmaSprite"
             struct v2f
             {
                 float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
                 float4 vertex : SV_POSITION;
             };
 
@@ -208,6 +394,7 @@ Shader "Unigma/UnigmaSprite"
                 fixed4 col = tex2D(_MainTex, i.uv);
                 if(col.a < 0.01)
                     discard;
+
                 return col;
             }
             ENDCG

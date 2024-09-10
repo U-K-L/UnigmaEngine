@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnigmaEngine;
 using UnityEngine;
 
 public class OutlineColor : UnigmaPostProcessingObjects
@@ -13,9 +14,10 @@ public class OutlineColor : UnigmaPostProcessingObjects
     public Vector4 _ThicknessTexture_ST = new Vector4(1,1,1,1);
 
     public bool useShader = false;
+    public bool updateMaterial = true;
 
     //[HideInInspector]
-    public Material material = default;
+    public Material _originalMaterial = default;
     Material currentMaterial;
     private void Awake()
     {
@@ -26,7 +28,7 @@ public class OutlineColor : UnigmaPostProcessingObjects
         //materials.Add("OutlineColors", material);
         renderer = GetComponent<Renderer>();
 
-        material = renderer.material;
+        _originalMaterial = renderer.material;
 
         //Add to this component to all children
         foreach (Transform child in transform)
@@ -41,10 +43,15 @@ public class OutlineColor : UnigmaPostProcessingObjects
             ot._thicknessTexture = _thicknessTexture;
             ot._ThicknessTexture_ST = _ThicknessTexture_ST;
         }
+
+        if (GetComponent<UnigmaSprite>())
+            updateMaterial = false;
     }
 
     private void Update()
     {
+        if (!updateMaterial)
+            return;
         if(useShader)
             SetPropertiesViaMaterial();
         else
@@ -53,17 +60,17 @@ public class OutlineColor : UnigmaPostProcessingObjects
 
     private void SetPropertiesViaScript()
     {
-        if (material.HasColor("_OutlineColor"))
-            material.SetColor("_OutlineColor", _outlineColor);
+        if (_originalMaterial.HasColor("_OutlineColor"))
+            _originalMaterial.SetColor("_OutlineColor", _outlineColor);
 
-        if (material.HasColor("_OutlineInnerColor"))
-            material.SetColor("_OutlineInnerColor", _outlineInnerColor);
+        if (_originalMaterial.HasColor("_OutlineInnerColor"))
+            _originalMaterial.SetColor("_OutlineInnerColor", _outlineInnerColor);
 
-        if (material.HasTexture("_ThicknessTexture"))
-            material.SetTexture("_ThicknessTexture", _thicknessTexture);
+        if (_originalMaterial.HasTexture("_ThicknessTexture"))
+            _originalMaterial.SetTexture("_ThicknessTexture", _thicknessTexture);
 
-        if (material.HasVector("_ThicknessTexture_ST"))
-            material.SetVector("_ThicknessTexture_ST", _ThicknessTexture_ST);
+        if (_originalMaterial.HasVector("_ThicknessTexture_ST"))
+            _originalMaterial.SetVector("_ThicknessTexture_ST", _ThicknessTexture_ST);
     }
 
     private void SetPropertiesViaMaterial()
@@ -71,16 +78,16 @@ public class OutlineColor : UnigmaPostProcessingObjects
         if (currentMaterial != null)
         {
             if(currentMaterial.HasColor("_OutlineColor"))
-                material.SetColor("_OutlineColor", currentMaterial.GetColor("_OutlineColor"));
+                _originalMaterial.SetColor("_OutlineColor", currentMaterial.GetColor("_OutlineColor"));
 
             if (currentMaterial.HasColor("_OutlineInnerColor"))
-                material.SetColor("_OutlineInnerColor", currentMaterial.GetColor("_OutlineInnerColor"));
+                _originalMaterial.SetColor("_OutlineInnerColor", currentMaterial.GetColor("_OutlineInnerColor"));
 
             if (currentMaterial.HasTexture("_ThicknessTexture"))
-                material.SetTexture("_ThicknessTexture", currentMaterial.GetTexture("_ThicknessTexture"));
+                _originalMaterial.SetTexture("_ThicknessTexture", currentMaterial.GetTexture("_ThicknessTexture"));
 
             if (currentMaterial.HasVector("_ThicknessTexture_ST"))
-                material.SetVector("_ThicknessTexture_ST", currentMaterial.GetVector("_ThicknessTexture_ST"));
+                _originalMaterial.SetVector("_ThicknessTexture_ST", currentMaterial.GetVector("_ThicknessTexture_ST"));
         }
         else
             currentMaterial = GetComponent<Renderer>().sharedMaterial;

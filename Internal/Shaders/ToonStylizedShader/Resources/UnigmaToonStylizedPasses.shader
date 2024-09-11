@@ -88,7 +88,7 @@ Shader "Unigma/UnigmaToonStylizedPasses"
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
-            #include "../IsometricDepthNormals/UnigmaScreenNormalsPass.cginc"
+            #include "../../IsometricDepthNormals/UnigmaScreenNormalsPass.cginc"
 
             ENDCG
         }
@@ -107,8 +107,8 @@ Shader "Unigma/UnigmaToonStylizedPasses"
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
-            #include "../ShaderHelpers.hlsl"
-            #include "../IsometricDepthNormals/UnigmaWorldPositionPass.cginc"
+            #include "../../ShaderHelpers.hlsl"
+            #include "../../IsometricDepthNormals/UnigmaWorldPositionPass.cginc"
 
 
             ENDCG
@@ -126,8 +126,8 @@ Shader "Unigma/UnigmaToonStylizedPasses"
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
-            #include "../ShaderHelpers.hlsl"
-            #include "../IsometricDepthNormals/UnigmaIDsPass.cginc"
+            #include "../../ShaderHelpers.hlsl"
+            #include "../../IsometricDepthNormals/UnigmaIDsPass.cginc"
 
             ENDCG
         }
@@ -142,7 +142,7 @@ Shader "Unigma/UnigmaToonStylizedPasses"
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
-            #include "../IsometricDepthNormals/UnigmaOutlineThicknessPass.cginc"
+            #include "../../IsometricDepthNormals/UnigmaOutlineThicknessPass.cginc"
 
             ENDCG
         }
@@ -157,7 +157,7 @@ Shader "Unigma/UnigmaToonStylizedPasses"
             #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
-            #include "../IsometricDepthNormals/UnigmaOutlineColorsPass.cginc"
+            #include "../../IsometricDepthNormals/UnigmaOutlineColorsPass.cginc"
 
             ENDCG
         }
@@ -179,7 +179,7 @@ Shader "Unigma/UnigmaToonStylizedPasses"
             #pragma multi_compile _COLORDISTMODEL_CELSHADED _COLORDISTMODEL_TOONSHADED _COLORDISTMODEL_DISTSHADED
 
             #include "UnityCG.cginc"
-            #include "../ShaderHelpers.hlsl"
+            #include "../../ShaderHelpers.hlsl"
             #include "UnigmaToonAlbedo.cginc"
 
             ENDCG

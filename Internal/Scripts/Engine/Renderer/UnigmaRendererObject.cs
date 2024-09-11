@@ -8,16 +8,18 @@ namespace UnigmaEngine
     public class UnigmaRendererObject : MonoBehaviour
     {
         public Renderer _renderer;
+        public Material _MaterialBase;
+        public Material _MaterialPasses;
+        public UnigmaGameObject uobj;
         private void Awake()
         {
+            uobj = GetComponent<UnigmaGameObject>();
             _renderer = GetComponent<Renderer>();
+            CreatePassMaterial();
             gameObject.AddComponent<IsometricDepthNormalObject>();
             OutlineColor outlineObj = gameObject.AddComponent<OutlineColor>();
 
             outlineObj.useShader = true;
-
-            //Set Shader passes.
-            _renderer.sharedMaterial.SetShaderPassEnabled("Deferred", false);
         }
 
         public UnigmaRendererObjectStruct unigmaRendererObject;
@@ -26,12 +28,34 @@ namespace UnigmaEngine
         {
             unigmaRendererObject = new UnigmaRendererObjectStruct();
             UpdateRendererObject();
+
+        }
+
+        void CreatePassMaterial()
+        {
+            
+            //_MaterialBase.SetInt("_ObjectID", (int)uobj.id);
+            _MaterialBase = _renderer.material;
+
+            string shaderName = _renderer.material.shader.name + "Passes";
+
+            shaderName = shaderName.Split("/")[1];
+
+            _MaterialPasses = new Material(Resources.Load<Shader>(shaderName));
+
+            Debug.Log("Unigma LOADED Shader: " + shaderName);
+        }
+
+        void UpdateMaterials()
+        {
+            _MaterialBase.SetInt("_ObjectID", (int)uobj.id);
+            _MaterialPasses.CopyPropertiesFromMaterial(_MaterialBase);
         }
 
         // Update is called once per frame
         void Update()
         {
-
+            UpdateMaterials();
         }
 
 

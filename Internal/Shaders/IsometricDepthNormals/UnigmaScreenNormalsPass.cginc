@@ -51,7 +51,7 @@ v2f ScreenNormalsVert(appdata v)
             //Make entire shader a shader pass in the future.
 fixed4 ScreenNormalsFrag(v2f i) : SV_Target
 {
-                //Get texture data
+    //Get texture data
     return float4(i.worldNormal, 1.0);
     float3 tangentNormal = tex2D(_NormalMap, i.uv).xyz;
     float3 rgbNormalMap = tangentNormal.xzy * 2 - 1;

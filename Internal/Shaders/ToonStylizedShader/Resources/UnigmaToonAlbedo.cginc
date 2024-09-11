@@ -73,7 +73,7 @@ fixed4 ToonAlbedoFrag(v2f i) : SV_Target
                 
 	float NdotL = dot(normals, lightDir);
                 
-    float4 finalColor = 0;
+    float4 finalColor = 1;
 #ifdef _COLORDISTMODEL_CELSHADED
     float4 xzCol = _Shadow * step(_Thresholds.x, abs(normals).r);
     float4 zxCol = _MainColor * step(_Thresholds.z, abs(normals).b);

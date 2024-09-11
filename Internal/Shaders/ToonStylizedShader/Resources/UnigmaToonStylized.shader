@@ -72,7 +72,7 @@ Shader "Unigma/UnigmaToonStylized"
             #pragma raytracing MyRaytraceShaderPass
             #include "HLSLSupport.cginc"
             #include "UnityRaytracingMeshUtils.cginc"
-            #include "../RayTraceHelpersUnigma.hlsl"
+            #include "../../RayTraceHelpersUnigma.hlsl"
             #include "UnigmaToonShadow.cginc"
 
 
@@ -91,7 +91,7 @@ Shader "Unigma/UnigmaToonStylized"
             #pragma raytracing MyRaytraceShaderPass
             #include "HLSLSupport.cginc"
             #include "UnityRaytracingMeshUtils.cginc"
-            #include "../RayTraceHelpersUnigma.hlsl"
+            #include "../../RayTraceHelpersUnigma.hlsl"
             #include "UnityCG.cginc"
             #include "UnigmaToonGlobalIllum.cginc"
 
@@ -135,7 +135,7 @@ Shader "Unigma/UnigmaToonStylized"
             #pragma multi_compile _COLORDISTMODEL_CELSHADED _COLORDISTMODEL_TOONSHADED _COLORDISTMODEL_DISTSHADED
 
             #include "UnityCG.cginc"
-            #include "../ShaderHelpers.hlsl"
+            #include "../../ShaderHelpers.hlsl"
             #include "UnigmaToonAlbedo.cginc"
 
             ENDCG

@@ -1102,8 +1102,9 @@ public class UnigmaCommandBuffers : MonoBehaviour
         spritesBuffer = new CommandBuffer();
         spritesBuffer.name = "UnigmaSpriteBuffer";
 
-        spritesBuffer.SetRenderTarget(_UnigmaAlbedo);
+        spritesBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaComposite);
         spritesBuffer.Blit(BuiltinRenderTextureType.CameraTarget, _UnigmaAlbedo);
+        spritesBuffer.SetRenderTarget(_UnigmaAlbedo);
         //spritesBuffer.GetTemporaryRT(_prePassRenderTexID, Screen.width, Screen.height, 16, FilterMode.Bilinear, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, QualitySettings.antiAliasing);
         DrawSpriteAlbedo(spritesBuffer);
         spritesBuffer.Blit(_UnigmaAlbedo, BuiltinRenderTextureType.CameraTarget);
@@ -1333,7 +1334,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
                     Material mat = GetMaterialPass(r.renderer);
 
-                    mat.SetInt("_ObjectID", i);
+                    //mat.SetInt("_ObjectID", i);
                     outlineDepthBuffer.DrawRenderer(r.renderer, mat, 0, mat.FindPass("IDsPass"));
                 }
             i++;
@@ -1462,12 +1463,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     Material GetMaterialPass(Renderer r)
     {
-        Material mat = new Material(r.material);
-        string shaderName = r.material.shader.name + "Passes";
-        mat.shader = Shader.Find(shaderName);
-
-        Debug.Log("Loading This Shader (UnigmaCommandBuffers): " + shaderName + " Did we find it? " + mat.shader);
-
+        Material mat = r.GetComponent<UnigmaRendererObject>()._MaterialPasses;
         return mat;
     }
 

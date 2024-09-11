@@ -357,7 +357,7 @@ namespace UnigmaEngine
 
         private void OnDrawGizmos()
         {
-
+            /*
 
             //Set int for simulation
             Gizmos.color = Color.cyan;
@@ -385,6 +385,7 @@ namespace UnigmaEngine
                     Handles.Label( vp.position + Vector3.up*0.5f, "Particle: " + i + " | " + "Kelvin: " + vp.kelvin + " | Particles Count: " + vp.particlesCount);
                 }
             }
+            */
 
         }
 

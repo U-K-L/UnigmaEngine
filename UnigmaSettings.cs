@@ -78,6 +78,7 @@ public static class UnigmaSettings
     static void ScreenResolution()
     {
 
+        /*
         if (EditorApplication.isPlaying)
         {
             if (Screen.width == 640)
@@ -95,7 +96,7 @@ public static class UnigmaSettings
             Screen.SetResolution(1024, 1024, true);
         if (QualityPresets == QualityPreset.High)
             Screen.SetResolution(2048, 2048, true);
-
+        */
     }
 
 }

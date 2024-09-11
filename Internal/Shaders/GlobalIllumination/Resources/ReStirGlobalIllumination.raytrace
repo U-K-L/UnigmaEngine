@@ -150,13 +150,6 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
         float4 lightSample = AreaLightSample(x2Origin, randSeedLight, _unigmaLights[lightIndex]);
 
         float3 toLight = normalize(lightSample.xyz - x2Origin);
-
-        //Create the target function to approximate it.
-        float Gx = min(500, 1.0f / (distance(lightSample.xyz, x2Origin)));
-        float Le = _unigmaLights[lightIndex].emission;
-        float BRDF = (1.0f / RUNITY_PI) * sdot(Sx1Payload.normal, toLight);
-        float pHat = BRDF * Le * Gx;
-
         float weight = GetTargetFunction(currentReservoir, _unigmaLights[lightIndex], x2Origin, Sx1Payload, randSeedLight);
         
         addReservoirSample(currentReservoir, lightIndex, weight, 1, randSeedLight);
@@ -225,23 +218,6 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     _reservoirs[storageReservoirIndex] = currentReservoir;
     
     return Sx1Payload.color.w * Sx1Payload.color;
-}
-
-float GetTargetPathRadiance(inout Reservoir reservoir, float3 origin, float3 normal, uint seed)
-{
-
-    uint lightIndex = reservoir.Y; //This new light index comes from the weighted reservoir we computed.
-    float4 lightSample = AreaLightSample(origin, seed, _unigmaLights[lightIndex]);
-    float3 toLight = normalize(lightSample.xyz - origin);
-    //Finally compute the brdf for this light.
-    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
-    float Le = _unigmaLights[lightIndex].emission;
-    float BRDF = (1.0f / RUNITY_PI) * sdot(normal, toLight);
-
-    //Target function.
-    float4 pHat = BRDF * Le * Gx;
-
-    return pHat;
 }
 
 float4 SampleIndirect(inout Payload payload, inout RayDesc ray)

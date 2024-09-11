@@ -32,8 +32,14 @@ Material:
         m_Texture: {fileID: 2800000, guid: 5ab3fae71eee17c45a3353477256f20d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _ObjectID: 0
+    - _PostProcessStrength: 0.25
     - _StencilRef: 0
     m_Colors: []
   m_BuildTextureStacks: []

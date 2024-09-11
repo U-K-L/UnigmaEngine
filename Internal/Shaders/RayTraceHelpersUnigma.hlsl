@@ -682,10 +682,11 @@ float GetStylizedLighting(inout Reservoir reservoir, UnigmaLight lightSource, fl
     float4 BRDF = max(midTones, shadows);
     BRDF = max(BRDF, highlights);
     
-    float Gx = min(50000, 1.0f / (distance(lightSample.xyz, origin)));
+    float distSquared = distance(lightSample.xyz, origin) * distance(lightSample.xyz, origin);
+    float Gx = min(50000, 1.0f / distSquared);
 
     
-    return BRDF * Gx * Le;
+    return BRDF * Le * Gx;
 }
 
 float GetDiffuseLighting(inout Reservoir reservoir, UnigmaLight lightSource, float3 origin, in Payload Sx1Payload, uint seed)

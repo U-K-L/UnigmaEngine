@@ -29,6 +29,8 @@ public class UnigmaCommandBuffers : MonoBehaviour
 
     public Texture2D SphericalMap;
 
+    public bool forceResample = true;
+
     struct Sample
     {
         public Vector3 x0;
@@ -1109,7 +1111,7 @@ public class UnigmaCommandBuffers : MonoBehaviour
         DrawSpriteAlbedo(spritesBuffer);
         spritesBuffer.Blit(_UnigmaAlbedo, BuiltinRenderTextureType.CameraTarget);
 
-        GetComponent<Camera>().AddCommandBuffer(CameraEvent.BeforeImageEffects, spritesBuffer);
+        //GetComponent<Camera>().AddCommandBuffer(CameraEvent.BeforeImageEffects, spritesBuffer);
 
     }
 

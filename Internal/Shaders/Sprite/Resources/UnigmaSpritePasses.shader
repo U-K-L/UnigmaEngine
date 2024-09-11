@@ -13,7 +13,6 @@ Shader "Unigma/UnigmaSpritePasses"
         Cull Off
         Tags { "Queue" = "Transparent+500" "LightMode" = "ForwardBase" }
         LOD 100
-        Blend SrcAlpha OneMinusSrcAlpha
 
                 //PASSES FOR OUTLINES.
 
@@ -189,7 +188,7 @@ Shader "Unigma/UnigmaSpritePasses"
                 float4 col = tex2D(_MainTex, i.uv);
                 if(col.a < 0.01)
                     discard;
-                return float4(rand(_ObjectID), rand(_ObjectID + 1), rand(_ObjectID + 2), 1);
+                return float4(_ObjectID / 1000, rand(_ObjectID + 1), rand(_ObjectID + 2), -1); //Its a sprite!
 
             }
 

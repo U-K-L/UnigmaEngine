@@ -74,11 +74,11 @@ float4 areaSampleLights(inout Payload payload, inout RayDesc ray, inout Reservoi
     float3 BRDF = 0;
 
     //V(x1 <-> x2). Changing the distance from the hit point leads to interesting results.
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, ray, payload);
     BRDF = ComputeBRDF(payload, ray, 0);
 
     ray.Direction = normalize(lightPosition - ray.Origin);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, ray, payload);
     BRDF *= step(0.001, payload.color.w);
 
     return float4(BRDF, 1.0);
@@ -124,7 +124,9 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     Payload Sx1Payload;
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x02, 0, 1, 0, Sx1Ray, Sx1Payload);
+    
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _SurfaceLumiBitMask,  0, 1, 0, Sx1Ray, Sx1Payload);
+    //TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _SurfaceLumiBitMask, 0, 1, 0, Sx1Ray, Sx1Payload);
 
 
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
@@ -163,7 +165,8 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     RayDesc Sx2Ray;
     Payload Sx2Payload;
     CreateSample(Sx2Ray, Sx2Payload, x2Origin, x2Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, Sx2Ray, Sx2Payload);
+    //TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, Sx2Ray, Sx2Payload);
 
     if(Sx2Payload.distance >= 99990)
     {
@@ -256,7 +259,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     Payload Sx1Payload;
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x02, 0, 1, 0, Sx1Ray, Sx1Payload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _SurfaceLumiBitMask, 0, 1, 0, Sx1Ray, Sx1Payload);
 
     //Getting that hit point location. Will be the origin of x2 path.
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
@@ -268,7 +271,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     RayDesc Sx2Ray;
     Payload Sx2Payload;
     CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction); //From hit point to pdf direction.
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, Sx2Ray, Sx2Payload);
 
     int maxBounces = 2;
     //If it hit nothing return early.
@@ -294,7 +297,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     SxNPayload.color = Sx2Payload.color;
     for(int i = 0; i < maxBounces; i++)
     {
-        TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxNRay, SxNPayload);
+        TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, SxNRay, SxNPayload);
         xNOrigin = SxNRay.Origin + (SxNRay.Direction * SxNPayload.distance) + (SxNPayload.normal * distanceFromPoint);
         xNDirection = SxNPayload.direction;
         radianceIndirect += SxNPayload.color.w* (1.0f / (float)maxBounces);
@@ -425,7 +428,7 @@ float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
     Payload Sx1Payload;
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx1Ray, Sx1Payload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, Sx1Ray, Sx1Payload);
 
     //Getting that hit point location. Will be the origin of x2 path.
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
@@ -438,7 +441,7 @@ float4 ShadePixelDI(inout Payload payload, inout RayDesc ray)
     RayDesc Sx2Ray;
     Payload Sx2Payload;
     CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, Sx2Ray, Sx2Payload);
 
     float3 lightHitPosition = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
 

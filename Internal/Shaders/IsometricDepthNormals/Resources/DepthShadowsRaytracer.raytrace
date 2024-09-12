@@ -83,14 +83,23 @@ void DepthShadowsRaygenShader()
     ray.TMax = 10000;
 
     Payload payload;
+    payload.pixel = pixel;
     payload.color = float4(0, 0, 0, 0);
     payload.distance = 99999;
     payload.normal = 0;
     payload.direction = 0;
-
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x02, 0, 1, 0, ray, payload);
-
     float distanceFromPoint = 0.0353;
+    //Initial Surface.
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _DepthBitMask, 0, 1, 0, ray, payload);
+
+    if(payload.color.w <= -1)
+    {
+        position = ray.Origin+ (ray.Direction * payload.distance) + (-payload.normal * distanceFromPoint);
+        ray.Origin = position;
+        TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _DepthBitMask, 0, 1, 0, ray, payload);
+    }
+
+
     position = ray.Origin+ (ray.Direction * payload.distance) + (payload.normal * distanceFromPoint);//ray.Origin + ray.Direction * (payload.distance - 0.0353);
     
     if (unity_OrthoParams.w > 0)
@@ -115,6 +124,13 @@ void DepthShadowsRaygenShader()
         depth = 0;
     }
 
+    
+    //Start again with new mask
+    ray.Origin = chosenCameraPosition; 
+    ray.Direction = chosenDirection; 
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _DepthBitNoSpriteMask, 0, 1, 0, ray, payload);
+     position = ray.Origin+ (ray.Direction * payload.distance) + (payload.normal * distanceFromPoint);//ray.Origin + ray.Direction * (payload.distance - 0.0353);
+
     //Store payload normal for the reflections later on.
     float3 originalColor = payload.direction;
     float3 reflectionNormal = payload.normal.xyz; //Normal.w has _ReceiveShadow information.
@@ -129,7 +145,7 @@ void DepthShadowsRaygenShader()
 
     ray.Origin = position; 
     ray.Direction = toLightDir; 
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, ray, payload);
 
     _UnigmaDepthShadowsMap[id.xy] = float4(depth, payload.color.r*payload.pixel.y * receiveShadow, payload.color.g*payload.pixel.y * receiveShadow, 1);
 
@@ -154,7 +170,9 @@ void DepthShadowsRaygenShader()
     //reflectedDirection = lerp(reflectionNormal,reflectedDirection, prevColor.z);
     ray.Origin = position;
     ray.Direction = reflectedDirection;
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, ray, payload);
+
+ 
     
     //Store the reflection.
     //Attenutate based on distance of ray.

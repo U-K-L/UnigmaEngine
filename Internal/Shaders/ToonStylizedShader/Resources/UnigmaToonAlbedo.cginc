@@ -88,7 +88,7 @@ fixed4 ToonAlbedoFrag(v2f i) : SV_Target
     finalColor = max(finalColor, highlights);
 
 #elif _COLORDISTMODEL_DISTSHADED
-	finalColor = _MainColor * _Emmittance*10;
+	finalColor = _MainColor;
     //float3 objectOrigin = mul(unity_ObjectToWorld, float4(0,0,0, 1)).xyz;
     //finalColor = pow(distance(objectOrigin, i.worldPos), 1);
 #endif
@@ -115,6 +115,6 @@ fixed4 ToonAlbedoFrag(v2f i) : SV_Target
     //if (_UseRim < 0.1)
     //    return finalColor;
     
-    return finalColor;
+    return finalColor + (finalColor * _Emmittance * 10);
                 
 }

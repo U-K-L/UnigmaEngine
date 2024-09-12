@@ -78,6 +78,11 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 				fixed4 fluids = tex2D(_UnigmaFluidsFinal, i.uv);
                 
 
+				if (IdsTexture.a <= -1)
+				{
+                    albedo = (albedo * _GlobalIlluminationWeights.x + GlobalIlluminationDenoised * _GlobalIlluminationWeights.y)*0.5;
+					return albedo;
+				}
                 //originalImage = _UnigmaFluidsFinal;
                 //return GlobalIllumination;
                 //return ShadowColors;
@@ -179,7 +184,7 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
                 float2 shadowFiniteDifference3 = shadow1.yz - shadow0.yz;
                 float2 shadowFiniteDifference4 = shadow3.yz - shadow2.yz;
                 float edgeShadow = sqrt(dot(shadowFiniteDifference3, shadowFiniteDifference3) + dot(shadowFiniteDifference4, shadowFiniteDifference4));
-                float depthThresholdShadow = _DepthThreshold * shadow0;
+                float depthThresholdShadow = _DepthThreshold * shadow0.r;
                 edgeShadow = edgeShadow > depthThresholdShadow ? 1 : 0;
 
                 
@@ -274,7 +279,6 @@ Shader "Unigma/UnigmaOutlinesRayTrace"
 				//reflections += reflectMask;
                 //return reflections;
                 float4 reflectionsHigh = ((FinalColor * reflections) * max(0.8, 1.0 - reflections.w) + (FinalColor + reflections) * min(0.2, reflections.w)) * 1.15;
-                
                 float4 reflectionsLow = (FinalColor*0.35 + (FinalColor * reflections) * min(0.15, reflections.w)  + (FinalColor + reflections) * max(0.45, 1.0 - reflections.w)) * step(reflections.w, 0.5);
                 FinalColor = lerp(FinalColor, reflectionsHigh, reflectMaskInv*min(1, reflections.w* reflections.w));//lerp(FinalColor, lerp(FinalColor, FinalColor * reflections, reflections*0.5), reflectMaskInv * min(1, reflections.w));//lerp(FinalColor, FinalColor + reflections * 0.2, min(1, reflections.w));
                 //return FinalColor + reflections;

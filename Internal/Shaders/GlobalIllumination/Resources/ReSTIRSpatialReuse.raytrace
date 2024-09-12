@@ -86,7 +86,7 @@ float4 ShadePixelRestirDI(inout Payload payload, inout RayDesc ray)
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
     //Special mask.
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x02, 0, 1, 0, Sx1Ray, Sx1Payload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _SurfaceLumiBitMask, 0, 1, 0, Sx1Ray, Sx1Payload);
 
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
 
@@ -179,7 +179,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     Payload Sx1Payload;
     //initialize sample.
     CreateSample(Sx1Ray, Sx1Payload,  Sx0Ray.Origin, Sx0Ray.Direction);
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0x02, 0, 1, 0, Sx1Ray, Sx1Payload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _SurfaceLumiBitMask, 0, 1, 0, Sx1Ray, Sx1Payload);
 
     //Getting that hit point location. Will be the origin of x2 path.
     float3 x2Origin = Sx1Ray.Origin + (Sx1Ray.Direction * Sx1Payload.distance) + (Sx1Payload.normal * distanceFromPoint);
@@ -191,7 +191,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     RayDesc Sx2Ray;
     Payload Sx2Payload;
     CreateSample(Sx2Ray, Sx2Payload,  x2Origin, x2Direction); //From hit point to pdf direction.
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, Sx2Ray, Sx2Payload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, Sx2Ray, Sx2Payload);
 
     //Now start at the new surface hit from the BSDF bounce. This is our reservoirGI.
     float3 xNOrigin = Sx2Ray.Origin + (Sx2Ray.Direction * Sx2Payload.distance) + (Sx2Payload.normal * distanceFromPoint);
@@ -213,7 +213,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     SxNPayload.color = Sx2Payload.color;
     for(int i = 0; i < maxBounces; i++)
     {
-        TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxNRay, SxNPayload);
+        TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxNRay, SxNPayload);
         xNOrigin = SxNRay.Origin + (SxNRay.Direction * SxNPayload.distance) + (SxNPayload.normal * distanceFromPoint);
         xNDirection = SxNPayload.direction;
         radianceIndirect += SxNPayload.color.w;
@@ -304,7 +304,7 @@ float4 SampleIndirect(inout Payload payload, inout RayDesc ray)
     CreateSample(SxVRay, SxVPayload,  x2Origin, normalize(currentReservoirPath.position - x2Origin)); //Start at that new surface from bounce...
 
     
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxVRay, SxVPayload);
+    TraceRayAlphaTexture(_RaytracingAccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, SxVRay, SxVPayload);
     visibility = step(0.0001, SxVPayload.color.w);
 
 

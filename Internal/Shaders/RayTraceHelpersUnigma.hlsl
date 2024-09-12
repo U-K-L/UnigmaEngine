@@ -1,5 +1,17 @@
 #define RUNITY_PI 3.14159265359
 
+//MASKS 8 BITS
+// Masked = (InstanceInclusionMask & InstanceMask);
+// bool = (Masked & 0xff);
+//Function is: if(!bool) { //ignore intersection }
+// 
+//So basically if bitMask & objectMask == 0, then we ignore intersection.
+#define _BounceLumiBitMask 0x1F//00011111
+#define _SurfaceLumiBitMask 0x12 //00010010
+#define _DepthBitMask 0x12 //00010010
+#define _ReflectionShadowBitMask 0x07 //00000111
+#define _DepthBitNoSpriteMask 0x02 //00000010
+
 #include "UnityCG.cginc"
 Texture2D<float4> _UnigmaBlueNoise;
 //Struct definitions.
@@ -741,4 +753,26 @@ float pNoise(float3 x)
                lerp(hash(n + 57.0), hash(n + 58.0), f.x), f.y),
                lerp(lerp(hash(n + 113.0), hash(n + 114.0), f.x),
                lerp(hash(n + 170.0), hash(n + 171.0), f.x), f.y), f.z);
+}
+
+void TraceRayAlphaTexture(RaytracingAccelerationStructure AccelerationStructure,
+                    uint RayFlags,
+                    uint InstanceInclusionMask,
+                    uint RayContributionToHitGroupIndex,
+                    uint MultiplierForGeometryContributionToHitGroupIndex,
+                    uint MissShaderIndex,
+                    inout RayDesc Ray,
+                    inout Payload payload)
+{
+
+    TraceRay(AccelerationStructure, RayFlags, InstanceInclusionMask, RayContributionToHitGroupIndex, MultiplierForGeometryContributionToHitGroupIndex, MissShaderIndex, Ray, payload);
+    //Check once for alpha....
+
+    if (payload.uv.y <= -9999)
+    {
+        float distanceFromPoint = 0.0353;
+		float3 position = Ray.Origin + (Ray.Direction * (payload.distance + distanceFromPoint));
+        Ray.Origin = position;
+        TraceRay(AccelerationStructure, RayFlags, InstanceInclusionMask, RayContributionToHitGroupIndex, MultiplierForGeometryContributionToHitGroupIndex, MissShaderIndex, Ray, payload);
+    }
 }

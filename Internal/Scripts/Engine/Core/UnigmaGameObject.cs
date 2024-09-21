@@ -24,7 +24,6 @@ namespace UnigmaEngine
 
         public UnigmaGameObjectStruct unigmaGameObject;
 
-        /*
         //Goes in "Editor" folder.
         //Creates this item from the editor and calls the function under this declartion.
         [MenuItem("GameObject/Unigma/Unigma Game Object", false, 10)]
@@ -60,7 +59,6 @@ namespace UnigmaEngine
 
             }
         }
-        */
 
         private void Awake()
         {

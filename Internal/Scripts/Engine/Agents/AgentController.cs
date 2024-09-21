@@ -2,18 +2,14 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class AgentController : MonoBehaviour
+public class AgentController : AgentPhysics
 {
-    // Start is called before the first frame update
-    private Rigidbody _mbody;
-    void Start()
-    {
-        _mbody = GetComponent<Rigidbody>();
-    }
 
     // Update is called once per frame
     void Update()
     {
+        base.UpdateAgent();
 
+        Debug.Log("Agent Controller: " + this.name);
     }
 }

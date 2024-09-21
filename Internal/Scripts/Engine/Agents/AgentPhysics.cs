@@ -1,11 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnigmaEngine;
 using UnityEngine;
 using UnityEngine.AI;
 
 
 public class AgentPhysics : MonoBehaviour
 {
+    UnigmaPhysicsObject _physicsObject;
     //They key identifier for this agent.
     [HideInInspector]
     public string key;
@@ -16,13 +18,19 @@ public class AgentPhysics : MonoBehaviour
     public LineRenderer path;
     protected private Vector3 destination;
     protected Queue<Vector3> fullPath; //A queue of all the paths the agent is requesting currently. Use this to move.
-    
+
     //General settings.
+    [HideInInspector]
     public Rigidbody _mbody;
+    [HideInInspector]
     public Collider _collider;
+    [HideInInspector]
     public MeshCollider _meshcollider;
+    [HideInInspector]
     public SphereCollider _spherecollider;
+    [HideInInspector]
     public SphereCollider _triggerCollider;
+    [HideInInspector]
     public BoxCollider _boxCollider;
     protected bool moving = true;
     public float speed = 0.5f;

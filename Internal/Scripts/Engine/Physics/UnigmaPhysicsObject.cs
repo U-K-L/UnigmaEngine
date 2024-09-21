@@ -6,7 +6,7 @@ namespace UnigmaEngine
 {
     public class UnigmaPhysicsObject : MonoBehaviour
     {
-
+        public bool isMassless = false;
         public bool influenceSpaceTime = false;
         public uint objectId = 0;
         public Vector3 velocity;
@@ -34,6 +34,8 @@ namespace UnigmaEngine
 
         public PhysicsObject physicsObject;
 
+        float collisionForce = 1.0f;
+
         private void Awake()
         {
 
@@ -49,6 +51,7 @@ namespace UnigmaEngine
             SetUpObject();
             if (influenceSpaceTime)
                 SetUpBuffers();
+            SpaceTimeVectorField = UnigmaPhysicsManager.Instance.unigmaSpaceTime;
         }
 
         void SetUpBuffers()
@@ -81,10 +84,14 @@ namespace UnigmaEngine
         {
             if (!ObjectSetup)
                 SetUpObject();
-            //UpdatePosition();
-            //UpdateVelocity();
-            //UpdateAcceleration();
-            UpdateForceApplied();
+
+            if (!isMassless)
+            {
+                UpdatePosition();
+                UpdateVelocity();
+                UpdateAcceleration();
+                UpdateForceApplied();
+            }
 
         }
 
@@ -112,20 +119,19 @@ namespace UnigmaEngine
             float minDist = float.PositiveInfinity;
             float maxDist = 10.0f;
             Vector3 finalforce = Vector4.zero;
-            if (SpaceTimeVectorField != null)
+            for (int i = 0; i < UnigmaPhysicsManager.Instance.unigmaSpaceTime.VectorFieldNative.Length; i++)
             {
-                foreach (UnigmaSpaceTime.SpaceTimePoint vp in SpaceTimeVectorField.VectorField)
+                UnigmaSpaceTime.SpaceTimePoint vp = UnigmaPhysicsManager.Instance.unigmaSpaceTime.VectorFieldNative[i];
+                float distance = Vector3.Distance(vp.position, transform.position);
+
+                if (minDist > distance && maxDist > distance)
                 {
-                    float distance = Vector3.Distance(vp.position, transform.position);
-
-                    if (minDist > distance && maxDist > distance)
-                    {
-                        finalforce = vp.force;
-                        minDist = distance;
-                    }
-
+                    finalforce = vp.force;
+                    minDist = distance;
                 }
+
             }
+
 
             acceleration = finalforce;
         }
@@ -135,6 +141,21 @@ namespace UnigmaEngine
             transform.position = transform.position + velocity * Time.fixedDeltaTime;//Vector3.Lerp(transform.position, transform.position + velocity * Time.fixedDeltaTime, Time.fixedDeltaTime);
         }
 
+        bool IsAtRest()
+        {
+            RaycastHit hit = new RaycastHit();
+            Ray ray = new Ray();
+            ray.origin = transform.position;
+            ray.direction = Vector3.down;
+
+            if (Physics.Raycast(ray, 1))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         public virtual void HandleMovementCollision()
         {
 
@@ -142,6 +163,8 @@ namespace UnigmaEngine
 
         void OnCollisionEnter(Collision collision)
         {
+            //Vector3 oppForce = collision.contacts[0].normal;
+            //transform.position += 10*oppForce * Time.fixedDeltaTime;
             Debug.Log("Colliding");
         }
 
@@ -157,12 +180,6 @@ namespace UnigmaEngine
                 rigidbody.useGravity = false;
                 rigidbody.isKinematic = true;
                 rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            }
-            if (SpaceTimeVectorField != null)
-            {
-                GameObject obj = GameObject.FindGameObjectWithTag("GameManager");
-                if (obj != null)
-                    SpaceTimeVectorField = SpaceTimeVectorField.GetComponent<UnigmaSpaceTime>();
             }
 
             if (Beta == 0)

@@ -1,0 +1,2 @@
+#define UNIGMANATIVE_API __declspec(dllexport)
+#define UNIGMANATIVE_API __declspec(dllimport)

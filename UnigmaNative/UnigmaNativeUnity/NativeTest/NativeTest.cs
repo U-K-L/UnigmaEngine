@@ -42,6 +42,9 @@ public class NativeTest : MonoBehaviour
         IntPtr libraryHandle);
 
 
+    //Get DLL
+    public IntPtr libraryHandle;
+
     //Get the function from the DLL.
 
     //Convert the function to a delegate.
@@ -49,13 +52,14 @@ public class NativeTest : MonoBehaviour
     GetSquaredFunction GetSquared;
     IntPtr symbol;
 
-    delegate int InitFunction(IntPtr callFromCPP);
+    delegate int InitFunction(IntPtr calledFromCSharp);
     static InitFunction Init;
     //static extern int GetSquared(int x);
 
     //C++ Calls CSHARP
     static int CalledFromCSharp(int a, int b)
     {
+        Debug.Log("Unigma Native Called from C++");
         return 100;
     }
 
@@ -80,12 +84,12 @@ public class NativeTest : MonoBehaviour
 
     void GetMemoryAddressOfFunctions()
     {
-        symbol = GetProcAddress(OpenLibrary(Application.streamingAssetsPath + "/UnigmaDLLs/UnigmaNative.dll"), "GetSquared");
+        libraryHandle = OpenLibrary(Application.streamingAssetsPath + "/UnigmaDLLs/UnigmaNative.dll");
+        symbol = GetProcAddress(libraryHandle, "GetSquared");
         GetSquared = Marshal.GetDelegateForFunctionPointer(symbol, typeof(GetSquaredFunction)) as GetSquaredFunction;
-        Init = Marshal.GetDelegateForFunctionPointer(symbol, typeof(InitFunction)) as InitFunction;
 
         //Memory is set, now initialize.
-        InitializeFunctionPointers();
+        Debug.Log("Initializer Native DLL: " + InitializeFunctionPointers());
     }
 
     // Update is called once per frame
@@ -97,8 +101,8 @@ public class NativeTest : MonoBehaviour
     void OnApplicationQuit()
     {
         
-        bool result = CloseLibrary(symbol);
-        symbol = IntPtr.Zero;
+        bool result = CloseLibrary(libraryHandle);
+        libraryHandle = IntPtr.Zero;
         Debug.Log("Closed DLL is: " + result);
         
     }

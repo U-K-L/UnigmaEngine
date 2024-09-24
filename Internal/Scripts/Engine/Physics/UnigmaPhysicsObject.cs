@@ -103,7 +103,8 @@ namespace UnigmaEngine
 
         void TransferPhysicsBufferToUnigmaPhysics()
         {
-            transform.position = UnigmaPhysicsManager.Instance.PhysicsObjectsArray[(int)unigmaGameObject.unigmaGameObject.physicsId].position;
+            Vector3 pObjPos = UnigmaPhysicsManager.Instance.PhysicsObjectsArray[(int)unigmaGameObject.unigmaGameObject.physicsId].position;
+            transform.position = Vector3.Lerp(transform.position, pObjPos, Time.deltaTime);
         }
 
         public virtual void UpdatePhysics()

@@ -8,7 +8,7 @@
 #include "glm/glm.hpp"
 #include "Vector.h"
 
-
+bool programRunning = true;
 // This is an example of an exported variable
 DLLEXPORT UNIGMANATIVE_API int nUnigmaNative=0;
 
@@ -30,6 +30,13 @@ DLLEXPORT UNIGMANATIVE_API Vector3 GetSquared(void* x)
 
     return result;
 }
+
+
+UNIGMANATIVE_API void EndProgram()
+{
+    programRunning = false;
+}
+
 
 // This is the constructor of a class that has been exported.
 CUnigmaNative::CUnigmaNative()

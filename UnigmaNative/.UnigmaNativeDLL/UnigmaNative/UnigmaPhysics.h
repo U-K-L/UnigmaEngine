@@ -9,5 +9,13 @@ struct PhysicsObject
     float strength;
     float kelvin;
     float radius;
-
 };
+
+PhysicsObject* pObjs;
+int pObjsSize;
+void CalculatePosition();
+
+extern "C" {
+	extern UNIGMANATIVE_API void* PhysicsObjects;
+	extern UNIGMANATIVE_API void SetUpPhysicsArray(void* PhysicsObjectsArray, int size);
+}

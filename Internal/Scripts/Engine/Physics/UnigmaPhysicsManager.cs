@@ -42,8 +42,8 @@ namespace UnigmaEngine
         public static UnigmaPhysicsManager Instance;
 
         //Native Functions
-        unsafe delegate Vector3 GetPhysicsPosition(void* pObj, int size);
-        GetPhysicsPosition GetPhysicsPos;
+        unsafe delegate void GetPhysicsPosition(void* pObj, int size);
+        GetPhysicsPosition SetUpPhysicsArray;
         IntPtr symbol;
 
         private void Awake()
@@ -109,24 +109,22 @@ namespace UnigmaEngine
         private void Start()
         {
             GetFunctionsAddresses();
+            SetUpPhysicsNative();
         }
 
         unsafe void GetFunctionsAddresses()
         {
-            GetPhysicsPos = UnigmaNativeManager.GetNativeFunction<GetPhysicsPosition>(ref symbol, "GetPhysicsPosition");
+            SetUpPhysicsArray = UnigmaNativeManager.GetNativeFunction<GetPhysicsPosition>(ref symbol, "SetUpPhysicsArray");
         }
 
-        unsafe void DebugStructs()
+        unsafe void SetUpPhysicsNative()
         {
-
             void* ptr = NativeArrayUnsafeUtility.GetUnsafePtr(PhysicsObjectsArray);
-
-            Debug.Log("PHYSICS NATIVE Vector is: " + GetPhysicsPos(ptr, PhysicsObjectsArray.Length) + " | Unity Objects: " + PhysicsObjectsArray[5].position);
+            SetUpPhysicsArray(ptr, PhysicsObjectsArray.Length);
         }
 
         private void Update()
         {
-            DebugStructs();
             SetPhysicsObjects();
         }
         /*
@@ -256,6 +254,8 @@ namespace UnigmaEngine
 
         void ReleaseBuffers()
         {
+            PhysicsObjectsArray.Dispose();
+            _physicsObjectsBuffer.Release();
             /*
             if (_verticesObjectBuffer != null)
                 _verticesObjectBuffer.Release();

@@ -8,9 +8,17 @@ namespace UnigmaEngine
 {
     public class UnigmaNativeManager : MonoBehaviour
     {
+        //Native Functions
+        unsafe delegate void EndProgram();
+        EndProgram endProgramFunc;
+        IntPtr symbol;
+
         private void Awake()
         {
             GetMemoryAddressOfDLL();
+
+            //Get Functions...
+            GetFunctions();
         }
         // Start is called before the first frame update
         void Start()
@@ -67,6 +75,11 @@ namespace UnigmaEngine
             libraryHandle = OpenLibrary(Application.streamingAssetsPath + "/UnigmaDLLs/UnigmaNative.dll");
         }
 
+        void GetFunctions()
+        {
+            endProgramFunc = GetNativeFunction<EndProgram>(ref symbol, "EndProgram");
+        }
+
         public static unsafe T GetNativeFunction<T>(ref IntPtr symbol, string funcName) where T : Delegate
         {
             if (libraryHandle == null)
@@ -77,7 +90,7 @@ namespace UnigmaEngine
 
         void OnApplicationQuit()
         {
-
+            endProgramFunc();
             bool result = CloseLibrary(libraryHandle);
             libraryHandle = IntPtr.Zero;
             Debug.Log("Closed DLL is: " + result);

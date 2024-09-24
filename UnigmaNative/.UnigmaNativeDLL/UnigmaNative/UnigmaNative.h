@@ -4,6 +4,7 @@
 // that uses this DLL. This way any other project whose source files include this file see
 // UNIGMANATIVE_API functions as being imported from a DLL, whereas this DLL sees symbols
 // defined with this macro as being exported.
+#pragma once
 #ifndef C_UNIGMA_NATIVE_H
 #define C_UNIGMA_NATIVE_H
 
@@ -30,12 +31,17 @@ public:
 
 extern UNIGMANATIVE_API int nUnigmaNative;
 
+extern bool programRunning;
+
 UNIGMANATIVE_API int fnUnigmaNative(void);
 
 extern "C" {
 
 
 	extern DLLEXPORT UNIGMANATIVE_API Vector3 GetSquared(void* x);
+
+	UNIGMANATIVE_API void EndProgram();
+
 
 	/*
 	extern int finalVal = 15;
@@ -49,8 +55,6 @@ extern "C" {
 		return 3;
 	}
 	*/
-	extern UNIGMANATIVE_API void* PhysicsObjects;
-	extern UNIGMANATIVE_API Vector3 GetPhysicsPosition(void* PhysicsObjectsArray, int size);
 }
 
 #endif  // C_UNIGMA_NATIVE_H

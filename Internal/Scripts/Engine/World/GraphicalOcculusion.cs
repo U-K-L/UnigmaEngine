@@ -40,10 +40,11 @@ public class GraphicalOcculusion : MonoBehaviour
         GameObject[] ceilings = GameObject.FindGameObjectsWithTag("Ceiling");
         foreach (GameObject ceiling in ceilings)
         {
+
             //Get _StencilRef from isometricDepth.
             int stencilValue = ceiling.GetComponent<Renderer>().material.GetInt("_StencilRef");
-            ceiling.GetComponent<IsometricDepthNormalObject>().material.SetInt("_StencilRef", stencilValue);
-            ceiling.GetComponent<OutlineColor>()._originalMaterial.SetInt("_StencilRef", stencilValue);
+            ceiling?.GetComponent<IsometricDepthNormalObject>().material.SetInt("_StencilRef", stencilValue);
+            ceiling?.GetComponent<OutlineColor>()._originalMaterial.SetInt("_StencilRef", stencilValue);
             //ceiling.GetComponent<IsometricDepthNormalObject>().materials["FluidPositions"].SetInt("_StencilRef", stencilValue);
         }
 

@@ -179,8 +179,8 @@ namespace UnigmaEngine
                 ne += 1.0f;
             }
 
-            Debug.Log("Physics objects are: " + UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Count);
-            for (int i = 0; i < UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Count; i++)
+            Debug.Log("Physics objects are: " + UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Length);
+            for (int i = 0; i < UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Length; i++)
             {
                 Debug.Log("Object physics is: " + UnigmaPhysicsManager.Instance.PhysicsObjectsArray[i].radius);
             }
@@ -273,7 +273,7 @@ namespace UnigmaEngine
 
         void SetPhysicsPoints()
         {
-            _spaceTimeCompute.SetInt("_NumOfPhysicsObjects", UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Count);
+            _spaceTimeCompute.SetInt("_NumOfPhysicsObjects", UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Length);
             /*
             _NumOfPoints = 4;
             _spaceTimeCompute.SetInt("_NumOfPhysicsPoints", _NumOfPoints);

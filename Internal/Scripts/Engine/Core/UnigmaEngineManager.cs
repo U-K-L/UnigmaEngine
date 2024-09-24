@@ -1,11 +1,15 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEngine;
+using static UnityEngine.UI.CanvasScaler;
 
 namespace UnigmaEngine
 {
     public class UnigmaEngineManager : MonoBehaviour
     {
+
         public string InitialScene; //The name of the initial scene to be loaded.
 
         [HideInInspector]
@@ -14,6 +18,8 @@ namespace UnigmaEngine
         public UnigmaRendererManager unigmaRendererManager;
         [HideInInspector]
         public UnigmaSceneManager unigmaSceneManager;
+        [HideInInspector]
+        public UnigmaNativeManager unigmaNativeManager;
 
         public static UnigmaEngineManager Instance;
 
@@ -29,11 +35,13 @@ namespace UnigmaEngine
 
             Instance = this;
 
+            unigmaNativeManager = gameObject.AddComponent<UnigmaNativeManager>() as UnigmaNativeManager;
             unigmaPhysicsManager = gameObject.AddComponent<UnigmaPhysicsManager>() as UnigmaPhysicsManager;
             unigmaRendererManager = gameObject.AddComponent<UnigmaRendererManager>() as UnigmaRendererManager;
             unigmaSceneManager = gameObject.AddComponent<UnigmaSceneManager>() as UnigmaSceneManager;
 
             //Disable until initialized
+            unigmaNativeManager.enabled = true;
             unigmaPhysicsManager.enabled = true;
             unigmaRendererManager.enabled = true;
             unigmaSceneManager.enabled = true;
@@ -53,5 +61,6 @@ namespace UnigmaEngine
             unigmaRendererManager.Initialize(UnigmaSceneManager.currentScene);
             unigmaPhysicsManager.Initialize(UnigmaSceneManager.currentScene);
         }
+
     }
 }

@@ -162,6 +162,7 @@
     <ClInclude Include="UnigmaCell.h" />
     <ClInclude Include="UnigmaGameObject.h" />
     <ClInclude Include="UnigmaNative.h" />
+    <ClInclude Include="UnigmaPhysics.h" />
     <ClInclude Include="Vector.h" />
   </ItemGroup>
   <ItemGroup>
@@ -174,6 +175,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="UnigmaNative.cpp" />
+    <ClCompile Include="UnigmaPhysics.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

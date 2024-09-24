@@ -6,6 +6,8 @@ namespace UnigmaEngine
 {
     public class UnigmaPhysicsObject : MonoBehaviour
     {
+        bool initialized = false;
+        UnigmaGameObject unigmaGameObject;
         public bool isMassless = false;
         public bool influenceSpaceTime = false;
         public uint objectId = 0;
@@ -27,8 +29,6 @@ namespace UnigmaEngine
         public float kelvin = 300.0f;
         public float gravityStrength = 0.0f;
         public float gravityRadius = 0.0f;
-        //Make this a singleton
-        UnigmaSpaceTime SpaceTimeVectorField;
 
         bool ObjectSetup = false;
 
@@ -48,24 +48,45 @@ namespace UnigmaEngine
 
         public void Initialize()
         {
+            unigmaGameObject = GetComponent<UnigmaGameObject>();
             SetUpObject();
-            if (influenceSpaceTime)
-                SetUpBuffers();
-            SpaceTimeVectorField = UnigmaPhysicsManager.Instance.unigmaSpaceTime;
+            //if (influenceSpaceTime)
+            SetUpBuffers();
         }
 
         void SetUpBuffers()
         {
             physicsObject = new PhysicsObject();
-            UpdatePhysicsBuffers();
+
+
+            physicsObject.objectId = unigmaGameObject.unigmaGameObject.objectId;
+            unigmaGameObject.unigmaGameObject.physicsId = (uint)UnigmaPhysicsManager.Instance._physicsObjects.Count;
         }
 
         private void Update()
         {
-            UpdatePhysics();
+            if (UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Length > 0 && !initialized)
+            {
+                SetPhysicsBufferData();
+                initialized = true;
+            }
+            //UpdatePhysics();
 
-            if (influenceSpaceTime)
-                UpdatePhysicsBuffers();
+                //if (influenceSpaceTime)
+                //UpdatePhysicsBuffers();
+            TransferPhysicsBufferToUnigmaPhysics();
+        }
+
+        public void SetPhysicsBufferData()
+        {
+            //Tie this with a universal game object manager array.
+            physicsObject.objectId = objectId;
+            physicsObject.position = transform.position;
+            physicsObject.strength = gravityStrength;
+            physicsObject.radius = gravityRadius;
+            physicsObject.kelvin = kelvin;
+
+            UnigmaPhysicsManager.Instance.UodatePhysicsArray(unigmaGameObject.unigmaGameObject.physicsId, physicsObject);
         }
 
         void UpdatePhysicsBuffers()
@@ -77,7 +98,12 @@ namespace UnigmaEngine
             physicsObject.radius = gravityRadius;
             physicsObject.kelvin = kelvin;
 
-            UnigmaPhysicsManager.Instance.UodatePhysicsArray(objectId, physicsObject);
+            UnigmaPhysicsManager.Instance.UodatePhysicsArray(unigmaGameObject.unigmaGameObject.physicsId, physicsObject);
+        }
+
+        void TransferPhysicsBufferToUnigmaPhysics()
+        {
+            transform.position = UnigmaPhysicsManager.Instance.PhysicsObjectsArray[(int)unigmaGameObject.unigmaGameObject.physicsId].position;
         }
 
         public virtual void UpdatePhysics()
@@ -118,7 +144,8 @@ namespace UnigmaEngine
             acceleration = Vector3.zero;
             float minDist = float.PositiveInfinity;
             float maxDist = 10.0f;
-            Vector3 finalforce = Vector4.zero;
+            Vector3 finalforce = Vector3.down;//Vector4.zero;
+            /*
             for (int i = 0; i < UnigmaPhysicsManager.Instance.unigmaSpaceTime.VectorFieldNative.Length; i++)
             {
                 UnigmaSpaceTime.SpaceTimePoint vp = UnigmaPhysicsManager.Instance.unigmaSpaceTime.VectorFieldNative[i];
@@ -131,7 +158,7 @@ namespace UnigmaEngine
                 }
 
             }
-
+            */
 
             acceleration = finalforce;
         }

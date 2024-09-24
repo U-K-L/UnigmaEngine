@@ -1,6 +1,9 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -11,6 +14,8 @@ namespace UnigmaEngine
     {
         public uint objectId;
         public float3 position;
+        public float3 velocity;
+        public float3 acceleration;
         public float strength;
         public float kelvin;
         public float radius;
@@ -20,7 +25,7 @@ namespace UnigmaEngine
     public class UnigmaPhysicsManager : MonoBehaviour
     {
 
-        public static readonly int _physicsObjectsStride = sizeof(int) * 1 + sizeof(float) * 3 * 1 + sizeof(float) * 3;
+        public static readonly int _physicsObjectsStride = sizeof(int) * 1 + sizeof(float) * 3 * 3 + sizeof(float) * 3;
 
         public FluidSimulationManager unigmaFluids;
         public UnigmaSpaceTime unigmaSpaceTime;
@@ -28,13 +33,18 @@ namespace UnigmaEngine
         public List<UnigmaPhysicsObject> _physicsObjects = new List<UnigmaPhysicsObject>();
 
 
-        public List<PhysicsObject> PhysicsObjectsArray { get; private set; } = default;
+        public NativeArray<PhysicsObject> PhysicsObjectsArray;
 
         [HideInInspector]
         public ComputeBuffer _physicsObjectsBuffer { get; private set; }
 
 
         public static UnigmaPhysicsManager Instance;
+
+        //Native Functions
+        unsafe delegate Vector3 GetPhysicsPosition(void* pObj, int size);
+        GetPhysicsPosition GetPhysicsPos;
+        IntPtr symbol;
 
         private void Awake()
         {
@@ -49,7 +59,6 @@ namespace UnigmaEngine
 
         public void Initialize(UnigmaScene uScene)
         {
-            PhysicsObjectsArray = new List<PhysicsObject>();
 
             CreateObjectBuffers();
             CreatePhysicsComponents(uScene);
@@ -62,21 +71,22 @@ namespace UnigmaEngine
             UnigmaPhysicsObject[] physicsObjects = GetComponentsInChildren<UnigmaPhysicsObject>();
             for (uint i = 0; i < physicsObjects.Length; i++)
             {
-                if (!physicsObjects[i].influenceSpaceTime)
-                    continue;
+                //if (!physicsObjects[i].influenceSpaceTime)
+                //    continue;
                 UnigmaGameObject uObj = physicsObjects[i].GetComponent<UnigmaGameObject>();
 
                 if (uObj != null)
                 {
-                    AddPhysicsObject(physicsObjects[i].physicsObject);
                     physicsObjects[i].Initialize();
-
-                    physicsObjects[i].physicsObject.objectId = uObj.unigmaGameObject.objectId;
-                    uObj.unigmaGameObject.physicsId = (uint)PhysicsObjectsArray.Count;
+                    AddPhysicsObject(physicsObjects[i]);
                 }
             }
 
-            _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Count, 1), _physicsObjectsStride);
+            PhysicsObjectsArray = new NativeArray<PhysicsObject>(_physicsObjects.Count, Allocator.Persistent);
+            Debug.Log("Physics Objects Array Size: " + PhysicsObjectsArray.Length);
+
+            _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Length, 1), _physicsObjectsStride);
+
         }
 
         void CreatePhysicsComponents(UnigmaScene uScene)
@@ -95,13 +105,28 @@ namespace UnigmaEngine
             unigmaFluids.enabled = true;
         }
 
+
         private void Start()
         {
+            GetFunctionsAddresses();
+        }
 
+        unsafe void GetFunctionsAddresses()
+        {
+            GetPhysicsPos = UnigmaNativeManager.GetNativeFunction<GetPhysicsPosition>(ref symbol, "GetPhysicsPosition");
+        }
+
+        unsafe void DebugStructs()
+        {
+
+            void* ptr = NativeArrayUnsafeUtility.GetUnsafePtr(PhysicsObjectsArray);
+
+            Debug.Log("PHYSICS NATIVE Vector is: " + GetPhysicsPos(ptr, PhysicsObjectsArray.Length) + " | Unity Objects: " + PhysicsObjectsArray[5].position);
         }
 
         private void Update()
         {
+            DebugStructs();
             SetPhysicsObjects();
         }
         /*
@@ -196,22 +221,19 @@ namespace UnigmaEngine
         */
         void SetPhysicsObjects()
         {
-            if (PhysicsObjectsArray.Count > 0)
+            if (PhysicsObjectsArray.Length > 0)
                 _physicsObjectsBuffer.SetData(PhysicsObjectsArray);
         }
 
 
-        public void AddPhysicsObject(PhysicsObject pobj)
+        public void AddPhysicsObject(UnigmaPhysicsObject pobj)
         {
-            PhysicsObjectsArray.Add(pobj);
+            _physicsObjects.Add(pobj);
         }
 
         public void UodatePhysicsArray(uint objectId, PhysicsObject pobj)
         {
-            if (PhysicsObjectsArray.Count > objectId && objectId >= 0)
-            {
-                PhysicsObjectsArray[(int)objectId] = pobj;
-            }
+            PhysicsObjectsArray[(int)objectId] = pobj;
         }
 
 

@@ -3,9 +3,28 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Runtime.InteropServices;
 using System;
+using Unity.Collections;
+using static UnigmaEngine.UnigmaSpaceTime;
+using Unity.Collections.LowLevel.Unsafe;
 
 public class NativeTest : MonoBehaviour
 {
+
+    struct float3
+    {
+        public float x;
+        public float y;
+        public float z;
+
+        public float3(float x, float y, float z)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+    }
+
+    NativeArray<float3> vecs;
 
     //Csharp calls C++ function
     //Initialize and load DLL Library.
@@ -48,9 +67,10 @@ public class NativeTest : MonoBehaviour
     //Get the function from the DLL.
 
     //Convert the function to a delegate.
-    delegate int GetSquaredFunction(int x);
+    unsafe delegate Vector3 GetSquaredFunction(void* x);
     GetSquaredFunction GetSquared;
     IntPtr symbol;
+    IntPtr initSymbol;
 
     delegate int InitFunction(IntPtr calledFromCSharp);
     static InitFunction Init;
@@ -60,7 +80,7 @@ public class NativeTest : MonoBehaviour
     static int CalledFromCSharp(int a, int b)
     {
         Debug.Log("Unigma Native Called from C++");
-        return 100;
+        return a*b;
     }
 
     static int InitializeFunctionPointers()
@@ -79,6 +99,8 @@ public class NativeTest : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        vecs = new NativeArray<float3>(4, Allocator.Persistent);
+        vecs[2] = new float3(4, 5, 6);
         GetMemoryAddressOfFunctions();
     }
 
@@ -87,7 +109,8 @@ public class NativeTest : MonoBehaviour
         libraryHandle = OpenLibrary(Application.streamingAssetsPath + "/UnigmaDLLs/UnigmaNative.dll");
         symbol = GetProcAddress(libraryHandle, "GetSquared");
         GetSquared = Marshal.GetDelegateForFunctionPointer(symbol, typeof(GetSquaredFunction)) as GetSquaredFunction;
-
+        initSymbol = GetProcAddress(libraryHandle, "Init");
+        Init = Marshal.GetDelegateForFunctionPointer(initSymbol, typeof(InitFunction)) as InitFunction;
         //Memory is set, now initialize.
         Debug.Log("Initializer Native DLL: " + InitializeFunctionPointers());
     }
@@ -95,7 +118,14 @@ public class NativeTest : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Debug.Log("Coming from native devices: " + GetSquared(100));
+        DebugStructs();
+    }
+
+    unsafe void DebugStructs()
+    {
+
+        void* ptr = NativeArrayUnsafeUtility.GetUnsafePtr(vecs);
+        Debug.Log("Vector is: " + GetSquared(ptr).z + " | Size of Vector3 is " + sizeof(float3));
     }
 
     void OnApplicationQuit()

@@ -5,6 +5,8 @@
 #include "framework.h"
 #include "UnigmaNative.h"
 #include <iostream>
+#include "glm/glm.hpp"
+#include "Vector.h"
 
 
 // This is an example of an exported variable
@@ -16,10 +18,17 @@ DLLEXPORT UNIGMANATIVE_API int fnUnigmaNative(void)
     return 0;
 }
 
-DLLEXPORT UNIGMANATIVE_API int GetSquared(int x)
+DLLEXPORT UNIGMANATIVE_API Vector3 GetSquared(void* x)
 {
-    int val = 0;//CalledFromCSharp(1, 1);
-    return x * x + finalVal + val;
+    Vector3* vectors = (Vector3*)x;
+    Vector3 vec = vectors[2];//*(x + vec3Size * 2);
+
+    glm::vec3 dotProd(vec.x, vec.y, vec.z);
+    float dotResult = glm::dot(dotProd, dotProd);
+
+    Vector3 result = { dotResult,dotResult,dotResult };
+
+    return result;
 }
 
 // This is the constructor of a class that has been exported.

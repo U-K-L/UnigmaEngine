@@ -16,6 +16,8 @@
 #define DLLEXPORT 
 #endif
 
+#include "Vector.h"
+
 // This class is exported from the dll
 class UNIGMANATIVE_API CUnigmaNative {
 public:
@@ -29,7 +31,8 @@ UNIGMANATIVE_API int fnUnigmaNative(void);
 
 extern "C" {
 
-	DLLEXPORT UNIGMANATIVE_API int GetSquared(int x);
+
+	DLLEXPORT UNIGMANATIVE_API Vector3 GetSquared(void* x);
 
 	int finalVal = 15;
 
@@ -39,6 +42,7 @@ extern "C" {
 	DLLEXPORT UNIGMANATIVE_API int Init(int(*calledFromCSharp)(int a, int b))
 	{
 		CalledFromCSharp = calledFromCSharp;
+		return 3;
 	}
 
 

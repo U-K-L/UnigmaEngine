@@ -1,25 +1,4 @@
-﻿  pch.cpp
-  DebugWindowDesktop.cpp
-C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\DebugWindowDesktop.cpp(132,30): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-  (compiling source file '/DebugWindowDesktop.cpp')
-  
-  dllmain.cpp
-  UnigmaNative.cpp
-C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaNative.h(32,12): warning C4141: 'dllexport': used more than once
-  (compiling source file '/UnigmaNative.cpp')
-  
-C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaNative.h(39,12): warning C4141: 'dllexport': used more than once
-  (compiling source file '/UnigmaNative.cpp')
-  
-C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaNative.cpp(11,11): warning C4141: 'dllexport': used more than once
-  (compiling source file '/UnigmaNative.cpp')
-  
-C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaNative.cpp(14,11): warning C4141: 'dllexport': used more than once
-  (compiling source file '/UnigmaNative.cpp')
-  
-C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaNative.cpp(19,11): warning C4141: 'dllexport': used more than once
-  (compiling source file '/UnigmaNative.cpp')
-  
-  Generating Code...
-     Creating library C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\x64\Debug\UnigmaNative.lib and object C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\x64\Debug\UnigmaNative.exp
-  UnigmaNative.vcxproj -> C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\x64\Debug\UnigmaNative.dll
+﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(517,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
+  LINK : ..\..\..\..\StreamingAssets\UnigmaDLLs\UnigmaNative.dll not found or not built by the last incremental link; performing full link
+     Creating library ..\..\..\..\StreamingAssets\UnigmaDLLs\UnigmaNative.lib and object ..\..\..\..\StreamingAssets\UnigmaDLLs\UnigmaNative.exp
+  UnigmaNative.vcxproj -> C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\StreamingAssets\UnigmaDLLs\UnigmaNative.dll

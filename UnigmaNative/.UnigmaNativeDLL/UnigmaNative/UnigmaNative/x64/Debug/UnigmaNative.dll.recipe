@@ -2,7 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\ProjectsSpeed\Unigma\Omnicidals\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\x64\Debug\UnigmaNative.dll</FullPath>
+      <FullPath>C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\StreamingAssets\UnigmaDLLs\UnigmaNative.dll</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />

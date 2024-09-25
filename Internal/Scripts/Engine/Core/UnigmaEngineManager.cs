@@ -34,7 +34,7 @@ namespace UnigmaEngine
             }
 
             Instance = this;
-
+            Physics.simulationMode = SimulationMode.Script;
             unigmaNativeManager = gameObject.AddComponent<UnigmaNativeManager>() as UnigmaNativeManager;
             unigmaPhysicsManager = gameObject.AddComponent<UnigmaPhysicsManager>() as UnigmaPhysicsManager;
             unigmaRendererManager = gameObject.AddComponent<UnigmaRendererManager>() as UnigmaRendererManager;

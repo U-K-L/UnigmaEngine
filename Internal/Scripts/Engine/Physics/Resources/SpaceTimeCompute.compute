@@ -203,7 +203,7 @@ void AttractionField(uint3 id : SV_DispatchThreadID)
         dist = min(dist, 2);
         float3 toObjDir = normalize(_PhysicsObjects[i].position - _VectorField[vectorIndex].position);
 
-        _VectorField[vectorIndex].force += toObjDir * _PhysicsObjects[i].strength * dist * _PhysicsObjects[i].radius;
+        //_VectorField[vectorIndex].force += toObjDir * _PhysicsObjects[i].strength * dist * _PhysicsObjects[i].radius;
         
         float k = _VectorField[vectorIndex].conductivity;
         float Tk = k * (_PhysicsObjects[i].kelvin - _VectorField[vectorIndex].kelvin) * 0.01f;

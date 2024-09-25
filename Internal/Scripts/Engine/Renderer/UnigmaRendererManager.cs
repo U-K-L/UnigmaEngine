@@ -95,9 +95,12 @@ namespace UnigmaEngine
         {
             UpdateRendererObject();
 
+            /*
             string[] keys = renderContainers.Keys.ToArray();
             foreach(string key in keys)
                 CombineAABB(key);
+            */
+
         }
 
         void UpdateRendererObject()
@@ -117,6 +120,8 @@ namespace UnigmaEngine
             unigmaRendererObjects = new UnigmaRendererObjectStruct[_renderObjects.Count];
             for (int rIndex = 0; rIndex < _renderObjects.Count; rIndex++)
             {
+                int urobjIndex = 0;
+                UnigmaRendererObject urobj = GetComponent<UnigmaRendererObject>();
                 Renderer r = _renderObjects[rIndex]._renderer;
                 MeshFilter mf = r.GetComponent<MeshFilter>();
                 if (mf)
@@ -147,6 +152,12 @@ namespace UnigmaEngine
                         id = (uint)rIndex
 
                     };
+
+                    if (urobj != null)
+                    {
+                        urobj._renderID = urobjIndex;
+                        urobjIndex++;
+                    }
                     indexMeshObject++;
                 }
             }
@@ -159,6 +170,11 @@ namespace UnigmaEngine
                 _indicesObjectBuffer.SetData(_indices);
             }
 
+        }
+
+        public void UpdateRenderArray(int index, UnigmaRendererObjectStruct robj)
+        {
+            unigmaRendererObjects[index] = robj;
         }
 
         void ReleaseBuffers()

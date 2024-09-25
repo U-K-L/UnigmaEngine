@@ -179,12 +179,6 @@ namespace UnigmaEngine
                 ne += 1.0f;
             }
 
-            Debug.Log("Physics objects are: " + UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Length);
-            for (int i = 0; i < UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Length; i++)
-            {
-                Debug.Log("Object physics is: " + UnigmaPhysicsManager.Instance.PhysicsObjectsArray[i].radius);
-            }
-
             return KelvinToFahrenheit(temperatureAvg / ne);
         }
 
@@ -357,7 +351,7 @@ namespace UnigmaEngine
 
         private void OnDrawGizmos()
         {
-
+            /*
             //Set int for simulation
             Gizmos.color = Color.cyan;
             Gizmos.DrawWireCube(Vector3.zero, SpaceTimeSize);
@@ -384,6 +378,7 @@ namespace UnigmaEngine
                     Handles.Label( vp.position + Vector3.up*0.5f, "Particle: " + i + " | " + "Kelvin: " + vp.kelvin + " | Particles Count: " + vp.particlesCount);
                 }
             }
+            */
 
         }
 

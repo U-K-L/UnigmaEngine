@@ -5,8 +5,11 @@ using System.Linq;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEditor.Rendering;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 namespace UnigmaEngine
 {
@@ -19,13 +22,23 @@ namespace UnigmaEngine
         public float strength;
         public float kelvin;
         public float radius;
+        public int collisionPrimitivesStart;
+        public int collisionPrimitivesCount;
+        public Matrix4x4 localToWorld;
 
+    };
+
+    public struct CollisionPrimitive
+    {
+        public Vector3 position;
+        public Vector3 normal;
+        public Vector3 force;
     };
 
     public class UnigmaPhysicsManager : MonoBehaviour
     {
 
-        public static readonly int _physicsObjectsStride = sizeof(int) * 1 + sizeof(float) * 3 * 3 + sizeof(float) * 3;
+        public static readonly int _physicsObjectsStride = sizeof(int) * 3 + sizeof(float) * 3 * 3 + sizeof(float) * 3 + sizeof(float) * 4*4;
 
         public FluidSimulationManager unigmaFluids;
         public UnigmaSpaceTime unigmaSpaceTime;
@@ -34,6 +47,8 @@ namespace UnigmaEngine
 
 
         public NativeArray<PhysicsObject> PhysicsObjectsArray;
+        public NativeArray<CollisionPrimitive> CollisionPrimitives;
+        public NativeArray<int> CollisionIndices;
 
         [HideInInspector]
         public ComputeBuffer _physicsObjectsBuffer { get; private set; }
@@ -110,6 +125,7 @@ namespace UnigmaEngine
         {
             GetFunctionsAddresses();
             SetUpPhysicsNative();
+            BuildCollisionTriangles();
         }
 
         unsafe void GetFunctionsAddresses()
@@ -234,6 +250,46 @@ namespace UnigmaEngine
             PhysicsObjectsArray[(int)objectId] = pobj;
         }
 
+        void BuildCollisionTriangles()
+        {
+            List<CollisionPrimitive> Vertices = new List<CollisionPrimitive>();
+            List<int> Indices = new List<int>();
+            for(int j = 0; j < _physicsObjects.Count; j++)
+            {
+                UnigmaPhysicsObject physUnigmaObj = _physicsObjects[j];
+                MeshFilter mf = physUnigmaObj.GetComponent<MeshFilter>();
+                if (mf)
+                {
+                    Mesh m = mf.sharedMesh;
+                    int startVert = Vertices.Count;
+                    int startIndex = Indices.Count;
+
+                    for (int i = 0; i < m.vertices.Length; i++)
+                    {
+                        CollisionPrimitive v = new CollisionPrimitive();
+                        v.position = m.vertices[i];
+                        v.normal = m.normals[i];
+                        v.force = Vector3.zero;
+                        Vertices.Add(v);
+                    }
+                    var indices = m.GetIndices(0);
+                    Indices.AddRange(indices.Select(index => index + startVert));
+
+                    _physicsObjects[j].physicsObject.collisionPrimitivesStart = startIndex;
+                    _physicsObjects[j].physicsObject.collisionPrimitivesCount = indices.Length;
+                    _physicsObjects[j].physicsObject.localToWorld = _physicsObjects[j].transform.localToWorldMatrix;
+
+
+                }
+            }
+
+            CollisionPrimitives = new NativeArray<CollisionPrimitive>(Vertices.Count, Allocator.Persistent);
+            CollisionIndices = new NativeArray<int>(Indices.Count, Allocator.Persistent);
+
+            CollisionPrimitives.CopyFrom(Vertices.ToArray());
+            CollisionIndices.CopyFrom(Indices.ToArray());
+        }
+
 
         void OnDisable()
         {
@@ -265,6 +321,49 @@ namespace UnigmaEngine
                 _meshObjectBuffer.Release();
             */
         }
+
+        void OnDrawGizmos()
+        {
+            if (!Application.isPlaying || PhysicsObjectsArray.Length == 0 || CollisionPrimitives.Length == 0)
+                return;
+
+            Gizmos.color = Color.red; // Set the color for drawing
+
+            // Loop through each physics object
+            for (int i = 0; i < PhysicsObjectsArray.Length; i++)
+            {
+                PhysicsObject physicsObject = PhysicsObjectsArray[i];
+
+                // Get the range of primitives for this object
+                int start = physicsObject.collisionPrimitivesStart;
+                int count = physicsObject.collisionPrimitivesCount;
+
+                // Loop through the indices of the object's collision primitives
+                for (int j = 0; j < count; j += 3)
+                {
+                    // Get the triangle indices
+                    int index0 = CollisionIndices[start + j];
+                    int index1 = CollisionIndices[start + j + 1];
+                    int index2 = CollisionIndices[start + j + 2];
+
+                    // Get the actual vertices from the CollisionPrimitives array
+                    Vector3 vertex0 = CollisionPrimitives[index0].position;
+                    Vector3 vertex1 = CollisionPrimitives[index1].position;
+                    Vector3 vertex2 = CollisionPrimitives[index2].position;
+
+                    // Transform vertices by the object's localToWorld matrix
+                    vertex0 = physicsObject.localToWorld.MultiplyPoint3x4(vertex0);
+                    vertex1 = physicsObject.localToWorld.MultiplyPoint3x4(vertex1);
+                    vertex2 = physicsObject.localToWorld.MultiplyPoint3x4(vertex2);
+
+                    // Draw the triangle using Gizmos
+                    Gizmos.DrawLine(vertex0, vertex1);
+                    Gizmos.DrawLine(vertex1, vertex2);
+                    Gizmos.DrawLine(vertex2, vertex0);
+                }
+            }
+        }
+
 
     }
 }

@@ -6,6 +6,7 @@ namespace UnigmaEngine
 {
     public class UnigmaPhysicsObject : MonoBehaviour
     {
+        int _physicsId;
         bool initialized = false;
         UnigmaGameObject unigmaGameObject;
         public bool isMassless = false;
@@ -61,6 +62,7 @@ namespace UnigmaEngine
 
             physicsObject.objectId = unigmaGameObject.unigmaGameObject.objectId;
             unigmaGameObject.unigmaGameObject.physicsId = (uint)UnigmaPhysicsManager.Instance._physicsObjects.Count;
+            _physicsId = (int)unigmaGameObject.unigmaGameObject.physicsId;
         }
 
         private void Update()
@@ -70,11 +72,11 @@ namespace UnigmaEngine
                 SetPhysicsBufferData();
                 initialized = true;
             }
-            //UpdatePhysics();
+            UpdatePhysics();
 
                 //if (influenceSpaceTime)
                 //UpdatePhysicsBuffers();
-            TransferPhysicsBufferToUnigmaPhysics();
+            //TransferPhysicsBufferToUnigmaPhysics();
         }
 
         public void SetPhysicsBufferData()
@@ -114,10 +116,10 @@ namespace UnigmaEngine
 
             if (!isMassless)
             {
-                UpdatePosition();
-                UpdateVelocity();
-                UpdateAcceleration();
-                UpdateForceApplied();
+                //UpdatePosition();
+                //UpdateVelocity();
+                //UpdateAcceleration();
+                //UpdateForceApplied();
             }
 
         }
@@ -166,7 +168,10 @@ namespace UnigmaEngine
 
         void UpdatePosition()
         {
-            transform.position = transform.position + velocity * Time.fixedDeltaTime;//Vector3.Lerp(transform.position, transform.position + velocity * Time.fixedDeltaTime, Time.fixedDeltaTime);
+            Vector3 pObjVelocity = UnigmaPhysicsManager.Instance.PhysicsObjectsArray[_physicsId].velocity;
+            Vector3 newPos = transform.position + pObjVelocity * Time.deltaTime;
+            transform.position = Vector3.Lerp(transform.position, newPos, Time.deltaTime);
+            //transform.position = transform.position + velocity * Time.fixedDeltaTime;//Vector3.Lerp(transform.position, transform.position + velocity * Time.fixedDeltaTime, Time.fixedDeltaTime);
         }
 
         bool IsAtRest()
@@ -202,6 +207,8 @@ namespace UnigmaEngine
                 collider = GetComponent<Collider>();
             if (collider == null)
                 collider = gameObject.AddComponent<BoxCollider>() as Collider;
+            if (rigidbody == null)
+                rigidbody = GetComponent<Rigidbody>();
             if (rigidbody == null)
             {
                 rigidbody = transform.gameObject.AddComponent<Rigidbody>();

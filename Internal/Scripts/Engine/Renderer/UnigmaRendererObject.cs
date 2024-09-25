@@ -7,6 +7,7 @@ namespace UnigmaEngine
 {
     public class UnigmaRendererObject : MonoBehaviour
     {
+        public int _renderID;
         public Renderer _renderer;
         public Material _MaterialBase;
         public Material _MaterialPasses;
@@ -76,6 +77,8 @@ namespace UnigmaEngine
                 unigmaRendererObject.AABBMin = minPoint;
                 unigmaRendererObject.AABBMax = maxPoint;
             }
+
+            UnigmaRendererManager.Instance.UpdateRenderArray(_renderID, unigmaRendererObject);
         }
     }
 

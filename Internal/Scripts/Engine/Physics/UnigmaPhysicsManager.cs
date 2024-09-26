@@ -57,9 +57,14 @@ namespace UnigmaEngine
         public static UnigmaPhysicsManager Instance;
 
         //Native Functions
-        unsafe delegate void GetPhysicsPosition(void* pObj, int size);
-        GetPhysicsPosition SetUpPhysicsArray;
-        IntPtr symbol;
+        unsafe delegate void SetUpPhysicsBuffers(void* physicsObjects, int physicsObjectsSize,
+                                                 void* collisionPrims, int collisionPrimsSize,
+                                                 void* collisionIndices, int collisionIndicesSize);
+        SetUpPhysicsBuffers setUpPhysicsBuffers;
+        IntPtr setupPhysicsSymbol;
+        unsafe delegate Vector3 CheckObjectCollisionsTest(int objectAId);
+        CheckObjectCollisionsTest checkObjectCollisionsTest;
+        IntPtr collisionsTestSymbol;
 
         private void Awake()
         {
@@ -123,25 +128,32 @@ namespace UnigmaEngine
 
         private void Start()
         {
+            BuildCollisionTriangles();
             GetFunctionsAddresses();
             SetUpPhysicsNative();
-            BuildCollisionTriangles();
         }
 
         unsafe void GetFunctionsAddresses()
         {
-            SetUpPhysicsArray = UnigmaNativeManager.GetNativeFunction<GetPhysicsPosition>(ref symbol, "SetUpPhysicsArray");
+            setUpPhysicsBuffers = UnigmaNativeManager.GetNativeFunction<SetUpPhysicsBuffers>(ref setupPhysicsSymbol, "SetUpPhysicsBuffers");
+            checkObjectCollisionsTest = UnigmaNativeManager.GetNativeFunction<CheckObjectCollisionsTest>(ref collisionsTestSymbol, "CheckObjectCollisionsTest");
         }
 
         unsafe void SetUpPhysicsNative()
         {
-            void* ptr = NativeArrayUnsafeUtility.GetUnsafePtr(PhysicsObjectsArray);
-            SetUpPhysicsArray(ptr, PhysicsObjectsArray.Length);
+            void* physicsObjectsPrt = NativeArrayUnsafeUtility.GetUnsafePtr(PhysicsObjectsArray);
+            void* collisionPrimPtr = NativeArrayUnsafeUtility.GetUnsafePtr(CollisionPrimitives);
+            void* collisionIndPtr = NativeArrayUnsafeUtility.GetUnsafePtr(CollisionIndices);
+            setUpPhysicsBuffers(physicsObjectsPrt, PhysicsObjectsArray.Length,
+                              collisionPrimPtr, CollisionPrimitives.Length,
+                              collisionIndPtr, CollisionIndices.Length);
         }
 
         private void Update()
         {
             SetPhysicsObjects();
+
+            //Debug.Log("Did object 31 collide? " + checkObjectCollisionsTest(31).ToString("F7"));
         }
         /*
         private IEnumerator ReactToForces()
@@ -312,6 +324,8 @@ namespace UnigmaEngine
         {
             PhysicsObjectsArray.Dispose();
             _physicsObjectsBuffer.Release();
+            CollisionPrimitives.Dispose();
+            CollisionIndices.Dispose();
             /*
             if (_verticesObjectBuffer != null)
                 _verticesObjectBuffer.Release();

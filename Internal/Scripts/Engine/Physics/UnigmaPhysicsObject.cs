@@ -60,9 +60,9 @@ namespace UnigmaEngine
             physicsObject = new PhysicsObject();
 
 
-            physicsObject.objectId = unigmaGameObject.unigmaGameObject.objectId;
             unigmaGameObject.unigmaGameObject.physicsId = (uint)UnigmaPhysicsManager.Instance._physicsObjects.Count;
             _physicsId = (int)unigmaGameObject.unigmaGameObject.physicsId;
+            physicsObject.objectId = (uint)_physicsId;
         }
 
         private void Update()
@@ -75,15 +75,16 @@ namespace UnigmaEngine
             UpdatePhysics();
 
                 //if (influenceSpaceTime)
-                //UpdatePhysicsBuffers();
+            UpdatePhysicsBuffers();
             //TransferPhysicsBufferToUnigmaPhysics();
         }
 
         public void SetPhysicsBufferData()
         {
             //Tie this with a universal game object manager array.
-            physicsObject.objectId = objectId;
+            physicsObject.objectId = (uint)_physicsId;
             physicsObject.position = transform.position;
+            physicsObject.localToWorld = transform.localToWorldMatrix;
             physicsObject.strength = gravityStrength;
             physicsObject.radius = gravityRadius;
             physicsObject.kelvin = kelvin;
@@ -94,11 +95,14 @@ namespace UnigmaEngine
         void UpdatePhysicsBuffers()
         {
             //Tie this with a universal game object manager array.
-            physicsObject.objectId = objectId;
+            physicsObject.objectId = (uint)_physicsId;
             physicsObject.position = transform.position;
+            physicsObject.localToWorld = transform.localToWorldMatrix;
             physicsObject.strength = gravityStrength;
             physicsObject.radius = gravityRadius;
             physicsObject.kelvin = kelvin;
+            physicsObject.acceleration = UnigmaPhysicsManager.Instance.PhysicsObjectsArray[_physicsId].acceleration;
+            physicsObject.velocity = UnigmaPhysicsManager.Instance.PhysicsObjectsArray[_physicsId].velocity;
 
             UnigmaPhysicsManager.Instance.UodatePhysicsArray(unigmaGameObject.unigmaGameObject.physicsId, physicsObject);
         }
@@ -116,7 +120,7 @@ namespace UnigmaEngine
 
             if (!isMassless)
             {
-                //UpdatePosition();
+                UpdatePosition();
                 //UpdateVelocity();
                 //UpdateAcceleration();
                 //UpdateForceApplied();

@@ -91,8 +91,10 @@ namespace UnigmaEngine
         void OnApplicationQuit()
         {
             endProgramFunc();
+            UnigmaPhysicsManager.wakePhysicsThread();
             bool result = CloseLibrary(libraryHandle);
             libraryHandle = IntPtr.Zero;
+            symbol = IntPtr.Zero;
             Debug.Log("Closed DLL is: " + result);
 
         }

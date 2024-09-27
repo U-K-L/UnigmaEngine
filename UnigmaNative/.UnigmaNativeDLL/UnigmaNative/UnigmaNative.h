@@ -21,6 +21,7 @@
 #endif
 
 #include "Vector.h"
+#include <mutex> 
 
 // This class is exported from the dll
 class UNIGMANATIVE_API CUnigmaNative {

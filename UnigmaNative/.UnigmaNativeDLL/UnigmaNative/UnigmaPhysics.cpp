@@ -4,9 +4,12 @@
 #include "UnigmaPhysics.h"
 #include <iostream>
 #include "glm/glm.hpp"
-#include "Vector.h"
 
 using namespace std;
+
+condition_variable cv;
+mutex mtx;
+atomic<bool> isSleeping(false);
 
 
 UNIGMANATIVE_API void SetUpPhysicsBuffers(void* PhysicsObjectsArray, int PhysicsObjectsArraySize,
@@ -26,7 +29,7 @@ UNIGMANATIVE_API void SetUpPhysicsBuffers(void* PhysicsObjectsArray, int Physics
     CollisionIndicesSize = collisionIndicesSize;
 
 	//Create a new thread.
-	PhysicsMainThread = thread(CaculatePhysicsForces); //Begin calculation of physics forces.
+	PhysicsMainThread = thread(PhysicsMain); //Begin calculation of physics forces.
 	PhysicsMainThread.detach(); //Let it go and do its own thing.
 }
 
@@ -44,6 +47,43 @@ UNIGMANATIVE_API Vector3 CheckObjectCollisionsTest(int objectAId)
     }
 
     return {-12, -12, -12};
+}
+
+UNIGMANATIVE_API int WakePhysicsThread()
+{
+    WakeThread();
+    return 0;
+}
+
+UNIGMANATIVE_API bool SyncPhysicsThread()
+{
+    return isSleeping;
+}
+
+int PhysicsMain()
+{
+    threadReady = true;
+    CaculatePhysicsForces();
+    return 0;
+}
+
+void ThreadSleep()
+{
+    isSleeping = true;
+    threadReady = false;
+    unique_lock<std::mutex> lock(mtx);
+    // Wait until the condition variable is notified and 'ready' is true
+    cv.wait(lock, [] { return threadReady; });
+}
+
+void WakeThread()
+{
+    {
+        std::lock_guard<std::mutex> lock(mtx);  // Acquire the mutex lock
+        threadReady = true; 
+        isSleeping = false;
+    }
+    cv.notify_one();  // Notify the sleeping thread to wake up
 }
 
 void CaculatePhysicsForces()
@@ -65,7 +105,8 @@ void CaculatePhysicsForces()
 		CaculateAcceleration(deltaTime);
 		CaculateVelocity(deltaTime);
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(32));
+		//std::this_thread::sleep_for(std::chrono::milliseconds(64));
+        ThreadSleep();
 	}
 }
 
@@ -83,7 +124,7 @@ void CaculateVelocity(float deltaTime)
 	for (int i = 0; i < pObjsSize; i++)
 	{
         bool didCollide = CheckObjectAgainstAllCollisions(pObjs[i]);
-        if (didCollide)
+        if (!didCollide)
             pObjs[i].velocity = pObjs[i].velocity + pObjs[i].acceleration * deltaTime;
         else
             pObjs[i].velocity = { 0,0,0 };
@@ -121,6 +162,8 @@ bool CheckObjectAgainstAllCollisions(PhysicsObject objectA)
         if (CheckObjectCollisions(objectA, objectB))
             return true;
     }
+
+    return false;
 }
 
 bool CheckObjectCollisions( PhysicsObject objectA,  PhysicsObject objectB)
@@ -150,6 +193,7 @@ glm::vec3 crossProduct(const glm::vec3& a, const glm::vec3& b) {
 }
 
 bool TriangleTriangleIntersectionTest(int tri1Index, int tri2Index, const CollisionPrimitive* primitives, const PhysicsObject& object1, const PhysicsObject& object2) {
+
     // Calculate the starting indices in CollisionIndices for each triangle
     int idx1 = object1.collisionPrimitivesStart + tri1Index * 3;
     int idx2 = object2.collisionPrimitivesStart + tri2Index * 3;
@@ -162,6 +206,7 @@ bool TriangleTriangleIntersectionTest(int tri1Index, int tri2Index, const Collis
     int j1 = CollisionIndices[idx2 + 0];
     int j2 = CollisionIndices[idx2 + 1];
     int j3 = CollisionIndices[idx2 + 2];
+
 
     // Transform the local positions to world space using localToWorld matrices
     glm::vec3 p1 = glm::vec3(object1.localToWorld * glm::vec4(primitives[i1].position.toGlmVec3(), 1.0f));

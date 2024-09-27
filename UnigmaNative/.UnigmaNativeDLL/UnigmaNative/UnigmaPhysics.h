@@ -39,6 +39,12 @@ bool TriangleTriangleIntersectionTest(int tri1Index, int tri2Index, const Collis
 glm::vec3 crossProduct(const glm::vec3& a, const glm::vec3& b);
 bool CheckObjectCollisions(PhysicsObject objectA, PhysicsObject objectB);
 bool TriangleCollision();
+void WakeThread();
+void ThreadSleep();
+int PhysicsMain();
+
+
+bool threadReady = false; // A flag to indicate when to wake up the thread
 
 extern "C" {
 
@@ -47,4 +53,6 @@ extern "C" {
                                                      void* CollisionPrims,      int CollisionPrimsSize,
                                                      void* CollisionIndices,    int CollisionIndicesSize);
     extern UNIGMANATIVE_API Vector3 CheckObjectCollisionsTest(int objectAId);
+    UNIGMANATIVE_API int WakePhysicsThread();
+    UNIGMANATIVE_API bool SyncPhysicsThread();
 }

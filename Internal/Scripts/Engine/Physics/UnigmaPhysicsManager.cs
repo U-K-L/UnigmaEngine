@@ -57,11 +57,24 @@ namespace UnigmaEngine
         public static UnigmaPhysicsManager Instance;
 
         //Native Functions
+        //Set Up the Physics buffer and thread
         unsafe delegate void SetUpPhysicsBuffers(void* physicsObjects, int physicsObjectsSize,
                                                  void* collisionPrims, int collisionPrimsSize,
                                                  void* collisionIndices, int collisionIndicesSize);
         SetUpPhysicsBuffers setUpPhysicsBuffers;
         IntPtr setupPhysicsSymbol;
+
+        //Wake physics thread.
+        public unsafe delegate int WakePhysicsThread();
+        public static WakePhysicsThread wakePhysicsThread;
+        IntPtr wakePhysicsThreadSymbol;
+
+        //Sync physics thread.
+        unsafe delegate bool SyncPhysicsThread();
+        SyncPhysicsThread syncPhysicsThread;
+        IntPtr syncPhysicsThreadSymbol;
+
+        //Unit test
         unsafe delegate Vector3 CheckObjectCollisionsTest(int objectAId);
         CheckObjectCollisionsTest checkObjectCollisionsTest;
         IntPtr collisionsTestSymbol;
@@ -136,7 +149,9 @@ namespace UnigmaEngine
         unsafe void GetFunctionsAddresses()
         {
             setUpPhysicsBuffers = UnigmaNativeManager.GetNativeFunction<SetUpPhysicsBuffers>(ref setupPhysicsSymbol, "SetUpPhysicsBuffers");
+            wakePhysicsThread = UnigmaNativeManager.GetNativeFunction<WakePhysicsThread>(ref wakePhysicsThreadSymbol, "WakePhysicsThread");
             checkObjectCollisionsTest = UnigmaNativeManager.GetNativeFunction<CheckObjectCollisionsTest>(ref collisionsTestSymbol, "CheckObjectCollisionsTest");
+            syncPhysicsThread = UnigmaNativeManager.GetNativeFunction<SyncPhysicsThread>(ref syncPhysicsThreadSymbol, "SyncPhysicsThread");
         }
 
         unsafe void SetUpPhysicsNative()
@@ -149,11 +164,22 @@ namespace UnigmaEngine
                               collisionIndPtr, CollisionIndices.Length);
         }
 
+
+        void WakeupPhysicsThread()
+        {
+            wakePhysicsThread();
+        }
+
         private void Update()
         {
+            //while (!syncPhysicsThread())
+            //{
+            //Indefinite loop wait.
+            //}
             SetPhysicsObjects();
-
-            //Debug.Log("Did object 31 collide? " + checkObjectCollisionsTest(31).ToString("F7"));
+            //After getting all the data we need, send this back to be updated.
+            WakeupPhysicsThread();
+            Debug.Log("Did object 31 collide? " + checkObjectCollisionsTest(31).ToString("F7"));
         }
         /*
         private IEnumerator ReactToForces()
@@ -322,6 +348,10 @@ namespace UnigmaEngine
 
         void ReleaseBuffers()
         {
+            collisionsTestSymbol = IntPtr.Zero;
+            setupPhysicsSymbol = IntPtr.Zero;
+            wakePhysicsThreadSymbol = IntPtr.Zero;
+            syncPhysicsThreadSymbol = IntPtr.Zero;
             PhysicsObjectsArray.Dispose();
             _physicsObjectsBuffer.Release();
             CollisionPrimitives.Dispose();

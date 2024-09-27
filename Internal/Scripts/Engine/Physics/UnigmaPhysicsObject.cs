@@ -65,6 +65,11 @@ namespace UnigmaEngine
             physicsObject.objectId = (uint)_physicsId;
         }
 
+        private void FixedUpdate()
+        {
+
+        }
+
         private void Update()
         {
             if (UnigmaPhysicsManager.Instance.PhysicsObjectsArray.Length > 0 && !initialized)
@@ -74,7 +79,7 @@ namespace UnigmaEngine
             }
             UpdatePhysics();
 
-                //if (influenceSpaceTime)
+            //if (influenceSpaceTime)
             UpdatePhysicsBuffers();
             //TransferPhysicsBufferToUnigmaPhysics();
         }

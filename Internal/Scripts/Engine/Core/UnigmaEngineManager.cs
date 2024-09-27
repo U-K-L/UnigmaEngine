@@ -61,6 +61,5 @@ namespace UnigmaEngine
             unigmaRendererManager.Initialize(UnigmaSceneManager.currentScene);
             unigmaPhysicsManager.Initialize(UnigmaSceneManager.currentScene);
         }
-
     }
 }

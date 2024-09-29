@@ -139,7 +139,7 @@ void CaculateVelocity(float deltaTime)
 	for (int i = 0; i < Physics->pObjsSize; i++)
 	{
         //Too slow, need to profile.
-        bool didCollide = true;//CheckObjectAgainstAllCollisions(Physics->pObjs[i]);
+        bool didCollide = CheckObjectAgainstAllCollisions(Physics->pObjs[i]);
         if (!didCollide)
             Physics->pObjs[i].velocity = Physics->pObjs[i].velocity + Physics->pObjs[i].acceleration * deltaTime;
         else
@@ -169,7 +169,7 @@ bool TriangleCollision()
 
 bool CheckObjectAgainstAllCollisions(PhysicsObject objectA)
 {
-    for (int j = 0; j < Physics->pObjsSize; j++)
+    for (int j = 0; j < 1; j++)
     {
         PhysicsObject objectB = Physics->pObjs[j];
 
@@ -187,6 +187,9 @@ bool CheckObjectCollisions( PhysicsObject objectA,  PhysicsObject objectB)
     // Calculate the number of triangles for each object
     int triangleCountA = objectA.collisionPrimitivesCount / 3;
     int triangleCountB = objectB.collisionPrimitivesCount / 3;
+
+    triangleCountA = min(triangleCountA, 128);
+    triangleCountB = min(triangleCountB, 128);
 
     // Loop over the triangle numbers for objectA
     for (int aTri = 0; aTri < triangleCountA; aTri++)

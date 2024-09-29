@@ -81,7 +81,7 @@ namespace UnigmaEngine
 
             //if (influenceSpaceTime)
             UpdatePhysicsBuffers();
-            Debug.Log("This object: " + _physicsId + " | " + transform.name + " | " + physicsObject.position + " | velocity: " + physicsObject.velocity);
+            //Debug.Log("This object: " + _physicsId + " | " + transform.name + " | " + physicsObject.position + " | velocity: " + physicsObject.velocity);
             //TransferPhysicsBufferToUnigmaPhysics();
         }
 

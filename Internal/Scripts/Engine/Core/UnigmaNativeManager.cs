@@ -29,6 +29,12 @@ namespace UnigmaEngine
         // Update is called once per frame
         void Update()
         {
+            //if e is pressed release buffers.
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                //StartCoroutine(UnigmaPhysicsManager.Instance.EndPhysics());
+                UnigmaPhysicsManager.Instance.ReleaseBuffers();
+            }
 
         }
 
@@ -91,7 +97,9 @@ namespace UnigmaEngine
         void OnApplicationQuit()
         {
             endProgramFunc();
-            UnigmaPhysicsManager.wakePhysicsThread();
+            //UnigmaPhysicsManager.Instance.wakePhysicsThread();
+            UnigmaPhysicsManager.Instance.ReleaseBuffers();
+            //StartCoroutine(UnigmaPhysicsManager.Instance.EndPhysics());
             bool result = CloseLibrary(libraryHandle);
             libraryHandle = IntPtr.Zero;
             symbol = IntPtr.Zero;

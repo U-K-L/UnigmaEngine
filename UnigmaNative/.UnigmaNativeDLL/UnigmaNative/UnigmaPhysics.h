@@ -23,14 +23,19 @@ struct CollisionPrimitive
     Vector3 force;
 };
 
-std::thread PhysicsMainThread;
+class UnigmaPhysics
+{
+    public:
+        int* CollisionIndices;
+        int CollisionIndicesSize;
+        CollisionPrimitive* CollisionPrimitives;
+        int CollisionPrimitivesSize;
+        PhysicsObject* pObjs;
+        int pObjsSize;
+};
 
-int* CollisionIndices;
-int CollisionIndicesSize;
-CollisionPrimitive* CollisionPrimitives;
-int CollisionPrimitivesSize;
-PhysicsObject* pObjs;
-int pObjsSize;
+
+
 void CaculatePhysicsForces();
 void CaculateAcceleration(float deltaTime);
 void CaculateVelocity(float deltaTime);
@@ -46,6 +51,9 @@ int PhysicsMain();
 
 bool threadReady = false; // A flag to indicate when to wake up the thread
 
+UnigmaThread* PhysicsMainThread;
+UnigmaPhysics* Physics;
+
 extern "C" {
 
 	extern UNIGMANATIVE_API void* PhysicsObjects;
@@ -54,5 +62,5 @@ extern "C" {
                                                      void* CollisionIndices,    int CollisionIndicesSize);
     extern UNIGMANATIVE_API Vector3 CheckObjectCollisionsTest(int objectAId);
     UNIGMANATIVE_API int WakePhysicsThread();
-    UNIGMANATIVE_API bool SyncPhysicsThread();
+    UNIGMANATIVE_API bool SyncPhysicsThread(bool kill);
 }

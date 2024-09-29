@@ -16,29 +16,31 @@ UNIGMANATIVE_API void SetUpPhysicsBuffers(void* PhysicsObjectsArray, int Physics
                                      void* collisionPrims, int collisionPrimsSize,
                                      void* collisionIndices, int collisionIndicesSize)
 {
+    Physics = new UnigmaPhysics();
+    programRunning = true; //move this to native.
+    isSleeping = false;
 	//Get our physics objects.
-	pObjs = (PhysicsObject*)PhysicsObjectsArray;
-	pObjsSize = PhysicsObjectsArraySize;
+    Physics->pObjs = (PhysicsObject*)PhysicsObjectsArray;
+    Physics->pObjsSize = PhysicsObjectsArraySize;
 
     //Get collisionPrimitives.
-    CollisionPrimitives = (CollisionPrimitive*)collisionPrims;
-    CollisionPrimitivesSize = collisionPrimsSize;
+    Physics->CollisionPrimitives = (CollisionPrimitive*)collisionPrims;
+    Physics->CollisionPrimitivesSize = collisionPrimsSize;
 
     //Get indices.
-    CollisionIndices = (int*)collisionIndices;
-    CollisionIndicesSize = collisionIndicesSize;
+    Physics->CollisionIndices = (int*)collisionIndices;
+    Physics->CollisionIndicesSize = collisionIndicesSize;
 
 	//Create a new thread.
-	PhysicsMainThread = thread(PhysicsMain); //Begin calculation of physics forces.
-	PhysicsMainThread.detach(); //Let it go and do its own thing.
+	PhysicsMainThread = new UnigmaThread(CaculatePhysicsForces); //Begin calculation of physics forces.
 }
 
 UNIGMANATIVE_API Vector3 CheckObjectCollisionsTest(int objectAId)
 {
-    PhysicsObject objectA = pObjs[objectAId];
-    for (int j = 0; j < pObjsSize; j++)
+    PhysicsObject objectA = Physics->pObjs[objectAId];
+    for (int j = 0; j < Physics->pObjsSize; j++)
     {
-        PhysicsObject objectB = pObjs[j];
+        PhysicsObject objectB = Physics->pObjs[j];
 
         if (objectA.objectId == objectB.objectId)
             continue;
@@ -55,9 +57,22 @@ UNIGMANATIVE_API int WakePhysicsThread()
     return 0;
 }
 
-UNIGMANATIVE_API bool SyncPhysicsThread()
+UNIGMANATIVE_API bool SyncPhysicsThread(bool kill)
 {
-    return isSleeping;
+    if (kill)
+    {
+        programRunning = false;
+        WakeThread();
+        if (!PhysicsMainThread->thread.joinable())
+        {
+            return true;
+        }
+        PhysicsMainThread->thread.join();
+        delete Physics;
+        delete PhysicsMainThread;
+        return false;
+    }
+    return !isSleeping;
 }
 
 int PhysicsMain()
@@ -91,7 +106,7 @@ void CaculatePhysicsForces()
 	auto lastTime = chrono::high_resolution_clock::now();
 	auto currentTime = chrono::high_resolution_clock::now();
 	chrono::duration<float> elapsedTime = currentTime - lastTime;
-	
+
 	while (programRunning)
 	{
 		lastTime = currentTime; // Store the previous time before updating.
@@ -113,33 +128,33 @@ void CaculatePhysicsForces()
 void CaculateAcceleration(float deltaTime)
 {
 	Vector3 gravity = { 0, -0.98f, 0 };
-	for (int i = 0; i < pObjsSize; i++)
+	for (int i = 0; i < Physics->pObjsSize; i++)
 	{
-		pObjs[i].acceleration = pObjs[i].acceleration + gravity * deltaTime;
+        Physics->pObjs[i].acceleration = Physics->pObjs[i].acceleration + gravity * deltaTime;
 	}
 }
 
 void CaculateVelocity(float deltaTime)
 {
-	for (int i = 0; i < pObjsSize; i++)
+	for (int i = 0; i < Physics->pObjsSize; i++)
 	{
-        bool didCollide = CheckObjectAgainstAllCollisions(pObjs[i]);
+        bool didCollide = CheckObjectAgainstAllCollisions(Physics->pObjs[i]);
         if (!didCollide)
-            pObjs[i].velocity = pObjs[i].velocity + pObjs[i].acceleration * deltaTime;
+            Physics->pObjs[i].velocity = Physics->pObjs[i].velocity + Physics->pObjs[i].acceleration * deltaTime;
         else
-            pObjs[i].velocity = { 0,0,0 };
+            Physics->pObjs[i].velocity = { 0,0,0 };
 	}
 }
 
 bool TriangleCollision()
 {
-    for (int i = 0; i < pObjsSize; i++)
+    for (int i = 0; i < Physics->pObjsSize; i++)
     {
-        PhysicsObject objectA = pObjs[i];
+        PhysicsObject objectA = Physics->pObjs[i];
 
-        for (int j = 0; j < pObjsSize; j++)
+        for (int j = 0; j < Physics->pObjsSize; j++)
         {
-            PhysicsObject objectB = pObjs[j];
+            PhysicsObject objectB = Physics->pObjs[j];
 
             if (objectA.objectId == objectB.objectId)
                 continue;
@@ -153,9 +168,9 @@ bool TriangleCollision()
 
 bool CheckObjectAgainstAllCollisions(PhysicsObject objectA)
 {
-    for (int j = 0; j < pObjsSize; j++)
+    for (int j = 0; j < Physics->pObjsSize; j++)
     {
-        PhysicsObject objectB = pObjs[j];
+        PhysicsObject objectB = Physics->pObjs[j];
 
         if (objectA.objectId == objectB.objectId)
             continue;
@@ -179,7 +194,7 @@ bool CheckObjectCollisions( PhysicsObject objectA,  PhysicsObject objectB)
         for (int bTri = 0; bTri < triangleCountB; bTri++)
         {
             // Call TriangleTriangleIntersectionTest with triangle numbers
-            if (TriangleTriangleIntersectionTest(aTri, bTri, CollisionPrimitives, objectA, objectB))
+            if (TriangleTriangleIntersectionTest(aTri, bTri, Physics->CollisionPrimitives, objectA, objectB))
                 return true;
         }
     }
@@ -199,13 +214,13 @@ bool TriangleTriangleIntersectionTest(int tri1Index, int tri2Index, const Collis
     int idx2 = object2.collisionPrimitivesStart + tri2Index * 3;
 
     // Access the indices of the vertices for each triangle
-    int i1 = CollisionIndices[idx1 + 0];
-    int i2 = CollisionIndices[idx1 + 1];
-    int i3 = CollisionIndices[idx1 + 2];
+    int i1 = Physics->CollisionIndices[idx1 + 0];
+    int i2 = Physics->CollisionIndices[idx1 + 1];
+    int i3 = Physics->CollisionIndices[idx1 + 2];
 
-    int j1 = CollisionIndices[idx2 + 0];
-    int j2 = CollisionIndices[idx2 + 1];
-    int j3 = CollisionIndices[idx2 + 2];
+    int j1 = Physics->CollisionIndices[idx2 + 0];
+    int j2 = Physics->CollisionIndices[idx2 + 1];
+    int j3 = Physics->CollisionIndices[idx2 + 2];
 
 
     // Transform the local positions to world space using localToWorld matrices

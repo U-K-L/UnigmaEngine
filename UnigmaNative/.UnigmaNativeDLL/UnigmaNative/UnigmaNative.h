@@ -36,6 +36,17 @@ extern bool programRunning;
 
 UNIGMANATIVE_API int fnUnigmaNative(void);
 
+class UnigmaThread
+{
+	public:
+		std::thread thread;
+		UnigmaThread(void (*func)())
+		{
+			thread = std::thread(func);
+		}
+
+};
+
 extern "C" {
 
 

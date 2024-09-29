@@ -18,6 +18,7 @@ DLLEXPORT UNIGMANATIVE_API int fnUnigmaNative(void)
     return 0;
 }
 
+
 DLLEXPORT UNIGMANATIVE_API Vector3 GetSquared(void* x)
 {
     Vector3* vectors = (Vector3*)x;

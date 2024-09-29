@@ -81,6 +81,7 @@ namespace UnigmaEngine
 
             //if (influenceSpaceTime)
             UpdatePhysicsBuffers();
+            Debug.Log("This object: " + _physicsId + " | " + transform.name + " | " + physicsObject.position + " | velocity: " + physicsObject.velocity);
             //TransferPhysicsBufferToUnigmaPhysics();
         }
 
@@ -89,6 +90,8 @@ namespace UnigmaEngine
             //Tie this with a universal game object manager array.
             physicsObject.objectId = (uint)_physicsId;
             physicsObject.position = transform.position;
+            physicsObject.velocity = Vector3.zero;
+            physicsObject.acceleration = Vector3.zero;
             physicsObject.localToWorld = transform.localToWorldMatrix;
             physicsObject.strength = gravityStrength;
             physicsObject.radius = gravityRadius;

@@ -9,7 +9,6 @@ using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
-using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 namespace UnigmaEngine
 {
@@ -66,11 +65,11 @@ namespace UnigmaEngine
 
         //Wake physics thread.
         public unsafe delegate int WakePhysicsThread();
-        public static WakePhysicsThread wakePhysicsThread;
+        public WakePhysicsThread wakePhysicsThread;
         IntPtr wakePhysicsThreadSymbol;
 
         //Sync physics thread.
-        unsafe delegate bool SyncPhysicsThread();
+        unsafe delegate bool SyncPhysicsThread(bool kill);
         SyncPhysicsThread syncPhysicsThread;
         IntPtr syncPhysicsThreadSymbol;
 
@@ -119,6 +118,8 @@ namespace UnigmaEngine
             Debug.Log("Physics Objects Array Size: " + PhysicsObjectsArray.Length);
 
             _physicsObjectsBuffer = new ComputeBuffer(Mathf.Max(PhysicsObjectsArray.Length, 1), _physicsObjectsStride);
+
+            //Initialize buffer.
 
         }
 
@@ -170,16 +171,32 @@ namespace UnigmaEngine
             wakePhysicsThread();
         }
 
+        void WaitPhysics(bool kill)
+        {
+            while (syncPhysicsThread(kill))
+            {
+                //Indefinite loop wait.
+                if (kill)
+                    break;
+            }
+        }
+
+        public IEnumerator EndPhysics()
+        {
+            //Wait for thread to finish.
+            WaitPhysics(true);
+            yield return new WaitForSeconds(0.5f);
+            ReleaseBuffers();
+
+        }
+
         private void Update()
         {
-            //while (!syncPhysicsThread())
-            //{
-            //Indefinite loop wait.
-            //}
+
             SetPhysicsObjects();
             //After getting all the data we need, send this back to be updated.
             WakeupPhysicsThread();
-            Debug.Log("Did object 31 collide? " + checkObjectCollisionsTest(31).ToString("F7"));
+            //Debug.Log("Did object 31 collide? " + checkObjectCollisionsTest(31).ToString("F7"));
         }
         /*
         private IEnumerator ReactToForces()
@@ -331,27 +348,30 @@ namespace UnigmaEngine
 
         void OnDisable()
         {
-            ReleaseBuffers();
+            //ReleaseBuffers();
         }
 
         //On application quit
         void OnApplicationQuit()
         {
-            ReleaseBuffers();
+            //ReleaseBuffers();
         }
 
         //On playtest end
         void OnDestroy()
         {
-            ReleaseBuffers();
+            //ReleaseBuffers();
         }
 
-        void ReleaseBuffers()
+        public void ReleaseBuffers()
         {
+            WaitPhysics(false);
+            WaitPhysics(true);
             collisionsTestSymbol = IntPtr.Zero;
             setupPhysicsSymbol = IntPtr.Zero;
             wakePhysicsThreadSymbol = IntPtr.Zero;
             syncPhysicsThreadSymbol = IntPtr.Zero;
+
             PhysicsObjectsArray.Dispose();
             _physicsObjectsBuffer.Release();
             CollisionPrimitives.Dispose();

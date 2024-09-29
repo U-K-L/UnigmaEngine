@@ -138,7 +138,8 @@ void CaculateVelocity(float deltaTime)
 {
 	for (int i = 0; i < Physics->pObjsSize; i++)
 	{
-        bool didCollide = CheckObjectAgainstAllCollisions(Physics->pObjs[i]);
+        //Too slow, need to profile.
+        bool didCollide = true;//CheckObjectAgainstAllCollisions(Physics->pObjs[i]);
         if (!didCollide)
             Physics->pObjs[i].velocity = Physics->pObjs[i].velocity + Physics->pObjs[i].acceleration * deltaTime;
         else

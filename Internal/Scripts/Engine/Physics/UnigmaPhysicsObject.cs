@@ -97,7 +97,7 @@ namespace UnigmaEngine
             physicsObject.radius = gravityRadius;
             physicsObject.kelvin = kelvin;
 
-            UnigmaPhysicsManager.Instance.UodatePhysicsArray(unigmaGameObject.unigmaGameObject.physicsId, physicsObject);
+            UnigmaPhysicsManager.Instance.UpdatePhysicsArray(unigmaGameObject.unigmaGameObject.physicsId, physicsObject);
         }
 
         void UpdatePhysicsBuffers()
@@ -112,7 +112,7 @@ namespace UnigmaEngine
             physicsObject.acceleration = UnigmaPhysicsManager.Instance.PhysicsObjectsArray[_physicsId].acceleration;
             physicsObject.velocity = UnigmaPhysicsManager.Instance.PhysicsObjectsArray[_physicsId].velocity;
 
-            UnigmaPhysicsManager.Instance.UodatePhysicsArray(unigmaGameObject.unigmaGameObject.physicsId, physicsObject);
+            UnigmaPhysicsManager.Instance.UpdatePhysicsArray(unigmaGameObject.unigmaGameObject.physicsId, physicsObject);
         }
 
         void TransferPhysicsBufferToUnigmaPhysics()

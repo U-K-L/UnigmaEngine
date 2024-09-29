@@ -163,6 +163,19 @@ namespace UnigmaEngine
             setUpPhysicsBuffers(physicsObjectsPrt, PhysicsObjectsArray.Length,
                               collisionPrimPtr, CollisionPrimitives.Length,
                               collisionIndPtr, CollisionIndices.Length);
+
+            StartCoroutine(SyncPhysicsThreadUpdate());
+        }
+
+        IEnumerator SyncPhysicsThreadUpdate()
+        {
+            while (true)
+            {
+                WaitPhysics();
+                //After getting all the data we need, send this back to be updated.
+                WakeupPhysicsThread();
+                yield return new WaitForSeconds(0.05f); //Call this function after this amount of time.
+            }
         }
 
 
@@ -171,7 +184,7 @@ namespace UnigmaEngine
             wakePhysicsThread();
         }
 
-        void WaitPhysics(bool kill)
+        void WaitPhysics(bool kill = false)
         {
             while (syncPhysicsThread(kill))
             {
@@ -194,8 +207,7 @@ namespace UnigmaEngine
         {
 
             SetPhysicsObjects();
-            //After getting all the data we need, send this back to be updated.
-            WakeupPhysicsThread();
+
             //Debug.Log("Did object 31 collide? " + checkObjectCollisionsTest(31).ToString("F7"));
         }
         /*
@@ -300,7 +312,7 @@ namespace UnigmaEngine
             _physicsObjects.Add(pobj);
         }
 
-        public void UodatePhysicsArray(uint objectId, PhysicsObject pobj)
+        public void UpdatePhysicsArray(uint objectId, PhysicsObject pobj)
         {
             PhysicsObjectsArray[(int)objectId] = pobj;
         }

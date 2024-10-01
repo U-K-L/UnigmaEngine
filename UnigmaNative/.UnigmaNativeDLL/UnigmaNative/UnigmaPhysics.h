@@ -2,6 +2,9 @@
 #include "Vector.h"
 #include <thread>
 #include <mutex>
+#include <chrono>
+#include <xmmintrin.h>
+
 struct PhysicsObject
 {
     unsigned int objectId;
@@ -50,6 +53,8 @@ int PhysicsMain();
 
 
 bool threadReady = false; // A flag to indicate when to wake up the thread
+void CreateDebugConsole();
+void CookCollisionData();
 
 UnigmaThread* PhysicsMainThread;
 UnigmaPhysics* Physics;

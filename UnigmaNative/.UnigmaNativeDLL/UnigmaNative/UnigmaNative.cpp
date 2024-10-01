@@ -32,10 +32,20 @@ DLLEXPORT UNIGMANATIVE_API Vector3 GetSquared(void* x)
     return result;
 }
 
+UNIGMANATIVE_API void StartProgram()
+{
+    DebugPrint("Native Plugin started, Unigma");
+    programRunning = true;
+    CreateDebugConsole();
+    RedirectStandardIO();
+
+}
 
 UNIGMANATIVE_API void EndProgram()
 {
+    DebugPrint("Native Plugin ended, Unigma");
     programRunning = false;
+    FreeDebugConsole();
 }
 
 
@@ -43,5 +53,40 @@ UNIGMANATIVE_API void EndProgram()
 CUnigmaNative::CUnigmaNative()
 {
     return;
+}
+
+void CreateDebugConsole()
+{
+    if (!AllocConsole())
+    {
+        // Handle error
+        DWORD dwError = GetLastError();
+        // You can choose to log this error or handle it as needed
+    }
+}
+
+void FreeDebugConsole()
+{
+    FreeConsole();
+}
+
+void DebugPrint(const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+}
+
+void RedirectStandardIO()
+{
+    FILE* fp;
+
+    freopen_s(&fp, "CONIN$", "r", stdin);
+    freopen_s(&fp, "CONOUT$", "w", stdout);
+    freopen_s(&fp, "CONOUT$", "w", stderr);
+
+    // Optional: Synchronize C++ streams with C I/O
+    std::ios::sync_with_stdio();
 }
 

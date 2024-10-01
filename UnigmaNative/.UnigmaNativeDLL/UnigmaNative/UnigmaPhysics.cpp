@@ -4,6 +4,7 @@
 #include "UnigmaPhysics.h"
 #include <iostream>
 #include "glm/glm.hpp"
+#include "DebugWindowDesktop.h"
 
 using namespace std;
 
@@ -33,7 +34,13 @@ UNIGMANATIVE_API void SetUpPhysicsBuffers(void* PhysicsObjectsArray, int Physics
 
 	//Create a new thread.
 	PhysicsMainThread = new UnigmaThread(CaculatePhysicsForces); //Begin calculation of physics forces.
+
+
+    DebugPrint("Physics Thread Has Launched! \n");
+    //thread DebugWindowThread = new UnigmaThread(WinMain);
 }
+
+
 
 UNIGMANATIVE_API Vector3 CheckObjectCollisionsTest(int objectAId)
 {
@@ -117,10 +124,13 @@ void CaculatePhysicsForces()
 		float deltaTime = elapsedTime.count();
 
 		//Perform physics calculations.
-		CaculateAcceleration(deltaTime);
-		CaculateVelocity(deltaTime);
-
+		//CaculateAcceleration(deltaTime);
+		//CaculateVelocity(deltaTime);
+        CookCollisionData();
 		//std::this_thread::sleep_for(std::chrono::milliseconds(64));
+        auto msTime = chrono::duration_cast<std::chrono::microseconds>(chrono::high_resolution_clock::now() - currentTime);
+
+        DebugPrint("Time to finish this physics tasks: %.4f\n", (float)msTime.count()/1000.0f );
         ThreadSleep();
 	}
 }
@@ -136,15 +146,98 @@ void CaculateAcceleration(float deltaTime)
 
 void CaculateVelocity(float deltaTime)
 {
+
 	for (int i = 0; i < Physics->pObjsSize; i++)
 	{
-        //Too slow, need to profile.
+        
         bool didCollide = CheckObjectAgainstAllCollisions(Physics->pObjs[i]);
         if (!didCollide)
             Physics->pObjs[i].velocity = Physics->pObjs[i].velocity + Physics->pObjs[i].acceleration * deltaTime;
         else
             Physics->pObjs[i].velocity = { 0,0,0 };
 	}
+}
+
+void CookCollisionData()
+{
+    int size = Physics->CollisionPrimitivesSize;
+    alignas(16) float xArray[size];
+    alignas(16) float yArray[size];
+    alignas(16) float zArray[size];
+
+    /*
+    for (int i = 0; i < Physics->pObjsSize; i++)
+    {
+        PhysicsObject objectA = Physics->pObjs[i];
+
+        for (int j = objectA.collisionPrimitivesStart; j < objectA.collisionPrimitivesStart + objectA.collisionPrimitivesCount; j++)
+        {
+            glm::vec3 pos = glm::vec3(objectA.localToWorld * glm::vec4(Physics->CollisionPrimitives[j].position.toGlmVec3(), 1.0f));
+            xArray[j] = pos.x;
+            yArray[j] = pos.y;
+            zArray[j] = pos.z;
+        }
+    }
+    */
+
+    for (int j = 0; j < size; j++)
+    {
+        glm::vec3 pos = glm::vec3(Physics->CollisionPrimitives[j].position.toGlmVec3());
+        xArray[j] = pos.x * 0.0001;
+        yArray[j] = pos.y * 0.0001;
+        zArray[j] = pos.z * 0.0001;
+    }
+
+
+    //SIMD this is 128 bits, so can fit 4 floats.
+    //__m128 vecA = _mm_loadu_ps(xArray);
+    //__m128 vecB = _mm_loadu_ps(yArray); 
+    //__m128 vecC = _mm_loadu_ps(zArray);
+
+    __m128 sumVec = _mm_setzero_ps();
+
+    //Do iterations....
+    float sum = 0;
+
+    auto currentTime = chrono::high_resolution_clock::now();
+    
+
+    for (int k = 0; k <25000; k++)
+    {
+        /*
+        for (int i = 0; i <= size; i++)
+        {
+            sum += xArray[i] * yArray[i];
+        }
+        */
+        //Need to go through entire array 4 at a time.
+        for (int i = 0; i <= size - 4; i += 4)
+        {
+            //Load simd by pushing 4 values each.
+            __m128 vecA = _mm_loadu_ps(&xArray[i]);
+            __m128 vecB = _mm_loadu_ps(&yArray[i]);
+
+            __m128 vecMul = _mm_mul_ps(vecA, vecB);
+
+            sumVec = _mm_add_ps(sumVec, vecMul);
+        }
+
+
+    }
+
+    auto msTime = chrono::duration_cast<std::chrono::microseconds>(chrono::high_resolution_clock::now() - currentTime);
+
+    // Sum the elements of sumVec
+    alignas(16) float sumArray[4];
+    _mm_store_ps(sumArray, sumVec);
+
+    // Sum up the elements in sumArray
+    float sum2 = sumArray[0] + sumArray[1] + sumArray[2] + sumArray[3];
+
+    DebugPrint("Sum is: %.4f and took: %d\n", sum2, msTime.count());
+
+    //DebugPrint("Sum is: %.4f and took: %d\n", sum, msTime.count());
+
 }
 
 bool TriangleCollision()
@@ -169,7 +262,7 @@ bool TriangleCollision()
 
 bool CheckObjectAgainstAllCollisions(PhysicsObject objectA)
 {
-    for (int j = 0; j < 1; j++)
+    for (int j = 0; j < 8; j++)
     {
         PhysicsObject objectB = Physics->pObjs[j];
 
@@ -188,8 +281,8 @@ bool CheckObjectCollisions( PhysicsObject objectA,  PhysicsObject objectB)
     int triangleCountA = objectA.collisionPrimitivesCount / 3;
     int triangleCountB = objectB.collisionPrimitivesCount / 3;
 
-    triangleCountA = min(triangleCountA, 128);
-    triangleCountB = min(triangleCountB, 128);
+    triangleCountA = min(triangleCountA, 64);
+    triangleCountB = min(triangleCountB, 64);
 
     // Loop over the triangle numbers for objectA
     for (int aTri = 0; aTri < triangleCountA; aTri++)

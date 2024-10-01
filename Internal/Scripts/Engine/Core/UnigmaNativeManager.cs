@@ -11,7 +11,11 @@ namespace UnigmaEngine
         //Native Functions
         unsafe delegate void EndProgram();
         EndProgram endProgramFunc;
-        IntPtr symbol;
+        IntPtr endProgramSymbol;
+
+        unsafe delegate void StartProgram();
+        StartProgram startProgramFunc;
+        IntPtr startProgramSymbol;
 
         private void Awake()
         {
@@ -19,6 +23,7 @@ namespace UnigmaEngine
 
             //Get Functions...
             GetFunctions();
+            BeginNativeProcess();
         }
         // Start is called before the first frame update
         void Start()
@@ -83,7 +88,13 @@ namespace UnigmaEngine
 
         void GetFunctions()
         {
-            endProgramFunc = GetNativeFunction<EndProgram>(ref symbol, "EndProgram");
+            endProgramFunc = GetNativeFunction<EndProgram>(ref endProgramSymbol, "EndProgram");
+            startProgramFunc = GetNativeFunction<StartProgram>(ref startProgramSymbol, "StartProgram");
+        }
+
+        void BeginNativeProcess()
+        {
+            startProgramFunc();
         }
 
         public static unsafe T GetNativeFunction<T>(ref IntPtr symbol, string funcName) where T : Delegate
@@ -102,7 +113,7 @@ namespace UnigmaEngine
             //StartCoroutine(UnigmaPhysicsManager.Instance.EndPhysics());
             bool result = CloseLibrary(libraryHandle);
             libraryHandle = IntPtr.Zero;
-            symbol = IntPtr.Zero;
+            endProgramSymbol = IntPtr.Zero;
             Debug.Log("Closed DLL is: " + result);
 
         }

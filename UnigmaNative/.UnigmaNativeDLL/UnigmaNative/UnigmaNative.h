@@ -36,6 +36,11 @@ extern bool programRunning;
 
 UNIGMANATIVE_API int fnUnigmaNative(void);
 
+void CreateDebugConsole();
+void FreeDebugConsole();
+void DebugPrint(const char* format, ...);
+void RedirectStandardIO();
+
 class UnigmaThread
 {
 	public:
@@ -53,6 +58,7 @@ extern "C" {
 	extern DLLEXPORT UNIGMANATIVE_API Vector3 GetSquared(void* x);
 
 	UNIGMANATIVE_API void EndProgram();
+	UNIGMANATIVE_API void StartProgram();
 
 
 	/*

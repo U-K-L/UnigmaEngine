@@ -39,6 +39,9 @@
     <ClInclude Include="UnigmaPhysics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DebugWindowDesktop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UnigmaNative.cpp">

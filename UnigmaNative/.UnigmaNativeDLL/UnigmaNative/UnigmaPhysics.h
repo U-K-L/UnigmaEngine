@@ -3,7 +3,7 @@
 #include <thread>
 #include <mutex>
 #include <chrono>
-#include <xmmintrin.h>
+#include <immintrin.h> // For AVX intrinsics
 
 struct PhysicsObject
 {

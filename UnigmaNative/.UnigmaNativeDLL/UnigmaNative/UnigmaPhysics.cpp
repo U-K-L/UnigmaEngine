@@ -161,9 +161,10 @@ void CaculateVelocity(float deltaTime)
 void CookCollisionData()
 {
     int size = Physics->CollisionPrimitivesSize;
-    alignas(16) float xArray[size];
-    alignas(16) float yArray[size];
-    alignas(16) float zArray[size];
+    int simdWidth = 8;
+    alignas(32) float xArray[size];
+    alignas(32) float yArray[size];
+    alignas(32) float zArray[size];
 
     /*
     for (int i = 0; i < Physics->pObjsSize; i++)
@@ -194,7 +195,7 @@ void CookCollisionData()
     //__m128 vecB = _mm_loadu_ps(yArray); 
     //__m128 vecC = _mm_loadu_ps(zArray);
 
-    __m128 sumVec = _mm_setzero_ps();
+    __m256 sumVec = _mm256_setzero_ps();
 
     //Do iterations....
     float sum = 0;
@@ -211,15 +212,15 @@ void CookCollisionData()
         }
         */
         //Need to go through entire array 4 at a time.
-        for (int i = 0; i <= size - 4; i += 4)
+        for (int i = 0; i <= size - simdWidth; i += simdWidth)
         {
             //Load simd by pushing 4 values each.
-            __m128 vecA = _mm_loadu_ps(&xArray[i]);
-            __m128 vecB = _mm_loadu_ps(&yArray[i]);
+            __m256 vecA = _mm256_loadu_ps(&xArray[i]);
+            __m256 vecB = _mm256_loadu_ps(&yArray[i]);
 
-            __m128 vecMul = _mm_mul_ps(vecA, vecB);
+            __m256 vecMul = _mm256_mul_ps(vecA, vecB);
 
-            sumVec = _mm_add_ps(sumVec, vecMul);
+            sumVec = _mm256_add_ps(sumVec, vecMul);
         }
 
 
@@ -228,11 +229,15 @@ void CookCollisionData()
     auto msTime = chrono::duration_cast<std::chrono::microseconds>(chrono::high_resolution_clock::now() - currentTime);
 
     // Sum the elements of sumVec
-    alignas(16) float sumArray[4];
-    _mm_store_ps(sumArray, sumVec);
+    alignas(32) float sumArray[simdWidth];
+    _mm256_store_ps(sumArray, sumVec);
 
     // Sum up the elements in sumArray
-    float sum2 = sumArray[0] + sumArray[1] + sumArray[2] + sumArray[3];
+    float sum2 = 0;
+    for (int i = 0; i < simdWidth; i++)
+    {
+        sum2 += sumArray[i];
+    }
 
     DebugPrint("Sum is: %.4f and took: %d\n", sum2, msTime.count());
 

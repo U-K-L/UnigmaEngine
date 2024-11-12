@@ -83,7 +83,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>UnigmaNative</TargetName>
-    <OutDir>..\..\..\..\StreamingAssets\UnigmaDLLs</OutDir>
+    <OutDir>..\..\..\..\..\..\..\..\QTDEngine\QTDough\ExternalLibs\Unigma</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

@@ -192,13 +192,23 @@ Shader "Unigma/UnigmaSprite"
 
 
                 if(tex.w <= 0.01)
+                {
 					payload.color = float4(0, 0, 0, -2);
+                                    payload.direction = 0;
+                payload.uv = 0;
+                payload.pixel = 0;
+                payload.normal = float4(specular, 0);
+                }
                 else
+                {
                     payload.color = float4(1, 1, 0, InstanceID());
-                    payload.direction = tex.xyz;
-                    payload.uv = 0;
-                    payload.pixel = 0;
-                    payload.normal = float4(specular, 0);
+                    
+                payload.direction = tex.xyz;
+                payload.uv = 0;
+                payload.pixel = 0;
+                payload.normal = float4(specular, 0);
+                }
+
 
             }
 

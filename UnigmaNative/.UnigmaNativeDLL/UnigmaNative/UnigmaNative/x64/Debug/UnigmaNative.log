@@ -1,10 +1,22 @@
 ﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(517,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
+  pch.cpp
+  DebugWindowDesktop.cpp
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\DebugWindowDesktop.cpp(91,45): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+  dllmain.cpp
+  UnigmaNative.cpp
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaNative.h(58,19): warning C4141: 'dllexport': used more than once
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaNative.cpp(13,11): warning C4141: 'dllexport': used more than once
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaNative.cpp(16,11): warning C4141: 'dllexport': used more than once
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaNative.cpp(22,11): warning C4141: 'dllexport': used more than once
   UnigmaPhysics.cpp
-C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaNative.h(58,19): warning C4141: 'dllexport': used more than once
-C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaPhysics.cpp(165,30): error C2131: expression did not evaluate to a constant
-C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaPhysics.cpp(166,30): error C2131: expression did not evaluate to a constant
-C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaPhysics.cpp(167,30): error C2131: expression did not evaluate to a constant
-C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaPhysics.cpp(187,19): error C3863: array type 'float [size]' is not assignable
-C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaPhysics.cpp(188,19): error C3863: array type 'float [size]' is not assignable
-C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaPhysics.cpp(189,19): error C3863: array type 'float [size]' is not assignable
-C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaPhysics.cpp(232,32): error C2131: expression did not evaluate to a constant
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaNative.h(58,19): warning C4141: 'dllexport': used more than once
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaPhysics.cpp(165,30): error C2131: expression did not evaluate to a constant
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaPhysics.cpp(166,30): error C2131: expression did not evaluate to a constant
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaPhysics.cpp(167,30): error C2131: expression did not evaluate to a constant
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaPhysics.cpp(187,19): error C3863: array type 'float [size]' is not assignable
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaPhysics.cpp(188,19): error C3863: array type 'float [size]' is not assignable
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaPhysics.cpp(189,19): error C3863: array type 'float [size]' is not assignable
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Core\UnigmaPhysics.cpp(232,32): error C2131: expression did not evaluate to a constant
+  Source.cpp
+C:\ProjectsSpeed\Unigma\UnigmaEngineGame\unigma2021\Assets\UnigmaEngine\UnigmaNative\.UnigmaNativeDLL\UnigmaNative\UnigmaGame\Game\Source.cpp(1,1): error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+  Generating Code...

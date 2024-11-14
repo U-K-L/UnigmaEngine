@@ -15,48 +15,60 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="cpp.hint" />
+    <None Include="UnigmaGame\Core\cpp.hint" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="framework.h">
+    <ClInclude Include="UnigmaGame\Core\framework.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="UnigmaNative.h">
+    <ClInclude Include="UnigmaGame\Core\UnigmaNative.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="pch.h">
+    <ClInclude Include="UnigmaGame\Core\pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="UnigmaCell.h">
+    <ClInclude Include="UnigmaGame\Core\UnigmaCell.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Vector.h">
+    <ClInclude Include="UnigmaGame\Core\Vector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="UnigmaGameObject.h">
+    <ClInclude Include="UnigmaGame\Game\UnigmaGameObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="UnigmaPhysics.h">
+    <ClInclude Include="UnigmaGame\Core\UnigmaPhysics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DebugWindowDesktop.h">
+    <ClInclude Include="UnigmaGame\Core\DebugWindowDesktop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UnigmaGame\Game\UnigmaGameManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UnigmaGame\Game\UnigmaGameObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UnigmaGame\Core\UnigmaTransform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="UnigmaNative.cpp">
+    <ClCompile Include="UnigmaGame\Core\UnigmaNative.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dllmain.cpp">
+    <ClCompile Include="UnigmaGame\Core\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="pch.cpp">
+    <ClCompile Include="UnigmaGame\Core\pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DebugWindowDesktop.cpp">
+    <ClCompile Include="UnigmaGame\Core\DebugWindowDesktop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="UnigmaPhysics.cpp">
+    <ClCompile Include="UnigmaGame\Game\UnigmaGameManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UnigmaGame\Game\UnigmaGameObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

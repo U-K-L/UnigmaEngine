@@ -172,6 +172,13 @@ void DepthShadowsRaygenShader()
     ray.Direction = reflectedDirection;
     TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _BounceLumiBitMask, 0, 1, 0, ray, payload);
 
+
+    if( (payload.direction.x + payload.direction.y + payload.direction.z) < 0.1)
+    {
+        position = ray.Origin+ (ray.Direction * payload.distance) + ((ray.Direction * payload.distance) * distanceFromPoint);
+        ray.Origin = position;
+        TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_NONE, _DepthBitMask, 0, 1, 0, ray, payload);
+    }
  
     
     //Store the reflection.

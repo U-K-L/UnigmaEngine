@@ -3,7 +3,6 @@
 #include "UnigmaGameObject.h"
 #include "../Core/UnigmaNative.h"
 
-#define MAX_NUM_GAMEOBJECTS 8192
 
 void AddGameObject(UnigmaGameObject gameObject);
 void RemoveGameObject(uint32_t ID);

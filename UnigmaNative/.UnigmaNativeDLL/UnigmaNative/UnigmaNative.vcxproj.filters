@@ -51,6 +51,15 @@
     <ClInclude Include="UnigmaGame\Core\UnigmaTransform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="UnigmaGame\Game\UnigmaScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UnigmaGame\Game\UnigmaSceneManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UnigmaGame\Game\GlobalObjects.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UnigmaGame\Core\UnigmaNative.cpp">
@@ -69,6 +78,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="UnigmaGame\Game\UnigmaGameObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UnigmaGame\Game\UnigmaScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UnigmaGame\Game\UnigmaSceneManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UnigmaGame\Game\GlobalObjects.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

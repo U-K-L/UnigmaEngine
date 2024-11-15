@@ -170,8 +170,11 @@
     <ClInclude Include="UnigmaGame\Core\UnigmaPhysics.h" />
     <ClInclude Include="UnigmaGame\Core\UnigmaTransform.h" />
     <ClInclude Include="UnigmaGame\Core\Vector.h" />
+    <ClInclude Include="UnigmaGame\Game\GlobalObjects.h" />
     <ClInclude Include="UnigmaGame\Game\UnigmaGameManager.h" />
     <ClInclude Include="UnigmaGame\Game\UnigmaGameObject.h" />
+    <ClInclude Include="UnigmaGame\Game\UnigmaScene.h" />
+    <ClInclude Include="UnigmaGame\Game\UnigmaSceneManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UnigmaGame\Core\DebugWindowDesktop.cpp" />
@@ -183,8 +186,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="UnigmaGame\Core\UnigmaNative.cpp" />
+    <ClCompile Include="UnigmaGame\Game\GlobalObjects.cpp" />
     <ClCompile Include="UnigmaGame\Game\UnigmaGameManager.cpp" />
     <ClCompile Include="UnigmaGame\Game\UnigmaGameObject.cpp" />
+    <ClCompile Include="UnigmaGame\Game\UnigmaScene.cpp" />
+    <ClCompile Include="UnigmaGame\Game\UnigmaSceneManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

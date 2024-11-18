@@ -175,6 +175,8 @@
     <ClInclude Include="UnigmaGame\Game\UnigmaGameObject.h" />
     <ClInclude Include="UnigmaGame\Game\UnigmaScene.h" />
     <ClInclude Include="UnigmaGame\Game\UnigmaSceneManager.h" />
+    <ClInclude Include="UnigmaGame\Rendering\UnigmaRenderingManager.h" />
+    <ClInclude Include="UnigmaGame\Rendering\UnigmaRenderingObject.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UnigmaGame\Core\DebugWindowDesktop.cpp" />
@@ -191,6 +193,7 @@
     <ClCompile Include="UnigmaGame\Game\UnigmaGameObject.cpp" />
     <ClCompile Include="UnigmaGame\Game\UnigmaScene.cpp" />
     <ClCompile Include="UnigmaGame\Game\UnigmaSceneManager.cpp" />
+    <ClCompile Include="UnigmaGame\Rendering\UnigmaRenderingManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,6 +1,7 @@
 #include "UnigmaScene.h"
 #include "../glm/glm.hpp"
 #include "GlobalObjects.h"
+#include "UnigmaGameManager.h"
 
 UnigmaScene::UnigmaScene()
 {
@@ -45,4 +46,10 @@ void UnigmaScene::CreateScene()
 
 	AddGameObject(Kanaloa);
 	AddGameObject(Sunny);
+
+	//Create Rendering Objects as well.
+	UnigmaGameManager* gameManager = UnigmaGameManager::instance;
+
+	gameManager->RenderingManager->CreateRenderingObject(Kanaloa);
+	gameManager->RenderingManager->CreateRenderingObject(Sunny);
 }

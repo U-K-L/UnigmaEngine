@@ -1,24 +1,25 @@
+#pragma once
 #include "UnigmaGameManager.h"
 #include "GlobalObjects.h"
-#include "UnigmaScene.h"
 
-
+UnigmaGameManager* UnigmaGameManager::instance = nullptr; // Define the static member
 
 UnigmaGameManager::UnigmaGameManager()
 {
-	/*
-	//Set the first object name for testing. Its a char array so convert std string to char array
-	std::string name = "TestObject";
-	for (int i = 0; i < name.length(); i++)
-	{
-		GameObjects[0].name[i] = name[i];
-	}
-	*/
 
-	UnigmaScene scene = UnigmaScene();
+}
 
-	scene.CreateScene();
+void UnigmaGameManager::Create()
+{
+	//Create managers.
+	SceneManager = new UnigmaSceneManager();
+	RenderingManager = new UnigmaRenderingManager();
 
+	std::cout << "UnigmaGameManager created" << std::endl;
+
+	SceneManager->CreateScene("DefaultScene");
+
+	IsCreated = true;
 }
 
 UnigmaGameManager::~UnigmaGameManager()
@@ -36,4 +37,20 @@ UNIGMANATIVE_API UnigmaGameObject* GetGameObject(uint32_t ID)
 	{
 		return nullptr;
 	}
+}
+
+// Function to get the size of the RenderingObjects vector
+UNIGMANATIVE_API uint32_t GetRenderObjectsSize() {
+    return UnigmaGameManager::instance->RenderingManager->RenderingObjects.size();
+}
+
+// Function to get an element from the RenderingObjects vector by index
+UNIGMANATIVE_API UnigmaRenderingStruct* GetRenderObjectAt(uint32_t index) {
+    auto& renderObjects = UnigmaGameManager::instance->RenderingManager->RenderingObjects;
+    if (index < renderObjects.size()) {
+        return &renderObjects[index];
+    }
+    else {
+        return nullptr; // Return nullptr if index is out of bounds
+    }
 }

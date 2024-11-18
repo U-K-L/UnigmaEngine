@@ -60,6 +60,12 @@
     <ClInclude Include="UnigmaGame\Game\GlobalObjects.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="UnigmaGame\Rendering\UnigmaRenderingObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UnigmaGame\Rendering\UnigmaRenderingManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UnigmaGame\Core\UnigmaNative.cpp">
@@ -87,6 +93,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="UnigmaGame\Game\GlobalObjects.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UnigmaGame\Rendering\UnigmaRenderingManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

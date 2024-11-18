@@ -1,2 +1,14 @@
 ﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(517,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
+UnigmaGame\Game\UnigmaScene.cpp(40,2): warning : 'strcpy' is deprecated: This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [-Wdeprecated-declarations]
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt\string.h(130,1): message : 'strcpy' has been explicitly marked deprecated here
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt\corecrt.h(835,5): message : expanded from macro '__DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1'
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt\corecrt.h(1894,17): message : expanded from macro '__DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1_EX'
+C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\include\vcruntime.h(356,55): message : expanded from macro '_CRT_INSECURE_DEPRECATE'
+C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\include\vcruntime.h(346,47): message : expanded from macro '_CRT_DEPRECATE_TEXT'
+UnigmaGame\Game\UnigmaScene.cpp(44,2): warning : 'strcpy' is deprecated: This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details. [-Wdeprecated-declarations]
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt\string.h(130,1): message : 'strcpy' has been explicitly marked deprecated here
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt\corecrt.h(835,5): message : expanded from macro '__DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1'
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt\corecrt.h(1894,17): message : expanded from macro '__DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_1_EX'
+C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\include\vcruntime.h(356,55): message : expanded from macro '_CRT_INSECURE_DEPRECATE'
+C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\include\vcruntime.h(346,47): message : expanded from macro '_CRT_DEPRECATE_TEXT'
   UnigmaNative.vcxproj -> C:\ProjectsSpeed\QTDEngine\QTDough\ExternalLibs\Unigma\UnigmaNative.dll

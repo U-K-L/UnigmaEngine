@@ -9,7 +9,8 @@
 #include "Vector.h"
 #include "../Game/UnigmaGameManager.h"
 
-UnigmaGameManager GameManager;
+
+UnigmaGameManager* GameManager;
 bool programRunning = true;
 // This is an example of an exported variable
 DLLEXPORT UNIGMANATIVE_API int nUnigmaNative=0;
@@ -36,9 +37,14 @@ DLLEXPORT UNIGMANATIVE_API Vector3 GetSquared(void* x)
 
 UNIGMANATIVE_API void StartProgram()
 {
-    DebugPrint("Native Plugin started, Unigma");
+    DebugPrint("Native Plugin started, Unigma\n");
     programRunning = true;
-    GameManager = UnigmaGameManager();
+
+    GameManager = new UnigmaGameManager();
+    UnigmaGameManager::SetInstance(GameManager);
+    GameManager->Create();
+
+    //UnigmaGameManager& GameManager = UnigmaGameManager::GetInstance();
     //CreateDebugConsole();
     //UnigmaThread* consoleThread = new UnigmaThread(CreateDebugConsole);
     //consoleThread->thread.detach(); // Detach the thread to run independently

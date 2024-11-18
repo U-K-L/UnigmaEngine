@@ -15,4 +15,9 @@ class UnigmaScene
 
 	uint32_t Index;
 	std::vector<uint32_t> GameObjectsIndex;
+
+	std::string Name;
+	bool IsActive;
+	bool IsCreated;
+	bool IsStarted;
 };

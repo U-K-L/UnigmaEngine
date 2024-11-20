@@ -20,6 +20,6 @@ void UnigmaRenderingManager::Start()
 void UnigmaRenderingManager::CreateRenderingObject(UnigmaGameObject& gameObject)
 {
 	UnigmaRenderingStruct renderingObject = UnigmaRenderingStruct();
-	gameObject.RenderID = RenderingObjects.size();
+	GameObjects[gameObject.ID].RenderID = RenderingObjects.size();
 	RenderingObjects.push_back(renderingObject);
 }

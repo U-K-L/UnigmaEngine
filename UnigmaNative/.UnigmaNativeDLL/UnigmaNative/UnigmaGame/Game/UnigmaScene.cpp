@@ -13,13 +13,35 @@ UnigmaScene::~UnigmaScene()
 
 void UnigmaScene::Update()
 {
+	//Make objects in scene spin in a circle.
+	//Get chrono time.
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	auto duration = currentTime.time_since_epoch();
+	auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+	//Get the sin and cos of the time.
+	float sinTime = sin(millis);
+	float cosTime = cos(millis);
+
+	//Update all game objects in the scene.
+	for(auto gameObjectIndex = GameObjectsIndex.begin(); gameObjectIndex != GameObjectsIndex.end(); gameObjectIndex++)
+	{
+		//Get the game object.
+		//UnigmaGameObject gameObject = GameObjects[*gameObjectIndex];
+
+		//Update the game object.
+		//gameObject.transform.position += 0.025f*glm::vec3(sinTime*0.01, cosTime*0.01, 0);
+
+		//Update the game object in the global array.
+		//GameObjects[*gameObjectIndex] = gameObject;
+	}
 }
 
 void UnigmaScene::Start()
 {
 }
 
-void UnigmaScene::AddGameObject(UnigmaGameObject gameObject)
+void UnigmaScene::AddGameObject(UnigmaGameObject& gameObject)
 {
 	//Add the game object to Game Manager global GameObjects array. And ensure proper indexing.
 	gameObject.ID = GameObjectsIndex.size();
@@ -52,4 +74,9 @@ void UnigmaScene::CreateScene()
 
 	gameManager->RenderingManager->CreateRenderingObject(Kanaloa);
 	gameManager->RenderingManager->CreateRenderingObject(Sunny);
+
+	std::cout << "Scene created" << std::endl;
+
+
+
 }

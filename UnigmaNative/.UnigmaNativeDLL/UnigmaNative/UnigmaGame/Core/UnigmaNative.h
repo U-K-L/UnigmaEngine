@@ -59,6 +59,7 @@ extern "C" {
 
 	UNIGMANATIVE_API void EndProgram();
 	UNIGMANATIVE_API void StartProgram();
+	UNIGMANATIVE_API void UpdateProgram();
 
 
 	/*

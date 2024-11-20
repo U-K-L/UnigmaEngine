@@ -22,6 +22,17 @@ void UnigmaGameManager::Create()
 	IsCreated = true;
 }
 
+void UnigmaGameManager::Start()
+{
+	SceneManager->Start();
+}
+
+void UnigmaGameManager::Update()
+{
+	SceneManager->Update();
+	RenderingManager->Update();
+}
+
 UnigmaGameManager::~UnigmaGameManager()
 {
 }

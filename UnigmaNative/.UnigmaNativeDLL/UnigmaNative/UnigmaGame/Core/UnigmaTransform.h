@@ -1,13 +1,17 @@
 #pragma once
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <../glm/glm.hpp>
 #include <iostream>
 struct UnigmaTransform
 {
 	glm::mat4 transformMatrix;
 	glm::vec3 position;
-	UnigmaTransform() : transformMatrix(1.0f)
+	int pad;
+	glm::vec3 rotation;
+	int pad2;
+	UnigmaTransform() : transformMatrix(1.0f), position(0.0f), rotation(0.0f)
 	{
-
+		UpdatePosition();
 	}
 	// Override the assignment operator to copy from RenderObject's transformMatrix
 	UnigmaTransform& operator=(float rObjTransform[16]) {
@@ -18,6 +22,13 @@ struct UnigmaTransform
 				transformMatrix[i][j] = rObjTransform[i * 4 + j];
 			}
 		}
+		return *this;
+	}
+
+	// Overload assignment operator for setting position
+	UnigmaTransform& operator=(const glm::vec3& newPosition) {
+		position = newPosition;
+		UpdatePosition(); // Automatically update transformMatrix when position is set
 		return *this;
 	}
 

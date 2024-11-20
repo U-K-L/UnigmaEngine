@@ -43,7 +43,7 @@ void UnigmaSceneManager::CreateScene(std::string sceneName)
 {
 	UnigmaScene scene;
 	scene.Name = sceneName;
-	scene.IsActive = false;
+	scene.IsActive = true;
 	scene.CreateScene();
 
 	std::cout << "Scene " << sceneName << " created" << std::endl;

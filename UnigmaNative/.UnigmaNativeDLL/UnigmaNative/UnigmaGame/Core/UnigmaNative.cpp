@@ -52,6 +52,11 @@ UNIGMANATIVE_API void StartProgram()
 
 }
 
+UNIGMANATIVE_API void UpdateProgram()
+{
+    GameManager->Update();
+}
+
 UNIGMANATIVE_API void EndProgram()
 {
     DebugPrint("Native Plugin ended, Unigma");

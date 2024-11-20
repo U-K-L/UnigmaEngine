@@ -13,6 +13,8 @@ UnigmaScene::~UnigmaScene()
 
 void UnigmaScene::Update()
 {
+
+	/*
 	//Make objects in scene spin in a circle.
 	//Get chrono time.
 	auto currentTime = std::chrono::high_resolution_clock::now();
@@ -27,14 +29,15 @@ void UnigmaScene::Update()
 	for(auto gameObjectIndex = GameObjectsIndex.begin(); gameObjectIndex != GameObjectsIndex.end(); gameObjectIndex++)
 	{
 		//Get the game object.
-		//UnigmaGameObject gameObject = GameObjects[*gameObjectIndex];
+		UnigmaGameObject gameObject = GameObjects[*gameObjectIndex];
 
 		//Update the game object.
-		//gameObject.transform.position += 0.025f*glm::vec3(sinTime*0.01, cosTime*0.01, 0);
+		gameObject.transform.position += 250.0f*glm::vec3(sinTime*0.0001, cosTime*0.0001, 0);
 
 		//Update the game object in the global array.
-		//GameObjects[*gameObjectIndex] = gameObject;
+		GameObjects[*gameObjectIndex] = gameObject;
 	}
+	*/
 }
 
 void UnigmaScene::Start()

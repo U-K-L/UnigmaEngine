@@ -1,6 +1,10 @@
 # Unigma Engine
 
-A custom renderer built for Unity which includes a number of features. This repo should contain all the following (somewhere in the code I guess)
+A custom renderer built for Unity which includes a number of features. 
+
+[This project is inactive as I have went to a Vulkan Renderer](https://github.com/U-K-L/QTEngine)    
+
+This repo should contain all the following (somewhere in the code I guess)
 
 | **Composite**                                      |
 |---------------------------------------------------|

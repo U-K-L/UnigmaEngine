@@ -79,7 +79,4 @@ void UnigmaScene::CreateScene()
 	gameManager->RenderingManager->CreateRenderingObject(Sunny);
 
 	std::cout << "Scene created" << std::endl;
-
-
-
 }

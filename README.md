@@ -8,6 +8,7 @@ A custom renderer built for Unity which includes a number of features. This repo
 
 | **Fluid Simulation**                              |
 |---------------------------------------------------|
+https://www.youtube.com/watch?v=e08XyXebhu8 (for all effects)
 | <img src="Documents/FluidDynamicMovie_023.gif" width="720" alt="Fluid Simulation"> |
 | <img src="Documents/FluidDynamicMovie_048.gif" width="720" alt="Fluid Simulation"> |
 | <img src="Documents/ezgif-5-dc4837bcab.gif" width="720" alt="Fluid Simulation"> |
